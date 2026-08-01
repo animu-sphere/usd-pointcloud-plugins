@@ -4,43 +4,16 @@
 #include "usdpointcloud/PointCloud.h"
 
 #include <pxr/usd/usd/stage.h>
+#include <pxr/usd/sdf/layer.h>
 
 #include <string>
-#include <cstdint>
 #include <vector>
 
 namespace usdgeo {
 
 class PointCloudLayer {
 public:
-    struct Data {
-        std::vector<Vec3d> positions;
-        std::vector<std::uint16_t> intensity;
-        std::vector<std::uint8_t> returnNumber;
-        std::vector<std::uint8_t> numberOfReturns;
-        std::vector<std::uint8_t> classification;
-        std::vector<std::uint8_t> classificationFlags;
-        std::vector<std::uint8_t> scannerChannel;
-        std::vector<std::uint8_t> scanDirectionFlag;
-        std::vector<std::uint8_t> edgeOfFlightLine;
-        std::vector<std::uint8_t> userData;
-        std::vector<std::int16_t> scanAngle;
-        std::vector<std::uint16_t> pointSourceId;
-        std::vector<std::uint16_t> red;
-        std::vector<std::uint16_t> green;
-        std::vector<std::uint16_t> blue;
-        std::vector<std::uint16_t> nir;
-        std::vector<double> gpsTime;
-        std::vector<std::uint8_t> waveformDescriptorIndex;
-        std::vector<std::uint64_t> waveformDataOffset;
-        std::vector<std::uint32_t> waveformPacketSize;
-        std::vector<float> returnPointWaveformLocation;
-        std::vector<float> waveformXt;
-        std::vector<float> waveformYt;
-        std::vector<float> waveformZt;
-        std::vector<std::uint8_t> waveformDataExternal;
-        std::string waveformDataFile;
-    };
+    using Data = usdpointcloud::PointData;
 
     static pxr::UsdStageRefPtr CreateStage();
 
@@ -58,6 +31,42 @@ public:
                                  const usdpointcloud::PointChunk& chunk,
                                  const Data& data);
 };
+
+enum class PointCloudAuthorFailure {
+    None,
+    InvalidLayer,
+    StageCreation,
+    StageMetrics,
+    PointCloud,
+};
+
+bool AuthorPointCloudAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const usdpointcloud::PointCloudAsset& asset);
+
+bool AuthorPointCloudAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const usdpointcloud::PointCloudAsset& asset,
+    PointCloudAuthorFailure& failure);
+
+bool AuthorPointCloudAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const GeoReference& reference,
+    const SpatialBounds& bounds,
+    const usdpointcloud::PointChunk& chunk,
+    const PointCloudLayer::Data& data);
+
+bool AuthorPointCloudAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const GeoReference& reference,
+    const SpatialBounds& bounds,
+    const usdpointcloud::PointChunk& chunk,
+    const PointCloudLayer::Data& data,
+    PointCloudAuthorFailure& failure);
 
 bool AuthorPointCloudAsset(
     const pxr::UsdStageRefPtr& stage,

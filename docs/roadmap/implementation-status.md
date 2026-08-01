@@ -40,7 +40,7 @@
 - [x] Record the plugin adapter and file-format argument contracts
 - [x] Move `geo-las` onto `usdlas::LasReader`
 - [x] Add the preliminary `usdgeo::AuthorPointCloudAsset` authoring API
-- [ ] Move the shared authoring tail into `usdgeo::AuthorPointCloudAsset`
+- [x] Move the shared authoring tail into `usdgeo::AuthorPointCloudAsset`
 - [ ] Normalize file-format arguments and pass read options through the plugins
 - [ ] Shared LOD contracts (`PointTileId`, `PointLodItem`, `PointLodHierarchy`)
 - [ ] LOD validation invariants and typed diagnostics
@@ -54,19 +54,16 @@
 
 ## Next Implementation Sequence
 
-1. Finish thinning the plugins by moving the shared authoring tail out of both
-   plugins.
-2. Normalize file-format arguments and pass read options through, which makes
+1. Normalize file-format arguments and pass read options through, which makes
    the existing chunked reader reachable from a host.
-3. Verify the `usdLod` schema surface against the pinned OpenUSD 26.08 runtime.
-4. Define the shared LOD contracts and their validation invariants, reconciling
+2. Verify the `usdLod` schema surface against the pinned OpenUSD 26.08 runtime.
+3. Define the shared LOD contracts and their validation invariants, reconciling
    `PointTileId` with the existing `usdgeo::TileId`.
-5. Add deterministic, versioned sampling and its cache-key inputs.
-6. Author a single non-tiled LOD root through `usdGeoUsd` for LAS and LAZ.
-7. Add spatial tiling, one LOD root per tile, and payload packaging.
+4. Add deterministic, versioned sampling and its cache-key inputs.
+5. Author a single non-tiled LOD root through `usdGeoUsd` for LAS and LAZ.
+6. Add spatial tiling, one LOD root per tile, and payload packaging.
 
-Steps 1 and 2 come first because the duplication they remove would otherwise be
-copied into every later bundle, and because the streaming reader shipped in the
+Argument normalization comes next because the streaming reader shipped in the
 chunked-reader work is currently unreachable through the plugin layer. See the
 [plugin adapter contract](../architecture/plugin-adapter.md) and the
 [file-format argument contract](../architecture/file-format-arguments.md).

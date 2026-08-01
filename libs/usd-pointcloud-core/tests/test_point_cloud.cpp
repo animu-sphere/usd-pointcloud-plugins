@@ -42,6 +42,26 @@ void TestInvalidChunk() {
     Check(!chunk.IsValid());
 }
 
+void TestPointDataAndAssetChunk() {
+    usdpointcloud::PointData data;
+    data.positions = {{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}};
+    data.intensity = {10, 20};
+    data.classification = {2, 5};
+    Check(data.IsValid());
+
+    usdgeo::SpatialBounds bounds;
+    bounds.Expand(data.positions[0]);
+    bounds.Expand(data.positions[1]);
+    const auto chunk = usdpointcloud::MakePointChunk(data, bounds);
+    Check(chunk.IsValid() && chunk.pointCount == 2);
+    Check(chunk.attributes.size() == 2);
+    Check(chunk.attributes[0].name == "intensity");
+    Check(chunk.attributes[1].name == "classification");
+
+    data.red = {1};
+    Check(!data.IsValid());
+}
+
 void TestReadOptions() {
     usdpointcloud::PointReadOptions options;
     Check(options.IsValid());
@@ -60,6 +80,7 @@ void TestReadOptions() {
 int main() {
     TestAttributesAndChunks();
     TestInvalidChunk();
+    TestPointDataAndAssetChunk();
     TestReadOptions();
     return 0;
 }

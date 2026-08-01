@@ -1,5 +1,6 @@
 #pragma once
 
+#include "usdgeo/GeoReference.h"
 #include "usdgeo/SpatialBounds.h"
 
 #include <cstdint>
@@ -34,6 +35,49 @@ struct PointChunk {
 
     bool IsValid() const noexcept;
 };
+
+struct PointData {
+    std::vector<usdgeo::Vec3d> positions;
+    std::vector<std::uint16_t> intensity;
+    std::vector<std::uint8_t> returnNumber;
+    std::vector<std::uint8_t> numberOfReturns;
+    std::vector<std::uint8_t> classification;
+    std::vector<std::uint8_t> classificationFlags;
+    std::vector<std::uint8_t> scannerChannel;
+    std::vector<std::uint8_t> scanDirectionFlag;
+    std::vector<std::uint8_t> edgeOfFlightLine;
+    std::vector<std::uint8_t> userData;
+    std::vector<std::int16_t> scanAngle;
+    std::vector<std::uint16_t> pointSourceId;
+    std::vector<std::uint16_t> red;
+    std::vector<std::uint16_t> green;
+    std::vector<std::uint16_t> blue;
+    std::vector<std::uint16_t> nir;
+    std::vector<double> gpsTime;
+    std::vector<std::uint8_t> waveformDescriptorIndex;
+    std::vector<std::uint64_t> waveformDataOffset;
+    std::vector<std::uint32_t> waveformPacketSize;
+    std::vector<float> returnPointWaveformLocation;
+    std::vector<float> waveformXt;
+    std::vector<float> waveformYt;
+    std::vector<float> waveformZt;
+    std::vector<std::uint8_t> waveformDataExternal;
+    std::string waveformDataFile;
+
+    bool IsValid() const noexcept;
+};
+
+struct PointCloudAsset {
+    usdgeo::GeoReference reference;
+    usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+    PointChunk chunk;
+    PointData data;
+
+    bool IsValid() const noexcept;
+};
+
+PointChunk MakePointChunk(const PointData& data,
+                         const usdgeo::SpatialBounds& bounds);
 
 struct PointRange {
     std::uint64_t firstPoint = 0;

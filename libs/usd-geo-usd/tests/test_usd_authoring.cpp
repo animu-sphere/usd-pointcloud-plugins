@@ -1,6 +1,8 @@
 #include "usdgeo/PointCloudLayer.h"
 
+#include <pxr/usd/sdf/layer.h>
 #include <pxr/usd/usdGeom/points.h>
+#include <pxr/usd/usdGeom/metrics.h>
 
 #include <cstdlib>
 #include <filesystem>
@@ -169,11 +171,36 @@ void TestInvalidPositionDoesNotMutateStage() {
     Check(!stage->GetPrimAtPath(pxr::SdfPath("/InvalidPointCloud")).IsValid());
 }
 
+void TestLayerAuthoringEntryPoint() {
+    const auto layer = pxr::SdfLayer::CreateAnonymous("usd_geo_asset.usda");
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+    reference.stageUpAxis = "Y";
+
+    usdpointcloud::PointCloudAsset asset;
+    asset.reference = reference;
+    asset.data.positions = {{1000.0, 2000.0, 3000.0}};
+    asset.bounds.Expand({0.0, 0.0, 0.0});
+    asset.chunk = usdpointcloud::MakePointChunk(asset.data, asset.bounds);
+
+    Check(usdgeo::AuthorPointCloudAsset(layer.get(), "/PointCloud", asset));
+    const auto stage = pxr::UsdStage::Open(layer);
+    Check(stage);
+    Check(pxr::UsdGeomGetStageUpAxis(stage) == pxr::TfToken("Y"));
+    Check(stage->GetPrimAtPath(pxr::SdfPath("/PointCloud")).IsValid());
+
+    usdgeo::PointCloudAuthorFailure failure;
+    Check(!usdgeo::AuthorPointCloudAsset(
+        nullptr, "/PointCloud", asset, failure));
+    Check(failure == usdgeo::PointCloudAuthorFailure::InvalidLayer);
+}
+
 } // namespace
 
 int main() {
     TestPointCloudRoundTrip();
     TestOptionalAttributesAreIndependent();
     TestInvalidPositionDoesNotMutateStage();
+    TestLayerAuthoringEntryPoint();
     return 0;
 }

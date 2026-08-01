@@ -5,6 +5,8 @@
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/base/gf/vec3d.h>
 #include <pxr/base/vt/array.h>
+#include <pxr/usd/usdGeom/metrics.h>
+#include <pxr/usd/sdf/layer.h>
 #include <pxr/usd/usdGeom/points.h>
 
 namespace usdgeo {
@@ -13,12 +15,6 @@ namespace {
 
 bool IsValidPrimPath(const std::string& primPath) {
     return !primPath.empty() && primPath.front() == '/';
-}
-
-template <typename T>
-bool HasPointCountOrIsEmpty(const std::vector<T>& values,
-                            std::size_t pointCount) {
-    return values.empty() || values.size() == pointCount;
 }
 
 pxr::VtIntArray ToIntArray(const std::vector<std::uint16_t>& values) {
@@ -68,6 +64,70 @@ bool PointCloudLayer::AuthorPointCloud(
 }
 
 bool AuthorPointCloudAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const usdpointcloud::PointCloudAsset& asset) {
+    PointCloudAuthorFailure failure;
+    return AuthorPointCloudAsset(layer, primPath, asset, failure);
+}
+
+bool AuthorPointCloudAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const usdpointcloud::PointCloudAsset& asset,
+    PointCloudAuthorFailure& failure) {
+    return AuthorPointCloudAsset(layer, primPath, asset.reference,
+                                 asset.bounds, asset.chunk, asset.data, failure);
+}
+
+bool AuthorPointCloudAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const GeoReference& reference,
+    const SpatialBounds& bounds,
+    const usdpointcloud::PointChunk& chunk,
+    const PointCloudLayer::Data& data) {
+    PointCloudAuthorFailure failure;
+    return AuthorPointCloudAsset(layer, primPath, reference, bounds, chunk,
+                                 data, failure);
+}
+
+bool AuthorPointCloudAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const GeoReference& reference,
+    const SpatialBounds& bounds,
+    const usdpointcloud::PointChunk& chunk,
+    const PointCloudLayer::Data& data,
+    PointCloudAuthorFailure& failure) {
+    failure = PointCloudAuthorFailure::None;
+    if (!layer) {
+        failure = PointCloudAuthorFailure::InvalidLayer;
+        return false;
+    }
+
+    const auto stage = PointCloudLayer::CreateStage();
+    if (!stage) {
+        failure = PointCloudAuthorFailure::StageCreation;
+        return false;
+    }
+    if (!pxr::UsdGeomSetStageUpAxis(
+            stage, pxr::TfToken(reference.stageUpAxis)) ||
+        !pxr::UsdGeomSetStageMetersPerUnit(stage, 1.0)) {
+        failure = PointCloudAuthorFailure::StageMetrics;
+        return false;
+    }
+    if (!AuthorPointCloudAsset(stage, primPath, reference, bounds, chunk,
+                               data)) {
+        failure = PointCloudAuthorFailure::PointCloud;
+        return false;
+    }
+
+    layer->TransferContent(stage->GetRootLayer());
+    return true;
+}
+
+bool AuthorPointCloudAsset(
     const pxr::UsdStageRefPtr& stage,
     const std::string& primPath,
     const GeoReference& reference,
@@ -88,42 +148,8 @@ bool AuthorPointCloudAsset(
     const usdpointcloud::PointChunk& chunk,
     const PointCloudLayer::Data& data) {
     if (!stage || !IsValidPrimPath(primPath) || !reference.IsValid() ||
-        !bounds.IsValid() || !chunk.IsValid() ||
-        data.positions.size() != chunk.pointCount ||
-        !HasPointCountOrIsEmpty(data.intensity, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.returnNumber, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.numberOfReturns, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.classification, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.classificationFlags, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.scannerChannel, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.scanDirectionFlag, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.edgeOfFlightLine, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.userData, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.scanAngle, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.pointSourceId, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.red, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.green, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.blue, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.nir, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.gpsTime, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.waveformDescriptorIndex, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.waveformDataOffset, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.waveformPacketSize, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.returnPointWaveformLocation, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.waveformXt, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.waveformYt, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.waveformZt, chunk.pointCount) ||
-        !HasPointCountOrIsEmpty(data.waveformDataExternal, chunk.pointCount) ||
-        (data.returnNumber.empty() != data.numberOfReturns.empty()) ||
-        (data.red.empty() != data.green.empty()) ||
-        (data.red.empty() != data.blue.empty()) ||
-        (data.waveformDescriptorIndex.empty() != data.waveformDataOffset.empty()) ||
-        (data.waveformDescriptorIndex.empty() != data.waveformPacketSize.empty()) ||
-        (data.waveformDescriptorIndex.empty() != data.returnPointWaveformLocation.empty()) ||
-        (data.waveformDescriptorIndex.empty() != data.waveformXt.empty()) ||
-        (data.waveformDescriptorIndex.empty() != data.waveformYt.empty()) ||
-        (data.waveformDescriptorIndex.empty() != data.waveformZt.empty()) ||
-        (data.waveformDescriptorIndex.empty() != data.waveformDataExternal.empty())) {
+        !bounds.IsValid() || !chunk.IsValid() || !data.IsValid() ||
+        data.positions.size() != chunk.pointCount) {
         return false;
     }
 

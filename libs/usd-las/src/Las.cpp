@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <filesystem>
 #include <limits>
 #include <type_traits>
 #include <utility>
@@ -562,6 +563,27 @@ bool LasReader::Read(const LasReadOptions& options,
     return false;
 }
 
+bool LasReader::Read(const LasReadOptions& options,
+                     const LasPointChunkErrorConsumer& consume,
+                     LasHeader& header,
+                     std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    std::string callbackError;
+    const LasPointChunkConsumer bridge =
+        [&](const LasHeader& chunkHeader,
+            const std::vector<LasPoint>& points) {
+            callbackError.clear();
+            return consume(chunkHeader, points, callbackError);
+        };
+    if (Read(options, bridge, header, diagnostics)) {
+        return true;
+    }
+    if (!callbackError.empty() && !diagnostics.empty()) {
+        diagnostics.front().message = callbackError;
+    }
+    return false;
+}
+
 bool LasHeader::IsValid() const noexcept {
     return versionMajor == 1 && versionMinor >= 2 && versionMinor <= 4 &&
            headerSize > 0 && pointRecordLength > 0 &&
@@ -866,6 +888,141 @@ bool DecodePoint(const LasHeader& header,
     }
     AddErrorDiagnostic(error, diagnostics);
     return false;
+}
+
+bool AppendPointData(const LasHeader& header,
+                     const std::vector<LasPoint>& points,
+                     const std::string& sourceFilename,
+                     usdpointcloud::PointData& data,
+                     std::string& error) {
+    if (!header.IsValid() || !data.IsValid() ||
+        data.positions.size() > header.pointCount ||
+        points.size() > header.pointCount - data.positions.size()) {
+        error = "LAS point data does not match the header";
+        return false;
+    }
+
+    if (data.positions.empty()) {
+        const auto pointCount = static_cast<std::size_t>(header.pointCount);
+        data.positions.reserve(pointCount);
+        data.intensity.reserve(pointCount);
+        data.returnNumber.reserve(pointCount);
+        data.numberOfReturns.reserve(pointCount);
+        data.classification.reserve(pointCount);
+        if (header.pointFormat >= 6) {
+            data.classificationFlags.reserve(pointCount);
+            data.scannerChannel.reserve(pointCount);
+        }
+        data.scanDirectionFlag.reserve(pointCount);
+        data.edgeOfFlightLine.reserve(pointCount);
+        data.userData.reserve(pointCount);
+        data.scanAngle.reserve(pointCount);
+        data.pointSourceId.reserve(pointCount);
+        if (header.pointFormat == 2 || header.pointFormat == 3 ||
+            header.pointFormat == 7 || header.pointFormat == 8) {
+            data.red.reserve(pointCount);
+            data.green.reserve(pointCount);
+            data.blue.reserve(pointCount);
+        }
+        if (header.pointFormat == 1 || header.pointFormat == 3 ||
+            header.pointFormat >= 6) {
+            data.gpsTime.reserve(pointCount);
+        }
+        if (header.pointFormat == 8 || header.pointFormat == 10) {
+            data.nir.reserve(pointCount);
+        }
+        if (header.pointFormat == 4 || header.pointFormat == 5 ||
+            header.pointFormat == 9 || header.pointFormat == 10) {
+            data.waveformDescriptorIndex.reserve(pointCount);
+            data.waveformDataOffset.reserve(pointCount);
+            data.waveformPacketSize.reserve(pointCount);
+            data.returnPointWaveformLocation.reserve(pointCount);
+            data.waveformXt.reserve(pointCount);
+            data.waveformYt.reserve(pointCount);
+            data.waveformZt.reserve(pointCount);
+            data.waveformDataExternal.reserve(pointCount);
+        }
+    }
+
+    for (const auto& point : points) {
+        data.positions.push_back(point.sourcePosition);
+        data.intensity.push_back(point.intensity);
+        data.returnNumber.push_back(point.returnNumber);
+        data.numberOfReturns.push_back(point.numberOfReturns);
+        data.classification.push_back(point.classification);
+        if (header.pointFormat >= 6) {
+            data.classificationFlags.push_back(point.classificationFlags);
+            data.scannerChannel.push_back(point.scannerChannel);
+        }
+        data.scanDirectionFlag.push_back(point.scanDirectionFlag);
+        data.edgeOfFlightLine.push_back(point.edgeOfFlightLine);
+        data.userData.push_back(point.userData);
+        data.scanAngle.push_back(point.scanAngle);
+        data.pointSourceId.push_back(point.pointSourceId);
+        if (point.hasColor) {
+            data.red.push_back(point.red);
+            data.green.push_back(point.green);
+            data.blue.push_back(point.blue);
+        }
+        if (point.hasGpsTime) {
+            data.gpsTime.push_back(point.gpsTime);
+        }
+        if (header.pointFormat == 8 || header.pointFormat == 10) {
+            data.nir.push_back(point.nir);
+        }
+        if (point.hasWaveform) {
+            data.waveformDescriptorIndex.push_back(point.waveform.descriptorIndex);
+            data.waveformDataOffset.push_back(point.waveform.dataOffset);
+            data.waveformPacketSize.push_back(point.waveform.packetSize);
+            data.returnPointWaveformLocation.push_back(
+                point.waveform.returnPointLocation);
+            data.waveformXt.push_back(point.waveform.xt);
+            data.waveformYt.push_back(point.waveform.yt);
+            data.waveformZt.push_back(point.waveform.zt);
+            data.waveformDataExternal.push_back(point.waveform.external ? 1 : 0);
+            if (point.waveform.external && data.waveformDataFile.empty()) {
+                auto waveformPath = std::filesystem::path(sourceFilename);
+                waveformPath.replace_extension(".wdp");
+                data.waveformDataFile = waveformPath.string();
+            }
+        }
+    }
+
+    if (!data.IsValid()) {
+        error = "LAS point attributes have inconsistent lengths";
+        return false;
+    }
+    return true;
+}
+
+bool BuildPointCloudAsset(const LasHeader& header,
+                          const usdpointcloud::PointData& data,
+                          const std::string& missingCrsMessage,
+                          usdpointcloud::PointCloudAsset& asset,
+                          std::string& error) {
+    if (!header.IsValid() || !data.IsValid() ||
+        data.positions.size() != header.pointCount) {
+        error = "LAS point data does not match the header";
+        return false;
+    }
+
+    asset = {};
+    asset.reference.wkt = header.crsWkt.empty() ? missingCrsMessage
+                                                 : header.crsWkt;
+    asset.reference.sourceUpAxis = "Z";
+    asset.reference.stageUpAxis = "Y";
+    asset.reference.localOrigin = header.bounds.minimum;
+    if (!asset.reference.TryToLocal(header.bounds, asset.bounds)) {
+        error = "LAS bounds could not be transformed to local coordinates";
+        return false;
+    }
+    asset.data = data;
+    asset.chunk = usdpointcloud::MakePointChunk(asset.data, asset.bounds);
+    if (!asset.IsValid()) {
+        error = "LAS point cloud asset is invalid";
+        return false;
+    }
+    return true;
 }
 
 } // namespace usdlas
