@@ -21,7 +21,8 @@
 - [x] LAS reader integration and deterministic conformance fixture
 - [x] LAS VLR/EVLR inspection and WKT CRS extraction
 - [x] Select laz-perf as the initial LAZ codec and define the chunk reader contract
-- [ ] LAZ reader
+- [x] Add the laz-perf adapter behind the `usdLaz` chunk reader contract
+- [ ] LAZ reader conformance fixture and FileFormat Plugin integration
 - [ ] Tile / LOD
 - [ ] USDC cache
 
