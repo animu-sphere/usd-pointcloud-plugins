@@ -1,0 +1,136 @@
+#include <pxr/base/vt/array.h>
+#include <pxr/base/plug/plugin.h>
+#include <pxr/base/plug/registry.h>
+#include <pxr/usd/sdf/fileFormat.h>
+#include <pxr/usd/sdf/layer.h>
+#include <pxr/usd/usdGeom/points.h>
+
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <string>
+#include <vector>
+
+namespace {
+
+void Check(bool condition) {
+    if (!condition) {
+        std::abort();
+    }
+}
+
+template <typename T>
+void Write(std::vector<std::uint8_t>& bytes, std::size_t offset, T value) {
+    std::memcpy(bytes.data() + offset, &value, sizeof(T));
+}
+
+std::vector<std::uint8_t> MakeFixture() {
+    constexpr std::size_t headerSize = 227;
+    constexpr std::size_t recordLength = 34;
+    constexpr std::size_t pointCount = 2;
+    std::vector<std::uint8_t> bytes(headerSize + recordLength * pointCount, 0);
+    std::memcpy(bytes.data(), "LASF", 4);
+    Write(bytes, 24, std::uint8_t{1});
+    Write(bytes, 25, std::uint8_t{2});
+    Write(bytes, 94, static_cast<std::uint16_t>(headerSize));
+    Write(bytes, 96, static_cast<std::uint32_t>(headerSize));
+    Write(bytes, 104, std::uint8_t{3});
+    Write(bytes, 105, static_cast<std::uint16_t>(recordLength));
+    Write(bytes, 107, static_cast<std::uint32_t>(pointCount));
+    Write(bytes, 131, 0.01);
+    Write(bytes, 139, 0.01);
+    Write(bytes, 147, 0.01);
+    Write(bytes, 155, 1000.0);
+    Write(bytes, 163, 2000.0);
+    Write(bytes, 171, 3000.0);
+    Write(bytes, 179, 1001.0);
+    Write(bytes, 187, 1000.0);
+    Write(bytes, 195, 2001.0);
+    Write(bytes, 203, 2000.0);
+    Write(bytes, 211, 3003.0);
+    Write(bytes, 219, 3000.0);
+
+    const auto record = [&](std::size_t offset, std::int32_t x,
+                            std::int32_t y, std::int32_t z,
+                            std::uint16_t intensity,
+                            std::uint8_t classification, double gpsTime) {
+        Write(bytes, offset, x);
+        Write(bytes, offset + 4, y);
+        Write(bytes, offset + 8, z);
+        Write(bytes, offset + 12, intensity);
+        Write(bytes, offset + 14, std::uint8_t{0x21});
+        Write(bytes, offset + 15, classification);
+        Write(bytes, offset + 20, gpsTime);
+        Write(bytes, offset + 28, static_cast<std::uint16_t>(100));
+        Write(bytes, offset + 30, static_cast<std::uint16_t>(200));
+        Write(bytes, offset + 32, static_cast<std::uint16_t>(300));
+    };
+    record(headerSize, 0, 0, 0, 42, 2, 12.5);
+    record(headerSize + recordLength, 100, 100, 300, 84, 5, 25.0);
+    return bytes;
+}
+
+void TestFileFormatIntegration() {
+    const auto plugInfo = std::filesystem::path(GEOLAS_SOURCE_DIR) /
+                          "plugin" / "resources" / "geo-las" /
+                          "plugInfo.json";
+    const auto plugins = pxr::PlugRegistry::GetInstance().RegisterPlugins(
+        plugInfo.string());
+    Check(plugins.size() == 1);
+    Check(plugins.front()->Load());
+    const auto format = pxr::SdfFileFormat::FindByExtension("sample.las");
+    Check(format);
+
+    const auto path = std::filesystem::temp_directory_path() /
+                      "usd_geo_plugins_conformance.las";
+    {
+        const auto bytes = MakeFixture();
+        std::ofstream output(path, std::ios::binary);
+        Check(output.good());
+        output.write(reinterpret_cast<const char*>(bytes.data()),
+                     static_cast<std::streamsize>(bytes.size()));
+        Check(output.good());
+    }
+
+    const auto layer = pxr::SdfLayer::FindOrOpen(path.string());
+    Check(layer);
+    Check(layer->GetPrimAtPath(pxr::SdfPath("/PointCloud")));
+    const auto stage = pxr::UsdStage::Open(layer);
+    Check(stage);
+    const auto points = pxr::UsdGeomPoints::Get(
+        stage, pxr::SdfPath("/PointCloud"));
+    Check(points.GetPrim().IsValid());
+
+    pxr::VtVec3fArray positions;
+    Check(points.GetPointsAttr().Get(&positions));
+    Check(positions.size() == 2);
+    Check(positions[1] == pxr::GfVec3f(1.0f, 3.0f, -1.0f));
+
+    pxr::VtIntArray intensity;
+    const auto intensityAttribute = layer->GetAttributeAtPath(
+        pxr::SdfPath("/PointCloud.geo:intensity"));
+    Check(intensityAttribute != nullptr);
+    const auto intensityValue = intensityAttribute->GetDefaultValue();
+    Check(intensityValue.IsHolding<pxr::VtIntArray>());
+    intensity = intensityValue.UncheckedGet<pxr::VtIntArray>();
+    Check(intensity.size() == 2 && intensity[0] == 42 && intensity[1] == 84);
+
+    pxr::VtArray<unsigned char> classification;
+    Check(points.GetPrim()
+              .GetAttribute(pxr::TfToken("geo:classification"))
+              .Get(&classification));
+    Check(classification.size() == 2 && classification[0] == 2 &&
+          classification[1] == 5);
+
+    std::error_code error;
+    std::filesystem::remove(path, error);
+}
+
+} // namespace
+
+int main() {
+    TestFileFormatIntegration();
+    return 0;
+}

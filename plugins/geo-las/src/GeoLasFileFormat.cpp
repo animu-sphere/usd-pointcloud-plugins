@@ -91,8 +91,22 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
         return false;
     }
     std::vector<std::uint8_t> record(recordLength);
-    std::vector<usdgeo::Vec3d> positions;
-    positions.reserve(static_cast<std::size_t>(header.pointCount));
+    usdgeo::PointCloudLayer::Data pointData;
+    pointData.positions.reserve(static_cast<std::size_t>(header.pointCount));
+    pointData.intensity.reserve(static_cast<std::size_t>(header.pointCount));
+    pointData.returnNumber.reserve(static_cast<std::size_t>(header.pointCount));
+    pointData.numberOfReturns.reserve(static_cast<std::size_t>(header.pointCount));
+    pointData.classification.reserve(static_cast<std::size_t>(header.pointCount));
+    if (header.pointFormat == 2 || header.pointFormat == 3 ||
+        header.pointFormat == 7 || header.pointFormat == 8) {
+        pointData.red.reserve(static_cast<std::size_t>(header.pointCount));
+        pointData.green.reserve(static_cast<std::size_t>(header.pointCount));
+        pointData.blue.reserve(static_cast<std::size_t>(header.pointCount));
+    }
+    if (header.pointFormat == 1 || header.pointFormat == 3 ||
+        header.pointFormat >= 6) {
+        pointData.gpsTime.reserve(static_cast<std::size_t>(header.pointCount));
+    }
     for (std::uint64_t index = 0; index < header.pointCount; ++index) {
         if (!input.read(reinterpret_cast<char*>(record.data()),
                         static_cast<std::streamsize>(record.size()))) {
@@ -105,7 +119,19 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
             TF_RUNTIME_ERROR("Unable to decode LAS point {}: {}", index, error);
             return false;
         }
-        positions.push_back(point.sourcePosition);
+        pointData.positions.push_back(point.sourcePosition);
+        pointData.intensity.push_back(point.intensity);
+        pointData.returnNumber.push_back(point.returnNumber);
+        pointData.numberOfReturns.push_back(point.numberOfReturns);
+        pointData.classification.push_back(point.classification);
+        if (point.hasColor) {
+            pointData.red.push_back(point.red);
+            pointData.green.push_back(point.green);
+            pointData.blue.push_back(point.blue);
+        }
+        if (point.hasGpsTime) {
+            pointData.gpsTime.push_back(point.gpsTime);
+        }
     }
 
     usdgeo::GeoReference reference;
@@ -122,8 +148,23 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
     usdpointcloud::PointChunk chunk;
     chunk.pointCount = header.pointCount;
     chunk.bounds = bounds;
-    chunk.attributes.push_back({"classification",
-                                usdpointcloud::PointAttributeType::UInt8});
+    chunk.attributes = {
+        {"intensity", usdpointcloud::PointAttributeType::UInt16},
+        {"returnNumber", usdpointcloud::PointAttributeType::UInt8},
+        {"numberOfReturns", usdpointcloud::PointAttributeType::UInt8},
+        {"classification", usdpointcloud::PointAttributeType::UInt8}};
+    if (!pointData.red.empty()) {
+        chunk.attributes.push_back(
+            {"red", usdpointcloud::PointAttributeType::UInt16});
+        chunk.attributes.push_back(
+            {"green", usdpointcloud::PointAttributeType::UInt16});
+        chunk.attributes.push_back(
+            {"blue", usdpointcloud::PointAttributeType::UInt16});
+    }
+    if (!pointData.gpsTime.empty()) {
+        chunk.attributes.push_back(
+            {"gpsTime", usdpointcloud::PointAttributeType::Float64});
+    }
 
     const auto usda = SdfFileFormat::FindByExtension("usda");
     const auto generated = SdfLayer::CreateAnonymous(
@@ -140,8 +181,8 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
                          resolvedPath);
         return false;
     }
-    if (!usdgeo::PointCloudLayer::AuthorPointCloud(
-            stage, "/PointCloud", reference, bounds, chunk, positions)) {
+        if (!usdgeo::PointCloudLayer::AuthorPointCloud(
+            stage, "/PointCloud", reference, bounds, chunk, pointData)) {
         TF_RUNTIME_ERROR("Unable to author LAS point cloud to USD layer: {}",
                          resolvedPath);
         return false;

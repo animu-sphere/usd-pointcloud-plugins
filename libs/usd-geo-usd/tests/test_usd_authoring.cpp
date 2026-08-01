@@ -25,13 +25,18 @@ void TestPointCloudRoundTrip() {
     chunk.pointCount = 2;
     chunk.bounds.Expand({1000.0, 2000.0, 3000.0});
     chunk.bounds.Expand({1002.0, 2003.0, 3004.0});
-    chunk.attributes = {{"classification",
-                         usdpointcloud::PointAttributeType::UInt8}};
+    chunk.attributes = {
+        {"intensity", usdpointcloud::PointAttributeType::UInt16},
+        {"classification", usdpointcloud::PointAttributeType::UInt8}};
     const std::vector<usdgeo::Vec3d> positions = {
         {1000.0, 2000.0, 3000.0}, {1002.0, 2003.0, 3004.0}};
+    usdgeo::PointCloudLayer::Data data;
+    data.positions = positions;
+    data.intensity = {42, 84};
+    data.classification = {2, 5};
 
     Check(usdgeo::PointCloudLayer::AuthorPointCloud(
-        stage, "/PointCloud", reference, chunk.bounds, chunk, positions));
+        stage, "/PointCloud", reference, chunk.bounds, chunk, data));
 
     const auto layerPath =
         std::filesystem::temp_directory_path() / "usd_geo_points.usda";
@@ -47,6 +52,11 @@ void TestPointCloudRoundTrip() {
     Check(points.GetPointsAttr().Get(&authoredPositions));
     Check(authoredPositions.size() == 2);
     Check(authoredPositions[1] == pxr::GfVec3f(2.0f, 3.0f, 4.0f));
+    pxr::VtIntArray authoredIntensity;
+    Check(points.GetPrim()
+              .GetAttribute(pxr::TfToken("geo:intensity"))
+              .Get(&authoredIntensity));
+    Check(authoredIntensity.size() == 2 && authoredIntensity[1] == 84);
 
     int epsgCode = 0;
     Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:epsgCode")).Get(&epsgCode));
