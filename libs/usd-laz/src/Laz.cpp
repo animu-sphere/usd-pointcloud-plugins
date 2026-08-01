@@ -30,6 +30,7 @@ bool LazReader::Read(
     bool complete = false;
     while (!complete) {
         std::vector<usdlas::LasPoint> points;
+        complete = false;
         if (!decoder_->ReadChunk(options.chunkPointLimit, points, complete,
                                  error)) {
             return false;
