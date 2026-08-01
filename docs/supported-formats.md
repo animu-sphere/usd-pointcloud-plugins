@@ -22,7 +22,8 @@ Status vocabulary:
 
 LAZ accepts the same versions. The LAZ reader clears the compression bit of the
 point data record format byte before header inspection and then applies the
-same LAS validation.
+same LAS validation for formats 0-3 and 6-8. The bundled codec does not decode
+compressed waveform formats 4, 5, 9, and 10, so those LAZ inputs are rejected.
 
 ## Point Data Record Formats
 
@@ -32,13 +33,13 @@ same LAS validation.
 | 1 | 1.2-1.4 | Supported | Format 0 plus GPS time |
 | 2 | 1.2-1.4 | Supported | Format 0 plus RGB |
 | 3 | 1.2-1.4 | Supported | Format 0 plus GPS time and RGB |
-| 4 | 1.3-1.4 | Rejected | Waveform packets are not implemented |
-| 5 | 1.3-1.4 | Rejected | Waveform packets are not implemented |
+| 4 | 1.3-1.4 | Supported | Format 1 plus waveform packet metadata |
+| 5 | 1.3-1.4 | Supported | Format 3 plus waveform packet metadata |
 | 6 | 1.4 only | Supported | XYZ, intensity, returns, classification, GPS time |
 | 7 | 1.4 only | Supported | Format 6 plus RGB |
 | 8 | 1.4 only | Supported | Format 7 fields plus NIR |
-| 9 | 1.4 only | Rejected | Waveform packets are not implemented |
-| 10 | 1.4 only | Rejected | Waveform packets are not implemented |
+| 9 | 1.4 only | Supported | Format 6 plus waveform packet metadata |
+| 10 | 1.4 only | Supported | Format 7 plus waveform packet metadata |
 
 Formats 6-10 are accepted only in LAS 1.4. A file that declares format 6, 7,
 or 8 in LAS 1.2 or 1.3 is rejected.
@@ -66,7 +67,13 @@ length is accepted, but the trailing bytes are not interpreted.
 | Scan angle / rank | all | Supported | `geo:scanAngle` (`int[]`) |
 | Point source ID | all | Supported | `geo:pointSourceId` (`int[]`) |
 | NIR | 8 | Supported | `geo:nir` (`int[]`) |
-| Waveform metadata | 4, 5, 9, 10 | Not implemented | - |
+| Waveform descriptor index | 4, 5, 9, 10 | Supported | `geo:waveformDescriptorIndex` (`uchar[]`) |
+| Waveform data offset | 4, 5, 9, 10 | Supported | `geo:waveformDataOffset` (`uint64[]`) |
+| Waveform packet size | 4, 5, 9, 10 | Supported | `geo:waveformPacketSize` (`uint[]`) |
+| Return point waveform location | 4, 5, 9, 10 | Supported | `geo:returnPointWaveformLocation` (`float[]`) |
+| Waveform parameters | 4, 5, 9, 10 | Supported | `geo:waveformXt`, `geo:waveformYt`, `geo:waveformZt` (`float[]`) |
+| External waveform data flag | 4, 5, 9, 10 | Supported | `geo:waveformDataExternal` (`uchar[]`) |
+| External waveform data file | 4, 5, 9, 10 | Supported | `geo:waveformDataFile` (`string`) |
 | Extra Bytes | all | Descriptor metadata supported | Raw VLR and typed descriptor metadata retained; point attributes are not decoded yet |
 
 Positions are decoded as `double` in source coordinates using the header scale
@@ -84,7 +91,7 @@ generic point schema or primvars yet.
 | `LASF_Projection` 2112 (WKT) | Supported | Extracted into `geo:wkt` |
 | `LASF_Projection` 34735-34737 (GeoTIFF) | Supported | Key directory, double parameters, and ASCII parameters are parsed |
 | `LASF_Spec` 4 (Extra Bytes) | Supported | Descriptor type, options, name, limits, scale, offset, and description are parsed |
-| Waveform packet descriptors | Read only | Not interpreted |
+| Waveform packet descriptors | Read only | Raw descriptors retained; per-point packet metadata is decoded |
 
 ## CRS
 
@@ -141,8 +148,9 @@ axis is `Z` and the stage up axis is `Y`, so
   path is not exposed through the plugins.
 - Positions are stored as `float` relative to the local origin. Absolute source
   precision is preserved only through `geo:localOrigin`.
-- Point-record decoding uses `memcpy` on the raw record, so a big-endian host
-  is not supported. Endian-safe decoding is planned.
+- Waveform sample data is not fetched or interpreted; packet offsets, sizes,
+  parameters, external-data flag, and sibling `.wdp` reference are retained
+  for deferred loading.
 - Errors are string messages carrying a stable `LASxxx` or `LAZxxx` prefix; a
   typed diagnostics API is planned. See
   [diagnostics](architecture/diagnostics.md).

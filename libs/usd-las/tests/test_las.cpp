@@ -44,7 +44,17 @@ std::vector<std::uint8_t> MakeHeader(std::uint8_t versionMinor,
     Write(bytes, 94, static_cast<std::uint16_t>(headerSize));
     Write(bytes, 96, headerSize);
     Write(bytes, 104, format);
-    Write(bytes, 105, std::uint16_t{34});
+    const auto recordLength = format == 0 ? 20
+                              : format == 1 ? 28
+                              : format == 2 ? 26
+                              : format == 3 ? 34
+                              : format == 4 ? 57
+                              : format == 5 ? 63
+                              : format == 6 ? 30
+                              : format == 7 ? 36
+                              : format == 8 ? 38
+                                             : format == 9 ? 59 : 65;
+    Write(bytes, 105, static_cast<std::uint16_t>(recordLength));
     Write(bytes, 107, std::uint32_t{1});
     Write(bytes, 131, 0.01);
     Write(bytes, 139, 0.01);
@@ -126,6 +136,43 @@ void TestValidation() {
     Check(diagnostics.size() == 1 &&
           diagnostics.front().code == usdgeo::DiagnosticCode::NonFiniteCoordinate);
 }
+
+    void TestWaveformPointFormats() {
+        const auto check = [](std::uint8_t versionMinor,
+                      std::uint8_t format,
+                      std::size_t waveformOffset) {
+          auto bytes = MakeHeader(versionMinor, format);
+          usdlas::LasHeader header;
+          std::string error;
+          Check(usdlas::InspectHeader(bytes, header, error));
+          std::vector<std::uint8_t> record(header.pointRecordLength, 0);
+          Write(record, waveformOffset, std::uint8_t{7});
+          Write(record, waveformOffset + 1,
+              (std::uint64_t{1} << 63) | std::uint64_t{1234});
+          Write(record, waveformOffset + 9, std::uint32_t{48});
+          Write(record, waveformOffset + 13, 0.25f);
+          Write(record, waveformOffset + 17, 1.0f);
+          Write(record, waveformOffset + 21, 2.0f);
+          Write(record, waveformOffset + 25, 3.0f);
+          usdlas::LasPoint point;
+          Check(usdlas::DecodePoint(header, record, point, error));
+          Check(point.hasWaveform && point.waveform.descriptorIndex == 7 &&
+              point.waveform.external && point.waveform.dataOffset == 1234 &&
+              point.waveform.packetSize == 48 &&
+              point.waveform.returnPointLocation == 0.25f &&
+              point.waveform.xt == 1.0f && point.waveform.yt == 2.0f &&
+              point.waveform.zt == 3.0f);
+        };
+
+        check(3, 4, 28);
+        check(3, 5, 34);
+        check(4, 9, 30);
+        check(4, 10, 36);
+
+        usdlas::LasHeader header;
+        std::string error;
+        Check(!usdlas::InspectHeader(MakeHeader(2, 4), header, error));
+    }
 
 void TestVariableLengthRecords() {
     auto bytes = MakeHeader(2, 0);
@@ -238,6 +285,7 @@ void TestVariableLengthRecords() {
 int main() {
     TestHeaderAndPoint();
     TestValidation();
+    TestWaveformPointFormats();
     TestVariableLengthRecords();
     return 0;
 }

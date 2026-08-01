@@ -31,6 +31,15 @@ public:
         std::vector<std::uint16_t> blue;
         std::vector<std::uint16_t> nir;
         std::vector<double> gpsTime;
+        std::vector<std::uint8_t> waveformDescriptorIndex;
+        std::vector<std::uint64_t> waveformDataOffset;
+        std::vector<std::uint32_t> waveformPacketSize;
+        std::vector<float> returnPointWaveformLocation;
+        std::vector<float> waveformXt;
+        std::vector<float> waveformYt;
+        std::vector<float> waveformZt;
+        std::vector<std::uint8_t> waveformDataExternal;
+        std::string waveformDataFile;
     };
 
     static pxr::UsdStageRefPtr CreateStage();
