@@ -25,8 +25,10 @@ bool ReadHeaderBytes(const std::string& filename,
         error = "could not determine LAZ file size";
         return false;
     }
-    const auto prefixSize = static_cast<std::size_t>(
-        fileSize < static_cast<std::streamoff>(375) ? fileSize : 375);
+    std::size_t prefixSize = 375;
+    if (fileSize < std::streampos(375)) {
+        prefixSize = static_cast<std::size_t>(fileSize);
+    }
     stream.seekg(0);
     bytes.resize(prefixSize);
     stream.read(reinterpret_cast<char*>(bytes.data()),
