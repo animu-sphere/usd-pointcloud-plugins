@@ -1,7 +1,11 @@
 #include "usdpointcloud/PointCloud.h"
+#include "usdpointcloud/FileFormatArguments.h"
 
 #include <cstdlib>
 #include <limits>
+#include <map>
+#include <string>
+#include <vector>
 
 namespace {
 
@@ -75,6 +79,51 @@ void TestReadOptions() {
     Check(!options.IsValid());
 }
 
+void TestFileFormatArgumentNormalization() {
+    std::map<std::string, std::string> arguments = {
+        {"attributes", "rgb, xyz"},
+        {"chunkPointLimit", "2"},
+        {"rangeFirstPoint", "4"},
+        {"rangePointCount", "3"}};
+    usdpointcloud::PointReadRequest request;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics));
+    Check(diagnostics.empty());
+    Check(request.readOptions.chunkPointLimit == 2);
+    Check(request.readOptions.range.firstPoint == 4);
+    Check(request.readOptions.range.pointCount == 3);
+    Check(request.normalizedArguments ==
+          "chunkPointLimit=2&rangeFirstPoint=4&rangePointCount=3&attributes=blue,green,red,xyz");
+
+    std::map<std::string, std::string> encoded;
+    std::string error;
+    Check(usdpointcloud::ParseFileFormatArgumentString(
+        "rangePointCount=3&rangeFirstPoint=4", encoded, error));
+    Check(encoded["rangeFirstPoint"] == "4");
+
+    arguments = {{"unknown", "value"}};
+    Check(!usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics));
+    Check(diagnostics.size() == 1 &&
+          diagnostics.front().code == usdgeo::DiagnosticCode::UnknownFormatArgument);
+}
+
+void TestAttributeSelection() {
+    usdpointcloud::PointData data;
+    data.positions = {{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}};
+    data.intensity = {10, 20};
+    data.red = {1, 2};
+    data.green = {3, 4};
+    data.blue = {5, 6};
+    std::string error;
+    Check(usdpointcloud::SelectPointDataAttributes(
+        data, {"blue", "green", "red", "xyz"}, error));
+    Check(data.positions.size() == 2 && data.intensity.empty() &&
+          data.red.size() == 2 && data.green.size() == 2 &&
+          data.blue.size() == 2);
+}
+
 } // namespace
 
 int main() {
@@ -82,5 +131,7 @@ int main() {
     TestInvalidChunk();
     TestPointDataAndAssetChunk();
     TestReadOptions();
+    TestFileFormatArgumentNormalization();
+    TestAttributeSelection();
     return 0;
 }

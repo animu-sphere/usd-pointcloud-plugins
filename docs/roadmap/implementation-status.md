@@ -41,7 +41,7 @@
 - [x] Move `geo-las` onto `usdlas::LasReader`
 - [x] Add the preliminary `usdgeo::AuthorPointCloudAsset` authoring API
 - [x] Move the shared authoring tail into `usdgeo::AuthorPointCloudAsset`
-- [ ] Normalize file-format arguments and pass read options through the plugins
+- [x] Normalize file-format arguments and pass read options through the plugins
 - [ ] Shared LOD contracts (`PointTileId`, `PointLodItem`, `PointLodHierarchy`)
 - [ ] LOD validation invariants and typed diagnostics
 - [ ] Deterministic, versioned point sampling
@@ -54,17 +54,16 @@
 
 ## Next Implementation Sequence
 
-1. Normalize file-format arguments and pass read options through, which makes
-   the existing chunked reader reachable from a host.
-2. Verify the `usdLod` schema surface against the pinned OpenUSD 26.08 runtime.
-3. Define the shared LOD contracts and their validation invariants, reconciling
+1. Verify the `usdLod` schema surface against the pinned OpenUSD 26.08 runtime.
+2. Define the shared LOD contracts and their validation invariants, reconciling
    `PointTileId` with the existing `usdgeo::TileId`.
-4. Add deterministic, versioned sampling and its cache-key inputs.
-5. Author a single non-tiled LOD root through `usdGeoUsd` for LAS and LAZ.
-6. Add spatial tiling, one LOD root per tile, and payload packaging.
+3. Add deterministic, versioned sampling and its cache-key inputs.
+4. Author a single non-tiled LOD root through `usdGeoUsd` for LAS and LAZ.
+5. Add spatial tiling, one LOD root per tile, and payload packaging.
 
-Argument normalization comes next because the streaming reader shipped in the
-chunked-reader work is currently unreachable through the plugin layer. See the
+Argument normalization now makes the streaming reader's chunk and point-range
+controls reachable through the plugin layer. Attribute selection is also
+normalized before authoring; see the
 [plugin adapter contract](../architecture/plugin-adapter.md) and the
 [file-format argument contract](../architecture/file-format-arguments.md).
 

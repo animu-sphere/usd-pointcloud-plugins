@@ -29,3 +29,4 @@ user-visible contract; see the
 | LAS014 | FATAL | import | USD layer could not be created |
 | LAS015 | FATAL | import | USD stage metrics could not be set |
 | LAS016 | FATAL | import | LAS point cloud could not be authored |
+| LAS017 | FATAL | import | LAS file-format arguments are invalid or unsupported |

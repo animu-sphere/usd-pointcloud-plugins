@@ -212,8 +212,11 @@ void TestMissingFileDiagnostic() {
     const auto path = std::filesystem::temp_directory_path() /
                       ("usd_geo_plugins_missing_" +
                        std::to_string(uniqueSuffix) + ".las");
-    const auto layer = pxr::SdfLayer::FindOrOpen(path.string());
-    Check(!layer);
+    const auto format = pxr::SdfFileFormat::FindByExtension("sample.las");
+    Check(format);
+    const auto layer = pxr::SdfLayer::CreateAnonymous("missing.las");
+    Check(layer);
+    Check(!format->Read(layer.operator->(), path.string(), false));
     Check(!mark.IsClean());
     Check(mark.GetBegin()->GetCommentary().find("[LAS002]") !=
           std::string::npos);

@@ -183,7 +183,8 @@ void TestLayerAuthoringEntryPoint() {
     asset.bounds.Expand({0.0, 0.0, 0.0});
     asset.chunk = usdpointcloud::MakePointChunk(asset.data, asset.bounds);
 
-    Check(usdgeo::AuthorPointCloudAsset(layer.get(), "/PointCloud", asset));
+    Check(usdgeo::AuthorPointCloudAsset(
+        layer.operator->(), "/PointCloud", asset));
     const auto stage = pxr::UsdStage::Open(layer);
     Check(stage);
     Check(pxr::UsdGeomGetStageUpAxis(stage) == pxr::TfToken("Y"));

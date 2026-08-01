@@ -1001,7 +1001,7 @@ bool BuildPointCloudAsset(const LasHeader& header,
                           usdpointcloud::PointCloudAsset& asset,
                           std::string& error) {
     if (!header.IsValid() || !data.IsValid() ||
-        data.positions.size() != header.pointCount) {
+        data.positions.empty() || data.positions.size() > header.pointCount) {
         error = "LAS point data does not match the header";
         return false;
     }
@@ -1012,7 +1012,11 @@ bool BuildPointCloudAsset(const LasHeader& header,
     asset.reference.sourceUpAxis = "Z";
     asset.reference.stageUpAxis = "Y";
     asset.reference.localOrigin = header.bounds.minimum;
-    if (!asset.reference.TryToLocal(header.bounds, asset.bounds)) {
+    usdgeo::SpatialBounds sourceBounds = usdgeo::SpatialBounds::Empty();
+    for (const auto& position : data.positions) {
+        sourceBounds.Expand(position);
+    }
+    if (!asset.reference.TryToLocal(sourceBounds, asset.bounds)) {
         error = "LAS bounds could not be transformed to local coordinates";
         return false;
     }

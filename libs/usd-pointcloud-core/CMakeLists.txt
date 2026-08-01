@@ -5,7 +5,9 @@ project(usdPointCloudCore
     DESCRIPTION "Format-independent point-cloud contracts"
     LANGUAGES CXX)
 
-add_library(usdPointCloudCore STATIC src/PointCloud.cpp)
+add_library(usdPointCloudCore STATIC
+    src/FileFormatArguments.cpp
+    src/PointCloud.cpp)
 add_library(usdpointcloud::core ALIAS usdPointCloudCore)
 set_target_properties(usdPointCloudCore PROPERTIES
     EXPORT_NAME core

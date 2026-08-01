@@ -3,6 +3,7 @@
 
 #include "usdgeo/Diagnostic.h"
 #include "usdgeo/PointCloudLayer.h"
+#include "usdpointcloud/FileFormatArguments.h"
 #include "usdlaz/Laz.h"
 
 #include <pxr/base/tf/diagnostic.h>
@@ -11,7 +12,9 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -34,6 +37,36 @@ std::string DiagnosticDetail(
         detail += " (point " + std::to_string(*diagnostic.pointIndex) + ")";
     }
     return detail;
+}
+
+bool MakeReadRequest(const SdfLayer* layer,
+                     const std::string& resolvedPath,
+                     std::string& sourcePath,
+                     usdpointcloud::PointReadRequest& request,
+                     std::vector<usdgeo::Diagnostic>& diagnostics) {
+    std::map<std::string, std::string> arguments;
+    sourcePath = resolvedPath;
+    const auto marker = resolvedPath.find(":SDF_FORMAT_ARGS:");
+    if (marker != std::string::npos) {
+        std::map<std::string, std::string> encodedArguments;
+        std::string error;
+        if (!usdpointcloud::ParseFileFormatArgumentString(
+                resolvedPath.substr(marker + 17), encodedArguments, error)) {
+            diagnostics.push_back({usdgeo::DiagnosticCode::InvalidFormatArgument,
+                                   usdgeo::Severity::Error, error, std::nullopt,
+                                   std::nullopt});
+            return false;
+        }
+        arguments = std::move(encodedArguments);
+        sourcePath = resolvedPath.substr(0, marker);
+    }
+    if (layer) {
+        for (const auto& [key, value] : layer->GetFileFormatArguments()) {
+            arguments[key] = value;
+        }
+    }
+    return usdpointcloud::NormalizeFileFormatArguments(arguments, request,
+                                                       diagnostics);
 }
 
 } // namespace
@@ -63,12 +96,25 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
         return false;
     }
 
+    std::string sourcePath;
+    usdpointcloud::PointReadRequest request;
     std::vector<usdgeo::Diagnostic> diagnostics;
-    auto decoder = usdlaz::CreateFileDecoder(resolvedPath, diagnostics);
+    if (!MakeReadRequest(layer, resolvedPath, sourcePath, request,
+                         diagnostics)) {
+        TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
+                                  geolaz::diagnostics::FormatArgumentInvalid,
+                                  "Invalid LAZ file-format arguments: " +
+                                      DiagnosticDetail(diagnostics,
+                                                       "invalid arguments"))
+                                  .c_str());
+        return false;
+    }
+
+    auto decoder = usdlaz::CreateFileDecoder(sourcePath, diagnostics);
     if (!decoder) {
         TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
                                   geolaz::diagnostics::FileOpenFailed,
-                                  "Unable to open LAZ file " + resolvedPath +
+                                  "Unable to open LAZ file " + sourcePath +
                                       ": " +
                                       DiagnosticDetail(diagnostics, "decoder could not be created"))
                                   .c_str());
@@ -79,11 +125,11 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
     usdlas::LasHeader header;
     usdpointcloud::PointData pointData;
     const auto consumed = reader.Read(
-        {},
+        request.readOptions,
         [&](const usdlas::LasHeader& chunkHeader,
             const std::vector<usdlas::LasPoint>& points,
             std::string& error) {
-            return usdlas::AppendPointData(chunkHeader, points, resolvedPath,
+            return usdlas::AppendPointData(chunkHeader, points, sourcePath,
                                            pointData, error);
         },
         header, diagnostics);
@@ -93,6 +139,17 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
                                   "Unable to decode LAZ file " + resolvedPath +
                                       ": " +
                                       DiagnosticDetail(diagnostics, "decode failed"))
+                                  .c_str());
+        return false;
+    }
+
+    std::string selectionError;
+    if (!usdpointcloud::SelectPointDataAttributes(
+            pointData, request.attributes, selectionError)) {
+        TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
+                                  geolaz::diagnostics::FormatArgumentInvalid,
+                                  "Unable to select LAZ point attributes: " +
+                                      selectionError)
                                   .c_str());
         return false;
     }

@@ -34,10 +34,10 @@ same reader contract without changing format-specific point decoding.
 
 ## Reachability
 
-`usdlas::LasReader` and `usdlaz::LazReader` implement this contract, but only
-`geo-laz` calls one. `geo-las` runs its own read loop, and neither plugin
-passes read options, so `chunkPointLimit`, `memoryBudgetBytes`, `range`, and
-`isCancelled` cannot be set by a host today. See the
+`usdlas::LasReader` and `usdlaz::LazReader` implement this contract, and both
+plugins now pass normalized `chunkPointLimit`, `memoryBudgetBytes`, and `range`
+values to them. `isCancelled` remains a host-supplied callback and is not a
+file-format argument. See the
 [plugin adapter contract](plugin-adapter.md) and the
 [file-format argument contract](file-format-arguments.md).
 

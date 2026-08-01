@@ -5,9 +5,10 @@ LOD generation, and the [library architecture](../roadmap/library-architecture.m
 requires arguments to be normalized before any reader or cache lookup. This
 document defines that contract.
 
-Status: **not implemented**. No plugin accepts an argument today, which is why
-attribute selection, point limits, and filters are listed as limitations in the
-[supported formats](../supported-formats.md).
+Status: **partially implemented**. LAS and LAZ normalize chunk and point-range
+read options plus the `attributes` subset before the shared reader and
+authoring path. LOD, filtering, and spatial arguments remain unavailable and
+are rejected with typed diagnostics.
 
 ## Why Arguments Exist
 
@@ -65,6 +66,20 @@ produced with a different value.
 The first implementation may ship only `lod` and `attributes`. Explicit numeric
 controls are added once the LOD contract stabilizes, so that the compact
 profile does not become an alias for a surface that later changes meaning.
+
+The current pre-LOD surface also exposes the existing streaming reader controls
+because they do not change authored topology:
+
+| Argument | Normalized value |
+| --- | --- |
+| `chunkPointLimit` | Positive unsigned integer |
+| `memoryBudgetBytes` | Positive unsigned integer |
+| `rangeFirstPoint` | Unsigned source-point index |
+| `rangePointCount` | Unsigned count; zero means all remaining points |
+| `attributes` | Comma-separated supported names; `xyz` is implicit |
+
+`lod` and the other topology-generation candidates are recognized as planned
+arguments and rejected until their shared contracts are implemented.
 
 ## Rules
 

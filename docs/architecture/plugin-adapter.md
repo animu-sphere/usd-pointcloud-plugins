@@ -32,8 +32,9 @@ tests that run without an OpenUSD runtime.
 ## Current State
 
 `geo-las` now delegates file access and LAS decoding to `usdlas::LasReader`,
-and both plugins now meet the shared authoring portion of the thin-adapter
-rule. File-format arguments and metadata-only reads remain open.
+and both plugins normalize the supported file-format arguments before calling
+their shared readers and authoring path. Metadata-only reads and LOD arguments
+remain open.
 
 | Concern | `geo-las` | `geo-laz` |
 | --- | --- | --- |
@@ -64,13 +65,11 @@ construction, CRS or bounds conversion, stage metrics, or layer transfer.
 
 ### Consequence
 
-Because neither plugin passes read options, `chunkPointLimit`,
-`memoryBudgetBytes`, `range`, and `isCancelled` are unreachable through the
-plugin layer. The streaming reader described in
-[point reader architecture](point-reader.md) exists and is tested, but the
-memory limitation documented in the README still holds, because the plugins do
-not use it. Closing that gap is the point of this migration, not a later
-optimization.
+`chunkPointLimit`, `memoryBudgetBytes`, and `range` are now reachable through
+the normalized argument request. `isCancelled` remains host-supplied and is
+not an asset argument. The whole point cloud is still accumulated for the
+current `UsdGeomPoints` authoring path, so this migration makes bounded reader
+delivery available without claiming bounded final-layer memory.
 
 ## Target Contract
 
@@ -125,9 +124,9 @@ call, and the projection of typed diagnostics onto its stable `LASxxx` /
   schema construction lives in `usdPointCloudCore`, and stage metrics and
   layer transfer live in `usdgeo::AuthorPointCloudAsset`. Both plugins call
   the shared path.
-3. Normalize file-format arguments in the plugin and pass them to the reader as
-   read options, making `chunkPointLimit`, `memoryBudgetBytes`, `range`, and
-   `isCancelled` reachable.
+3. [x] Normalize file-format arguments in the plugin and pass supported read
+  options to the reader. `isCancelled` remains host-supplied and is not part of
+  the layer identifier.
 4. Add the request/result entry points (`MakeReadRequest`, `ReadPointCloud`) so
    the plugin body reduces to the target contract above.
 5. Implement `metadataOnly` through the same request, returning metadata

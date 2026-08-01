@@ -25,6 +25,10 @@ enum class DiagnosticCode {
     MissingWaveformData,
     NonFiniteCoordinate,
     DecodeFailure,
+    UnknownFormatArgument,
+    UnsupportedFormatArgument,
+    InvalidFormatArgument,
+    ConflictingFormatArguments,
 };
 
 struct Diagnostic {
