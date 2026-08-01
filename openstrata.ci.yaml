@@ -1,7 +1,36 @@
 # OpenStrata CI support matrix for usd-geo-plugins.
 #
 # This file is the CI contract. Regenerate .github/workflows/ost-*.yml with
-# `ost ci generate github` after changing it.
+# `ost ci generate github` after changing it. Do not hand-edit CI semantics in
+# the generated workflow YAML: every host requirement is declared here as
+# `host_packages`, so regeneration re-renders the step instead of dropping a
+# hand-added one.
+#
+#   X11 BACKGROUND. OpenUSD 26.08's MaterialX 1.39.5 exports an unconditional
+#   `find_dependency(X11 REQUIRED COMPONENTS Xt)` on non-Apple UNIX, so a Linux
+#   consumer of the 26.08 runtime cannot even configure — `ost runtime validate`
+#   fails its `consumer-configure` check — without X11 dev headers. Every Linux
+#   cell therefore declares `host_packages.apt`.
+#
+# Digest provenance:
+#   All three runtimes are the validated OpenUSD 26.08 (PXR_VERSION 2608) builds
+#   published by animu-sphere, and are the same artifacts usd-vrm-plugins pins.
+#   Each carries an SPDX SBOM and SLSA/in-toto provenance, which is what the
+#   `--require-sbom --require-provenance` gate `ost ci generate` renders demands.
+#
+#   DO NOT re-pin from the moving `26.08-<platform>` GHCR tags. Those tags point
+#   at a separate runtime build configured WITH Vulkan, whose `pxrTargets.cmake`
+#   puts `Vulkan::Vulkan` in the `hgiVulkan` link interface while `pxrConfig.cmake`
+#   never issues a matching `find_dependency(Vulkan)`. Consuming it fails at the
+#   CMake generate step with "the link interface of target hgiVulkan contains:
+#   Vulkan::Vulkan but the target was not found" on every platform.
+#
+#   The OCI manifest digest is NOT stable across republishes (provenance embeds
+#   the producing commit), so `expected_oci_digest` must be re-pinned from the
+#   push output every time, while `runtime_artifact` stays put.
+#     Windows: OST artifact sha256:e3368364... / OCI sha256:184cdbb4...
+#     macOS:   OST artifact sha256:b2cb7b68... / OCI sha256:f8de29a4...
+#     Linux:   OST artifact sha256:70b47d1b... / OCI sha256:1a873111...
 schema: 1
 
 bootstrap:
@@ -30,10 +59,10 @@ cells:
   - name: geo-las-pr-windows
     lane: pull_request
     runner: windows-hosted
-    runtime_artifact: sha256:913446515149cb32e2dfe23114c09f58c8f23aeed491bcff377bd6a1de142375
+    runtime_artifact: sha256:e3368364f8f4661a7c34371e907f2e5ddcdec4e680b76f5e9e1c1ed656022f48
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
-      expected_oci_digest: sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
+      expected_oci_digest: sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
     bundle: plugins/geo-las
     platform: cy2026
     profile: usd
@@ -42,10 +71,10 @@ cells:
   - name: geo-laz-pr-windows
     lane: pull_request
     runner: windows-hosted
-    runtime_artifact: sha256:913446515149cb32e2dfe23114c09f58c8f23aeed491bcff377bd6a1de142375
+    runtime_artifact: sha256:e3368364f8f4661a7c34371e907f2e5ddcdec4e680b76f5e9e1c1ed656022f48
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
-      expected_oci_digest: sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
+      expected_oci_digest: sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
     bundle: plugins/geo-laz
     platform: cy2026
     profile: usd
@@ -67,14 +96,17 @@ cells:
   - name: geo-las-pr-linux
     lane: pull_request
     runner: linux-hosted
-    runtime_artifact: sha256:41f762fd4184e8df4e96cf8145be514db16ffc0e84c56166de86c823a7d22e3a
+    runtime_artifact: sha256:70b47d1b1a337b71d6c6fd63898e3295c0f91dc4b2ad2f5c09d14d6ac0ff2e1d
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
-      expected_oci_digest: sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
+      expected_oci_digest: sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
     bundle: plugins/geo-las
     platform: cy2026
     profile: usd
     host_python: "3.13"
+    # MaterialX 1.39.5 (OpenUSD 26.08) hard-requires X11 on Linux; see header.
+    host_packages:
+      apt: [libx11-dev, libxt-dev]
     up_to: 5
 
   - name: geo-laz-pr-macos-arm64
@@ -93,12 +125,15 @@ cells:
   - name: geo-laz-pr-linux
     lane: pull_request
     runner: linux-hosted
-    runtime_artifact: sha256:41f762fd4184e8df4e96cf8145be514db16ffc0e84c56166de86c823a7d22e3a
+    runtime_artifact: sha256:70b47d1b1a337b71d6c6fd63898e3295c0f91dc4b2ad2f5c09d14d6ac0ff2e1d
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
-      expected_oci_digest: sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
+      expected_oci_digest: sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
     bundle: plugins/geo-laz
     platform: cy2026
     profile: usd
     host_python: "3.13"
+    # MaterialX 1.39.5 (OpenUSD 26.08) hard-requires X11 on Linux; see header.
+    host_packages:
+      apt: [libx11-dev, libxt-dev]
     up_to: 5
