@@ -29,6 +29,7 @@ option(USDGEO_BUILD_USD "Build the OpenUSD authoring bridge" ${_usdgeo_build_usd
 add_subdirectory(libs/usd-geo-core)
 add_subdirectory(libs/usd-pointcloud-core)
 add_subdirectory(libs/usd-las)
+add_subdirectory(libs/usd-laz)
 if(USDGEO_BUILD_USD)
     find_package(OpenGL REQUIRED)
     add_subdirectory(libs/usd-geo-usd)
