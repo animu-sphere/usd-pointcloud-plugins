@@ -1,4 +1,5 @@
 #include "geolas/GeoLasFileFormat.h"
+#include "geolas/GeoLasDiagnostics.h"
 
 #include "usdgeo/PointCloudLayer.h"
 #include "usdlas/Las.h"
@@ -39,20 +40,28 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
                             const std::string& resolvedPath,
                             bool metadataOnly) const {
     if (!layer || metadataOnly) {
-        TF_RUNTIME_ERROR("geoLas requires a writable layer and full point data");
+        TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                  geolas::diagnostics::InvalidReadRequest,
+                                  "geoLas requires a writable layer and full point data")
+                                  .c_str());
         return false;
     }
 
     std::ifstream input(resolvedPath, std::ios::binary | std::ios::ate);
     if (!input) {
-        TF_RUNTIME_ERROR("Unable to open LAS file: %s", resolvedPath.c_str());
+        TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                      geolas::diagnostics::FileOpenFailed,
+                      "Unable to open LAS file: " + resolvedPath)
+                      .c_str());
         return false;
     }
     const auto fileSize = input.tellg();
     if (fileSize < 0 || static_cast<std::uintmax_t>(fileSize) >
                             std::numeric_limits<std::size_t>::max()) {
-        TF_RUNTIME_ERROR("Unable to determine LAS file size: %s",
-                         resolvedPath.c_str());
+        TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                      geolas::diagnostics::FileSizeUnavailable,
+                      "Unable to determine LAS file size: " + resolvedPath)
+                      .c_str());
         return false;
     }
     input.seekg(0, std::ios::beg);
@@ -61,16 +70,21 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
     std::vector<std::uint8_t> headerBytes(headerReadSize);
     if (!input.read(reinterpret_cast<char*>(headerBytes.data()),
                     static_cast<std::streamsize>(headerBytes.size()))) {
-        TF_RUNTIME_ERROR("Unable to read LAS header: %s",
-                         resolvedPath.c_str());
+        TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                      geolas::diagnostics::HeaderReadFailed,
+                      "Unable to read LAS header: " + resolvedPath)
+                      .c_str());
         return false;
     }
 
     usdlas::LasHeader header;
     std::string error;
     if (!usdlas::InspectHeader(headerBytes, header, error)) {
-        TF_RUNTIME_ERROR("Unable to inspect LAS file %s: %s",
-                         resolvedPath.c_str(), error.c_str());
+        TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                  geolas::diagnostics::HeaderInvalid,
+                                  "Unable to inspect LAS file " + resolvedPath +
+                                      ": " + error)
+                                  .c_str());
         return false;
     }
 
@@ -84,8 +98,11 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
             !usdlas::InspectRecords(metadataBytes, header.headerSize,
                                     header.variableLengthRecordCount, false,
                                     header.variableLengthRecords, error)) {
-            TF_RUNTIME_ERROR("Unable to inspect LAS VLR metadata %s: %s",
-                             resolvedPath.c_str(), error.c_str());
+            TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                      geolas::diagnostics::VlrInvalid,
+                                      "Unable to inspect LAS VLR metadata " +
+                                          resolvedPath + ": " + error)
+                                      .c_str());
             return false;
         }
     }
@@ -93,8 +110,11 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
         const auto evlrOffset = static_cast<std::size_t>(
             header.firstExtendedVariableLengthRecordOffset);
         if (evlrOffset > static_cast<std::size_t>(fileSize)) {
-            TF_RUNTIME_ERROR("LAS EVLR offset is outside the file: %s",
-                             resolvedPath.c_str());
+            TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                      geolas::diagnostics::EvlrOffsetInvalid,
+                                      "LAS EVLR offset is outside the file: " +
+                                          resolvedPath)
+                                      .c_str());
             return false;
         }
         std::vector<std::uint8_t> evlrBytes(
@@ -105,8 +125,11 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
             !usdlas::InspectRecords(evlrBytes, 0,
                                     header.extendedVariableLengthRecordCount,
                                     true, header.variableLengthRecords, error)) {
-            TF_RUNTIME_ERROR("Unable to inspect LAS EVLR metadata %s: %s",
-                             resolvedPath.c_str(), error.c_str());
+            TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                      geolas::diagnostics::EvlrInvalid,
+                                      "Unable to inspect LAS EVLR metadata " +
+                                          resolvedPath + ": " + error)
+                                      .c_str());
             return false;
         }
     }
@@ -120,15 +143,19 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
         pointOffset + static_cast<std::size_t>(header.pointCount) *
                           recordLength >
             static_cast<std::size_t>(fileSize)) {
-        TF_RUNTIME_ERROR("LAS point data is truncated: %s",
-                         resolvedPath.c_str());
+        TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                      geolas::diagnostics::PointDataTruncated,
+                      "LAS point data is truncated: " + resolvedPath)
+                      .c_str());
         return false;
     }
 
     input.seekg(static_cast<std::streamoff>(pointOffset), std::ios::beg);
     if (!input) {
-        TF_RUNTIME_ERROR("Unable to seek to LAS point data: %s",
-                         resolvedPath.c_str());
+        TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                      geolas::diagnostics::PointDataSeekFailed,
+                      "Unable to seek to LAS point data: " + resolvedPath)
+                      .c_str());
         return false;
     }
     std::vector<std::uint8_t> record(recordLength);
@@ -151,16 +178,20 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
     for (std::uint64_t index = 0; index < header.pointCount; ++index) {
         if (!input.read(reinterpret_cast<char*>(record.data()),
                         static_cast<std::streamsize>(record.size()))) {
-            TF_RUNTIME_ERROR("Unable to read LAS point %llu: %s",
-                             static_cast<unsigned long long>(index),
-                             resolvedPath.c_str());
+            TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                      geolas::diagnostics::PointReadFailed,
+                                      "Unable to read LAS point " +
+                                          std::to_string(index) + ": " + resolvedPath)
+                                      .c_str());
             return false;
         }
         usdlas::LasPoint point;
         if (!usdlas::DecodePoint(header, record, point, error)) {
-            TF_RUNTIME_ERROR("Unable to decode LAS point %llu: %s",
-                             static_cast<unsigned long long>(index),
-                             error.c_str());
+            TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                      geolas::diagnostics::PointDecodeFailed,
+                                      "Unable to decode LAS point " +
+                                          std::to_string(index) + ": " + error)
+                                      .c_str());
             return false;
         }
         pointData.positions.push_back(point.sourcePosition);
@@ -187,8 +218,11 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
     reference.localOrigin = header.bounds.minimum;
     usdgeo::SpatialBounds bounds;
     if (!reference.TryToLocal(header.bounds, bounds)) {
-        TF_RUNTIME_ERROR("Unable to transform LAS bounds to USD: %s",
-                         resolvedPath.c_str());
+        TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                  geolas::diagnostics::BoundsTransformFailed,
+                                  "Unable to transform LAS bounds to USD: " +
+                                      resolvedPath)
+                                  .c_str());
         return false;
     }
     usdpointcloud::PointChunk chunk;
@@ -217,20 +251,29 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
         "geo-las.generated.usda", usda);
     const auto stage = UsdStage::Open(generated);
     if (!stage) {
-        TF_RUNTIME_ERROR("Unable to create a USD layer for LAS: %s",
-                         resolvedPath.c_str());
+        TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                  geolas::diagnostics::UsdLayerCreateFailed,
+                                  "Unable to create a USD layer for LAS: " +
+                                      resolvedPath)
+                                  .c_str());
         return false;
     }
     if (!UsdGeomSetStageUpAxis(stage, TfToken("Y")) ||
         !UsdGeomSetStageMetersPerUnit(stage, 1.0)) {
-        TF_RUNTIME_ERROR("Unable to set USD stage metrics for LAS: %s",
-                         resolvedPath.c_str());
+        TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                  geolas::diagnostics::StageMetricsFailed,
+                                  "Unable to set USD stage metrics for LAS: " +
+                                      resolvedPath)
+                                  .c_str());
         return false;
     }
         if (!usdgeo::PointCloudLayer::AuthorPointCloud(
             stage, "/PointCloud", reference, bounds, chunk, pointData)) {
-        TF_RUNTIME_ERROR("Unable to author LAS point cloud to USD layer: %s",
-                         resolvedPath.c_str());
+        TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                  geolas::diagnostics::PointCloudAuthorFailed,
+                                  "Unable to author LAS point cloud to USD layer: " +
+                                      resolvedPath)
+                                  .c_str());
         return false;
     }
     layer->TransferContent(generated);
