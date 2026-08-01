@@ -69,6 +69,32 @@ private:
     std::size_t calls_ = 0;
 };
 
+class TypedFailureDecoder final : public usdlaz::LazDecoder {
+public:
+    bool ReadHeader(usdlas::LasHeader& header, std::string&) override {
+        header.pointCount = 3;
+        return true;
+    }
+
+    bool ReadChunk(std::size_t,
+                   std::vector<usdlas::LasPoint>&,
+                   bool&,
+                   std::string& error) override {
+        error = "string diagnostic path was used";
+        return false;
+    }
+
+    bool ReadChunk(std::size_t,
+                   std::vector<usdlas::LasPoint>&,
+                   bool&,
+                   std::vector<usdgeo::Diagnostic>& diagnostics) override {
+        diagnostics.push_back({usdgeo::DiagnosticCode::NonFiniteCoordinate,
+                               usdgeo::Severity::Error,
+                               "typed chunk failure", std::nullopt, 2});
+        return false;
+    }
+};
+
 void TestChunkForwarding() {
     usdlaz::LazReader reader(std::make_unique<FakeDecoder>());
     usdlaz::LazReadOptions options;
@@ -130,6 +156,20 @@ void TestFileDecoderReportsOpenFailure() {
           diagnostics.front().code == usdgeo::DiagnosticCode::DecodeFailure);
 }
 
+void TestTypedReaderPreservesDecoderDiagnostic() {
+    usdlaz::LazReader reader(std::make_unique<TypedFailureDecoder>());
+    usdlas::LasHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!reader.Read(
+        {},
+        [&](const usdlas::LasHeader&,
+            const std::vector<usdlas::LasPoint>&) { return true; },
+        header, diagnostics));
+    Check(diagnostics.size() == 1);
+    Check(diagnostics.front().message == "typed chunk failure");
+    Check(diagnostics.front().pointIndex == 2);
+}
+
 void TestLazPerfFileDecoder() {
     const auto filename =
         std::filesystem::temp_directory_path() / "usd-geo-plugins-test.laz";
@@ -182,6 +222,7 @@ int main() {
     TestChunkForwarding();
     TestCompleteFlagIsResetBeforeEachChunk();
     TestFileDecoderReportsOpenFailure();
+    TestTypedReaderPreservesDecoderDiagnostic();
     TestLazPerfFileDecoder();
     return 0;
 }
