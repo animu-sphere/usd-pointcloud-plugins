@@ -7,6 +7,7 @@
 #include <pxr/usd/usdGeom/points.h>
 
 #include <cstdint>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -185,8 +186,11 @@ void TestCheckedInAssets() {
 
 void TestMissingFileDiagnostic() {
     pxr::TfErrorMark mark;
+    const auto uniqueSuffix =
+        std::chrono::high_resolution_clock::now().time_since_epoch().count();
     const auto path = std::filesystem::temp_directory_path() /
-                      "usd_geo_plugins_missing.las";
+                      ("usd_geo_plugins_missing_" +
+                       std::to_string(uniqueSuffix) + ".las");
     const auto layer = pxr::SdfLayer::FindOrOpen(path.string());
     Check(!layer);
     Check(!mark.IsClean());
