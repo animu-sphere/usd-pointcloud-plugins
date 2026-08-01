@@ -1,5 +1,6 @@
 #include "usdpointcloud/PointCloud.h"
 #include "usdpointcloud/FileFormatArguments.h"
+#include "usdpointcloud/Lod.h"
 
 #include <cstdlib>
 #include <limits>
@@ -137,6 +138,45 @@ void TestAttributeSelection() {
           data.blue.size() == 2);
 }
 
+void TestLodContracts() {
+    usdgeo::SpatialBounds bounds;
+    bounds.Expand({0.0, 0.0, 0.0});
+    bounds.Expand({10.0, 10.0, 10.0});
+
+    const usdpointcloud::PointLodItem detailed{0, 100, bounds, {0, 100}};
+    const usdpointcloud::PointLodItem preview{1, 25, bounds, {0, 100}};
+    usdpointcloud::PointLodHierarchy hierarchy{
+        bounds, {detailed, preview}, 0, {0.25F}};
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(usdpointcloud::ValidatePointLodHierarchy(hierarchy, diagnostics));
+    Check(diagnostics.empty() && hierarchy.IsValid());
+
+    hierarchy.screenSizeThresholds = {0.25F, 0.10F};
+    Check(!usdpointcloud::ValidatePointLodHierarchy(hierarchy, diagnostics));
+    Check(diagnostics.front().code == usdgeo::DiagnosticCode::InvalidLodHierarchy);
+
+    hierarchy.screenSizeThresholds = {0.25F};
+    hierarchy.items[1].pointCount = 101;
+    Check(!usdpointcloud::ValidatePointLodHierarchy(hierarchy, diagnostics));
+    Check(diagnostics.back().code == usdgeo::DiagnosticCode::InvalidLodHierarchy);
+
+    hierarchy.items[1].pointCount = 25;
+    hierarchy.items[1].bounds.maximum.x = 11.0;
+    Check(!usdpointcloud::ValidatePointLodHierarchy(hierarchy, diagnostics));
+    Check(diagnostics.front().code == usdgeo::DiagnosticCode::InvalidLodItem);
+
+    hierarchy.items[1].bounds = bounds;
+    const usdpointcloud::PointTile tile{
+        {2, 0, 1, 3}, bounds, {{3, 0, 2}, {3, 0, 3}}, hierarchy};
+    Check(usdpointcloud::ValidatePointTile(tile, diagnostics));
+    Check(tile.id.ToString() == "L2/0/1/3");
+
+    auto duplicateChildren = tile;
+    duplicateChildren.children.push_back(duplicateChildren.children.front());
+    Check(!usdpointcloud::ValidatePointTile(duplicateChildren, diagnostics));
+    Check(diagnostics.back().code == usdgeo::DiagnosticCode::InvalidPointTile);
+}
+
 } // namespace
 
 int main() {
@@ -146,5 +186,6 @@ int main() {
     TestReadOptions();
     TestFileFormatArgumentNormalization();
     TestAttributeSelection();
+    TestLodContracts();
     return 0;
 }

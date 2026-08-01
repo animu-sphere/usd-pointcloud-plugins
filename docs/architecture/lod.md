@@ -5,9 +5,10 @@ shared tile contract and an OpenUSD level-of-detail representation. This
 document records the binding decision, the target USD structure, and the
 invariants the shared layer enforces.
 
-Status: **not implemented**. Nothing in this document is authored today. It
-defines the contract that Phase 4 work is measured against; see
-[implementation status](../roadmap/implementation-status.md).
+Status: **shared contracts implemented**. The format-independent tile and LOD
+value types and validation live in `usdPointCloudCore`; USD authoring is not
+implemented yet. This document defines the contract that Phase 4 work is
+measured against; see the [implementation status](../roadmap/implementation-status.md).
 
 ## 1. Standing Policy
 

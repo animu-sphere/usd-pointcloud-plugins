@@ -42,8 +42,8 @@
 - [x] Add the preliminary `usdgeo::AuthorPointCloudAsset` authoring API
 - [x] Move the shared authoring tail into `usdgeo::AuthorPointCloudAsset`
 - [x] Normalize file-format arguments and pass read options through the plugins
-- [ ] Shared LOD contracts (`PointTileId`, `PointLodItem`, `PointLodHierarchy`)
-- [ ] LOD validation invariants and typed diagnostics
+- [x] Shared LOD contracts (`PointTileId`, `PointLodItem`, `PointLodHierarchy`)
+- [x] LOD validation invariants and typed diagnostics
 - [ ] Deterministic, versioned point sampling
 - [ ] `usdLod` authoring in `usdGeoUsd`
 - [ ] LOD file-format arguments
