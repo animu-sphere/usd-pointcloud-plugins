@@ -16,8 +16,9 @@
 - [x] Add deterministic tile IDs and normalized cache-key inputs
 - [x] Create `usdPointCloudCore` point-attribute and chunk contracts
 - [x] Create `usdGeoUsd` `UsdGeomPoints` authoring and metadata round-trip
+- [x] Add `usdLas` LAS 1.2-1.4 header inspection and uncompressed point decoding
 - [ ] OpenUSD FileFormat Plugin PoC
-- [ ] LAS reader
+- [ ] LAS reader integration and conformance corpus
 - [ ] LAZ reader
 - [ ] Tile / LOD
 - [ ] USDC cache
