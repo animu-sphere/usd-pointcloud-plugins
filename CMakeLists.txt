@@ -21,3 +21,4 @@ if(USDGEO_BUILD_TESTS)
 endif()
 
 add_subdirectory(libs/usd-geo-core)
+add_subdirectory(libs/usd-pointcloud-core)

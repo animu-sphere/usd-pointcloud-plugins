@@ -18,6 +18,8 @@ struct GeoReference {
     Vec3d localOrigin;
 
     bool IsValid() const noexcept;
+    bool TryToLocal(const Vec3d& source, Vec3d& local) const noexcept;
+    bool TryToSource(const Vec3d& local, Vec3d& source) const noexcept;
 };
 
 } // namespace usdgeo

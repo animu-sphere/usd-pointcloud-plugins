@@ -12,6 +12,9 @@
 - [x] Build and test the core through `ost`
 - [x] Define library ownership and dependency direction
 - [x] Define the file-format support order and entry gates
+- [x] Add finite-value validation and explicit local-coordinate transforms
+- [x] Add deterministic tile IDs and normalized cache-key inputs
+- [x] Create `usdPointCloudCore` point-attribute and chunk contracts
 - [ ] OpenUSD FileFormat Plugin PoC
 - [ ] LAS reader
 - [ ] LAZ reader
@@ -20,11 +23,8 @@
 
 ## Next Implementation Sequence
 
-1. Complete finite-value validation and explicit local-coordinate transforms in `usdGeoCore`.
-2. Add deterministic tile IDs and normalized cache-key inputs to `usdGeoCore`.
-3. Create `usdPointCloudCore` with point-attribute, chunk, and validation contracts.
-4. Create `usdGeoUsd` with a minimal `UsdGeomPoints` layer writer and metadata authoring.
-5. Implement LAS metadata inspection and uncompressed point-record decoding in `usdLas`.
-6. Compose `usdLas` and `usdGeoUsd` in the `geo-las` FileFormat Plugin PoC.
+1. Create `usdGeoUsd` with a minimal `UsdGeomPoints` layer writer and metadata authoring.
+2. Implement LAS metadata inspection and uncompressed point-record decoding in `usdLas`.
+3. Compose `usdLas` and `usdGeoUsd` in the `geo-las` FileFormat Plugin PoC.
 
 Do not begin LAZ integration until the LAS conformance fixtures pass through both the reader-only tests and the FileFormat Plugin integration test.
