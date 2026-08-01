@@ -25,7 +25,8 @@ and the [roadmap](docs/roadmap/README.md) for the full sequence.
 
 - CMake 3.23 or newer
 - C++17 compiler
-- OpenStrata 0.20.0 for the pinned USD workspace build
+- OpenStrata 0.21.0 for the pinned USD workspace build
+- OpenUSD 26.08 or newer (the plugin contract accepts versions before 27.0)
 - The `cy2026-windows-x86_64-py313-usd` OpenStrata target for OpenUSD work
 
 The core libraries and their tests do not require an OpenUSD runtime.
