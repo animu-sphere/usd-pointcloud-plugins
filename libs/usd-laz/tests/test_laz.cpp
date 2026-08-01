@@ -193,6 +193,26 @@ void TestTypedReaderPreservesDecoderDiagnostic() {
     Check(diagnostics.front().pointIndex == 2);
 }
 
+void TestTypedReaderPreservesConsumerDiagnostic() {
+    usdlaz::LazReader reader(std::make_unique<FakeDecoder>());
+    usdlaz::LazReadOptions options;
+    options.chunkPointLimit = 1;
+    options.memoryBudgetBytes = sizeof(usdlas::LasPoint) + 40;
+    usdlas::LasHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!reader.Read(
+        options,
+        [&](const usdlas::LasHeader&,
+            const std::vector<usdlas::LasPoint>&,
+            std::string& callbackError) {
+            callbackError = "consumer rejected with detail";
+            return false;
+        },
+        header, diagnostics));
+    Check(diagnostics.size() == 1 &&
+          diagnostics.front().message == "consumer rejected with detail");
+}
+
 void TestRangeMemoryBudgetAndCancellation() {
     usdlaz::LazReader reader(std::make_unique<BudgetDecoder>());
     usdlaz::LazReadOptions options;

@@ -69,8 +69,7 @@ LazReader::LazReader(std::unique_ptr<LazDecoder> decoder)
 
 bool LazReader::Read(
     const LazReadOptions& options,
-    const std::function<bool(const usdlas::LasHeader&,
-                             const std::vector<usdlas::LasPoint>&)>& consume,
+    const LazPointChunkConsumer& consume,
     usdlas::LasHeader& header,
     std::string& error) {
     if (!decoder_) {
@@ -171,8 +170,7 @@ bool LazReader::Read(
 
 bool LazReader::Read(
     const LazReadOptions& options,
-    const std::function<bool(const usdlas::LasHeader&,
-                             const std::vector<usdlas::LasPoint>&)>& consume,
+    const LazPointChunkConsumer& consume,
     usdlas::LasHeader& header,
     std::vector<usdgeo::Diagnostic>& diagnostics) {
     diagnostics.clear();
@@ -279,6 +277,28 @@ bool LazReader::Read(
         return false;
     }
     return true;
+}
+
+bool LazReader::Read(
+    const LazReadOptions& options,
+    const LazPointChunkErrorConsumer& consume,
+    usdlas::LasHeader& header,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    std::string callbackError;
+    const LazPointChunkConsumer bridge =
+        [&](const usdlas::LasHeader& chunkHeader,
+            const std::vector<usdlas::LasPoint>& points) {
+            callbackError.clear();
+            return consume(chunkHeader, points, callbackError);
+        };
+    if (Read(options, bridge, header, diagnostics)) {
+        return true;
+    }
+    if (!callbackError.empty() && !diagnostics.empty()) {
+        diagnostics.front().message = callbackError;
+    }
+    return false;
 }
 
 } // namespace usdlaz

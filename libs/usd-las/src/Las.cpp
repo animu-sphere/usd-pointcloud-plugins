@@ -563,6 +563,27 @@ bool LasReader::Read(const LasReadOptions& options,
     return false;
 }
 
+bool LasReader::Read(const LasReadOptions& options,
+                     const LasPointChunkErrorConsumer& consume,
+                     LasHeader& header,
+                     std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    std::string callbackError;
+    const LasPointChunkConsumer bridge =
+        [&](const LasHeader& chunkHeader,
+            const std::vector<LasPoint>& points) {
+            callbackError.clear();
+            return consume(chunkHeader, points, callbackError);
+        };
+    if (Read(options, bridge, header, diagnostics)) {
+        return true;
+    }
+    if (!callbackError.empty() && !diagnostics.empty()) {
+        diagnostics.front().message = callbackError;
+    }
+    return false;
+}
+
 bool LasHeader::IsValid() const noexcept {
     return versionMajor == 1 && versionMinor >= 2 && versionMinor <= 4 &&
            headerSize > 0 && pointRecordLength > 0 &&

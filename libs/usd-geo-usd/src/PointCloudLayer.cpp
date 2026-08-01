@@ -67,8 +67,17 @@ bool AuthorPointCloudAsset(
     pxr::SdfLayer* layer,
     const std::string& primPath,
     const usdpointcloud::PointCloudAsset& asset) {
+    PointCloudAuthorFailure failure;
+    return AuthorPointCloudAsset(layer, primPath, asset, failure);
+}
+
+bool AuthorPointCloudAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const usdpointcloud::PointCloudAsset& asset,
+    PointCloudAuthorFailure& failure) {
     return AuthorPointCloudAsset(layer, primPath, asset.reference,
-                                 asset.bounds, asset.chunk, asset.data);
+                                 asset.bounds, asset.chunk, asset.data, failure);
 }
 
 bool AuthorPointCloudAsset(
@@ -78,16 +87,39 @@ bool AuthorPointCloudAsset(
     const SpatialBounds& bounds,
     const usdpointcloud::PointChunk& chunk,
     const PointCloudLayer::Data& data) {
+    PointCloudAuthorFailure failure;
+    return AuthorPointCloudAsset(layer, primPath, reference, bounds, chunk,
+                                 data, failure);
+}
+
+bool AuthorPointCloudAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const GeoReference& reference,
+    const SpatialBounds& bounds,
+    const usdpointcloud::PointChunk& chunk,
+    const PointCloudLayer::Data& data,
+    PointCloudAuthorFailure& failure) {
+    failure = PointCloudAuthorFailure::None;
     if (!layer) {
+        failure = PointCloudAuthorFailure::InvalidLayer;
         return false;
     }
 
     const auto stage = PointCloudLayer::CreateStage();
-    if (!stage || !pxr::UsdGeomSetStageUpAxis(
-                      stage, pxr::TfToken(reference.stageUpAxis)) ||
-        !pxr::UsdGeomSetStageMetersPerUnit(stage, 1.0) ||
-        !AuthorPointCloudAsset(stage, primPath, reference, bounds, chunk,
+    if (!stage) {
+        failure = PointCloudAuthorFailure::StageCreation;
+        return false;
+    }
+    if (!pxr::UsdGeomSetStageUpAxis(
+            stage, pxr::TfToken(reference.stageUpAxis)) ||
+        !pxr::UsdGeomSetStageMetersPerUnit(stage, 1.0)) {
+        failure = PointCloudAuthorFailure::StageMetrics;
+        return false;
+    }
+    if (!AuthorPointCloudAsset(stage, primPath, reference, bounds, chunk,
                                data)) {
+        failure = PointCloudAuthorFailure::PointCloud;
         return false;
     }
 

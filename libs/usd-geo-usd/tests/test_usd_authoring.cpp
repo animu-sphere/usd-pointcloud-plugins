@@ -188,6 +188,11 @@ void TestLayerAuthoringEntryPoint() {
     Check(stage);
     Check(pxr::UsdGeomGetStageUpAxis(stage) == pxr::TfToken("Y"));
     Check(stage->GetPrimAtPath(pxr::SdfPath("/PointCloud")).IsValid());
+
+    usdgeo::PointCloudAuthorFailure failure;
+    Check(!usdgeo::AuthorPointCloudAsset(
+        nullptr, "/PointCloud", asset, failure));
+    Check(failure == usdgeo::PointCloudAuthorFailure::InvalidLayer);
 }
 
 } // namespace

@@ -196,6 +196,19 @@ void TestRangeReader() {
         header, error));
     Check(points == 1);
 
+    std::vector<usdgeo::Diagnostic> callbackDiagnostics;
+    Check(!reader.Read(
+        options,
+        [&](const usdlas::LasHeader&,
+            const std::vector<usdlas::LasPoint>&,
+            std::string& callbackError) {
+            callbackError = "consumer rejected with detail";
+            return false;
+        },
+        header, callbackDiagnostics));
+    Check(callbackDiagnostics.size() == 1 &&
+          callbackDiagnostics.front().message == "consumer rejected with detail");
+
     auto invalidBytes = MakeHeader(2, 0);
     Write(invalidBytes, 131, std::numeric_limits<double>::max());
     std::vector<std::uint8_t> invalidRecord(20, 0);

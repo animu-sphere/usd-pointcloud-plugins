@@ -78,13 +78,13 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
     usdlaz::LazReader reader(std::move(decoder));
     usdlas::LasHeader header;
     usdpointcloud::PointData pointData;
-    std::string appendError;
     const auto consumed = reader.Read(
         {},
         [&](const usdlas::LasHeader& chunkHeader,
-            const std::vector<usdlas::LasPoint>& points) {
+            const std::vector<usdlas::LasPoint>& points,
+            std::string& error) {
             return usdlas::AppendPointData(chunkHeader, points, resolvedPath,
-                                           pointData, appendError);
+                                           pointData, error);
         },
         header, diagnostics);
     if (!consumed) {
@@ -109,9 +109,19 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
                                   .c_str());
         return false;
     }
-    if (!usdgeo::AuthorPointCloudAsset(layer, "/PointCloud", asset)) {
+    usdgeo::PointCloudAuthorFailure authorFailure;
+    if (!usdgeo::AuthorPointCloudAsset(layer, "/PointCloud", asset,
+                                       authorFailure)) {
+        const char* code = geolaz::diagnostics::PointCloudAuthorFailed;
+        if (authorFailure == usdgeo::PointCloudAuthorFailure::InvalidLayer ||
+            authorFailure == usdgeo::PointCloudAuthorFailure::StageCreation) {
+            code = geolaz::diagnostics::UsdLayerCreateFailed;
+        } else if (authorFailure ==
+                   usdgeo::PointCloudAuthorFailure::StageMetrics) {
+            code = geolaz::diagnostics::StageMetricsFailed;
+        }
         TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
-                                  geolaz::diagnostics::PointCloudAuthorFailed,
+                                  code,
                                   "Unable to author LAZ point cloud to USD layer: " +
                                       resolvedPath)
                                   .c_str());

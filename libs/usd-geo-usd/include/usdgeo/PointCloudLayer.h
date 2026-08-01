@@ -32,6 +32,14 @@ public:
                                  const Data& data);
 };
 
+enum class PointCloudAuthorFailure {
+    None,
+    InvalidLayer,
+    StageCreation,
+    StageMetrics,
+    PointCloud,
+};
+
 bool AuthorPointCloudAsset(
     pxr::SdfLayer* layer,
     const std::string& primPath,
@@ -40,10 +48,25 @@ bool AuthorPointCloudAsset(
 bool AuthorPointCloudAsset(
     pxr::SdfLayer* layer,
     const std::string& primPath,
+    const usdpointcloud::PointCloudAsset& asset,
+    PointCloudAuthorFailure& failure);
+
+bool AuthorPointCloudAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
     const GeoReference& reference,
     const SpatialBounds& bounds,
     const usdpointcloud::PointChunk& chunk,
     const PointCloudLayer::Data& data);
+
+bool AuthorPointCloudAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const GeoReference& reference,
+    const SpatialBounds& bounds,
+    const usdpointcloud::PointChunk& chunk,
+    const PointCloudLayer::Data& data,
+    PointCloudAuthorFailure& failure);
 
 bool AuthorPointCloudAsset(
     const pxr::UsdStageRefPtr& stage,

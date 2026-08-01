@@ -105,13 +105,13 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
     usdlas::LasHeader header;
     std::vector<usdgeo::Diagnostic> diagnostics;
     usdpointcloud::PointData pointData;
-    std::string appendError;
     usdlas::LasReader reader(resolvedPath);
     usdlas::LasReadOptions options;
     const auto consume = [&](const usdlas::LasHeader& chunkHeader,
-                             const std::vector<usdlas::LasPoint>& points) {
+                             const std::vector<usdlas::LasPoint>& points,
+                             std::string& error) {
         return usdlas::AppendPointData(chunkHeader, points, resolvedPath,
-                                       pointData, appendError);
+                                        pointData, error);
     };
     if (!reader.Read(options, consume, header, diagnostics)) {
         TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
@@ -136,9 +136,19 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
                                   .c_str());
         return false;
     }
-    if (!usdgeo::AuthorPointCloudAsset(layer, "/PointCloud", asset)) {
+    usdgeo::PointCloudAuthorFailure authorFailure;
+    if (!usdgeo::AuthorPointCloudAsset(layer, "/PointCloud", asset,
+                                       authorFailure)) {
+        const char* code = geolas::diagnostics::PointCloudAuthorFailed;
+        if (authorFailure == usdgeo::PointCloudAuthorFailure::InvalidLayer ||
+            authorFailure == usdgeo::PointCloudAuthorFailure::StageCreation) {
+            code = geolas::diagnostics::UsdLayerCreateFailed;
+        } else if (authorFailure ==
+                   usdgeo::PointCloudAuthorFailure::StageMetrics) {
+            code = geolas::diagnostics::StageMetricsFailed;
+        }
         TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
-                                  geolas::diagnostics::PointCloudAuthorFailed,
+                                  code,
                                   "Unable to author LAS point cloud to USD layer: " +
                                       resolvedPath)
                                   .c_str());
