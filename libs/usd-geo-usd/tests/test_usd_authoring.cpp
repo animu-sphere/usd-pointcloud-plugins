@@ -35,7 +35,15 @@ void TestPointCloudRoundTrip() {
         {"userData", usdpointcloud::PointAttributeType::UInt8},
         {"scanAngle", usdpointcloud::PointAttributeType::Int16},
         {"pointSourceId", usdpointcloud::PointAttributeType::UInt16},
-        {"nir", usdpointcloud::PointAttributeType::UInt16}};
+        {"nir", usdpointcloud::PointAttributeType::UInt16},
+        {"waveformDescriptorIndex", usdpointcloud::PointAttributeType::UInt8},
+        {"waveformDataOffset", usdpointcloud::PointAttributeType::UInt64},
+        {"waveformPacketSize", usdpointcloud::PointAttributeType::UInt32},
+        {"returnPointWaveformLocation", usdpointcloud::PointAttributeType::Float32},
+        {"waveformXt", usdpointcloud::PointAttributeType::Float32},
+        {"waveformYt", usdpointcloud::PointAttributeType::Float32},
+        {"waveformZt", usdpointcloud::PointAttributeType::Float32},
+        {"waveformDataExternal", usdpointcloud::PointAttributeType::UInt8}};
     const std::vector<usdgeo::Vec3d> positions = {
         {1000.0, 2000.0, 3000.0}, {1002.0, 2003.0, 3004.0}};
     usdgeo::PointCloudLayer::Data data;
@@ -50,6 +58,15 @@ void TestPointCloudRoundTrip() {
     data.scanAngle = {-12, 34};
     data.pointSourceId = {100, 200};
     data.nir = {300, 400};
+    data.waveformDescriptorIndex = {7, 8};
+    data.waveformDataOffset = {1234, 5678};
+    data.waveformPacketSize = {48, 64};
+    data.returnPointWaveformLocation = {0.25f, 0.5f};
+    data.waveformXt = {1.0f, 4.0f};
+    data.waveformYt = {2.0f, 5.0f};
+    data.waveformZt = {3.0f, 6.0f};
+    data.waveformDataExternal = {1, 0};
+    data.waveformDataFile = "sample.wdp";
 
     Check(usdgeo::PointCloudLayer::AuthorPointCloud(
         stage, "/PointCloud", reference, chunk.bounds, chunk, data));
@@ -88,6 +105,23 @@ void TestPointCloudRoundTrip() {
         Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:nir"))
               .Get(&authoredNir));
         Check(authoredNir.size() == 2 && authoredNir[1] == 400);
+          pxr::VtArray<std::uint64_t> authoredWaveformOffsets;
+          Check(points.GetPrim()
+                .GetAttribute(pxr::TfToken("geo:waveformDataOffset"))
+                .Get(&authoredWaveformOffsets));
+          Check(authoredWaveformOffsets.size() == 2 &&
+              authoredWaveformOffsets[1] == 5678);
+          pxr::VtArray<float> authoredWaveformParameters;
+          Check(points.GetPrim()
+                .GetAttribute(pxr::TfToken("geo:waveformXt"))
+                .Get(&authoredWaveformParameters));
+          Check(authoredWaveformParameters.size() == 2 &&
+              authoredWaveformParameters[0] == 1.0f);
+        std::string authoredWaveformDataFile;
+        Check(points.GetPrim()
+              .GetAttribute(pxr::TfToken("geo:waveformDataFile"))
+              .Get(&authoredWaveformDataFile));
+        Check(authoredWaveformDataFile == "sample.wdp");
 
     int epsgCode = 0;
     Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:epsgCode")).Get(&epsgCode));

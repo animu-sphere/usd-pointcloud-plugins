@@ -8,10 +8,11 @@ workflows.
 
 ## What It Does
 
-- Imports LAS 1.2-1.4 headers and point formats 0-3 and 6-8 into OpenUSD
-  through the `las` file format. Point formats 4, 5, 9, and 10 are planned.
-- Imports compressed LAZ point records with the same logical model through the
-  `laz` file format.
+- Imports LAS 1.2-1.4 headers and point formats 0-10 into OpenUSD through the
+  `las` file format, including waveform packet metadata for formats 4, 5, 9,
+  and 10.
+- Imports compressed LAZ point records through the `laz` file format for the
+  point formats supported by the bundled codec.
 - Authors `UsdGeomPoints` with point positions, intensity, returns,
   classification, RGB, GPS time, CRS metadata, local origin, bounds, and
   point-count metadata.
@@ -27,11 +28,12 @@ provide import and USD authoring, not a point-cloud renderer.
 
 | Extension | Plugin | Current support |
 | --- | --- | --- |
-| `.las` | `geo-las` | LAS 1.2-1.4 headers, VLR/EVLR metadata, WKT CRS, point formats 0-3 and 6-8 |
-| `.laz` | `geo-laz` | The same logical model, decoded through the bundled `laz-perf` adapter |
+| `.las` | `geo-las` | LAS 1.2-1.4 headers, VLR/EVLR metadata, WKT CRS, point formats 0-10 |
+| `.laz` | `geo-laz` | Point formats 0-3 and 6-8 through the bundled `laz-perf` adapter |
 
-Point formats 6-8 require LAS 1.4. Formats 4, 5, 9, and 10 are rejected with a
-diagnostic because waveform packets are not implemented.
+Point formats 4 and 5 require LAS 1.3 or newer; formats 6-10 require LAS 1.4.
+The LAZ adapter rejects waveform formats because the bundled `laz-perf` codec
+does not provide their compressed record decoders.
 
 | Attribute | Status |
 | --- | --- |
@@ -39,7 +41,8 @@ diagnostic because waveform packets are not implemented.
 | RGB (formats 2, 3, 7, 8) | Authored |
 | GPS time (formats 1, 3, 6, 7, 8) | Authored |
 | NIR, scan angle, user data, point source ID, classification flags, scanner channel, scan direction, edge of flight line | Authored |
-| Extra Bytes, waveform metadata | Not implemented |
+| Waveform packet metadata and external `.wdp` reference (LAS formats 4, 5, 9, 10) | Authored |
+| Extra Bytes point attributes | Not implemented |
 
 The complete matrix, including VLR, CRS, and authored USD attributes, is in
 [supported formats](docs/supported-formats.md).

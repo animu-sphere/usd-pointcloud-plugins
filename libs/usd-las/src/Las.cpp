@@ -33,12 +33,18 @@ bool Has(const std::vector<std::uint8_t>& bytes,
 }
 
 bool IsSupportedFormat(std::uint8_t format) {
-    return format <= 3 || (format >= 6 && format <= 8);
+    return format <= 5 || (format >= 6 && format <= 10);
 }
 
 bool IsSupportedFormatForVersion(std::uint8_t versionMinor,
                                  std::uint8_t format) {
-    return IsSupportedFormat(format) && (format < 6 || versionMinor == 4);
+    if (!IsSupportedFormat(format)) {
+        return false;
+    }
+    if (format == 4 || format == 5) {
+        return versionMinor == 3 || versionMinor == 4;
+    }
+    return format < 6 || versionMinor == 4;
 }
 
 usdgeo::DiagnosticCode CodeForError(const std::string& error) {
@@ -107,12 +113,20 @@ std::size_t MinimumRecordLength(std::uint8_t format) {
         return 26;
     case 3:
         return 34;
+    case 4:
+        return 57;
+    case 5:
+        return 63;
     case 6:
         return 30;
     case 7:
         return 36;
     case 8:
         return 38;
+    case 9:
+        return 59;
+    case 10:
+        return 67;
     default:
         return 0;
     }
@@ -479,7 +493,7 @@ bool DecodePoint(const LasHeader& header,
             point.blue = ReadLittle<std::uint16_t>(record, 34);
             point.hasColor = true;
         }
-        if (header.pointFormat == 8) {
+        if (header.pointFormat == 8 || header.pointFormat == 10) {
             point.nir = ReadLittle<std::uint16_t>(record, 36);
         }
         point.gpsTime = ReadLittle<double>(record, 22);
@@ -500,6 +514,28 @@ bool DecodePoint(const LasHeader& header,
             point.blue = ReadLittle<std::uint16_t>(record, colorOffset + 4);
             point.hasColor = true;
         }
+    }
+    if (header.pointFormat == 4 || header.pointFormat == 5 ||
+        header.pointFormat == 9 || header.pointFormat == 10) {
+        const auto waveformOffset = header.pointFormat == 4 ? std::size_t{28}
+                                    : header.pointFormat == 5 ? std::size_t{34}
+                                    : header.pointFormat == 9 ? std::size_t{30}
+                                                               : std::size_t{38};
+        const auto descriptorIndex =
+            ReadLittle<std::uint8_t>(record, waveformOffset);
+        const auto encodedOffset =
+            ReadLittle<std::uint64_t>(record, waveformOffset + 1);
+        point.waveform.descriptorIndex = descriptorIndex & 0x7f;
+        point.waveform.external = (descriptorIndex & 0x80) != 0;
+        point.waveform.dataOffset = encodedOffset;
+        point.waveform.packetSize =
+            ReadLittle<std::uint32_t>(record, waveformOffset + 9);
+        point.waveform.returnPointLocation =
+            ReadLittle<float>(record, waveformOffset + 13);
+        point.waveform.xt = ReadLittle<float>(record, waveformOffset + 17);
+        point.waveform.yt = ReadLittle<float>(record, waveformOffset + 21);
+        point.waveform.zt = ReadLittle<float>(record, waveformOffset + 25);
+        point.hasWaveform = true;
     }
     if (!std::isfinite(point.sourcePosition.x) ||
         !std::isfinite(point.sourcePosition.y) ||

@@ -22,6 +22,9 @@ usdgeo::DiagnosticCode CodeForError(const std::string& error) {
     if (error == "unsupported LAS point format") {
         return usdgeo::DiagnosticCode::UnsupportedPointFormat;
     }
+    if (error == "unsupported LAZ waveform point format") {
+        return usdgeo::DiagnosticCode::UnsupportedPointFormat;
+    }
     if (error == "LAS header offsets are invalid" ||
         error == "LAZ point data offset is outside the file" ||
         error == "LAZ EVLR offset is outside the file") {
@@ -250,6 +253,11 @@ std::unique_ptr<LazDecoder> CreateFileDecoder(const std::string& filename,
         }
         usdlas::LasHeader header;
         if (!usdlas::InspectHeader(bytes, header, error)) {
+            return nullptr;
+        }
+        if (header.pointFormat == 4 || header.pointFormat == 5 ||
+            header.pointFormat == 9 || header.pointFormat == 10) {
+            error = "unsupported LAZ waveform point format";
             return nullptr;
         }
         header.variableLengthRecords.clear();

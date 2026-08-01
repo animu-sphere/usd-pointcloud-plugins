@@ -117,8 +117,22 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
                     chunkHeader.pointFormat >= 6) {
                     pointData.gpsTime.reserve(pointCount);
                 }
-                if (chunkHeader.pointFormat == 8) {
+                if (chunkHeader.pointFormat == 8 ||
+                    chunkHeader.pointFormat == 10) {
                     pointData.nir.reserve(pointCount);
+                }
+                if (chunkHeader.pointFormat == 4 ||
+                    chunkHeader.pointFormat == 5 ||
+                    chunkHeader.pointFormat == 9 ||
+                    chunkHeader.pointFormat == 10) {
+                    pointData.waveformDescriptorIndex.reserve(pointCount);
+                    pointData.waveformDataOffset.reserve(pointCount);
+                    pointData.waveformPacketSize.reserve(pointCount);
+                    pointData.returnPointWaveformLocation.reserve(pointCount);
+                    pointData.waveformXt.reserve(pointCount);
+                    pointData.waveformYt.reserve(pointCount);
+                    pointData.waveformZt.reserve(pointCount);
+                    pointData.waveformDataExternal.reserve(pointCount);
                 }
             }
             for (const auto& point : points) {
@@ -144,8 +158,24 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
                 if (point.hasGpsTime) {
                     pointData.gpsTime.push_back(point.gpsTime);
                 }
-                if (chunkHeader.pointFormat == 8) {
+                if (chunkHeader.pointFormat == 8 ||
+                    chunkHeader.pointFormat == 10) {
                     pointData.nir.push_back(point.nir);
+                }
+                if (point.hasWaveform) {
+                    pointData.waveformDescriptorIndex.push_back(
+                        point.waveform.descriptorIndex);
+                    pointData.waveformDataOffset.push_back(
+                        point.waveform.dataOffset);
+                    pointData.waveformPacketSize.push_back(
+                        point.waveform.packetSize);
+                    pointData.returnPointWaveformLocation.push_back(
+                        point.waveform.returnPointLocation);
+                    pointData.waveformXt.push_back(point.waveform.xt);
+                    pointData.waveformYt.push_back(point.waveform.yt);
+                    pointData.waveformZt.push_back(point.waveform.zt);
+                    pointData.waveformDataExternal.push_back(
+                        point.waveform.external ? 1 : 0);
                 }
             }
             return true;
@@ -212,6 +242,24 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
     if (!pointData.nir.empty()) {
         chunk.attributes.push_back(
             {"nir", usdpointcloud::PointAttributeType::UInt16});
+    }
+    if (!pointData.waveformDescriptorIndex.empty()) {
+        chunk.attributes.push_back(
+            {"waveformDescriptorIndex", usdpointcloud::PointAttributeType::UInt8});
+        chunk.attributes.push_back(
+            {"waveformDataOffset", usdpointcloud::PointAttributeType::UInt64});
+        chunk.attributes.push_back(
+            {"waveformPacketSize", usdpointcloud::PointAttributeType::UInt32});
+        chunk.attributes.push_back(
+            {"returnPointWaveformLocation", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back(
+            {"waveformXt", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back(
+            {"waveformYt", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back(
+            {"waveformZt", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back(
+            {"waveformDataExternal", usdpointcloud::PointAttributeType::UInt8});
     }
 
     const auto usda = SdfFileFormat::FindByExtension("usda");

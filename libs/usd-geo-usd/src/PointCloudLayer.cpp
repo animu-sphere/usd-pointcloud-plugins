@@ -83,9 +83,24 @@ bool PointCloudLayer::AuthorPointCloud(
         !HasPointCountOrIsEmpty(data.blue, chunk.pointCount) ||
         !HasPointCountOrIsEmpty(data.nir, chunk.pointCount) ||
         !HasPointCountOrIsEmpty(data.gpsTime, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.waveformDescriptorIndex, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.waveformDataOffset, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.waveformPacketSize, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.returnPointWaveformLocation, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.waveformXt, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.waveformYt, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.waveformZt, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.waveformDataExternal, chunk.pointCount) ||
         (data.returnNumber.empty() != data.numberOfReturns.empty()) ||
         (data.red.empty() != data.green.empty()) ||
-        (data.red.empty() != data.blue.empty())) {
+        (data.red.empty() != data.blue.empty()) ||
+        (data.waveformDescriptorIndex.empty() != data.waveformDataOffset.empty()) ||
+        (data.waveformDescriptorIndex.empty() != data.waveformPacketSize.empty()) ||
+        (data.waveformDescriptorIndex.empty() != data.returnPointWaveformLocation.empty()) ||
+        (data.waveformDescriptorIndex.empty() != data.waveformXt.empty()) ||
+        (data.waveformDescriptorIndex.empty() != data.waveformYt.empty()) ||
+        (data.waveformDescriptorIndex.empty() != data.waveformZt.empty()) ||
+        (data.waveformDescriptorIndex.empty() != data.waveformDataExternal.empty())) {
         return false;
     }
 
@@ -194,6 +209,48 @@ bool PointCloudLayer::AuthorPointCloud(
         points.GetPrim().CreateAttribute(
             pxr::TfToken("geo:gpsTime"), pxr::SdfValueTypeNames->DoubleArray)
             .Set(pxr::VtArray<double>(data.gpsTime.begin(), data.gpsTime.end()));
+    }
+    if (!data.waveformDescriptorIndex.empty()) {
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:waveformDescriptorIndex"),
+            pxr::SdfValueTypeNames->UCharArray)
+            .Set(pxr::VtArray<unsigned char>(data.waveformDescriptorIndex.begin(),
+                                              data.waveformDescriptorIndex.end()));
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:waveformDataOffset"),
+            pxr::SdfValueTypeNames->UInt64Array)
+            .Set(pxr::VtArray<std::uint64_t>(data.waveformDataOffset.begin(),
+                                              data.waveformDataOffset.end()));
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:waveformPacketSize"),
+            pxr::SdfValueTypeNames->UIntArray)
+            .Set(pxr::VtArray<unsigned int>(data.waveformPacketSize.begin(),
+                                             data.waveformPacketSize.end()));
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:returnPointWaveformLocation"),
+            pxr::SdfValueTypeNames->FloatArray)
+            .Set(pxr::VtArray<float>(data.returnPointWaveformLocation.begin(),
+                                     data.returnPointWaveformLocation.end()));
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:waveformXt"), pxr::SdfValueTypeNames->FloatArray)
+            .Set(pxr::VtArray<float>(data.waveformXt.begin(), data.waveformXt.end()));
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:waveformYt"), pxr::SdfValueTypeNames->FloatArray)
+            .Set(pxr::VtArray<float>(data.waveformYt.begin(), data.waveformYt.end()));
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:waveformZt"), pxr::SdfValueTypeNames->FloatArray)
+            .Set(pxr::VtArray<float>(data.waveformZt.begin(), data.waveformZt.end()));
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:waveformDataExternal"),
+            pxr::SdfValueTypeNames->UCharArray)
+            .Set(pxr::VtArray<unsigned char>(data.waveformDataExternal.begin(),
+                                              data.waveformDataExternal.end()));
+    }
+    if (!data.waveformDataFile.empty()) {
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:waveformDataFile"),
+            pxr::SdfValueTypeNames->String)
+            .Set(data.waveformDataFile);
     }
 
     points.GetPrim().CreateAttribute(

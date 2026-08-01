@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <limits>
 #include <vector>
@@ -219,8 +220,24 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
         header.pointFormat >= 6) {
         pointData.gpsTime.reserve(static_cast<std::size_t>(header.pointCount));
     }
-    if (header.pointFormat == 8) {
+    if (header.pointFormat == 8 || header.pointFormat == 10) {
         pointData.nir.reserve(static_cast<std::size_t>(header.pointCount));
+    }
+    if (header.pointFormat == 4 || header.pointFormat == 5 ||
+        header.pointFormat == 9 || header.pointFormat == 10) {
+        pointData.waveformDescriptorIndex.reserve(
+            static_cast<std::size_t>(header.pointCount));
+        pointData.waveformDataOffset.reserve(
+            static_cast<std::size_t>(header.pointCount));
+        pointData.waveformPacketSize.reserve(
+            static_cast<std::size_t>(header.pointCount));
+        pointData.returnPointWaveformLocation.reserve(
+            static_cast<std::size_t>(header.pointCount));
+        pointData.waveformXt.reserve(static_cast<std::size_t>(header.pointCount));
+        pointData.waveformYt.reserve(static_cast<std::size_t>(header.pointCount));
+        pointData.waveformZt.reserve(static_cast<std::size_t>(header.pointCount));
+        pointData.waveformDataExternal.reserve(
+            static_cast<std::size_t>(header.pointCount));
     }
     for (std::uint64_t index = 0; index < header.pointCount; ++index) {
         if (!input.read(reinterpret_cast<char*>(record.data()),
@@ -264,8 +281,26 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
         if (point.hasGpsTime) {
             pointData.gpsTime.push_back(point.gpsTime);
         }
-        if (header.pointFormat == 8) {
+        if (header.pointFormat == 8 || header.pointFormat == 10) {
             pointData.nir.push_back(point.nir);
+        }
+        if (point.hasWaveform) {
+            pointData.waveformDescriptorIndex.push_back(
+                point.waveform.descriptorIndex);
+            pointData.waveformDataOffset.push_back(point.waveform.dataOffset);
+            pointData.waveformPacketSize.push_back(point.waveform.packetSize);
+            pointData.returnPointWaveformLocation.push_back(
+                point.waveform.returnPointLocation);
+            pointData.waveformXt.push_back(point.waveform.xt);
+            pointData.waveformYt.push_back(point.waveform.yt);
+            pointData.waveformZt.push_back(point.waveform.zt);
+            pointData.waveformDataExternal.push_back(
+                point.waveform.external ? 1 : 0);
+            if (point.waveform.external && pointData.waveformDataFile.empty()) {
+                auto waveformPath = std::filesystem::path(resolvedPath);
+                waveformPath.replace_extension(".wdp");
+                pointData.waveformDataFile = waveformPath.string();
+            }
         }
     }
 
@@ -319,6 +354,24 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
     if (!pointData.nir.empty()) {
         chunk.attributes.push_back(
             {"nir", usdpointcloud::PointAttributeType::UInt16});
+    }
+    if (!pointData.waveformDescriptorIndex.empty()) {
+        chunk.attributes.push_back(
+            {"waveformDescriptorIndex", usdpointcloud::PointAttributeType::UInt8});
+        chunk.attributes.push_back(
+            {"waveformDataOffset", usdpointcloud::PointAttributeType::UInt64});
+        chunk.attributes.push_back(
+            {"waveformPacketSize", usdpointcloud::PointAttributeType::UInt32});
+        chunk.attributes.push_back(
+            {"returnPointWaveformLocation", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back(
+            {"waveformXt", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back(
+            {"waveformYt", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back(
+            {"waveformZt", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back(
+            {"waveformDataExternal", usdpointcloud::PointAttributeType::UInt8});
     }
 
     const auto usda = SdfFileFormat::FindByExtension("usda");

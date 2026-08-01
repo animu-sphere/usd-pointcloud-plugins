@@ -46,6 +46,17 @@ struct LasExtraBytesDescriptor {
     std::string description;
 };
 
+struct LasWaveformPacket {
+    std::uint8_t descriptorIndex = 0;
+    std::uint64_t dataOffset = 0;
+    std::uint32_t packetSize = 0;
+    float returnPointLocation = 0.0f;
+    float xt = 0.0f;
+    float yt = 0.0f;
+    float zt = 0.0f;
+    bool external = false;
+};
+
 struct LasHeader {
     std::uint8_t versionMajor = 0;
     std::uint8_t versionMinor = 0;
@@ -90,8 +101,10 @@ struct LasPoint {
     std::uint16_t blue = 0;
     std::uint16_t nir = 0;
     double gpsTime = 0.0;
+    LasWaveformPacket waveform;
     bool hasColor = false;
     bool hasGpsTime = false;
+    bool hasWaveform = false;
 };
 
 bool InspectHeader(const std::vector<std::uint8_t>& bytes,
