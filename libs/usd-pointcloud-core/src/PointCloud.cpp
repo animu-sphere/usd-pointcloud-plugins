@@ -1,6 +1,7 @@
 #include "usdpointcloud/PointCloud.h"
 
 #include <algorithm>
+#include <limits>
 
 namespace usdpointcloud {
 
@@ -30,6 +31,17 @@ bool PointChunk::IsValid() const noexcept {
         }
     }
     return true;
+}
+
+bool PointRange::IsValid() const noexcept {
+    return pointCount == 0 ||
+           firstPoint <= (std::numeric_limits<std::uint64_t>::max)() -
+                              pointCount;
+}
+
+bool PointReadOptions::IsValid() const noexcept {
+    return chunkPointLimit != 0 && memoryBudgetBytes != 0 &&
+           range.IsValid();
 }
 
 } // namespace usdpointcloud

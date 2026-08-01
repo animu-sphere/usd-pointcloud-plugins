@@ -32,7 +32,7 @@ set_target_properties(usdLaz PROPERTIES
     POSITION_INDEPENDENT_CODE ON)
 
 target_compile_features(usdLaz PUBLIC cxx_std_17)
-target_link_libraries(usdLaz PUBLIC usdlas::core)
+target_link_libraries(usdLaz PUBLIC usdlas::core usdpointcloud::core)
 target_include_directories(usdLaz PRIVATE "${LAZPERF_ROOT}/cpp")
 target_include_directories(usdLaz
     PUBLIC

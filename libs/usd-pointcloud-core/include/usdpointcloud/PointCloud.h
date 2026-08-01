@@ -3,6 +3,7 @@
 #include "usdgeo/SpatialBounds.h"
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,22 @@ struct PointChunk {
     std::uint64_t pointCount = 0;
     usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
     std::vector<PointAttribute> attributes;
+
+    bool IsValid() const noexcept;
+};
+
+struct PointRange {
+    std::uint64_t firstPoint = 0;
+    std::uint64_t pointCount = 0;
+
+    bool IsValid() const noexcept;
+};
+
+struct PointReadOptions {
+    std::size_t chunkPointLimit = 65536;
+    std::size_t memoryBudgetBytes = 64 * 1024 * 1024;
+    PointRange range;
+    std::function<bool()> isCancelled;
 
     bool IsValid() const noexcept;
 };

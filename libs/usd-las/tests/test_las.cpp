@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <limits>
 #include <string>
 #include <vector>
@@ -135,6 +137,67 @@ void TestValidation() {
     Check(!usdlas::DecodePoint(header, invalidRecord, point, diagnostics));
     Check(diagnostics.size() == 1 &&
           diagnostics.front().code == usdgeo::DiagnosticCode::NonFiniteCoordinate);
+}
+
+void TestRangeReader() {
+    const auto filename =
+        std::filesystem::temp_directory_path() / "usd-geo-plugins-test.las";
+    auto bytes = MakeHeader(2, 0);
+    Write(bytes, 107, std::uint32_t{3});
+    for (int index = 0; index < 3; ++index) {
+        std::vector<std::uint8_t> record(20, 0);
+        Write(record, 0, static_cast<std::int32_t>(index + 1));
+        Write(record, 4, static_cast<std::int32_t>(index + 2));
+        Write(record, 8, static_cast<std::int32_t>(index + 3));
+        bytes.insert(bytes.end(), record.begin(), record.end());
+    }
+    {
+        std::ofstream output(filename, std::ios::binary);
+        output.write(reinterpret_cast<const char*>(bytes.data()),
+                     static_cast<std::streamsize>(bytes.size()));
+    }
+
+    usdlas::LasReader reader(filename.string());
+    usdlas::LasReadOptions options;
+    options.chunkPointLimit = 2;
+    options.memoryBudgetBytes = 2 * (sizeof(usdlas::LasPoint) + 40);
+    options.range = {1, 1};
+    usdlas::LasHeader header;
+    std::string error;
+    std::size_t points = 0;
+    Check(reader.Read(
+        options,
+        [&](const usdlas::LasHeader&, const std::vector<usdlas::LasPoint>& data) {
+            points += data.size();
+            Check(data.front().sourcePosition.x == 1000.02);
+            return true;
+        },
+        header, error));
+    Check(points == 1);
+
+    auto invalidBytes = MakeHeader(2, 0);
+    Write(invalidBytes, 131, std::numeric_limits<double>::max());
+    std::vector<std::uint8_t> invalidRecord(20, 0);
+    Write(invalidRecord, 0, std::int32_t{2});
+    invalidBytes.insert(invalidBytes.end(), invalidRecord.begin(),
+                        invalidRecord.end());
+    {
+        std::ofstream output(filename, std::ios::binary);
+        output.write(reinterpret_cast<const char*>(invalidBytes.data()),
+                     static_cast<std::streamsize>(invalidBytes.size()));
+    }
+    usdgeo::Diagnostic diagnostics;
+    std::vector<usdgeo::Diagnostic> typedDiagnostics;
+    Check(!reader.Read(
+        {},
+        [&](const usdlas::LasHeader&,
+            const std::vector<usdlas::LasPoint>&) { return true; },
+        header, typedDiagnostics));
+    Check(typedDiagnostics.size() == 1);
+    diagnostics = typedDiagnostics.front();
+    Check(diagnostics.code == usdgeo::DiagnosticCode::NonFiniteCoordinate &&
+          diagnostics.pointIndex == 0 && diagnostics.byteOffset == 227);
+    Check(std::remove(filename.string().c_str()) == 0);
 }
 
     void TestWaveformPointFormats() {
@@ -288,6 +351,7 @@ void TestVariableLengthRecords() {
 int main() {
     TestHeaderAndPoint();
     TestValidation();
+    TestRangeReader();
     TestWaveformPointFormats();
     TestVariableLengthRecords();
     return 0;

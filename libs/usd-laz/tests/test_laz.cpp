@@ -95,6 +95,29 @@ public:
     }
 };
 
+class BudgetDecoder final : public usdlaz::LazDecoder {
+public:
+    bool ReadHeader(usdlas::LasHeader& header, std::string&) override {
+        header.pointCount = 3;
+        header.pointRecordLength = 20;
+        return true;
+    }
+
+    bool ReadChunk(std::size_t maximumPoints,
+                   std::vector<usdlas::LasPoint>& points,
+                   bool& complete,
+                   std::string&) override {
+        Check(maximumPoints == 1);
+        points.resize(1);
+        ++offset_;
+        complete = offset_ == 3;
+        return true;
+    }
+
+private:
+    std::size_t offset_ = 0;
+};
+
 void TestChunkForwarding() {
     usdlaz::LazReader reader(std::make_unique<FakeDecoder>());
     usdlaz::LazReadOptions options;
@@ -170,6 +193,38 @@ void TestTypedReaderPreservesDecoderDiagnostic() {
     Check(diagnostics.front().pointIndex == 2);
 }
 
+void TestRangeMemoryBudgetAndCancellation() {
+    usdlaz::LazReader reader(std::make_unique<BudgetDecoder>());
+    usdlaz::LazReadOptions options;
+    options.chunkPointLimit = 2;
+    options.memoryBudgetBytes = sizeof(usdlas::LasPoint) + 40;
+    options.range = {1, 1};
+    usdlas::LasHeader header;
+    std::string error;
+    std::size_t points = 0;
+    Check(reader.Read(
+        options,
+        [&](const usdlas::LasHeader&, const std::vector<usdlas::LasPoint>& data) {
+            points += data.size();
+            return true;
+        },
+        header, error));
+    Check(points == 1);
+
+    usdlaz::LazReader cancelled(std::make_unique<BudgetDecoder>());
+    options.range = {};
+    options.isCancelled = [] { return true; };
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!cancelled.Read(
+        options,
+        [&](const usdlas::LasHeader&, const std::vector<usdlas::LasPoint>&) {
+            return true;
+        },
+        header, diagnostics));
+    Check(diagnostics.size() == 1 &&
+          diagnostics.front().message == "LAZ read cancelled");
+}
+
 void TestLazPerfFileDecoder() {
     const auto filename =
         std::filesystem::temp_directory_path() / "usd-geo-plugins-test.laz";
@@ -223,6 +278,7 @@ int main() {
     TestCompleteFlagIsResetBeforeEachChunk();
     TestFileDecoderReportsOpenFailure();
     TestTypedReaderPreservesDecoderDiagnostic();
+    TestRangeMemoryBudgetAndCancellation();
     TestLazPerfFileDecoder();
     return 0;
 }
