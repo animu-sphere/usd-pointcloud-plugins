@@ -6,11 +6,20 @@
 # `host_packages`, so regeneration re-renders the step instead of dropping a
 # hand-added one.
 #
-#   X11 BACKGROUND. OpenUSD 26.08's MaterialX 1.39.5 exports an unconditional
-#   `find_dependency(X11 REQUIRED COMPONENTS Xt)` on non-Apple UNIX, so a Linux
-#   consumer of the 26.08 runtime cannot even configure — `ost runtime validate`
-#   fails its `consumer-configure` check — without X11 dev headers. Every Linux
-#   cell therefore declares `host_packages.apt`.
+#   LINUX HOST DEPS. Two runtime CMake exports reach out to system libraries
+#   that a bare ubuntu-24.04 runner does not carry, so every Linux cell declares
+#   them under `host_packages.apt`:
+#
+#     libx11-dev, libxt-dev  OpenUSD 26.08's MaterialX 1.39.5 exports an
+#       unconditional `find_dependency(X11 REQUIRED COMPONENTS Xt)` on non-Apple
+#       UNIX, so a consumer cannot even configure — `ost runtime validate` fails
+#       its `consumer-configure` check — without X11 dev headers.
+#
+#     libgl1-mesa-dev  the runtime's `garch` target carries `OpenGL::GL` in its
+#       INTERFACE_LINK_LIBRARIES, which is why each bundle's CMakeLists issues
+#       `find_package(OpenGL REQUIRED)`. Without the dev package that find fails
+#       on OPENGL_opengl_LIBRARY / OPENGL_glx_LIBRARY / OPENGL_INCLUDE_DIR.
+#       macOS needs no equivalent: the OpenGL framework ships with the SDK.
 #
 # Digest provenance:
 #   All three runtimes are the validated OpenUSD 26.08 (PXR_VERSION 2608) builds
@@ -104,9 +113,9 @@ cells:
     platform: cy2026
     profile: usd
     host_python: "3.13"
-    # MaterialX 1.39.5 (OpenUSD 26.08) hard-requires X11 on Linux; see header.
+    # MaterialX and garch pull X11/GL into the link interface; see header.
     host_packages:
-      apt: [libx11-dev, libxt-dev]
+      apt: [libx11-dev, libxt-dev, libgl1-mesa-dev]
     up_to: 5
 
   - name: geo-laz-pr-macos-arm64
@@ -133,7 +142,7 @@ cells:
     platform: cy2026
     profile: usd
     host_python: "3.13"
-    # MaterialX 1.39.5 (OpenUSD 26.08) hard-requires X11 on Linux; see header.
+    # MaterialX and garch pull X11/GL into the link interface; see header.
     host_packages:
-      apt: [libx11-dev, libxt-dev]
+      apt: [libx11-dev, libxt-dev, libgl1-mesa-dev]
     up_to: 5

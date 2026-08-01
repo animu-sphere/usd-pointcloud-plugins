@@ -106,7 +106,7 @@ jobs:
             bundle: plugins/geo-las
             runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af"
             host_python: "3.13"
-            host_packages_apt: "libx11-dev libxt-dev"
+            host_packages_apt: "libx11-dev libxt-dev libgl1-mesa-dev"
             host_packages_brew: ""
           - name: geo-laz-pr-macos-arm64
             lane: pull_request
@@ -142,7 +142,7 @@ jobs:
             bundle: plugins/geo-laz
             runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af"
             host_python: "3.13"
-            host_packages_apt: "libx11-dev libxt-dev"
+            host_packages_apt: "libx11-dev libxt-dev libgl1-mesa-dev"
             host_packages_brew: ""
     steps:
       - name: Check out the repository
