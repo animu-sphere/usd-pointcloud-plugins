@@ -52,9 +52,8 @@ bool PointCloudLayer::AuthorPointCloud(
     const SpatialBounds& bounds,
     const usdpointcloud::PointChunk& chunk,
     const std::vector<Vec3d>& positions) {
-    Data data;
-    data.positions = positions;
-    return AuthorPointCloud(stage, primPath, reference, bounds, chunk, data);
+    return AuthorPointCloudAsset(
+        stage, primPath, reference, bounds, chunk, positions);
 }
 
 bool PointCloudLayer::AuthorPointCloud(
@@ -64,6 +63,30 @@ bool PointCloudLayer::AuthorPointCloud(
     const SpatialBounds& bounds,
     const usdpointcloud::PointChunk& chunk,
     const Data& data) {
+    return AuthorPointCloudAsset(
+        stage, primPath, reference, bounds, chunk, data);
+}
+
+bool AuthorPointCloudAsset(
+    const pxr::UsdStageRefPtr& stage,
+    const std::string& primPath,
+    const GeoReference& reference,
+    const SpatialBounds& bounds,
+    const usdpointcloud::PointChunk& chunk,
+    const std::vector<Vec3d>& positions) {
+    PointCloudLayer::Data data;
+    data.positions = positions;
+    return AuthorPointCloudAsset(stage, primPath, reference, bounds, chunk,
+                                 data);
+}
+
+bool AuthorPointCloudAsset(
+    const pxr::UsdStageRefPtr& stage,
+    const std::string& primPath,
+    const GeoReference& reference,
+    const SpatialBounds& bounds,
+    const usdpointcloud::PointChunk& chunk,
+    const PointCloudLayer::Data& data) {
     if (!stage || !IsValidPrimPath(primPath) || !reference.IsValid() ||
         !bounds.IsValid() || !chunk.IsValid() ||
         data.positions.size() != chunk.pointCount ||
