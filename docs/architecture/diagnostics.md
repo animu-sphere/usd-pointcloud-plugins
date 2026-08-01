@@ -107,7 +107,7 @@ Adding a code is a compatible change; changing what a code means is not.
 
 The [tile and LOD contract](lod.md) requires typed diagnostics for every
 validation invariant it defines: item ordering, default index range, threshold
-count and ordering, non-finite or out-of-domain thresholds, inconsistent item
+count and ordering, non-finite or non-positive thresholds, inconsistent item
 bounds, non-monotonic point counts, source-range overflow, and empty
 hierarchies. Codes for these conditions are added to `DiagnosticCode` when the
 LOD contract lands, under rule 1 above; they are not reserved by name here so

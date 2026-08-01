@@ -142,14 +142,39 @@ void TestLodContracts() {
     usdgeo::SpatialBounds bounds;
     bounds.Expand({0.0, 0.0, 0.0});
     bounds.Expand({10.0, 10.0, 10.0});
+    usdgeo::SpatialBounds previewBounds;
+    previewBounds.Expand({1.0, 1.0, 1.0});
+    previewBounds.Expand({9.0, 9.0, 9.0});
 
     const usdpointcloud::PointLodItem detailed{0, 100, bounds, {0, 100}};
-    const usdpointcloud::PointLodItem preview{1, 25, bounds, {0, 100}};
+    const usdpointcloud::PointLodItem preview{
+        1, 25, previewBounds, {0, 100}};
     usdpointcloud::PointLodHierarchy hierarchy{
         bounds, {detailed, preview}, 0, {0.25F}};
     std::vector<usdgeo::Diagnostic> diagnostics;
     Check(usdpointcloud::ValidatePointLodHierarchy(hierarchy, diagnostics));
     Check(diagnostics.empty() && hierarchy.IsValid());
+
+    hierarchy.screenSizeThresholds = {2.0F};
+    Check(usdpointcloud::ValidatePointLodHierarchy(hierarchy, diagnostics));
+    hierarchy.screenSizeThresholds = {0.0F};
+    Check(!usdpointcloud::ValidatePointLodHierarchy(hierarchy, diagnostics));
+    Check(diagnostics.front().code == usdgeo::DiagnosticCode::InvalidLodHierarchy);
+    hierarchy.screenSizeThresholds = {
+        std::numeric_limits<float>::quiet_NaN()};
+    Check(!usdpointcloud::ValidatePointLodHierarchy(hierarchy, diagnostics));
+    hierarchy.screenSizeThresholds = {0.25F};
+
+    hierarchy.defaultIndex = 2;
+    Check(!usdpointcloud::ValidatePointLodHierarchy(hierarchy, diagnostics));
+    Check(diagnostics.front().code == usdgeo::DiagnosticCode::InvalidLodHierarchy);
+    hierarchy.defaultIndex = 0;
+
+    hierarchy.items[1].sourceRange = {
+        (std::numeric_limits<std::uint64_t>::max)(), 2};
+    Check(!usdpointcloud::ValidatePointLodHierarchy(hierarchy, diagnostics));
+    Check(diagnostics.front().code == usdgeo::DiagnosticCode::InvalidPointSourceRange);
+    hierarchy.items[1].sourceRange = {0, 100};
 
     hierarchy.screenSizeThresholds = {0.25F, 0.10F};
     Check(!usdpointcloud::ValidatePointLodHierarchy(hierarchy, diagnostics));
@@ -165,7 +190,7 @@ void TestLodContracts() {
     Check(!usdpointcloud::ValidatePointLodHierarchy(hierarchy, diagnostics));
     Check(diagnostics.front().code == usdgeo::DiagnosticCode::InvalidLodItem);
 
-    hierarchy.items[1].bounds = bounds;
+    hierarchy.items[1].bounds = previewBounds;
     const usdpointcloud::PointTile tile{
         {2, 0, 1, 3}, bounds, {{3, 0, 2}, {3, 0, 3}}, hierarchy};
     Check(usdpointcloud::ValidatePointTile(tile, diagnostics));
@@ -175,6 +200,11 @@ void TestLodContracts() {
     duplicateChildren.children.push_back(duplicateChildren.children.front());
     Check(!usdpointcloud::ValidatePointTile(duplicateChildren, diagnostics));
     Check(diagnostics.back().code == usdgeo::DiagnosticCode::InvalidPointTile);
+
+    auto invalidTileId = tile;
+    invalidTileId.id.level = -1;
+    Check(!usdpointcloud::ValidatePointTile(invalidTileId, diagnostics));
+    Check(diagnostics.front().code == usdgeo::DiagnosticCode::InvalidPointTileId);
 }
 
 } // namespace

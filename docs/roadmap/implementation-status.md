@@ -55,11 +55,9 @@
 ## Next Implementation Sequence
 
 1. Verify the `usdLod` schema surface against the pinned OpenUSD 26.08 runtime.
-2. Define the shared LOD contracts and their validation invariants, reconciling
-   `PointTileId` with the existing `usdgeo::TileId`.
-3. Add deterministic, versioned sampling and its cache-key inputs.
-4. Author a single non-tiled LOD root through `usdGeoUsd` for LAS and LAZ.
-5. Add spatial tiling, one LOD root per tile, and payload packaging.
+2. Add deterministic, versioned sampling and its cache-key inputs.
+3. Author a single non-tiled LOD root through `usdGeoUsd` for LAS and LAZ.
+4. Add spatial tiling, one LOD root per tile, and payload packaging.
 
 Argument normalization now makes the streaming reader's chunk and point-range
 controls reachable through the plugin layer. Attribute selection is also

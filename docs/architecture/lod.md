@@ -254,7 +254,7 @@ defaultIndex is within the item range
 threshold count equals item count minus one
 thresholds are finite
 thresholds are strictly descending
-thresholds are within the supported screen-size domain
+thresholds are positive
 all LOD items describe the same spatial region
 point counts do not increase as detail decreases
 tile IDs are deterministic
@@ -268,9 +268,10 @@ hierarchy.items.size() ==
     hierarchy.screenSizeThresholds.size() + 1;
 ```
 
-Minor bounds differences caused by sampling may be tolerated internally, but
-the authored LOD root exposes one stable tile extent so screen-size evaluation
-stays consistent across items.
+Sampling may produce an item bounds subset of the hierarchy bounds. The
+authored LOD root exposes the stable hierarchy extent so screen-size evaluation
+stays consistent across items. Screen-size units remain an authoring-layer
+concern until the pinned OpenUSD schema surface is verified.
 
 Violations produce typed diagnostics, not exceptions or assertions; see the
 [diagnostics contract](diagnostics.md).

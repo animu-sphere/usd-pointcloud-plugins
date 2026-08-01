@@ -17,6 +17,16 @@ bool SameBounds(const usdgeo::SpatialBounds& left,
            left.maximum.z == right.maximum.z;
 }
 
+    bool ContainsBounds(const usdgeo::SpatialBounds& outer,
+                  const usdgeo::SpatialBounds& inner) noexcept {
+        return outer.minimum.x <= inner.minimum.x &&
+            outer.minimum.y <= inner.minimum.y &&
+            outer.minimum.z <= inner.minimum.z &&
+            outer.maximum.x >= inner.maximum.x &&
+            outer.maximum.y >= inner.maximum.y &&
+            outer.maximum.z >= inner.maximum.z;
+    }
+
 bool SameTileId(const PointTileId& left,
                 const PointTileId& right) noexcept {
     return left.level == right.level && left.x == right.x &&
@@ -34,7 +44,6 @@ bool ValidThresholds(const std::vector<float>& thresholds) noexcept {
     for (std::size_t index = 0; index < thresholds.size(); ++index) {
         const float threshold = thresholds[index];
         if (!std::isfinite(threshold) || threshold <= 0.0F ||
-            threshold > 1.0F ||
             (index != 0 && threshold >= thresholds[index - 1])) {
             return false;
         }
@@ -58,7 +67,7 @@ bool PointLodHierarchy::IsValid() const noexcept {
     for (std::size_t index = 0; index < items.size(); ++index) {
         const auto& item = items[index];
         if (!item.IsValid() || item.index != index ||
-            !SameBounds(item.bounds, bounds) ||
+            !ContainsBounds(bounds, item.bounds) ||
             (index != 0 && item.pointCount > items[index - 1].pointCount)) {
             return false;
         }
@@ -111,7 +120,7 @@ bool ValidatePointLodHierarchy(
     }
     if (!ValidThresholds(hierarchy.screenSizeThresholds)) {
         AddDiagnostic(usdgeo::DiagnosticCode::InvalidLodHierarchy,
-                      "LOD thresholds must be finite, descending, and in (0, 1]",
+                      "LOD thresholds must be finite, positive, and descending",
                       diagnostics);
     }
 
@@ -130,9 +139,9 @@ bool ValidatePointLodHierarchy(
             AddDiagnostic(usdgeo::DiagnosticCode::InvalidLodItem,
                           "LOD item index does not match its position",
                           diagnostics);
-        } else if (!SameBounds(item.bounds, hierarchy.bounds)) {
+        } else if (!ContainsBounds(hierarchy.bounds, item.bounds)) {
             AddDiagnostic(usdgeo::DiagnosticCode::InvalidLodItem,
-                          "LOD item bounds do not match the hierarchy bounds",
+                          "LOD item bounds are outside the hierarchy bounds",
                           diagnostics);
         }
         if (index != 0 && item.pointCount > hierarchy.items[index - 1].pointCount) {
