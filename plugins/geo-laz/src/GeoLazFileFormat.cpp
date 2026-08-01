@@ -1,6 +1,7 @@
 #include "geolaz/GeoLazFileFormat.h"
 #include "geolaz/GeoLazDiagnostics.h"
 
+#include "usdgeo/Diagnostic.h"
 #include "usdgeo/PointCloudLayer.h"
 #include "usdlaz/Laz.h"
 
@@ -15,8 +16,31 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <vector>
 
 PXR_NAMESPACE_OPEN_SCOPE
+
+namespace {
+
+std::string DiagnosticDetail(
+    const std::vector<usdgeo::Diagnostic>& diagnostics,
+    const std::string& fallback) {
+    if (diagnostics.empty()) {
+        return fallback;
+    }
+    const auto& diagnostic = diagnostics.front();
+    std::string detail = diagnostic.message;
+    if (diagnostic.byteOffset) {
+        detail += " (byte offset " +
+                  std::to_string(*diagnostic.byteOffset) + ")";
+    }
+    if (diagnostic.pointIndex) {
+        detail += " (point " + std::to_string(*diagnostic.pointIndex) + ")";
+    }
+    return detail;
+}
+
+} // namespace
 
 TF_DEFINE_PUBLIC_TOKENS(GeoLazFileFormatTokens, GEOLAZ_FILE_FORMAT_TOKENS);
 
@@ -43,13 +67,14 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
         return false;
     }
 
-    std::string error;
-    auto decoder = usdlaz::CreateFileDecoder(resolvedPath, error);
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    auto decoder = usdlaz::CreateFileDecoder(resolvedPath, diagnostics);
     if (!decoder) {
         TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
                                   geolaz::diagnostics::FileOpenFailed,
                                   "Unable to open LAZ file " + resolvedPath +
-                                      ": " + error)
+                                      ": " +
+                                      DiagnosticDetail(diagnostics, "decoder could not be created"))
                                   .c_str());
         return false;
     }
@@ -100,12 +125,13 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
             }
             return true;
         },
-        header, error);
+        header, diagnostics);
     if (!consumed) {
         TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
                                   geolaz::diagnostics::DecodeFailed,
                                   "Unable to decode LAZ file " + resolvedPath +
-                                      ": " + error)
+                                      ": " +
+                                      DiagnosticDetail(diagnostics, "decode failed"))
                                   .c_str());
         return false;
     }

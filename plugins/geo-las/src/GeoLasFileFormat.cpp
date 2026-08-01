@@ -1,6 +1,7 @@
 #include "geolas/GeoLasFileFormat.h"
 #include "geolas/GeoLasDiagnostics.h"
 
+#include "usdgeo/Diagnostic.h"
 #include "usdgeo/PointCloudLayer.h"
 #include "usdlas/Las.h"
 
@@ -19,6 +20,24 @@
 PXR_NAMESPACE_OPEN_SCOPE
 
 namespace {
+
+std::string DiagnosticDetail(
+    const std::vector<usdgeo::Diagnostic>& diagnostics,
+    const std::string& fallback) {
+    if (diagnostics.empty()) {
+        return fallback;
+    }
+    const auto& diagnostic = diagnostics.front();
+    std::string detail = diagnostic.message;
+    if (diagnostic.byteOffset) {
+        detail += " (byte offset " +
+                  std::to_string(*diagnostic.byteOffset) + ")";
+    }
+    if (diagnostic.pointIndex) {
+        detail += " (point " + std::to_string(*diagnostic.pointIndex) + ")";
+    }
+    return detail;
+}
 
 } // namespace
 
@@ -78,12 +97,13 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
     }
 
     usdlas::LasHeader header;
-    std::string error;
-    if (!usdlas::InspectHeader(headerBytes, header, error)) {
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    if (!usdlas::InspectHeader(headerBytes, header, diagnostics)) {
         TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
                                   geolas::diagnostics::HeaderInvalid,
                                   "Unable to inspect LAS file " + resolvedPath +
-                                      ": " + error)
+                                      ": " +
+                                      DiagnosticDetail(diagnostics, "header is invalid"))
                                   .c_str());
         return false;
     }
@@ -97,11 +117,12 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
                         static_cast<std::streamsize>(metadataBytes.size())) ||
             !usdlas::InspectRecords(metadataBytes, header.headerSize,
                                     header.variableLengthRecordCount, false,
-                                    header.variableLengthRecords, error)) {
+                                    header.variableLengthRecords, diagnostics)) {
             TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
                                       geolas::diagnostics::VlrInvalid,
                                       "Unable to inspect LAS VLR metadata " +
-                                          resolvedPath + ": " + error)
+                                          resolvedPath + ": " +
+                                          DiagnosticDetail(diagnostics, "metadata is invalid"))
                                       .c_str());
             return false;
         }
@@ -124,11 +145,13 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
                         static_cast<std::streamsize>(evlrBytes.size())) ||
             !usdlas::InspectRecords(evlrBytes, 0,
                                     header.extendedVariableLengthRecordCount,
-                                    true, header.variableLengthRecords, error)) {
+                                    true, header.variableLengthRecords,
+                                    diagnostics)) {
             TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
                                       geolas::diagnostics::EvlrInvalid,
                                       "Unable to inspect LAS EVLR metadata " +
-                                          resolvedPath + ": " + error)
+                                          resolvedPath + ": " +
+                                          DiagnosticDetail(diagnostics, "metadata is invalid"))
                                       .c_str());
             return false;
         }
@@ -186,11 +209,12 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
             return false;
         }
         usdlas::LasPoint point;
-        if (!usdlas::DecodePoint(header, record, point, error)) {
+        if (!usdlas::DecodePoint(header, record, point, diagnostics)) {
             TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
                                       geolas::diagnostics::PointDecodeFailed,
                                       "Unable to decode LAS point " +
-                                          std::to_string(index) + ": " + error)
+                                          std::to_string(index) + ": " +
+                                          DiagnosticDetail(diagnostics, "decode failed"))
                                       .c_str());
             return false;
         }

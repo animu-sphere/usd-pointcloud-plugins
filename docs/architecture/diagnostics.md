@@ -6,11 +6,12 @@ state and the target contract.
 
 ## Current State
 
-Reader APIs (`usdlas`, `usdlaz`) now expose typed diagnostic overloads while
+Reader APIs (`usdlas`, `usdlaz`) expose typed diagnostic overloads while
 keeping the original `std::string& error` overloads for compatibility. The
-current implementation projects existing reader messages into shared
-diagnostic codes. The plugin layer still wraps its string path with a stable
-code and reports it through `TF_RUNTIME_ERROR`:
+reader messages are projected into shared diagnostic codes, and both
+FileFormat Plugins consume those typed overloads. Plugins retain their stable
+user-facing code prefixes and include available byte or point anchors in the
+`TF_RUNTIME_ERROR` message:
 
 ```text
 [LAS005] Unable to inspect LAS file <path>: unsupported LAS point format
@@ -29,8 +30,8 @@ Remaining limitations of the current migration:
   include them.
 - Warnings cannot be expressed, so a recoverable condition either fails the
   read or disappears.
-- The same underlying condition can produce different plugin codes depending on
-  the call site.
+- Plugin codes remain scoped to the import stage, so one shared condition can
+   still be presented under different LAS or LAZ stage codes.
 
 ## Target Contract
 
@@ -90,8 +91,9 @@ projection of the shared codes rather than an independent taxonomy.
    **Complete.**
 3. Map each `DiagnosticCode` to the existing plugin code, extending the code
    tables only when a condition has no existing code.
-4. Move `usdlaz` and both plugins onto the typed path. `usdlaz` overloads are
-   available; the plugins remain to be migrated.
+4. Move `usdlaz` and both plugins onto the typed path. **Complete.** The
+   plugin prefixes remain stable while typed messages and anchors are carried
+   through.
 5. Remove the string-only overloads once no caller uses them.
 
 Existing `LASxxx` and `LAZxxx` codes keep their meaning through the migration.
