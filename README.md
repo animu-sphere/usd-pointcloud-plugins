@@ -12,11 +12,12 @@ contains:
   spatial bounds, tile IDs, and stable cache-key inputs.
 - `usdPointCloudCore`: OpenUSD-independent point-attribute and point-chunk
   validation contracts.
+- `usdGeoUsd`: `UsdGeomPoints` authoring with CRS, local-origin, bounds, and
+  point-count metadata.
 
-The next planned milestone is `usdGeoUsd`, a minimal OpenUSD authoring bridge
-for `UsdGeomPoints`. LAS reader work starts after that foundation is tested.
-See [implementation status](docs/roadmap/implementation-status.md) and the
-[roadmap](docs/roadmap/README.md) for the full sequence.
+The next planned milestone is LAS metadata inspection and uncompressed point
+record decoding. See [implementation status](docs/roadmap/implementation-status.md)
+and the [roadmap](docs/roadmap/README.md) for the full sequence.
 
 ## Requirements
 
@@ -54,6 +55,7 @@ libraries. Do not add generated OpenStrata or CMake output to source changes.
 docs/roadmap/             Architecture decisions and implementation phases
 libs/usd-geo-core/        Shared geospatial value types and contracts
 libs/usd-pointcloud-core/ Format-independent point-cloud contracts
+libs/usd-geo-usd/         OpenUSD metadata and point-cloud authoring
 ```
 
 Format readers, OpenUSD authoring, cache support, and plugin adapters are kept
