@@ -38,7 +38,7 @@ jobs:
         include:
           - name: geo-las-pr-windows
             lane: pull_request
-            runtime_artifact: sha256:f07b2ae2eb62dd69857ab45f0026043ce023a9f3f38f8b93df128baf075945fb
+            runtime_artifact: sha256:913446515149cb32e2dfe23114c09f58c8f23aeed491bcff377bd6a1de142375
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -56,7 +56,7 @@ jobs:
             host_packages_brew: ""
           - name: geo-laz-pr-windows
             lane: pull_request
-            runtime_artifact: sha256:f07b2ae2eb62dd69857ab45f0026043ce023a9f3f38f8b93df128baf075945fb
+            runtime_artifact: sha256:913446515149cb32e2dfe23114c09f58c8f23aeed491bcff377bd6a1de142375
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -74,7 +74,7 @@ jobs:
             host_packages_brew: ""
           - name: geo-las-pr-macos-arm64
             lane: pull_request
-            runtime_artifact: sha256:36e26b586eb2724b4112e56bb2210a13294a76ceaf3aae3f825f33bb02681e99
+            runtime_artifact: sha256:b2cb7b68e72b05e486d57e96cde2ec7a8dc5a17b02b774af923aa58ee31d6d21
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -92,7 +92,7 @@ jobs:
             host_packages_brew: ""
           - name: geo-las-pr-linux
             lane: pull_request
-            runtime_artifact: sha256:70b47d1b1a337b71d6c6fd63898e3295c0f91dc4b2ad2f5c09d14d6ac0ff2e1d
+            runtime_artifact: sha256:41f762fd4184e8df4e96cf8145be514db16ffc0e84c56166de86c823a7d22e3a
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -110,7 +110,7 @@ jobs:
             host_packages_brew: ""
           - name: geo-laz-pr-macos-arm64
             lane: pull_request
-            runtime_artifact: sha256:36e26b586eb2724b4112e56bb2210a13294a76ceaf3aae3f825f33bb02681e99
+            runtime_artifact: sha256:b2cb7b68e72b05e486d57e96cde2ec7a8dc5a17b02b774af923aa58ee31d6d21
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -128,7 +128,7 @@ jobs:
             host_packages_brew: ""
           - name: geo-laz-pr-linux
             lane: pull_request
-            runtime_artifact: sha256:70b47d1b1a337b71d6c6fd63898e3295c0f91dc4b2ad2f5c09d14d6ac0ff2e1d
+            runtime_artifact: sha256:41f762fd4184e8df4e96cf8145be514db16ffc0e84c56166de86c823a7d22e3a
             target_trust: local
             minimum_trust: local
             require_evidence: all
