@@ -33,6 +33,10 @@ Vec3d SpatialBounds::Size() const noexcept {
 }
 
 void SpatialBounds::Expand(const Vec3d& point) noexcept {
+    if (!point.IsFinite()) {
+        return;
+    }
+
     minimum.x = std::min(minimum.x, point.x);
     minimum.y = std::min(minimum.y, point.y);
     minimum.z = std::min(minimum.z, point.z);

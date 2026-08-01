@@ -26,7 +26,7 @@ struct PointAttribute {
 
 struct PointChunk {
     std::uint64_t pointCount = 0;
-    usdgeo::SpatialBounds bounds;
+    usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
     std::vector<PointAttribute> attributes;
 
     bool IsValid() const noexcept;
