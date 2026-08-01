@@ -146,9 +146,46 @@ void TestFileFormatIntegration() {
     std::filesystem::remove(path, error);
 }
 
+void TestCheckedInAsset(const std::filesystem::path& path,
+                        std::size_t expectedPointCount) {
+    const auto layer = pxr::SdfLayer::FindOrOpen(path.string());
+    Check(layer);
+    const auto stage = pxr::UsdStage::Open(layer);
+    Check(stage);
+    const auto points = pxr::UsdGeomPoints::Get(
+        stage, pxr::SdfPath("/PointCloud"));
+    Check(points.GetPrim().IsValid());
+
+    pxr::VtVec3fArray positions;
+    Check(points.GetPointsAttr().Get(&positions));
+    Check(positions.size() == expectedPointCount);
+
+    const auto intensityAttribute = layer->GetAttributeAtPath(
+        pxr::SdfPath("/PointCloud.geo:intensity"));
+    Check(intensityAttribute != nullptr);
+    const auto intensity = intensityAttribute->GetDefaultValue();
+    Check(intensity.IsHolding<pxr::VtIntArray>());
+    Check(intensity.UncheckedGet<pxr::VtIntArray>().size() ==
+          expectedPointCount);
+}
+
+void TestCheckedInAssets() {
+    const auto root = std::filesystem::path(GEOLAS_SOURCE_DIR) / "tests";
+    TestCheckedInAsset(root / "fixtures" / "conformance.las", 2);
+    TestCheckedInAsset(
+        root / "corpus" / "virtual-shizuoka-2019" /
+            "virtual-shizuoka-08NF2330-thinned-4096.las",
+        4096);
+    TestCheckedInAsset(
+        root / "corpus" / "usgs-3dep-2020" /
+            "usgs-3dep-2020-thinned-4096.las",
+        4096);
+}
+
 } // namespace
 
 int main() {
     TestFileFormatIntegration();
+    TestCheckedInAssets();
     return 0;
 }
