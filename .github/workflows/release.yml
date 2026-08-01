@@ -1,3 +1,6 @@
+# Release workflow for the OpenUSD Geospatial Geometry Plugins source release.
+# Tag pushes verify the VERSION, build and test the core libraries, then create
+# a draft GitHub release with the source archive and its checksum manifest.
 name: release
 
 on:
@@ -12,7 +15,7 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   BUILD_DIR: build-release
@@ -62,9 +65,26 @@ jobs:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
-          archive="usd-geo-plugins-${VERSION}.tar.gz"
+          archive="usd-geo-plugins-${VERSION}-src.tar.gz"
           git archive --format=tar.gz --prefix="usd-geo-plugins-${VERSION}/" -o "$archive" "$TAG"
           sha256sum "$archive" > SHA256SUMS
+          sha256sum -c SHA256SUMS
+          cp "docs/releases/v${VERSION}.md" RELEASE_NOTES.md
+          {
+            echo
+            echo '## Artifacts'
+            echo
+            echo '| File | Description |'
+            echo '| --- | --- |'
+            printf '| `%s` | Source archive at tag `%s` |\n' "$archive" "$TAG"
+            echo '| `SHA256SUMS` | SHA-256 checksum for every release artifact |'
+            echo
+            echo '## SHA-256 checksums'
+            echo
+            echo '```text'
+            cat SHA256SUMS
+            echo '```'
+          } >> RELEASE_NOTES.md
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
 
       - name: Upload release files
@@ -74,25 +94,42 @@ jobs:
           path: |
             ${{ steps.archive.outputs.archive }}
             SHA256SUMS
+            RELEASE_NOTES.md
 
-  publish:
-    name: Publish GitHub release
+  release:
+    name: Assemble draft GitHub release
     needs: verify
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Download release files
         uses: actions/download-artifact@v4
         with:
           name: release-files
 
-      - name: Publish draft release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.tag || github.ref_name }}
-          name: usd-geo-plugins ${{ inputs.tag || github.ref_name }}
-          body_path: docs/releases/${{ inputs.tag || github.ref_name }}.md
-          draft: true
-          generate_release_notes: false
-          files: |
-            *.tar.gz
-            SHA256SUMS
+      - name: Create draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --json isDraft > existing.json 2>/dev/null; then
+            if [ "$(jq -r .isDraft existing.json)" = "true" ]; then
+              gh release delete "$TAG" --yes
+            else
+              echo "Release $TAG is already published; refusing to replace it" >&2
+              exit 1
+            fi
+          fi
+          gh release create "$TAG" \
+            --draft \
+            --title "OpenUSD Geospatial Geometry Plugins $TAG" \
+            --notes-file RELEASE_NOTES.md \
+            *.tar.gz SHA256SUMS
