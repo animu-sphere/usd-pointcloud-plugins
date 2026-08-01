@@ -10,6 +10,7 @@
 #include <pxr/base/tf/registryManager.h>
 
 #include <cstdint>
+#include <algorithm>
 #include <fstream>
 #include <limits>
 #include <vector>
@@ -17,23 +18,6 @@
 PXR_NAMESPACE_OPEN_SCOPE
 
 namespace {
-
-bool ReadFile(const std::string& path, std::vector<std::uint8_t>& bytes) {
-    std::ifstream input(path, std::ios::binary | std::ios::ate);
-    if (!input) {
-        return false;
-    }
-    const auto size = input.tellg();
-    if (size < 0 || static_cast<std::uintmax_t>(size) >
-                        std::numeric_limits<std::size_t>::max()) {
-        return false;
-    }
-    bytes.resize(static_cast<std::size_t>(size));
-    input.seekg(0, std::ios::beg);
-    return bytes.empty() || static_cast<bool>(input.read(
-                              reinterpret_cast<char*>(bytes.data()),
-                              static_cast<std::streamsize>(bytes.size())));
-}
 
 } // namespace
 
@@ -59,11 +43,31 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
         return false;
     }
 
-    std::vector<std::uint8_t> bytes;
+    std::ifstream input(resolvedPath, std::ios::binary | std::ios::ate);
+    if (!input) {
+        TF_RUNTIME_ERROR("Unable to open LAS file: {}", resolvedPath);
+        return false;
+    }
+    const auto fileSize = input.tellg();
+    if (fileSize < 0 || static_cast<std::uintmax_t>(fileSize) >
+                            std::numeric_limits<std::size_t>::max()) {
+        TF_RUNTIME_ERROR("Unable to determine LAS file size: {}",
+                         resolvedPath);
+        return false;
+    }
+    input.seekg(0, std::ios::beg);
+    const auto headerReadSize = std::min<std::size_t>(
+        static_cast<std::size_t>(fileSize), 375);
+    std::vector<std::uint8_t> headerBytes(headerReadSize);
+    if (!input.read(reinterpret_cast<char*>(headerBytes.data()),
+                    static_cast<std::streamsize>(headerBytes.size()))) {
+        TF_RUNTIME_ERROR("Unable to read LAS header: {}", resolvedPath);
+        return false;
+    }
+
     usdlas::LasHeader header;
     std::string error;
-    if (!ReadFile(resolvedPath, bytes) ||
-        !usdlas::InspectHeader(bytes, header, error)) {
+    if (!usdlas::InspectHeader(headerBytes, header, error)) {
         TF_RUNTIME_ERROR("Unable to inspect LAS file {}: {}", resolvedPath,
                          error);
         return false;
@@ -76,18 +80,26 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
                 recordLength ||
         pointOffset + static_cast<std::size_t>(header.pointCount) *
                           recordLength >
-            bytes.size()) {
+            static_cast<std::size_t>(fileSize)) {
         TF_RUNTIME_ERROR("LAS point data is truncated: {}", resolvedPath);
         return false;
     }
 
+    input.seekg(static_cast<std::streamoff>(pointOffset), std::ios::beg);
+    if (!input) {
+        TF_RUNTIME_ERROR("Unable to seek to LAS point data: {}", resolvedPath);
+        return false;
+    }
+    std::vector<std::uint8_t> record(recordLength);
     std::vector<usdgeo::Vec3d> positions;
     positions.reserve(static_cast<std::size_t>(header.pointCount));
     for (std::uint64_t index = 0; index < header.pointCount; ++index) {
-        const auto offset = pointOffset + static_cast<std::size_t>(index) *
-                                            recordLength;
-        std::vector<std::uint8_t> record(bytes.begin() + offset,
-                                         bytes.begin() + offset + recordLength);
+        if (!input.read(reinterpret_cast<char*>(record.data()),
+                        static_cast<std::streamsize>(record.size()))) {
+            TF_RUNTIME_ERROR("Unable to read LAS point {}: {}", index,
+                             resolvedPath);
+            return false;
+        }
         usdlas::LasPoint point;
         if (!usdlas::DecodePoint(header, record, point, error)) {
             TF_RUNTIME_ERROR("Unable to decode LAS point {}: {}", index, error);
@@ -98,7 +110,8 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
 
     usdgeo::GeoReference reference;
     reference.wkt = "LAS CRS unavailable; inspect VLR metadata";
-    reference.upAxis = "Y";
+    reference.sourceUpAxis = "Z";
+    reference.stageUpAxis = "Y";
     reference.localOrigin = header.bounds.minimum;
     usdgeo::SpatialBounds bounds;
     if (!reference.TryToLocal(header.bounds, bounds)) {

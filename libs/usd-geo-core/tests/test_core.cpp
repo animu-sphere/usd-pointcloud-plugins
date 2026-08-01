@@ -63,7 +63,7 @@ void TestGeoReference() {
     Check(NearlyEqual(reconstructed.y, source.y));
     Check(NearlyEqual(reconstructed.z, source.z));
 
-    reference.upAxis = "Y";
+    reference.stageUpAxis = "Y";
     const usdgeo::Vec3d yUpSource{1000001.0, 1999998.0, 3000004.0};
     Check(reference.TryToLocal(yUpSource, local));
     Check(NearlyEqual(local.x, 1.0));
@@ -73,6 +73,16 @@ void TestGeoReference() {
     Check(NearlyEqual(reconstructed.x, yUpSource.x));
     Check(NearlyEqual(reconstructed.y, yUpSource.y));
     Check(NearlyEqual(reconstructed.z, yUpSource.z));
+
+    reference.sourceUpAxis = "Y";
+    reference.stageUpAxis = "Y";
+    Check(reference.TryToLocal(yUpSource, local));
+    Check(NearlyEqual(local.x, 1.0));
+    Check(NearlyEqual(local.y, -2.0));
+    Check(NearlyEqual(local.z, 4.0));
+
+    reference.sourceUpAxis = "Z";
+    reference.stageUpAxis = "Y";
 
     usdgeo::SpatialBounds yUpBounds;
     Check(reference.TryToLocal(
@@ -90,7 +100,7 @@ void TestGeoReference() {
     Check(!reference.TryToLocal(
         {std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0}, local));
 
-    reference.upAxis = "invalid";
+    reference.stageUpAxis = "invalid";
     Check(!reference.IsValid());
 }
 

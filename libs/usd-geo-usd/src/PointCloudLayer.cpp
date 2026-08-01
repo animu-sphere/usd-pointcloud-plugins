@@ -65,7 +65,7 @@ bool PointCloudLayer::AuthorPointCloud(
         .Set(reference.linearUnit);
     points.GetPrim().CreateAttribute(
         pxr::TfToken("geo:upAxis"), pxr::SdfValueTypeNames->String)
-        .Set(reference.upAxis);
+        .Set(reference.stageUpAxis);
     points.GetPrim().CreateAttribute(
         pxr::TfToken("geo:localOrigin"), pxr::SdfValueTypeNames->Double3)
         .Set(pxr::GfVec3d(reference.localOrigin.x, reference.localOrigin.y,

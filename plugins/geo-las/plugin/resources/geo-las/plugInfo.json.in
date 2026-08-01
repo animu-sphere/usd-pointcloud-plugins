@@ -4,7 +4,7 @@
             "Type": "library",
             "Name": "GeoLasFileFormat",
             "Root": ".",
-            "LibraryPath": "../../../lib/libGeoLasFileFormat.dll",
+            "LibraryPath": "../../../lib/@OPENSTRATA_PLUGIN_LIBRARY_FILENAME@",
             "ResourcePath": ".",
             "Info": {
                 "Types": {

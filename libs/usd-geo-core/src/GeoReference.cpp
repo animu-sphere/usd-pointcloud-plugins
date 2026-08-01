@@ -2,10 +2,44 @@
 
 namespace usdgeo {
 
+namespace {
+
+bool IsUpAxis(const std::string& axis) {
+    return axis == "X" || axis == "Y" || axis == "Z";
+}
+
+Vec3d ToZUp(const Vec3d& value, const std::string& sourceUpAxis) {
+    if (sourceUpAxis == "X") {
+        return {-value.z, value.y, value.x};
+    }
+    if (sourceUpAxis == "Y") {
+        return {value.x, -value.z, value.y};
+    }
+    return value;
+}
+
+Vec3d FromZUp(const Vec3d& value, const std::string& targetUpAxis) {
+    if (targetUpAxis == "X") {
+        return {value.z, value.y, -value.x};
+    }
+    if (targetUpAxis == "Y") {
+        return {value.x, value.z, -value.y};
+    }
+    return value;
+}
+
+Vec3d TransformAxes(const Vec3d& value,
+                    const std::string& sourceUpAxis,
+                    const std::string& targetUpAxis) {
+    return FromZUp(ToZUp(value, sourceUpAxis), targetUpAxis);
+}
+
+} // namespace
+
 bool GeoReference::IsValid() const noexcept {
     const bool hasCrs = epsgCode.has_value() || !wkt.empty() || !projJson.empty();
     const bool hasUnit = !linearUnit.empty();
-    const bool hasAxis = upAxis == "X" || upAxis == "Y" || upAxis == "Z";
+    const bool hasAxis = IsUpAxis(sourceUpAxis) && IsUpAxis(stageUpAxis);
     return hasCrs && hasUnit && hasAxis && localOrigin.IsFinite();
 }
 
@@ -17,7 +51,7 @@ bool GeoReference::TryToLocal(const Vec3d& source, Vec3d& local) const noexcept 
     const Vec3d delta{source.x - localOrigin.x,
                       source.y - localOrigin.y,
                       source.z - localOrigin.z};
-    local = upAxis == "Y" ? Vec3d{delta.x, delta.z, -delta.y} : delta;
+    local = TransformAxes(delta, sourceUpAxis, stageUpAxis);
     return local.IsFinite();
 }
 
@@ -51,9 +85,7 @@ bool GeoReference::TryToSource(const Vec3d& local, Vec3d& source) const noexcept
         return false;
     }
 
-    const Vec3d delta = upAxis == "Y"
-                            ? Vec3d{local.x, -local.z, local.y}
-                            : local;
+    const Vec3d delta = TransformAxes(local, stageUpAxis, sourceUpAxis);
     source = {delta.x + localOrigin.x,
               delta.y + localOrigin.y,
               delta.z + localOrigin.z};
