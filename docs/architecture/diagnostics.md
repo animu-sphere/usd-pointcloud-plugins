@@ -6,9 +6,11 @@ state and the target contract.
 
 ## Current State
 
-Reader APIs (`usdlas`, `usdlaz`) return `bool` and fill a `std::string& error`.
-The plugin layer wraps that string with a stable code and reports it through
-`TF_RUNTIME_ERROR`:
+Reader APIs (`usdlas`, `usdlaz`) now expose typed diagnostic overloads while
+keeping the original `std::string& error` overloads for compatibility. The
+current implementation projects existing reader messages into shared
+diagnostic codes. The plugin layer still wraps its string path with a stable
+code and reports it through `TF_RUNTIME_ERROR`:
 
 ```text
 [LAS005] Unable to inspect LAS file <path>: unsupported LAS point format
@@ -19,9 +21,10 @@ Codes are owned per plugin and listed in
 [geo-laz diagnostics](../../plugins/geo-laz/docs/DIAGNOSTICS.md). Every current
 code is fatal, because none of them leave a stage that can be opened.
 
-Limitations of the current model:
+Remaining limitations of the current migration:
 
-- Reader-level failures cannot be classified without parsing English text.
+- The reader compatibility projection still classifies some legacy messages
+   internally; native typed emission should replace it over time.
 - Byte offsets and point indices are only present when a message happens to
   include them.
 - Warnings cannot be expressed, so a recoverable condition either fails the
@@ -81,12 +84,14 @@ Rules:
 The plugin-level codes stay as the user-visible contract. They become a
 projection of the shared codes rather than an independent taxonomy.
 
-1. Add the value types to `usdGeoCore` with unit tests.
+1. Add the value types to `usdGeoCore` with unit tests. **Complete.**
 2. Return `std::vector<Diagnostic>` from `usdlas` inspection and decode entry
    points, keeping the existing string overloads until callers migrate.
+   **Complete.**
 3. Map each `DiagnosticCode` to the existing plugin code, extending the code
    tables only when a condition has no existing code.
-4. Move `usdlaz` and both plugins onto the typed path.
+4. Move `usdlaz` and both plugins onto the typed path. `usdlaz` overloads are
+   available; the plugins remain to be migrated.
 5. Remove the string-only overloads once no caller uses them.
 
 Existing `LASxxx` and `LAZxxx` codes keep their meaning through the migration.

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -109,6 +110,21 @@ void TestValidation() {
     header.pointRecordLength = 1;
     Check(!usdlas::DecodePoint(header, std::vector<std::uint8_t>(1), point,
                                error));
+
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!usdlas::InspectHeader({}, header, diagnostics));
+    Check(diagnostics.size() == 1 &&
+          diagnostics.front().code == usdgeo::DiagnosticCode::InvalidSignature &&
+          diagnostics.front().severity == usdgeo::Severity::Error);
+
+    auto invalidPointHeader = MakeHeader(2, 0);
+    Write(invalidPointHeader, 131, std::numeric_limits<double>::max());
+    Check(usdlas::InspectHeader(invalidPointHeader, header, diagnostics));
+    std::vector<std::uint8_t> invalidRecord(34, 0);
+    Write(invalidRecord, 0, std::numeric_limits<std::int32_t>::max());
+    Check(!usdlas::DecodePoint(header, invalidRecord, point, diagnostics));
+    Check(diagnostics.size() == 1 &&
+          diagnostics.front().code == usdgeo::DiagnosticCode::NonFiniteCoordinate);
 }
 
 void TestVariableLengthRecords() {
@@ -144,6 +160,13 @@ void TestVariableLengthRecords() {
     Check(usdlas::InspectMetadata(evlrBytes, header, error));
     Check(header.variableLengthRecords.size() == 1 &&
           header.variableLengthRecords.front().isExtended);
+
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!usdlas::InspectRecords(std::vector<std::uint8_t>(54, 0), 227, 1,
+                                  false, header.variableLengthRecords,
+                                  diagnostics));
+    Check(diagnostics.size() == 1 && diagnostics.front().byteOffset.has_value() &&
+          diagnostics.front().byteOffset.value() == 227);
 }
 
 } // namespace

@@ -17,14 +17,23 @@ public:
 
     virtual bool ReadHeader(usdlas::LasHeader& header,
                             std::string& error) = 0;
+    virtual bool ReadHeader(usdlas::LasHeader& header,
+                            std::vector<usdgeo::Diagnostic>& diagnostics);
     virtual bool ReadChunk(std::size_t maximumPoints,
                            std::vector<usdlas::LasPoint>& points,
                            bool& complete,
                            std::string& error) = 0;
+    virtual bool ReadChunk(std::size_t maximumPoints,
+                           std::vector<usdlas::LasPoint>& points,
+                           bool& complete,
+                           std::vector<usdgeo::Diagnostic>& diagnostics);
 };
 
 std::unique_ptr<LazDecoder> CreateFileDecoder(const std::string& filename,
                                               std::string& error);
+std::unique_ptr<LazDecoder> CreateFileDecoder(
+    const std::string& filename,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
 
 struct LazReadOptions {
     std::size_t chunkPointLimit = 65536;
@@ -40,6 +49,12 @@ public:
                   consume,
               usdlas::LasHeader& header,
               std::string& error);
+    bool Read(const LazReadOptions& options,
+              const std::function<bool(const usdlas::LasHeader&,
+                                       const std::vector<usdlas::LasPoint>&)>&
+                  consume,
+              usdlas::LasHeader& header,
+              std::vector<usdgeo::Diagnostic>& diagnostics);
 
 private:
     std::unique_ptr<LazDecoder> decoder_;

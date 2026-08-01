@@ -104,6 +104,17 @@ void TestCompleteFlagIsResetBeforeEachChunk() {
         header, error));
     Check(points == 1);
     Check(error == "LAZ decoder returned an empty incomplete chunk");
+
+    usdlaz::LazReader typedReader(std::make_unique<IncompleteDecoder>());
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!typedReader.Read(
+        {},
+        [&](const usdlas::LasHeader&,
+            const std::vector<usdlas::LasPoint>&) { return true; },
+        header, diagnostics));
+    Check(diagnostics.size() == 1 &&
+          diagnostics.front().code == usdgeo::DiagnosticCode::DecodeFailure &&
+          diagnostics.front().severity == usdgeo::Severity::Error);
 }
 
 void TestFileDecoderReportsOpenFailure() {
@@ -111,6 +122,12 @@ void TestFileDecoderReportsOpenFailure() {
     auto decoder = usdlaz::CreateFileDecoder("missing-file.laz", error);
     Check(!decoder);
     Check(!error.empty());
+
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    decoder = usdlaz::CreateFileDecoder("missing-file.laz", diagnostics);
+    Check(!decoder);
+    Check(diagnostics.size() == 1 &&
+          diagnostics.front().code == usdgeo::DiagnosticCode::DecodeFailure);
 }
 
 void TestLazPerfFileDecoder() {

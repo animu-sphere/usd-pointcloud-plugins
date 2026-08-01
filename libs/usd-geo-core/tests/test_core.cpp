@@ -1,4 +1,5 @@
 #include "usdgeo/CacheKey.h"
+#include "usdgeo/Diagnostic.h"
 #include "usdgeo/GeoReference.h"
 #include "usdgeo/SpatialBounds.h"
 #include "usdgeo/TileId.h"
@@ -121,11 +122,35 @@ void TestTileAndCacheKeys() {
                             {"path", "/data/sample.las"}}));
 }
 
+void TestDiagnostics() {
+    const usdgeo::Diagnostic warning{
+        usdgeo::DiagnosticCode::InvalidCrs,
+        usdgeo::Severity::Warning,
+        "CRS metadata is incomplete",
+        128,
+        std::nullopt};
+    Check(warning.code == usdgeo::DiagnosticCode::InvalidCrs);
+    Check(warning.severity == usdgeo::Severity::Warning);
+    Check(warning.byteOffset.has_value() && warning.byteOffset.value() == 128);
+    Check(!warning.pointIndex.has_value());
+
+    const usdgeo::Diagnostic pointError{
+        usdgeo::DiagnosticCode::NonFiniteCoordinate,
+        usdgeo::Severity::Error,
+        "decoded point contains a non-finite coordinate",
+        std::nullopt,
+        42};
+    Check(pointError.severity == usdgeo::Severity::Error);
+    Check(!pointError.byteOffset.has_value());
+    Check(pointError.pointIndex.has_value() && pointError.pointIndex.value() == 42);
+}
+
 } // namespace
 
 int main() {
     TestBounds();
     TestGeoReference();
     TestTileAndCacheKeys();
+    TestDiagnostics();
     return 0;
 }

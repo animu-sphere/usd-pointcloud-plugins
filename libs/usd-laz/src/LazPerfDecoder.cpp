@@ -12,6 +12,44 @@
 
 namespace {
 
+usdgeo::DiagnosticCode CodeForError(const std::string& error) {
+    if (error == "LAS header is missing or has an invalid signature") {
+        return usdgeo::DiagnosticCode::InvalidSignature;
+    }
+    if (error == "unsupported LAS version") {
+        return usdgeo::DiagnosticCode::UnsupportedVersion;
+    }
+    if (error == "unsupported LAS point format") {
+        return usdgeo::DiagnosticCode::UnsupportedPointFormat;
+    }
+    if (error == "LAS header offsets are invalid" ||
+        error == "LAZ point data offset is outside the file" ||
+        error == "LAZ EVLR offset is outside the file") {
+        return usdgeo::DiagnosticCode::InvalidOffset;
+    }
+    if (error == "LAS point record length is too small for its format") {
+        return usdgeo::DiagnosticCode::InvalidRecordLength;
+    }
+    if (error == "LAS variable-length record header is truncated" ||
+        error == "LAZ header is truncated" ||
+        error == "LAS 1.4 extended point count is missing") {
+        return usdgeo::DiagnosticCode::TruncatedHeader;
+    }
+    if (error == "LAS variable-length record data is truncated") {
+        return usdgeo::DiagnosticCode::TruncatedRecord;
+    }
+    if (error == "decoded LAS point contains a non-finite coordinate") {
+        return usdgeo::DiagnosticCode::NonFiniteCoordinate;
+    }
+    return usdgeo::DiagnosticCode::DecodeFailure;
+}
+
+void AddDiagnostic(const std::string& error,
+                   std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.push_back({CodeForError(error), usdgeo::Severity::Error, error,
+                            std::nullopt, std::nullopt});
+}
+
 bool ReadHeaderBytes(const std::string& filename,
                      std::vector<std::uint8_t>& bytes,
                      std::string& error) {
@@ -145,16 +183,17 @@ public:
             for (std::size_t index = 0; index < count; ++index) {
                 file_->readPoint(record.data());
                 usdlas::LasPoint point;
-                if (!usdlas::DecodePoint(header_,
+                if (usdlas::DecodePoint(header_,
                                          std::vector<std::uint8_t>(
                                              reinterpret_cast<std::uint8_t*>(record.data()),
                                              reinterpret_cast<std::uint8_t*>(record.data()) +
                                                  record.size()),
                                          point, error)) {
+                    points.push_back(point);
+                } else {
                     points.clear();
                     return false;
                 }
-                points.push_back(point);
             }
         } catch (const std::exception& exception) {
             points.clear();
@@ -164,6 +203,22 @@ public:
         pointsRead_ += points.size();
         complete = pointsRead_ == header_.pointCount;
         return true;
+    }
+
+    bool ReadChunk(std::size_t maximumPoints,
+                   std::vector<usdlas::LasPoint>& points,
+                   bool& complete,
+                   std::vector<usdgeo::Diagnostic>& diagnostics) override {
+        diagnostics.clear();
+        std::string error;
+        const bool result = ReadChunk(maximumPoints, points, complete, error);
+        if (!result) {
+            AddDiagnostic(error, diagnostics);
+            if (!diagnostics.empty()) {
+                diagnostics.front().pointIndex = pointsRead_;
+            }
+        }
+        return result;
     }
 
     usdlas::LasHeader header_;
@@ -211,6 +266,19 @@ std::unique_ptr<LazDecoder> CreateFileDecoder(const std::string& filename,
         error = exception.what();
         return nullptr;
     }
+}
+
+std::unique_ptr<LazDecoder> CreateFileDecoder(
+    const std::string& filename,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    std::string error;
+    auto decoder = CreateFileDecoder(filename, error);
+    if (decoder || error.empty()) {
+        return decoder;
+    }
+    AddDiagnostic(error, diagnostics);
+    return nullptr;
 }
 
 } // namespace usdlaz
