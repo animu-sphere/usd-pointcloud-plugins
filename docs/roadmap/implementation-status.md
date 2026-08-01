@@ -19,13 +19,13 @@
 - [x] Add `usdLas` LAS 1.2-1.4 header inspection and uncompressed point decoding
 - [x] OpenUSD FileFormat Plugin PoC (LAS discovery and UsdGeomPoints authoring path)
 - [x] LAS reader integration and deterministic conformance fixture
+- [x] LAS VLR/EVLR inspection and WKT CRS extraction
 - [ ] LAZ reader
 - [ ] Tile / LOD
 - [ ] USDC cache
 
 ## Next Implementation Sequence
 
-1. Add LAS VLR/EVLR metadata inspection and CRS extraction.
-2. Define the LAZ codec decision and begin chunked reader integration.
+1. Define the LAZ codec decision and begin chunked reader integration.
 
-Do not begin LAZ integration until the LAS conformance fixture passes through both the reader-only tests and the FileFormat Plugin integration test.
+Do not begin LAZ integration until the LAS conformance fixture passes through both the reader-only tests and the FileFormat Plugin integration test. This gate is now passing.

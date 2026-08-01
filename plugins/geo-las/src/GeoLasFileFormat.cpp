@@ -73,6 +73,22 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
         return false;
     }
 
+    const auto metadataSize = header.extendedVariableLengthRecordCount != 0
+                                  ? static_cast<std::size_t>(fileSize)
+                                  : static_cast<std::size_t>(header.pointDataOffset);
+    std::vector<std::uint8_t> metadataBytes(metadataSize);
+    input.seekg(0, std::ios::beg);
+    if (!input.read(reinterpret_cast<char*>(metadataBytes.data()),
+                    static_cast<std::streamsize>(metadataBytes.size()))) {
+        TF_RUNTIME_ERROR("Unable to read LAS metadata: {}", resolvedPath);
+        return false;
+    }
+    if (!usdlas::InspectMetadata(metadataBytes, header, error)) {
+        TF_RUNTIME_ERROR("Unable to inspect LAS metadata {}: {}", resolvedPath,
+                         error);
+        return false;
+    }
+
     const auto recordLength = static_cast<std::size_t>(header.pointRecordLength);
     const auto pointOffset = static_cast<std::size_t>(header.pointDataOffset);
     if (header.pointCount >
@@ -135,7 +151,9 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
     }
 
     usdgeo::GeoReference reference;
-    reference.wkt = "LAS CRS unavailable; inspect VLR metadata";
+    reference.wkt = header.crsWkt.empty()
+                        ? "LAS CRS unavailable; inspect VLR metadata"
+                        : header.crsWkt;
     reference.sourceUpAxis = "Z";
     reference.stageUpAxis = "Y";
     reference.localOrigin = header.bounds.minimum;
