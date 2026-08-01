@@ -1,0 +1,23 @@
+{
+    "Plugins": [
+        {
+            "Type": "library",
+            "Name": "GeoLasFileFormat",
+            "Root": ".",
+            "LibraryPath": "../../../lib/@OPENSTRATA_PLUGIN_LIBRARY_FILENAME@",
+            "ResourcePath": ".",
+            "Info": {
+                "Types": {
+                    "GeoLasFileFormat": {
+                        "bases": ["SdfFileFormat"],
+                        "displayName": "LAS File Format",
+                        "extensions": ["las"],
+                        "formatId": "las",
+                        "primary": true,
+                        "target": "usd"
+                    }
+                }
+            }
+        }
+    ]
+}
