@@ -4,13 +4,19 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 
 namespace {
 
 template <typename T>
 T ReadLittle(const std::vector<std::uint8_t>& bytes, std::size_t offset) {
+    static_assert(std::is_trivially_copyable_v<T> && sizeof(T) <= sizeof(std::uint64_t));
+    std::uint64_t raw = 0;
+    for (std::size_t index = 0; index < sizeof(T); ++index) {
+        raw |= static_cast<std::uint64_t>(bytes[offset + index]) << (index * 8);
+    }
     T value{};
-    std::memcpy(&value, bytes.data() + offset, sizeof(T));
+    std::memcpy(&value, &raw, sizeof(T));
     return value;
 }
 
