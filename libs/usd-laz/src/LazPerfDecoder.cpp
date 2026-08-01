@@ -258,7 +258,10 @@ std::unique_ptr<LazDecoder> CreateFileDecoder(const std::string& filename,
                                  header.variableLengthRecords, error)) {
             return nullptr;
         }
-        header.crsWkt = usdlas::ExtractWktCrs(header.variableLengthRecords);
+        if (!usdlas::ParseKnownMetadata(header.variableLengthRecords, header,
+                                         error)) {
+            return nullptr;
+        }
         auto decoder = std::make_unique<LazPerfDecoder>(std::move(file));
         decoder->header_ = std::move(header);
         return decoder;
