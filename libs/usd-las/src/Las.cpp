@@ -385,6 +385,9 @@ bool InspectRecords(const std::vector<std::uint8_t>& bytes,
         return true;
     }
     AddErrorDiagnostic(error, diagnostics);
+    if (!diagnostics.empty()) {
+        diagnostics.front().byteOffset = offset;
+    }
     return false;
 }
 
