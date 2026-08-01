@@ -36,16 +36,50 @@
 - [x] Remaining LAS 1.4 point attributes, including NIR
 - [x] Waveform contract and LAS point formats 4, 5, 9, and 10
 - [x] Chunked and range-based reader API
-- [ ] Tile / LOD
+- [x] Record the OpenUSD 26.08 `usdLod` tile and LOD contract
+- [x] Record the plugin adapter and file-format argument contracts
+- [ ] Move `geo-las` onto `usdlas::LasReader`
+- [ ] Add `usdgeo::AuthorPointCloudAsset` as the shared authoring entry point
+- [ ] Normalize file-format arguments and pass read options through the plugins
+- [ ] Shared LOD contracts (`PointTileId`, `PointLodItem`, `PointLodHierarchy`)
+- [ ] LOD validation invariants and typed diagnostics
+- [ ] Deterministic, versioned point sampling
+- [ ] `usdLod` authoring in `usdGeoUsd`
+- [ ] LOD file-format arguments
+- [ ] Spatial tiling and per-tile LOD roots
+- [ ] Payload packaging and working-set measurement
+- [ ] Metadata-only reads
 - [ ] USDC cache
 
 ## Next Implementation Sequence
 
-1. Define the shared tile / LOD contracts.
+1. Thin the plugins: move `geo-las` onto `usdlas::LasReader`, then move the
+   shared authoring tail out of both plugins.
+2. Normalize file-format arguments and pass read options through, which makes
+   the existing chunked reader reachable from a host.
+3. Verify the `usdLod` schema surface against the pinned OpenUSD 26.08 runtime.
+4. Define the shared LOD contracts and their validation invariants, reconciling
+   `PointTileId` with the existing `usdgeo::TileId`.
+5. Add deterministic, versioned sampling and its cache-key inputs.
+6. Author a single non-tiled LOD root through `usdGeoUsd` for LAS and LAZ.
+7. Add spatial tiling, one LOD root per tile, and payload packaging.
+
+Steps 1 and 2 come first because the duplication they remove would otherwise be
+copied into every later bundle, and because the streaming reader shipped in the
+chunked-reader work is currently unreachable through the plugin layer. See the
+[plugin adapter contract](../architecture/plugin-adapter.md) and the
+[file-format argument contract](../architecture/file-format-arguments.md).
 
 The shared reader API stabilizes the point schema and streaming path before
 tile / LOD work begins. Its current contract is documented in
-[point reader architecture](../architecture/point-reader.md).
+[point reader architecture](../architecture/point-reader.md), and the LOD
+target is fixed in the [tile and LOD contract](../architecture/lod.md).
+
+No LOD is authored today. Both plugins still produce a single `UsdGeomPoints`
+prim with no LOD root, heuristic, or override, and neither accepts a
+file-format argument. Whether the plugins should also become dynamic file
+formats is open; see
+[ADR-0003](adr-0003-dynamic-file-format.md).
 
 The LAS conformance fixture and FileFormat Plugin integration gate passed
 before LAZ integration. The LAZ reader now uses the same point-cloud authoring

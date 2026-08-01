@@ -31,3 +31,24 @@ chunks.
 The plugin authoring path can continue to accumulate all delivered points for
 the current `UsdGeomPoints` output. Tile, LOD, and cache work will consume the
 same reader contract without changing format-specific point decoding.
+
+## Reachability
+
+`usdlas::LasReader` and `usdlaz::LazReader` implement this contract, but only
+`geo-laz` calls one. `geo-las` runs its own read loop, and neither plugin
+passes read options, so `chunkPointLimit`, `memoryBudgetBytes`, `range`, and
+`isCancelled` cannot be set by a host today. See the
+[plugin adapter contract](plugin-adapter.md) and the
+[file-format argument contract](file-format-arguments.md).
+
+## Relationship to LOD
+
+`range` is the same selection concept the LOD contract calls
+`PointSourceRange`. LOD item generation reads each item through this contract
+rather than adding a second source-access path, so a sampled item is defined by
+a source range plus a deterministic sampling algorithm and version.
+
+The reader never learns about LOD indices, heuristics, cameras, or viewport
+state. It delivers validated points for a requested range; the mapping onto
+`usdLod` happens in `usdGeoUsd`. See the
+[tile and LOD contract](lod.md).

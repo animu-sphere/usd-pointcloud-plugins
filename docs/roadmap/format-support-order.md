@@ -78,8 +78,15 @@ A later stage must not delay a correct implementation of an earlier stage. Write
 
 - Represent source or generated spatial hierarchy through shared tile contracts.
 - Read only required COPC or generated tiles.
-- Provide two or three deterministic nested LOD levels.
-- Connect tile representations to the verified OpenUSD 26.08 LOD mechanism.
+- Provide two or three deterministic nested LOD levels per tile, ordered from
+  highest to lowest detail.
+- Author each tile as an OpenUSD 26.08 LOD root with a referenced screen-size
+  heuristic and a default index, and leave selection to the host.
+- Measure stage population and payload behavior instead of inferring it from
+  render visibility.
+
+The public representation and its invariants are fixed in the
+[tile and LOD contract](../architecture/lod.md).
 
 COPC-specific structures stay out of `usd-laz`. They live either in a separate
 `usd-copc` library or in an isolated COPC module inside `usd-laz`, and their

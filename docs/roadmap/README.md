@@ -13,6 +13,9 @@ work.
 - Put format-specific readers in independent modules under `plugins`.
 - Complete a read-first LAS / LAZ vertical slice first.
 - Keep source coordinates and USD stage-local coordinates explicitly separate.
+- Keep spatial tiling separate from level-of-detail selection.
+- Author LOD only through the OpenUSD 26.08 `usdLod` schemas, and leave
+  selection to the consuming application.
 - Produce small, testable deliverables at every stage.
 
 ## Phases
@@ -23,7 +26,7 @@ work.
 | 1 | `usdGeoCore`, `usdGeoUsd`, and point-cloud contracts | In progress | Shipped in v0.1.0 except `usdGeoCache` |
 | 2 | Direct LAS loading and `UsdGeomPoints` | In progress | Point formats 0-3 and 6-8 land; formats 4, 5, 9, 10 and the remaining attributes are open |
 | 3 | LAZ, attribute selection, and USDC caching | In progress | LAZ chunk decoding shipped; attribute selection and the cache are not started |
-| 4 | Spatial tiles, LOD, and COPC | Not started | Blocked on the shared tile contract |
+| 4 | Spatial tiles, LOD, and COPC | Not started | Public representation fixed as OpenUSD 26.08 `usdLod`; blocked on the shared tile contract |
 | 5 | PLY and delimited text point clouds (XYZ, PTS, CSV) | Not started | Needs the generic attribute model and file-format arguments |
 | 6 | E57 and multi-scan point clouds | Not started | Extends the point-cloud contracts to several scans per file |
 | 7 | GeoTIFF, DEM, and COG terrain | Not started | First non-point-cloud domain |
@@ -41,7 +44,7 @@ maps onto the phases above.
 | W2 | LAS attribute coverage, GeoTIFF CRS, Extra Bytes | 2 |
 | W3 | Point formats 4, 5, 9, 10 and the waveform contract | 2 |
 | W4 | Chunked and range-based reader API, memory budget, filtering | 3 |
-| W5 | Shared tile and LOD contracts, OpenUSD LOD mapping | 4 |
+| W5 | Shared tile and LOD contracts, deterministic sampling, OpenUSD 26.08 `usdLod` authoring | 4 |
 | W6 | USDC cache, COPC, PLY, delimited text, E57, terrain rasters, remote byte-range sources | 3-7 |
 
 W1 through W4 stabilize the shared point schema and the streaming reader API.
@@ -56,12 +59,17 @@ settle.
 - [File format support order](format-support-order.md)
 - [Coordinate model decision](adr-0001-coordinate-model.md)
 - [LAZ codec decision](adr-0002-laz-codec.md)
+- [Dynamic file format decision](adr-0003-dynamic-file-format.md)
 - [Implementation status](implementation-status.md)
 
 Related documents outside this directory:
 
 - [Development policy](../development-policy.md)
 - [Supported formats](../supported-formats.md)
+- [Tile and LOD contract](../architecture/lod.md)
+- [Plugin adapter contract](../architecture/plugin-adapter.md)
+- [File-format argument contract](../architecture/file-format-arguments.md)
+- [Point reader architecture](../architecture/point-reader.md)
 - [Diagnostics contract](../architecture/diagnostics.md)
 - [OpenUSD compatibility](../compatibility/openusd.md)
 - [Binary distribution and licensing](../distribution.md)

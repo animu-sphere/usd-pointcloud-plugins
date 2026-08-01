@@ -22,7 +22,11 @@ workflows.
   input.
 
 Rendering is provided by the consuming OpenUSD application. These plugins
-provide import and USD authoring, not a point-cloud renderer.
+provide import and USD authoring, not a point-cloud renderer. Level of detail
+follows the same split: when tiling and LOD land, the plugins will author the
+OpenUSD 26.08 `usdLod` hierarchy and its heuristics, and the host application
+will select the active LOD. See the
+[tile and LOD contract](docs/architecture/lod.md).
 
 ## Supported Formats
 
@@ -161,13 +165,18 @@ from `geo:localOrigin`; the exact expression is in
   memory use proportional to the point count, and plan accordingly for files
   above a few tens of millions of points.
 - There are no file-format arguments yet, so attribute selection, point
-  limits, and bounds or classification filters are unavailable.
+  limits, and bounds or classification filters are unavailable. The readers
+  support chunked and range-based access, but the plugins do not yet pass
+  those options through; see the
+  [plugin adapter contract](docs/architecture/plugin-adapter.md).
 - `metadataOnly` reads are refused; there is no header-only inspection path
   through the plugins.
 - CRS comes from the WKT VLR only. GeoTIFF keys are retained but not parsed,
   and EPSG codes are not inferred.
 - Point decoding assumes a little-endian host.
-- Tile/LOD streaming and a USDC cache are not implemented.
+- Tile/LOD streaming and a USDC cache are not implemented. Every read authors a
+  single full-resolution `UsdGeomPoints` prim with no LOD root, heuristic, or
+  payload partitioning.
 - Writing LAS or LAZ is out of scope; both plugins export as `usda`.
 
 See the [implementation status](docs/roadmap/implementation-status.md) and
@@ -180,7 +189,9 @@ point-cloud contracts, LAS and LAZ readers, and the OpenUSD FileFormat Plugin
 integration. See the [release record](docs/releases/v0.1.0.md).
 
 Direction for the work after v0.1.0 is fixed in the
-[development policy](docs/development-policy.md).
+[development policy](docs/development-policy.md). The next major capability is
+tiling and level of detail, whose public representation is fixed as OpenUSD
+26.08 `usdLod` in the [tile and LOD contract](docs/architecture/lod.md).
 
 ## Architecture
 
@@ -216,6 +227,10 @@ docs/releases/            Immutable release records
 - [Supported formats](docs/supported-formats.md)
 - [Binary distribution and licensing](docs/distribution.md)
 - [OpenUSD compatibility](docs/compatibility/openusd.md)
+- [Tile and LOD contract](docs/architecture/lod.md)
+- [Plugin adapter contract](docs/architecture/plugin-adapter.md)
+- [File-format argument contract](docs/architecture/file-format-arguments.md)
+- [Point reader architecture](docs/architecture/point-reader.md)
 - [Diagnostics contract](docs/architecture/diagnostics.md)
 - [Implementation status](docs/roadmap/implementation-status.md)
 - [Roadmap](docs/roadmap/README.md)

@@ -11,7 +11,9 @@ Validate the minimum path from an OpenUSD FileFormat Plugin to a LAS / LAZ reade
 - Precision tests for LAS Scale / Offset and the local origin
 - A comparison note for LAS / LAZ reader candidates
 - Open time and memory measurements with more than one million points
-- Verification of the available OpenUSD version and LOD API
+- Verification of the available OpenUSD version and the `usdLod` schema surface
+  (`UsdLodRootAPI`, `UsdLodScreenSizeHeuristic`, `UsdLodOverrideAPI`), including
+  the exact authored property names
 
 ## Exit Criteria
 
@@ -24,8 +26,10 @@ Validate the minimum path from an OpenUSD FileFormat Plugin to a LAS / LAZ reade
 ## Open Decisions
 
 - LAZ decoder: use laz-perf behind the `usdLaz` adapter; see [ADR-0002](adr-0002-laz-codec.md)
-- OpenUSD API Schema: implement it in `usdGeoUsd` after the Phase 1 data model is settled
-- LOD API: verify behavior against the pinned OpenUSD 26.08 runtime
+- OpenUSD API Schema: no repository-specific LOD schema is defined; the public
+  representation is `usdLod`. See the [tile and LOD contract](../architecture/lod.md)
+- LOD API: verify the `usdLod` schema surface and behavior against the pinned
+  OpenUSD 26.08 runtime
 
 ## Validated Environment
 
@@ -42,5 +46,6 @@ statement.
 ## Outstanding
 
 - Open time and peak memory measurements above one million points
-- Verification of the OpenUSD 26.08 LOD mechanism against a real tile
-  hierarchy
+- Verification of the OpenUSD 26.08 `usdLod` mechanism against a real tile
+  hierarchy, including whether payloads beneath non-selected LOD children are
+  composed and whether Storm selection reduces the working set

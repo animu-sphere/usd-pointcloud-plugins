@@ -13,8 +13,8 @@
 | Library | Responsibility | Required dependencies | Must not contain |
 | --- | --- | --- | --- |
 | `usdGeoCore` | CRS metadata, units, local origins, spatial bounds, tile IDs, cache keys, diagnostics | C++ standard library | OpenUSD, LAS, GDAL, or renderer-specific types |
-| `usdGeoUsd` | OpenUSD metadata, API schemas, common prim authoring, tile and LOD stage representation | `usdGeoCore`, OpenUSD | Format parsing or compression codecs |
-| `usdPointCloudCore` | Format-independent point attributes, chunk contracts, sampling inputs, point-cloud validation | `usdGeoCore` | LAS, E57, or OpenUSD types |
+| `usdGeoUsd` | OpenUSD metadata, common prim authoring, `usdLod` tile and LOD stage representation | `usdGeoCore`, OpenUSD | Format parsing, compression codecs, or a repository-specific LOD schema |
+| `usdPointCloudCore` | Format-independent point attributes, chunk contracts, LOD hierarchy and sampling inputs, point-cloud validation | `usdGeoCore` | LAS, E57, OpenUSD types, or `usdLod` schema types |
 | `usdLas` | LAS headers, VLR/EVLR records, point records, Scale/Offset decoding, CRS extraction | `usdGeoCore`, `usdPointCloudCore` | OpenUSD stage authoring |
 | `usdLaz` | LAZ decompression behind the same logical reader contract as LAS | `usdLas`, selected LAZ codec | OpenUSD stage authoring |
 | `usdCopc` | COPC hierarchy, octree keys, byte ranges, and resolution mapped onto shared tile contracts | `usdLaz`, `usdGeoCore` | OpenUSD stage authoring or LAZ codec internals |
@@ -51,7 +51,7 @@ CRS, Extra Bytes, and waveform modules with the same public API.
 extension by default; a host opts in through an explicit file-format selection,
 and the readers require the arguments they need instead of inferring a layout.
 
-Each FileFormat Plugin remains a thin adapter. It normalizes Sdf file-format arguments, invokes a reader, and authors the resulting layer through `usdGeoUsd`.
+Each FileFormat Plugin remains a thin adapter. It normalizes Sdf file-format arguments, invokes a reader, and authors the resulting layer through `usdGeoUsd`. `geo-las` and `geo-laz` do not yet meet this rule; see the [plugin adapter contract](../architecture/plugin-adapter.md).
 
 ## Dependency Direction
 
@@ -109,10 +109,12 @@ Only create a directory when its first tested capability is implemented. The sha
 1. Public APIs use project-owned value types and standard-library types.
 2. Source coordinates and stage-local coordinates use distinct names and explicit transforms.
 3. Readers return deterministic, validated intermediate data and do not author USD directly.
-4. File-format arguments are normalized before reader or cache lookup.
+4. File-format arguments are normalized before reader or cache lookup, and normalized arguments participate in layer identity. See the [file-format argument contract](../architecture/file-format-arguments.md).
 5. Unknown source metadata is preserved or reported; it is never silently discarded.
 6. Tile, LOD, and cache contracts are shared, while format-specific spatial indexes remain private.
-7. Write support is deferred until read behavior and preservation rules are stable.
+7. Spatial tiling and level-of-detail stay separate concepts; neither collapses into the other.
+8. `UsdLodRootAPI`, Hydra, cameras, viewport state, and screen-space math never appear in a reader or a plugin adapter. See the [tile and LOD contract](../architecture/lod.md).
+9. Write support is deferred until read behavior and preservation rules are stable.
 
 ## Build and Packaging
 

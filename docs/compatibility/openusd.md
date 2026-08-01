@@ -51,8 +51,53 @@ The plugins depend on a small, stable part of the API:
 - `VtArray`, `GfVec3f`, and `GfVec3d` for authored values
 
 No API schema, no Hydra scene index, and no LOD or payload mechanism is used
-yet. Tile and LOD work will bind to OpenUSD 26.08 mechanisms inside
-`usdGeoUsd` only; see the [development policy](../development-policy.md).
+yet.
+
+## Planned LOD Surface
+
+Tile and LOD work binds to the OpenUSD 26.08 `usdLod` schemas, inside
+`usdGeoUsd` only:
+
+| Schema | Use |
+| --- | --- |
+| `UsdLodRootAPI` | Applied to each tile prim whose children are LOD items |
+| `UsdLodScreenSizeHeuristic` | Authored once and referenced by tile roots |
+| `UsdLodOverrideAPI` | Consumed in tests and offline renders, normally authored in a stronger layer |
+
+The exact property names are taken from the schema definitions in the build.
+They are verified against the pinned runtime before authoring code depends on
+them.
+
+This raises the effective floor for LOD support:
+
+```text
+OpenUSD < 26.08:
+    Reader libraries may still build where practical.
+    Standard LOD authoring is unavailable.
+
+OpenUSD >= 26.08:
+    usdLod-based authoring is enabled.
+```
+
+No fallback LOD representation is maintained for older runtimes, and no
+repository-specific LOD schema is published. See the
+[tile and LOD contract](../architecture/lod.md) and the
+[development policy](../development-policy.md).
+
+## Possible Additional Surface
+
+Not adopted, and listed so the compatibility impact is visible before it is:
+
+| Mechanism | Impact |
+| --- | --- |
+| `SDF_FORMAT_ARGS` handling | No new API surface; the plugins parse and normalize arguments themselves |
+| `PcpDynamicFileFormatInterface` | Adds a Pcp dependency, `SdfMetadata` field declarations in each manifest, and recomposition behavior to test |
+
+Both plugin manifests currently declare only `bases`, `extensions`,
+`formatId`, `primary`, and `target`. Dynamic file format support would extend
+them. The decision is open in
+[ADR-0003](../roadmap/adr-0003-dynamic-file-format.md), and the runtime's
+`PcpDynamicFileFormatInterface` surface is verified before it is taken.
 
 ## Host Expectations
 
@@ -63,3 +108,6 @@ yet. Tile and LOD work will bind to OpenUSD 26.08 mechanisms inside
   source CRS units. The source-to-stage relationship is recorded in the
   `geo:*` attributes documented in
   [supported formats](../supported-formats.md).
+- Once LOD is authored, the host selects the active LOD. The plugins author the
+  hierarchy, heuristics, and default index; they never read a camera or a
+  viewport.
