@@ -68,7 +68,7 @@ jobs:
       OST_CI_RUNS_ON: ${{ matrix.runs_on }}
       OST_CI_RUNTIME_ARTIFACT: ${{ matrix.runtime_artifact }}
       OST_CI_MINIMUM_TRUST: local
-      OST_HOME: ${{ matrix.ost_home }}
+      OST_HOME: ${{ matrix.name == 'windows-x86_64' && '' || format('{0}/{1}', github.workspace, matrix.ost_home) }}
     steps:
       - name: Check out the tagged source
         uses: actions/checkout@v4
