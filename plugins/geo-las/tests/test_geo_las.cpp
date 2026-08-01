@@ -165,6 +165,31 @@ void TestFileFormatIntegration() {
     Check(wktAttribute->GetDefaultValue().UncheckedGet<std::string>() ==
           "WKT[\"EPSG:4978\"]");
 
+    const pxr::SdfLayer::FileFormatArguments arguments = {
+        {"attributes", "intensity"},
+        {"rangeFirstPoint", "1"},
+        {"rangePointCount", "1"}};
+    const auto rangedLayer = pxr::SdfLayer::FindOrOpen(
+        path.string(), arguments);
+    Check(rangedLayer);
+    const auto rangedStage = pxr::UsdStage::Open(rangedLayer);
+    Check(rangedStage);
+    const auto rangedPoints = pxr::UsdGeomPoints::Get(
+        rangedStage, pxr::SdfPath("/PointCloud"));
+    pxr::VtVec3fArray rangedPositions;
+    Check(rangedPoints.GetPointsAttr().Get(&rangedPositions));
+    Check(rangedPositions.size() == 1 &&
+          rangedPositions[0] == pxr::GfVec3f(1.0f, 3.0f, -1.0f));
+    const auto rangedIntensity = rangedLayer->GetAttributeAtPath(
+        pxr::SdfPath("/PointCloud.geo:intensity"));
+    Check(rangedIntensity != nullptr);
+    Check(rangedIntensity->GetDefaultValue().IsHolding<pxr::VtIntArray>());
+    Check(rangedIntensity->GetDefaultValue()
+              .UncheckedGet<pxr::VtIntArray>()
+              .size() == 1);
+    Check(rangedLayer->GetAttributeAtPath(
+              pxr::SdfPath("/PointCloud.geo:classification")) == nullptr);
+
     std::error_code error;
     std::filesystem::remove(path, error);
 }

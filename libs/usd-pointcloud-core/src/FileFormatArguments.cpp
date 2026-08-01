@@ -258,6 +258,7 @@ bool NormalizeFileFormatArguments(
         normalized.emplace_back("attributes", Join(selectedAttributes));
     }
     for (const auto& [key, value] : normalized) {
+        request.canonicalArguments.emplace(key, value);
         if (!request.normalizedArguments.empty()) {
             request.normalizedArguments += '&';
         }

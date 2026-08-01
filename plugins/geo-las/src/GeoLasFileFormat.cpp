@@ -11,9 +11,7 @@
 
 #include <cstdint>
 #include <filesystem>
-#include <map>
 #include <string>
-#include <utility>
 #include <vector>
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -84,29 +82,9 @@ bool MakeReadRequest(const SdfLayer* layer,
                      std::string& sourcePath,
                      usdpointcloud::PointReadRequest& request,
                      std::vector<usdgeo::Diagnostic>& diagnostics) {
-    std::map<std::string, std::string> arguments;
     sourcePath = resolvedPath;
-    const auto marker = resolvedPath.find(":SDF_FORMAT_ARGS:");
-    if (marker != std::string::npos) {
-        std::map<std::string, std::string> encodedArguments;
-        std::string error;
-        if (!usdpointcloud::ParseFileFormatArgumentString(
-                resolvedPath.substr(marker + 17), encodedArguments, error)) {
-            diagnostics.push_back({usdgeo::DiagnosticCode::InvalidFormatArgument,
-                                   usdgeo::Severity::Error, error, std::nullopt,
-                                   std::nullopt});
-            return false;
-        }
-        arguments = std::move(encodedArguments);
-        sourcePath = resolvedPath.substr(0, marker);
-    }
-    if (layer) {
-        for (const auto& [key, value] : layer->GetFileFormatArguments()) {
-            arguments[key] = value;
-        }
-    }
-    return usdpointcloud::NormalizeFileFormatArguments(arguments, request,
-                                                       diagnostics);
+                    return usdpointcloud::NormalizeFileFormatArguments(
+                        layer->GetFileFormatArguments(), request, diagnostics);
 }
 
 } // namespace

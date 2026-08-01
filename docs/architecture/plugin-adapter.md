@@ -71,6 +71,12 @@ not an asset argument. The whole point cloud is still accumulated for the
 current `UsdGeomPoints` authoring path, so this migration makes bounded reader
 delivery available without claiming bounded final-layer memory.
 
+The static adapters consume `SdfLayer::GetFileFormatArguments()`, which is the
+argument map OpenUSD stores after layer lookup. Callers that construct a layer
+must normalize arguments first and pass the request's canonical map to
+`SdfLayer::FindOrOpen`; `Read` is too late to change the layer cache key. Pcp
+dynamic file-format composition is intentionally deferred to ADR-0003.
+
 ## Target Contract
 
 ```cpp

@@ -95,6 +95,19 @@ void TestFileFormatArgumentNormalization() {
     Check(request.readOptions.range.pointCount == 3);
     Check(request.normalizedArguments ==
           "chunkPointLimit=2&rangeFirstPoint=4&rangePointCount=3&attributes=blue,green,red,xyz");
+    Check(request.canonicalArguments ==
+          std::map<std::string, std::string>{
+              {"attributes", "blue,green,red,xyz"},
+              {"chunkPointLimit", "2"},
+              {"rangeFirstPoint", "4"},
+              {"rangePointCount", "3"}});
+
+    arguments = {{"chunkPointLimit", "065536"},
+                 {"memoryBudgetBytes", "67108864"},
+                 {"rangePointCount", "0"}};
+    Check(usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics));
+    Check(request.canonicalArguments.empty());
 
     std::map<std::string, std::string> encoded;
     std::string error;

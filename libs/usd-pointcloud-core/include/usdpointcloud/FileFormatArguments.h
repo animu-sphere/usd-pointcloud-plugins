@@ -14,6 +14,7 @@ namespace usdpointcloud {
 struct PointReadRequest {
     PointReadOptions readOptions;
     std::vector<std::string> attributes;
+    std::map<std::string, std::string> canonicalArguments;
     std::string normalizedArguments;
 };
 
