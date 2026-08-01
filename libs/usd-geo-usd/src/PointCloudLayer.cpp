@@ -13,6 +13,21 @@ bool IsValidPrimPath(const std::string& primPath) {
     return !primPath.empty() && primPath.front() == '/';
 }
 
+template <typename T>
+bool HasPointCountOrIsEmpty(const std::vector<T>& values,
+                            std::size_t pointCount) {
+    return values.empty() || values.size() == pointCount;
+}
+
+pxr::VtIntArray ToIntArray(const std::vector<std::uint16_t>& values) {
+    pxr::VtIntArray result;
+    result.reserve(values.size());
+    for (const auto value : values) {
+        result.push_back(static_cast<int>(value));
+    }
+    return result;
+}
+
 } // namespace
 
 pxr::UsdStageRefPtr PointCloudLayer::CreateStage() {
@@ -26,15 +41,38 @@ bool PointCloudLayer::AuthorPointCloud(
     const SpatialBounds& bounds,
     const usdpointcloud::PointChunk& chunk,
     const std::vector<Vec3d>& positions) {
+    Data data;
+    data.positions = positions;
+    return AuthorPointCloud(stage, primPath, reference, bounds, chunk, data);
+}
+
+bool PointCloudLayer::AuthorPointCloud(
+    const pxr::UsdStageRefPtr& stage,
+    const std::string& primPath,
+    const GeoReference& reference,
+    const SpatialBounds& bounds,
+    const usdpointcloud::PointChunk& chunk,
+    const Data& data) {
     if (!stage || !IsValidPrimPath(primPath) || !reference.IsValid() ||
         !bounds.IsValid() || !chunk.IsValid() ||
-        positions.size() != chunk.pointCount) {
+        data.positions.size() != chunk.pointCount ||
+        !HasPointCountOrIsEmpty(data.intensity, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.returnNumber, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.numberOfReturns, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.classification, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.red, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.green, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.blue, chunk.pointCount) ||
+        !HasPointCountOrIsEmpty(data.gpsTime, chunk.pointCount) ||
+        (data.returnNumber.empty() != data.numberOfReturns.empty()) ||
+        (data.red.empty() != data.green.empty()) ||
+        (data.red.empty() != data.blue.empty())) {
         return false;
     }
 
     pxr::VtVec3fArray localPositions;
-    localPositions.reserve(positions.size());
-    for (const Vec3d& position : positions) {
+    localPositions.reserve(data.positions.size());
+    for (const Vec3d& position : data.positions) {
         Vec3d local;
         if (!reference.TryToLocal(position, local)) {
             return false;
@@ -50,6 +88,45 @@ bool PointCloudLayer::AuthorPointCloud(
     }
 
     points.GetPointsAttr().Set(localPositions);
+    if (!data.intensity.empty()) {
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:intensity"), pxr::SdfValueTypeNames->IntArray)
+            .Set(ToIntArray(data.intensity));
+    }
+    if (!data.returnNumber.empty()) {
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:returnNumber"), pxr::SdfValueTypeNames->UCharArray)
+            .Set(pxr::VtArray<unsigned char>(data.returnNumber.begin(),
+                                              data.returnNumber.end()));
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:numberOfReturns"),
+            pxr::SdfValueTypeNames->UCharArray)
+            .Set(pxr::VtArray<unsigned char>(data.numberOfReturns.begin(),
+                                              data.numberOfReturns.end()));
+    }
+    if (!data.classification.empty()) {
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:classification"),
+            pxr::SdfValueTypeNames->UCharArray)
+            .Set(pxr::VtArray<unsigned char>(data.classification.begin(),
+                                              data.classification.end()));
+    }
+    if (!data.red.empty()) {
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:red"), pxr::SdfValueTypeNames->IntArray)
+            .Set(ToIntArray(data.red));
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:green"), pxr::SdfValueTypeNames->IntArray)
+            .Set(ToIntArray(data.green));
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:blue"), pxr::SdfValueTypeNames->IntArray)
+            .Set(ToIntArray(data.blue));
+    }
+    if (!data.gpsTime.empty()) {
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:gpsTime"), pxr::SdfValueTypeNames->DoubleArray)
+            .Set(pxr::VtArray<double>(data.gpsTime.begin(), data.gpsTime.end()));
+    }
 
     points.GetPrim().CreateAttribute(
         pxr::TfToken("geo:epsgCode"), pxr::SdfValueTypeNames->Int)
