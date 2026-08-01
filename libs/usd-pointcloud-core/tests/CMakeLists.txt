@@ -1,0 +1,3 @@
+add_executable(usdPointCloudCore_tests test_point_cloud.cpp)
+target_link_libraries(usdPointCloudCore_tests PRIVATE usdpointcloud::core)
+add_test(NAME usdPointCloudCore_unit COMMAND usdPointCloudCore_tests)

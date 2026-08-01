@@ -10,6 +10,8 @@ struct Vec3d {
     double x = 0.0;
     double y = 0.0;
     double z = 0.0;
+
+    bool IsFinite() const noexcept;
 };
 
 struct SpatialBounds {

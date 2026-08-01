@@ -6,8 +6,10 @@ project(usdGeoCore
     LANGUAGES CXX)
 
 add_library(usdGeoCore STATIC
+    src/CacheKey.cpp
     src/GeoReference.cpp
-    src/SpatialBounds.cpp)
+    src/SpatialBounds.cpp
+    src/TileId.cpp)
 add_library(usdgeo::core ALIAS usdGeoCore)
 set_target_properties(usdGeoCore PROPERTIES
     EXPORT_NAME core
