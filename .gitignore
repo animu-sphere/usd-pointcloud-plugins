@@ -1,0 +1,15 @@
+# OpenStrata-generated build state and tool-owned presets.
+/build/
+/.strata/
+CMakeUserPresets.json
+
+# CI and release scratch.
+/.ost-ci/
+/.ost-ci-home/
+/release-stage/
+/dist-release/
+/release-notes.md
+
+# Python bytecode.
+__pycache__/
+*.pyc
