@@ -32,4 +32,5 @@ This directory contains documents that break the implementation policy into acti
 - [Library architecture](library-architecture.md)
 - [File format support order](format-support-order.md)
 - [Coordinate model decision](adr-0001-coordinate-model.md)
+- [LAZ codec decision](adr-0002-laz-codec.md)
 - [Implementation status](implementation-status.md)

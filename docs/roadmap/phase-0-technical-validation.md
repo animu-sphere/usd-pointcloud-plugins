@@ -23,7 +23,7 @@ Validate the minimum path from an OpenUSD FileFormat Plugin to a LAS / LAZ reade
 
 ## Open Decisions
 
-- LAZ decoder: compare LASzip, laz-perf, and PDAL
+- LAZ decoder: use laz-perf behind the `usdLaz` adapter; see [ADR-0002](adr-0002-laz-codec.md)
 - OpenUSD API Schema: implement it in `usdGeoUsd` after the Phase 1 data model is settled
 - LOD API: verify behavior against the pinned OpenUSD 26.08 runtime
 

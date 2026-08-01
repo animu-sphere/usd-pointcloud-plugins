@@ -20,12 +20,13 @@
 - [x] OpenUSD FileFormat Plugin PoC (LAS discovery and UsdGeomPoints authoring path)
 - [x] LAS reader integration and deterministic conformance fixture
 - [x] LAS VLR/EVLR inspection and WKT CRS extraction
+- [x] Select laz-perf as the initial LAZ codec and define the chunk reader contract
 - [ ] LAZ reader
 - [ ] Tile / LOD
 - [ ] USDC cache
 
 ## Next Implementation Sequence
 
-1. Define the LAZ codec decision and begin chunked reader integration.
+1. Add the laz-perf adapter behind the `usdLaz` chunk reader contract.
 
 Do not begin LAZ integration until the LAS conformance fixture passes through both the reader-only tests and the FileFormat Plugin integration test. This gate is now passing.
