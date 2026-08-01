@@ -113,6 +113,22 @@ using LasReadOptions = usdpointcloud::PointReadOptions;
 using LasPointChunkConsumer =
     std::function<bool(const LasHeader&, const std::vector<LasPoint>&)>;
 
+enum class LasReadFailure {
+    None,
+    InvalidRequest,
+    FileOpen,
+    FileSize,
+    Header,
+    Vlr,
+    EvlrOffset,
+    Evlr,
+    PointDataTruncated,
+    PointDataSeek,
+    PointDataRead,
+    PointDecode,
+    Other,
+};
+
 class LasReader {
 public:
     explicit LasReader(std::string filename);
@@ -126,10 +142,13 @@ public:
               LasHeader& header,
               std::vector<usdgeo::Diagnostic>& diagnostics);
 
+    LasReadFailure FailureKind() const noexcept;
+
 private:
     std::string filename_;
     std::optional<std::uint64_t> failureByteOffset_;
     std::optional<std::uint64_t> failurePointIndex_;
+    LasReadFailure failureKind_ = LasReadFailure::None;
 };
 
 bool InspectHeader(const std::vector<std::uint8_t>& bytes,

@@ -38,36 +38,44 @@ std::string DiagnosticDetail(
 }
 
 const char* ReaderDiagnosticCode(
-    const std::vector<usdgeo::Diagnostic>& diagnostics) {
+    const std::vector<usdgeo::Diagnostic>& diagnostics,
+    usdlas::LasReadFailure failure) {
     if (diagnostics.empty()) {
         return geolas::diagnostics::PointDecodeFailed;
     }
-    const auto& diagnostic = diagnostics.front();
-    if (diagnostic.message.rfind("could not open LAS file:", 0) == 0) {
+    switch (failure) {
+    case usdlas::LasReadFailure::FileOpen:
         return geolas::diagnostics::FileOpenFailed;
-    }
-    if (diagnostic.message == "could not determine LAS file size") {
+    case usdlas::LasReadFailure::FileSize:
         return geolas::diagnostics::FileSizeUnavailable;
-    }
-    if (diagnostic.message == "LAS point data is truncated") {
+    case usdlas::LasReadFailure::PointDataTruncated:
         return geolas::diagnostics::PointDataTruncated;
-    }
-    if (diagnostic.message ==
-        "LAS extended variable-length record offset is invalid") {
+    case usdlas::LasReadFailure::EvlrOffset:
         return geolas::diagnostics::EvlrOffsetInvalid;
-    }
-    if (diagnostic.message.find("LAS variable-length record") !=
-        std::string::npos) {
+    case usdlas::LasReadFailure::Vlr:
         return geolas::diagnostics::VlrInvalid;
-    }
-    if (diagnostic.message.find("LAS GeoTIFF") != std::string::npos ||
-        diagnostic.message.find("LAS Extra Bytes") != std::string::npos) {
-        return geolas::diagnostics::VlrInvalid;
-    }
-    if (diagnostic.pointIndex) {
+    case usdlas::LasReadFailure::Evlr:
+        return geolas::diagnostics::EvlrInvalid;
+    case usdlas::LasReadFailure::PointDataSeek:
+        return geolas::diagnostics::PointDataSeekFailed;
+    case usdlas::LasReadFailure::PointDataRead:
+        return geolas::diagnostics::PointReadFailed;
+    case usdlas::LasReadFailure::PointDecode:
         return geolas::diagnostics::PointDecodeFailed;
+    default:
+        break;
     }
-    return geolas::diagnostics::HeaderInvalid;
+
+    switch (diagnostics.front().code) {
+    case usdgeo::DiagnosticCode::NonFiniteCoordinate:
+    case usdgeo::DiagnosticCode::DecodeFailure:
+        return geolas::diagnostics::PointDecodeFailed;
+    case usdgeo::DiagnosticCode::InvalidCrs:
+    case usdgeo::DiagnosticCode::UnsupportedExtraBytesType:
+        return geolas::diagnostics::VlrInvalid;
+    default:
+        return geolas::diagnostics::HeaderInvalid;
+    }
 }
 
 } // namespace
@@ -198,7 +206,8 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
     };
     if (!reader.Read(options, consume, header, diagnostics)) {
         TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
-                                  ReaderDiagnosticCode(diagnostics),
+                                  ReaderDiagnosticCode(diagnostics,
+                                                       reader.FailureKind()),
                                   "Unable to read LAS file " + resolvedPath +
                                       ": " +
                                       DiagnosticDetail(diagnostics, "read failed"))

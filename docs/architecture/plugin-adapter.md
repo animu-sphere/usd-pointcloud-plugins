@@ -54,8 +54,9 @@ It still owns the shared authoring tail described below.
 
 `usdlas::LasReader` already provides exactly that orchestration behind
 `LasReadOptions`, a chunk consumer, and typed diagnostics. It is currently
-called only from `libs/usd-las/tests`. `GeoLazFileFormat::Read` does use
-`usdlaz::LazReader`, so the LAZ side is one step further along.
+called from `geo-las` and its unit tests. `GeoLasFileFormat::Read` now uses it
+the same way that `GeoLazFileFormat::Read` uses `usdlaz::LazReader`, so the LAZ
+side is one step further along only for the shared authoring migration.
 
 Both plugins then duplicate the same tail: per-format `reserve` and `push_back`
 branches into `PointCloudLayer::Data`, `PointChunk` attribute construction,

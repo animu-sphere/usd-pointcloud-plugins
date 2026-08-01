@@ -197,6 +197,34 @@ void TestRangeReader() {
     diagnostics = typedDiagnostics.front();
     Check(diagnostics.code == usdgeo::DiagnosticCode::NonFiniteCoordinate &&
           diagnostics.pointIndex == 0 && diagnostics.byteOffset == 227);
+    Check(reader.FailureKind() == usdlas::LasReadFailure::PointDecode);
+    Check(std::remove(filename.string().c_str()) == 0);
+}
+
+void TestReaderFailureKinds() {
+    const auto filename =
+        std::filesystem::temp_directory_path() / "usd-geo-plugins-evlr-test.las";
+    auto bytes = MakeHeader(4, 6);
+    Write(bytes, 235, std::uint64_t{375});
+    Write(bytes, 243, std::uint32_t{1});
+    bytes.resize(375);
+    {
+        std::ofstream output(filename, std::ios::binary);
+        output.write(reinterpret_cast<const char*>(bytes.data()),
+                     static_cast<std::streamsize>(bytes.size()));
+    }
+
+    usdlas::LasReader reader(filename.string());
+    usdlas::LasHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!reader.Read(
+        {},
+        [&](const usdlas::LasHeader&,
+            const std::vector<usdlas::LasPoint>&) { return true; },
+        header, diagnostics));
+    Check(reader.FailureKind() == usdlas::LasReadFailure::Evlr);
+    Check(diagnostics.size() == 1 &&
+          diagnostics.front().code == usdgeo::DiagnosticCode::TruncatedHeader);
     Check(std::remove(filename.string().c_str()) == 0);
 }
 
@@ -352,6 +380,7 @@ int main() {
     TestHeaderAndPoint();
     TestValidation();
     TestRangeReader();
+    TestReaderFailureKinds();
     TestWaveformPointFormats();
     TestVariableLengthRecords();
     return 0;
