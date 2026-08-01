@@ -8,6 +8,14 @@
 
 namespace usdlas {
 
+struct LasVariableLengthRecord {
+    std::string userId;
+    std::uint16_t recordId = 0;
+    std::string description;
+    std::vector<std::uint8_t> data;
+    bool isExtended = false;
+};
+
 struct LasHeader {
     std::uint8_t versionMajor = 0;
     std::uint8_t versionMinor = 0;
@@ -23,6 +31,11 @@ struct LasHeader {
     double yOffset = 0.0;
     double zOffset = 0.0;
     usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+    std::uint32_t variableLengthRecordCount = 0;
+    std::uint64_t firstExtendedVariableLengthRecordOffset = 0;
+    std::uint32_t extendedVariableLengthRecordCount = 0;
+    std::vector<LasVariableLengthRecord> variableLengthRecords;
+    std::string crsWkt;
 
     bool IsValid() const noexcept;
 };
@@ -44,6 +57,19 @@ struct LasPoint {
 bool InspectHeader(const std::vector<std::uint8_t>& bytes,
                    LasHeader& header,
                    std::string& error);
+
+bool InspectMetadata(const std::vector<std::uint8_t>& bytes,
+                     LasHeader& header,
+                     std::string& error);
+
+bool InspectRecords(const std::vector<std::uint8_t>& bytes,
+                    std::size_t offset,
+                    std::uint32_t count,
+                    bool extended,
+                    std::vector<LasVariableLengthRecord>& records,
+                    std::string& error);
+
+std::string ExtractWktCrs(const std::vector<LasVariableLengthRecord>& records);
 
 bool DecodePoint(const LasHeader& header,
                  const std::vector<std::uint8_t>& record,

@@ -73,6 +73,44 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
         return false;
     }
 
+    header.variableLengthRecords.clear();
+    if (header.variableLengthRecordCount != 0) {
+        const auto metadataSize = static_cast<std::size_t>(header.pointDataOffset);
+        std::vector<std::uint8_t> metadataBytes(metadataSize);
+        input.seekg(0, std::ios::beg);
+        if (!input.read(reinterpret_cast<char*>(metadataBytes.data()),
+                        static_cast<std::streamsize>(metadataBytes.size())) ||
+            !usdlas::InspectRecords(metadataBytes, header.headerSize,
+                                    header.variableLengthRecordCount, false,
+                                    header.variableLengthRecords, error)) {
+            TF_RUNTIME_ERROR("Unable to inspect LAS VLR metadata {}: {}",
+                             resolvedPath, error);
+            return false;
+        }
+    }
+    if (header.extendedVariableLengthRecordCount != 0) {
+        const auto evlrOffset = static_cast<std::size_t>(
+            header.firstExtendedVariableLengthRecordOffset);
+        if (evlrOffset > static_cast<std::size_t>(fileSize)) {
+            TF_RUNTIME_ERROR("LAS EVLR offset is outside the file: {}",
+                             resolvedPath);
+            return false;
+        }
+        std::vector<std::uint8_t> evlrBytes(
+            static_cast<std::size_t>(fileSize) - evlrOffset);
+        input.seekg(static_cast<std::streamoff>(evlrOffset), std::ios::beg);
+        if (!input.read(reinterpret_cast<char*>(evlrBytes.data()),
+                        static_cast<std::streamsize>(evlrBytes.size())) ||
+            !usdlas::InspectRecords(evlrBytes, 0,
+                                    header.extendedVariableLengthRecordCount,
+                                    true, header.variableLengthRecords, error)) {
+            TF_RUNTIME_ERROR("Unable to inspect LAS EVLR metadata {}: {}",
+                             resolvedPath, error);
+            return false;
+        }
+    }
+    header.crsWkt = usdlas::ExtractWktCrs(header.variableLengthRecords);
+
     const auto recordLength = static_cast<std::size_t>(header.pointRecordLength);
     const auto pointOffset = static_cast<std::size_t>(header.pointDataOffset);
     if (header.pointCount >
@@ -135,7 +173,9 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
     }
 
     usdgeo::GeoReference reference;
-    reference.wkt = "LAS CRS unavailable; inspect VLR metadata";
+    reference.wkt = header.crsWkt.empty()
+                        ? "LAS CRS unavailable; inspect VLR metadata"
+                        : header.crsWkt;
     reference.sourceUpAxis = "Z";
     reference.stageUpAxis = "Y";
     reference.localOrigin = header.bounds.minimum;

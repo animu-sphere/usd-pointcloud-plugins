@@ -101,10 +101,46 @@ void TestValidation() {
                                error));
 }
 
+void TestVariableLengthRecords() {
+    auto bytes = MakeHeader(2, 0);
+    constexpr std::size_t recordOffset = 227;
+    const std::string wkt = "WKT[\"EPSG:4978\"]";
+    bytes.resize(recordOffset + 54 + wkt.size() + 1);
+    Write(bytes, 100, std::uint32_t{1});
+    Write(bytes, 96, static_cast<std::uint32_t>(bytes.size()));
+    std::memcpy(bytes.data() + recordOffset + 2, "LASF_Projection", 15);
+    Write(bytes, recordOffset + 18, std::uint16_t{2112});
+    Write(bytes, recordOffset + 20, static_cast<std::uint16_t>(wkt.size() + 1));
+    std::memcpy(bytes.data() + recordOffset + 54, wkt.c_str(), wkt.size() + 1);
+
+    usdlas::LasHeader header;
+    std::string error;
+    Check(usdlas::InspectMetadata(bytes, header, error));
+    Check(header.variableLengthRecords.size() == 1);
+    Check(header.variableLengthRecords.front().userId == "LASF_Projection");
+    Check(header.crsWkt == wkt);
+
+    auto evlrBytes = MakeHeader(4, 6);
+    constexpr std::size_t evlrOffset = 375;
+    const std::string evlrText = "extended";
+    evlrBytes.resize(evlrOffset + 60 + evlrText.size());
+    Write(evlrBytes, 96, static_cast<std::uint32_t>(evlrOffset));
+    Write(evlrBytes, 235, static_cast<std::uint64_t>(evlrOffset));
+    Write(evlrBytes, 243, std::uint32_t{1});
+    std::memcpy(evlrBytes.data() + evlrOffset + 2, "LASF_Projection", 15);
+    Write(evlrBytes, evlrOffset + 18, std::uint16_t{2112});
+    Write(evlrBytes, evlrOffset + 20, static_cast<std::uint64_t>(evlrText.size()));
+    std::memcpy(evlrBytes.data() + evlrOffset + 60, evlrText.data(), evlrText.size());
+    Check(usdlas::InspectMetadata(evlrBytes, header, error));
+    Check(header.variableLengthRecords.size() == 1 &&
+          header.variableLengthRecords.front().isExtended);
+}
+
 } // namespace
 
 int main() {
     TestHeaderAndPoint();
     TestValidation();
+    TestVariableLengthRecords();
     return 0;
 }

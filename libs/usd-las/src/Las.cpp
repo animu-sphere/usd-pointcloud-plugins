@@ -1,5 +1,6 @@
 #include "usdlas/Las.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 
@@ -61,6 +62,48 @@ std::size_t MinimumRecordLength(std::uint8_t format) {
     }
 }
 
+std::string ReadText(const std::vector<std::uint8_t>& bytes,
+                     std::size_t offset,
+                     std::size_t size) {
+    const auto end = std::find(bytes.begin() + offset,
+                               bytes.begin() + offset + size, std::uint8_t{0});
+    return std::string(reinterpret_cast<const char*>(bytes.data() + offset),
+                       static_cast<std::size_t>(end - (bytes.begin() + offset)));
+}
+
+bool ReadRecords(const std::vector<std::uint8_t>& bytes,
+                 std::size_t offset,
+                 std::uint32_t count,
+                 bool extended,
+                 std::vector<usdlas::LasVariableLengthRecord>& records,
+                 std::string& error) {
+    const std::size_t headerLength = extended ? 60 : 54;
+    for (std::uint32_t index = 0; index < count; ++index) {
+        if (!Has(bytes, offset, headerLength)) {
+            error = "LAS variable-length record header is truncated";
+            return false;
+        }
+        usdlas::LasVariableLengthRecord record;
+        record.userId = ReadText(bytes, offset + 2, 16);
+        record.recordId = ReadLittle<std::uint16_t>(bytes, offset + 18);
+        const auto length = extended
+                                ? ReadLittle<std::uint64_t>(bytes, offset + 20)
+                                : ReadLittle<std::uint16_t>(bytes, offset + 20);
+        record.description = ReadText(bytes, offset + (extended ? 28 : 22), 32);
+        record.isExtended = extended;
+        offset += headerLength;
+        if (length > bytes.size() - offset) {
+            error = "LAS variable-length record data is truncated";
+            return false;
+        }
+        record.data.assign(bytes.begin() + offset,
+                           bytes.begin() + offset + static_cast<std::size_t>(length));
+        records.push_back(std::move(record));
+        offset += static_cast<std::size_t>(length);
+    }
+    return true;
+}
+
 } // namespace
 
 namespace usdlas {
@@ -87,6 +130,7 @@ bool InspectHeader(const std::vector<std::uint8_t>& bytes,
     header.versionMinor = ReadLittle<std::uint8_t>(bytes, 25);
     header.headerSize = ReadLittle<std::uint16_t>(bytes, 94);
     header.pointDataOffset = ReadLittle<std::uint32_t>(bytes, 96);
+    header.variableLengthRecordCount = ReadLittle<std::uint32_t>(bytes, 100);
     header.pointFormat = ReadLittle<std::uint8_t>(bytes, 104);
     header.pointRecordLength = ReadLittle<std::uint16_t>(bytes, 105);
     const auto legacyCount = ReadLittle<std::uint32_t>(bytes, 107);
@@ -116,6 +160,10 @@ bool InspectHeader(const std::vector<std::uint8_t>& bytes,
             return false;
         }
         header.pointCount = ReadLittle<std::uint64_t>(bytes, 247);
+        header.firstExtendedVariableLengthRecordOffset =
+            ReadLittle<std::uint64_t>(bytes, 235);
+        header.extendedVariableLengthRecordCount =
+            ReadLittle<std::uint32_t>(bytes, 243);
     }
 
     header.xScale = ReadLittle<double>(bytes, 131);
@@ -140,6 +188,57 @@ bool InspectHeader(const std::vector<std::uint8_t>& bytes,
         return false;
     }
     return true;
+}
+
+bool InspectMetadata(const std::vector<std::uint8_t>& bytes,
+                     LasHeader& header,
+                     std::string& error) {
+    if (!InspectHeader(bytes, header, error)) {
+        return false;
+    }
+    header.variableLengthRecords.clear();
+    if (!ReadRecords(bytes, header.headerSize, header.variableLengthRecordCount,
+                     false, header.variableLengthRecords, error)) {
+        return false;
+    }
+    if (header.extendedVariableLengthRecordCount != 0) {
+        if (header.firstExtendedVariableLengthRecordOffset == 0 ||
+            header.firstExtendedVariableLengthRecordOffset > bytes.size()) {
+            error = "LAS extended variable-length record offset is invalid";
+            return false;
+        }
+        if (!ReadRecords(bytes,
+                         static_cast<std::size_t>(header.firstExtendedVariableLengthRecordOffset),
+                         header.extendedVariableLengthRecordCount, true,
+                         header.variableLengthRecords, error)) {
+            return false;
+        }
+    }
+    header.crsWkt = ExtractWktCrs(header.variableLengthRecords);
+    return true;
+}
+
+bool InspectRecords(const std::vector<std::uint8_t>& bytes,
+                    std::size_t offset,
+                    std::uint32_t count,
+                    bool extended,
+                    std::vector<LasVariableLengthRecord>& records,
+                    std::string& error) {
+    return ReadRecords(bytes, offset, count, extended, records, error);
+}
+
+std::string ExtractWktCrs(const std::vector<LasVariableLengthRecord>& records) {
+    for (const auto& record : records) {
+        if (record.userId == "LASF_Projection" && record.recordId == 2112) {
+            std::string wkt(reinterpret_cast<const char*>(record.data.data()),
+                            record.data.size());
+            while (!wkt.empty() && wkt.back() == '\0') {
+                wkt.pop_back();
+            }
+            return wkt;
+        }
+    }
+    return {};
 }
 
 bool DecodePoint(const LasHeader& header,
