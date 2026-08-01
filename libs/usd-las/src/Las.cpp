@@ -214,17 +214,31 @@ bool InspectMetadata(const std::vector<std::uint8_t>& bytes,
             return false;
         }
     }
-    for (const auto& record : header.variableLengthRecords) {
+    header.crsWkt = ExtractWktCrs(header.variableLengthRecords);
+    return true;
+}
+
+bool InspectRecords(const std::vector<std::uint8_t>& bytes,
+                    std::size_t offset,
+                    std::uint32_t count,
+                    bool extended,
+                    std::vector<LasVariableLengthRecord>& records,
+                    std::string& error) {
+    return ReadRecords(bytes, offset, count, extended, records, error);
+}
+
+std::string ExtractWktCrs(const std::vector<LasVariableLengthRecord>& records) {
+    for (const auto& record : records) {
         if (record.userId == "LASF_Projection" && record.recordId == 2112) {
-            header.crsWkt.assign(reinterpret_cast<const char*>(record.data.data()),
-                                 record.data.size());
-            while (!header.crsWkt.empty() && header.crsWkt.back() == '\0') {
-                header.crsWkt.pop_back();
+            std::string wkt(reinterpret_cast<const char*>(record.data.data()),
+                            record.data.size());
+            while (!wkt.empty() && wkt.back() == '\0') {
+                wkt.pop_back();
             }
-            break;
+            return wkt;
         }
     }
-    return true;
+    return {};
 }
 
 bool DecodePoint(const LasHeader& header,

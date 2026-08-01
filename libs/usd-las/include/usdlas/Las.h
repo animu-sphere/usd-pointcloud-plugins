@@ -62,6 +62,15 @@ bool InspectMetadata(const std::vector<std::uint8_t>& bytes,
                      LasHeader& header,
                      std::string& error);
 
+bool InspectRecords(const std::vector<std::uint8_t>& bytes,
+                    std::size_t offset,
+                    std::uint32_t count,
+                    bool extended,
+                    std::vector<LasVariableLengthRecord>& records,
+                    std::string& error);
+
+std::string ExtractWktCrs(const std::vector<LasVariableLengthRecord>& records);
+
 bool DecodePoint(const LasHeader& header,
                  const std::vector<std::uint8_t>& record,
                  LasPoint& point,

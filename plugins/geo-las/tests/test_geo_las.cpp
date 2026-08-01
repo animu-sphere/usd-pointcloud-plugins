@@ -30,12 +30,16 @@ std::vector<std::uint8_t> MakeFixture() {
     constexpr std::size_t headerSize = 227;
     constexpr std::size_t recordLength = 34;
     constexpr std::size_t pointCount = 2;
-    std::vector<std::uint8_t> bytes(headerSize + recordLength * pointCount, 0);
+    const std::string wkt = "WKT[\"EPSG:4978\"]";
+    const auto pointDataOffset = headerSize + 54 + wkt.size() + 1;
+    std::vector<std::uint8_t> bytes(pointDataOffset + recordLength * pointCount,
+                                    0);
     std::memcpy(bytes.data(), "LASF", 4);
     Write(bytes, 24, std::uint8_t{1});
     Write(bytes, 25, std::uint8_t{2});
     Write(bytes, 94, static_cast<std::uint16_t>(headerSize));
-    Write(bytes, 96, static_cast<std::uint32_t>(headerSize));
+    Write(bytes, 96, static_cast<std::uint32_t>(pointDataOffset));
+    Write(bytes, 100, std::uint32_t{1});
     Write(bytes, 104, std::uint8_t{3});
     Write(bytes, 105, static_cast<std::uint16_t>(recordLength));
     Write(bytes, 107, static_cast<std::uint32_t>(pointCount));
@@ -52,6 +56,13 @@ std::vector<std::uint8_t> MakeFixture() {
     Write(bytes, 211, 3003.0);
     Write(bytes, 219, 3000.0);
 
+        const auto vlrOffset = headerSize;
+        std::memcpy(bytes.data() + vlrOffset + 2, "LASF_Projection", 15);
+        Write(bytes, vlrOffset + 18, std::uint16_t{2112});
+        Write(bytes, vlrOffset + 20,
+            static_cast<std::uint16_t>(wkt.size() + 1));
+        std::memcpy(bytes.data() + vlrOffset + 54, wkt.c_str(), wkt.size() + 1);
+
     const auto record = [&](std::size_t offset, std::int32_t x,
                             std::int32_t y, std::int32_t z,
                             std::uint16_t intensity,
@@ -67,8 +78,8 @@ std::vector<std::uint8_t> MakeFixture() {
         Write(bytes, offset + 30, static_cast<std::uint16_t>(200));
         Write(bytes, offset + 32, static_cast<std::uint16_t>(300));
     };
-    record(headerSize, 0, 0, 0, 42, 2, 12.5);
-    record(headerSize + recordLength, 100, 100, 300, 84, 5, 25.0);
+    record(pointDataOffset, 0, 0, 0, 42, 2, 12.5);
+    record(pointDataOffset + recordLength, 100, 100, 300, 84, 5, 25.0);
     return bytes;
 }
 
@@ -123,6 +134,13 @@ void TestFileFormatIntegration() {
               .Get(&classification));
     Check(classification.size() == 2 && classification[0] == 2 &&
           classification[1] == 5);
+
+    const auto wktAttribute = layer->GetAttributeAtPath(
+        pxr::SdfPath("/PointCloud.geo:wkt"));
+    Check(wktAttribute != nullptr);
+    Check(wktAttribute->GetDefaultValue().IsHolding<std::string>());
+    Check(wktAttribute->GetDefaultValue().UncheckedGet<std::string>() ==
+          "WKT[\"EPSG:4978\"]");
 
     std::error_code error;
     std::filesystem::remove(path, error);
