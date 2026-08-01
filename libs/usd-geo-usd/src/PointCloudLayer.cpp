@@ -136,28 +136,40 @@ bool PointCloudLayer::AuthorPointCloud(
             pxr::SdfValueTypeNames->UCharArray)
             .Set(pxr::VtArray<unsigned char>(data.classificationFlags.begin(),
                                               data.classificationFlags.end()));
+    }
+    if (!data.scannerChannel.empty()) {
         points.GetPrim().CreateAttribute(
             pxr::TfToken("geo:scannerChannel"),
             pxr::SdfValueTypeNames->UCharArray)
             .Set(pxr::VtArray<unsigned char>(data.scannerChannel.begin(),
                                               data.scannerChannel.end()));
+    }
+    if (!data.scanDirectionFlag.empty()) {
         points.GetPrim().CreateAttribute(
             pxr::TfToken("geo:scanDirectionFlag"),
             pxr::SdfValueTypeNames->UCharArray)
             .Set(pxr::VtArray<unsigned char>(data.scanDirectionFlag.begin(),
                                               data.scanDirectionFlag.end()));
+    }
+    if (!data.edgeOfFlightLine.empty()) {
         points.GetPrim().CreateAttribute(
             pxr::TfToken("geo:edgeOfFlightLine"),
             pxr::SdfValueTypeNames->UCharArray)
             .Set(pxr::VtArray<unsigned char>(data.edgeOfFlightLine.begin(),
                                               data.edgeOfFlightLine.end()));
+    }
+    if (!data.userData.empty()) {
         points.GetPrim().CreateAttribute(
             pxr::TfToken("geo:userData"), pxr::SdfValueTypeNames->UCharArray)
             .Set(pxr::VtArray<unsigned char>(data.userData.begin(),
                                               data.userData.end()));
+    }
+    if (!data.scanAngle.empty()) {
         points.GetPrim().CreateAttribute(
             pxr::TfToken("geo:scanAngle"), pxr::SdfValueTypeNames->IntArray)
             .Set(ToIntArray(data.scanAngle));
+    }
+    if (!data.pointSourceId.empty()) {
         points.GetPrim().CreateAttribute(
             pxr::TfToken("geo:pointSourceId"), pxr::SdfValueTypeNames->IntArray)
             .Set(ToIntArray(data.pointSourceId));

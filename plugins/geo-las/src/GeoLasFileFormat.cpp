@@ -197,8 +197,13 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
     pointData.returnNumber.reserve(static_cast<std::size_t>(header.pointCount));
     pointData.numberOfReturns.reserve(static_cast<std::size_t>(header.pointCount));
     pointData.classification.reserve(static_cast<std::size_t>(header.pointCount));
-    pointData.classificationFlags.reserve(static_cast<std::size_t>(header.pointCount));
-    pointData.scannerChannel.reserve(static_cast<std::size_t>(header.pointCount));
+    const bool modern = header.pointFormat >= 6;
+    if (modern) {
+        pointData.classificationFlags.reserve(
+            static_cast<std::size_t>(header.pointCount));
+        pointData.scannerChannel.reserve(
+            static_cast<std::size_t>(header.pointCount));
+    }
     pointData.scanDirectionFlag.reserve(static_cast<std::size_t>(header.pointCount));
     pointData.edgeOfFlightLine.reserve(static_cast<std::size_t>(header.pointCount));
     pointData.userData.reserve(static_cast<std::size_t>(header.pointCount));
@@ -242,8 +247,10 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
         pointData.returnNumber.push_back(point.returnNumber);
         pointData.numberOfReturns.push_back(point.numberOfReturns);
         pointData.classification.push_back(point.classification);
-        pointData.classificationFlags.push_back(point.classificationFlags);
-        pointData.scannerChannel.push_back(point.scannerChannel);
+        if (modern) {
+            pointData.classificationFlags.push_back(point.classificationFlags);
+            pointData.scannerChannel.push_back(point.scannerChannel);
+        }
         pointData.scanDirectionFlag.push_back(point.scanDirectionFlag);
         pointData.edgeOfFlightLine.push_back(point.edgeOfFlightLine);
         pointData.userData.push_back(point.userData);
@@ -286,13 +293,17 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
         {"returnNumber", usdpointcloud::PointAttributeType::UInt8},
         {"numberOfReturns", usdpointcloud::PointAttributeType::UInt8},
         {"classification", usdpointcloud::PointAttributeType::UInt8},
-        {"classificationFlags", usdpointcloud::PointAttributeType::UInt8},
-        {"scannerChannel", usdpointcloud::PointAttributeType::UInt8},
         {"scanDirectionFlag", usdpointcloud::PointAttributeType::UInt8},
         {"edgeOfFlightLine", usdpointcloud::PointAttributeType::UInt8},
         {"userData", usdpointcloud::PointAttributeType::UInt8},
         {"scanAngle", usdpointcloud::PointAttributeType::Int16},
         {"pointSourceId", usdpointcloud::PointAttributeType::UInt16}};
+    if (modern) {
+        chunk.attributes.push_back(
+            {"classificationFlags", usdpointcloud::PointAttributeType::UInt8});
+        chunk.attributes.push_back(
+            {"scannerChannel", usdpointcloud::PointAttributeType::UInt8});
+    }
     if (!pointData.red.empty()) {
         chunk.attributes.push_back(
             {"red", usdpointcloud::PointAttributeType::UInt16});

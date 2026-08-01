@@ -140,6 +140,10 @@ void TestFileFormatIntegration() {
               .Get(&classification));
     Check(classification.size() == 2 && classification[0] == 2 &&
           classification[1] == 5);
+        Check(layer->GetAttributeAtPath(
+              pxr::SdfPath("/PointCloud.geo:classificationFlags")) == nullptr);
+        Check(layer->GetAttributeAtPath(
+              pxr::SdfPath("/PointCloud.geo:scannerChannel")) == nullptr);
 
     pxr::VtIntArray scanAngle;
     Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:scanAngle"))

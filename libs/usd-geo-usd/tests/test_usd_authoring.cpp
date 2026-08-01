@@ -94,6 +94,30 @@ void TestPointCloudRoundTrip() {
     Check(epsgCode == 26910);
 }
 
+void TestOptionalAttributesAreIndependent() {
+    const auto stage = usdgeo::PointCloudLayer::CreateStage();
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    usdpointcloud::PointChunk chunk;
+    chunk.pointCount = 1;
+    chunk.bounds.Expand({0.0, 0.0, 0.0});
+
+    usdgeo::PointCloudLayer::Data data;
+    data.positions = {{0.0, 0.0, 0.0}};
+    data.scanAngle = {-12};
+
+    Check(usdgeo::PointCloudLayer::AuthorPointCloud(
+        stage, "/PointCloud", reference, chunk.bounds, chunk, data));
+
+    const auto prim = stage->GetPrimAtPath(pxr::SdfPath("/PointCloud"));
+    Check(prim.IsValid());
+    pxr::VtIntArray scanAngle;
+    Check(prim.GetAttribute(pxr::TfToken("geo:scanAngle")).Get(&scanAngle));
+    Check(scanAngle.size() == 1 && scanAngle[0] == -12);
+    Check(!prim.GetAttribute(pxr::TfToken("geo:classificationFlags")));
+}
+
 void TestInvalidPositionDoesNotMutateStage() {
     const auto stage = usdgeo::PointCloudLayer::CreateStage();
     usdgeo::GeoReference reference;
@@ -115,6 +139,7 @@ void TestInvalidPositionDoesNotMutateStage() {
 
 int main() {
     TestPointCloudRoundTrip();
+    TestOptionalAttributesAreIndependent();
     TestInvalidPositionDoesNotMutateStage();
     return 0;
 }
