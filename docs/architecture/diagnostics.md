@@ -98,3 +98,17 @@ projection of the shared codes rather than an independent taxonomy.
 
 Existing `LASxxx` and `LAZxxx` codes keep their meaning through the migration.
 Adding a code is a compatible change; changing what a code means is not.
+
+## Planned Codes
+
+The [tile and LOD contract](lod.md) requires typed diagnostics for every
+validation invariant it defines: item ordering, default index range, threshold
+count and ordering, non-finite or out-of-domain thresholds, inconsistent item
+bounds, non-monotonic point counts, source-range overflow, and empty
+hierarchies. Codes for these conditions are added to `DiagnosticCode` when the
+LOD contract lands, under rule 1 above; they are not reserved by name here so
+that the published names match the shipped behavior.
+
+Sampling and tile-generation failures follow the same rule: readers and
+generators collect diagnostics, and the authoring layer refuses to author a
+hierarchy that fails validation rather than emitting a partial LOD root.

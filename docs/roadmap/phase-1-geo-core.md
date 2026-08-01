@@ -16,9 +16,13 @@ Provide the minimum geospatial model shared by point clouds, terrain, and vector
 8. Add shared typed diagnostic value types in `usdGeoCore`
 9. Add cache lookup and USDC tile-layout contracts in `usdGeoCache`
 
-Steps 1 through 7 shipped in v0.1.0, except the API Schema, which stays
-deferred until the tile and LOD representation is settled. Steps 8 and 9 are
-open; see the [diagnostics contract](../architecture/diagnostics.md).
+Steps 1 through 7 shipped in v0.1.0, except the API Schema. No
+repository-specific LOD API schema will be defined: the public LOD
+representation is OpenUSD 26.08 `usdLod`, and `usdGeoUsd` only applies it. Any
+remaining API-schema need is limited to non-LOD geospatial metadata and stays
+deferred. Steps 8 and 9 are open; see the
+[diagnostics contract](../architecture/diagnostics.md) and the
+[tile and LOD contract](../architecture/lod.md).
 
 ## Contracts
 
@@ -31,6 +35,8 @@ open; see the [diagnostics contract](../architecture/diagnostics.md).
 - Keep readers independent of `usdGeoUsd`; plugin adapters compose both sides.
 - Report failures as typed diagnostics with stable codes; do not throw across a
   reader API boundary.
+- Keep tile identity and LOD hierarchy in format-independent contracts; the
+  `usdLod` binding exists only in `usdGeoUsd`.
 
 ## Tests
 

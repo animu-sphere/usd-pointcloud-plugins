@@ -60,9 +60,18 @@ Rules:
 - Core libraries do not depend on the OpenUSD API.
 - LAS and LAZ readers never author USD prims.
 - OpenUSD-specific representation stays inside `usdGeoUsd`.
-- FileFormat Plugins remain thin adapters.
+- FileFormat Plugins remain thin adapters. A plugin normalizes arguments,
+  invokes a reader, calls one shared authoring entry point, and converts
+  diagnostics. Read orchestration, decode loops, attribute fan-out, and
+  metadata interpretation do not live in a plugin.
 - New OpenUSD features are not embedded directly into format-independent
   contracts.
+
+Both plugins currently violate the thin-adapter rule, and `geo-las` bypasses
+the chunked reader entirely. The gap and its migration are recorded in the
+[plugin adapter contract](architecture/plugin-adapter.md). Closing it is a
+prerequisite for tile and LOD work, because otherwise the duplication is copied
+into every later bundle.
 
 ### 3.2 Format-Independent Contracts
 
@@ -81,7 +90,27 @@ The following belong in the shared layer, not in a format-specific layer:
 - Cache key
 - Diagnostic codes
 
-### 3.3 Data Preservation
+### 3.3 File-Format Arguments and Layer Identity
+
+An argument changes what a layer contains, so it changes layer identity.
+Normalized arguments participate in layer identity and cache keys, and an
+argument that alters authored topology never reuses a layer cached under a
+different value. Arguments are validated, never guessed, and never silently
+ignored. They are the only sanctioned way to supply information the source file
+does not carry.
+
+Argument parsing lives in the plugin; validation lives in the shared layer. The
+readers and `usdGeoUsd` never see the Sdf argument encoding. The full contract
+is in the
+[file-format argument contract](architecture/file-format-arguments.md).
+
+Whether the plugins additionally become dynamic file formats, so that
+parameters can be authored as prim metadata instead of baked into asset paths,
+is an open decision recorded in
+[ADR-0003](roadmap/adr-0003-dynamic-file-format.md). It is not adopted, and it
+is not a prerequisite for arguments.
+
+### 3.4 Data Preservation
 
 Input meaning is not lost.
 
@@ -200,10 +229,36 @@ without a second coordinate model.
 
 ## 5. Tile and LOD Policy
 
-### 5.1 Shared Tile Contract
+The standing policy is:
+
+> OpenUSD 26.08 `usdLod` is the only public LOD representation authored by the
+> project. Spatial tiling, point sampling, source-range access, caching, and
+> payload packaging are internal or compositional mechanisms that support that
+> representation. LOD selection remains the responsibility of the consuming
+> OpenUSD application or renderer.
+
+The full contract, target namespace, invariants, and test matrix are in the
+[tile and LOD contract](architecture/lod.md). This section states the rules the
+rest of the repository is held to.
+
+### 5.1 Standard Representation Only
+
+The authored stage uses `UsdLodRootAPI`, `UsdLodScreenSizeHeuristic`, and
+`UsdLodOverrideAPI`. The repository never publishes a competing LOD
+representation: no repository-specific schema, no custom `lodLevel` primvar, no
+variant-set convention, and no format-specific LOD attributes. Internal C++
+structures model LOD generation freely; only the authored stage is constrained.
+
+### 5.2 Tile and LOD Stay Separate
+
+A tile is a spatial and loading unit. An LOD item is one resolution of the same
+spatial region. They are never merged into one ambiguous index, in the
+contracts or in the authored namespace.
+
+### 5.3 Shared Tile Contract
 
 The format-independent tile contract is defined before binding to a concrete
-OpenUSD 26.08 API. A tile carries at least:
+OpenUSD API. A tile carries at least:
 
 ```text
 TileId
@@ -219,21 +274,55 @@ SourceChunkIds
 AttributeAvailability
 ```
 
-### 5.2 OpenUSD Representation
+Its LOD hierarchy carries ordered items, a default index, and screen-size
+thresholds, with `items.size() == thresholds.size() + 1`. Items run from
+highest detail to lowest, point counts never increase as detail decreases, and
+every item describes the same spatial region.
+
+### 5.4 OpenUSD Representation
 
 `usdGeoUsd` owns the mapping to OpenUSD LOD, payload, variant, activation,
 subLayer, and asset dependency. An OpenUSD API change or a different
 representation strategy must not require changes to the LAS or LAZ readers.
+`UsdLodRootAPI`, Hydra, cameras, viewport state, and screen-space calculations
+never appear in a format reader.
 
-### 5.3 Initial Sequence
+### 5.5 Selection Belongs to the Host
 
-1. Spatial partitioning and tile hierarchy generation
-2. Per-tile point count and bounds
-3. Deterministic downsampling
-4. Geometric error definition
-5. Per-tile USD asset generation
-6. Integration with the OpenUSD LOD representation
-7. API shape for asynchronous and deferred loading
+Plugins read, partition, sample, author, and report. The consuming OpenUSD
+application, scene delegate, or render delegate selects the active LOD.
+
+### 5.6 Sampling Is Deterministic
+
+LOD generation is independent from USD authoring and produces identical output
+for the same source and options. Random sampling without a stable seed is not
+used, and the sampling algorithm plus its version participate in cache keys.
+
+### 5.7 Payload Behavior Is Measured, Not Assumed
+
+`usdLod` defines selection intent, not payload unloading. Working-set
+reduction is claimed only from integration measurements. Documentation and
+tests keep visibility selection separate from stage population.
+
+### 5.8 Compatibility
+
+LOD authoring targets OpenUSD 26.08 or newer. No parallel fallback LOD
+representation is maintained for older runtimes unless a concrete downstream
+requirement is accepted. Compile-time guards, if needed, isolate the authoring
+layer instead of producing two public stage representations.
+
+### 5.9 Initial Sequence
+
+0. Thin the LAS and LAZ plugins onto one reader contract and one authoring
+   entry point; see the
+   [plugin adapter contract](architecture/plugin-adapter.md)
+1. Shared LOD contracts, validation, and typed diagnostics
+2. `usdLod` authoring in `usdGeoUsd`, including reusable heuristic prims
+3. A single non-tiled LOD root from the chunked LAS and LAZ readers
+4. Spatial partitioning, tile hierarchy, and one LOD root per tile
+5. Payload or sublayer packaging and USDC cache generation
+6. Stage population and memory measurement
+7. COPC hierarchy mapped onto the same representation
 
 ## 6. Streaming and Memory
 
@@ -288,6 +377,11 @@ The cache key includes at least:
 - Attribute selection
 - Tile and LOD settings
 - Downsampling settings
+- Sampling algorithm and sampling algorithm version
+
+An argument that alters authored topology never reuses an incompatible cached
+layer. The complete LOD cache-key input list is in the
+[tile and LOD contract](architecture/lod.md).
 
 ## 8. Diagnostics API
 
@@ -446,6 +540,10 @@ matrices, and lists known limitations. Plugin discovery, `usdview` and `usdcat`
 usage, authored prim and metadata examples, large-data behavior, and the LAZ
 LGPL distribution note are covered in the README or the documents it links.
 
+Documentation about LOD distinguishes render-visibility selection from stage
+population and payload loading. A claim of reduced working set requires a
+measurement, not the observation that non-selected children are invisible.
+
 ## 14. Repository Shape
 
 ```text
@@ -506,10 +604,17 @@ external waveform data references.
 Chunk iterator, range decode, memory budget, cancellation, attribute
 selection, bounds filter, and deterministic sampling.
 
+The reader-side contract exists; it is not reachable through the plugins.
+Moving both plugins onto it, and exposing the options as file-format
+arguments, completes this workstream. See the
+[plugin adapter contract](architecture/plugin-adapter.md).
+
 ### W5: Tile and LOD
 
-Shared tile contract, hierarchy builder, geometric error, per-tile USD assets,
-and the OpenUSD 26.08 LOD mapping.
+Shared tile and LOD contracts, hierarchy builder, geometric error,
+deterministic sampling, `usdLod` authoring in `usdGeoUsd`, LOD file-format
+arguments, per-tile USD assets, and Storm integration evidence. Scoped by the
+[tile and LOD contract](architecture/lod.md).
 
 ### W6: Cache and additional formats
 
@@ -538,9 +643,9 @@ The following are managed as public issues:
 11. Add complete LAS 1.4 classification flags
 12. Add NIR point attribute support
 13. Add chunked and range-based reader API
-14. Define shared tile and LOD contracts
-15. Add deterministic point-cloud downsampling
-16. Map shared LOD contracts to OpenUSD 26.08
+14. Define shared tile and LOD contracts with validation invariants
+15. Add deterministic point-cloud downsampling with a versioned algorithm
+16. Author `UsdLodRootAPI` and `UsdLodScreenSizeHeuristic` in `usdGeoUsd`
 17. Define USDC cache identity and invalidation
 18. Add LAS/LAZ fuzzing targets
 19. Expand CC0/public point-cloud conformance corpus
@@ -553,6 +658,18 @@ The following are managed as public issues:
 25. Add E57 scan reading
 26. Add GeoTIFF and DEM elevation reading
 27. Add COG overview and range-based raster access
+28. Move `geo-las` onto `usdlas::LasReader` and delete its inline read
+    orchestration
+29. Add `usdgeo::AuthorPointCloudAsset` as the single authoring entry point for
+    both plugins
+30. Normalize file-format arguments and pass read options through the plugins
+31. Add LOD file-format arguments and the compact `lod` profile
+32. Add `UsdLodOverrideAPI` and Storm LOD integration tests
+33. Measure payload and stage-population behavior beneath non-selected LOD
+    children
+34. Add metadata-only reads through the LAS and LAZ plugins
+35. Decide whether the plugins become dynamic file formats; see
+    [ADR-0003](roadmap/adr-0003-dynamic-file-format.md)
 
 ## 17. Definition of Done
 
@@ -576,4 +693,7 @@ A point format counts as supported only when all of the following hold:
 4. Implement Extra Bytes and GeoTIFF CRS.
 5. Define the waveform contract for formats 4, 5, 9, and 10.
 6. Collect per-format LAS and LAZ fixtures.
-7. Then move to the shared tile and LOD contract.
+7. Then land the shared tile and LOD contracts, and reconcile `PointTileId`
+   with the existing `usdgeo::TileId` so there is one spatial identity.
+8. Verify the `usdLod` schema surface against the pinned OpenUSD 26.08 runtime
+   before authoring against it.

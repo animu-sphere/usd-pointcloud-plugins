@@ -138,12 +138,38 @@ Source coordinates are reconstructed as
 axis is `Z` and the stage up axis is `Y`, so
 `source = (x + originX, -z + originY, y + originZ)`.
 
+## Tile and LOD
+
+| Item | Status |
+| --- | --- |
+| Spatial tiling | Not implemented |
+| LOD hierarchy | Not implemented |
+| `UsdLodRootAPI` | Not authored |
+| `UsdLodScreenSizeHeuristic` | Not authored |
+| `UsdLodOverrideAPI` | Not consumed |
+| Payload-partitioned tiles | Not authored |
+| LOD file-format arguments | Not implemented |
+
+Every read authors one `UsdGeomPoints` prim at `/PointCloud` containing every
+point in the source. There is no LOD root, no heuristic, no default index, and
+no payload partitioning.
+
+When LOD lands, it will be authored with the OpenUSD 26.08 `usdLod` schemas and
+nothing else. The project will not publish a repository-specific LOD schema, a
+`lodLevel` primvar, or a variant-set convention, and LOD selection will remain
+the host application's responsibility. The target namespace and invariants are
+in the [tile and LOD contract](architecture/lod.md).
+
 ## Known Limitations
 
 - The whole point cloud is materialized in memory before authoring. LAZ
   decodes in 65,536-point chunks but still accumulates every point.
 - No file-format arguments exist yet, so attribute selection, point limits,
-  bounds filters, and classification filters are unavailable.
+  bounds filters, and classification filters are unavailable. Neither plugin
+  passes read options to the readers, so the chunked and range-based reader
+  API is not reachable from a host. See the
+  [file-format argument contract](architecture/file-format-arguments.md) and
+  the [plugin adapter contract](architecture/plugin-adapter.md).
 - `metadataOnly` reads are refused; a header-only or metadata-only inspection
   path is not exposed through the plugins.
 - Positions are stored as `float` relative to the local origin. Absolute source
@@ -154,5 +180,6 @@ axis is `Z` and the stage up axis is `Y`, so
 - Reader errors expose shared typed diagnostics and remain projected to stable
   `LASxxx` or `LAZxxx` plugin prefixes. See
   [diagnostics](architecture/diagnostics.md).
-- Tile/LOD streaming and the USDC cache are not implemented.
+- Tile/LOD streaming and the USDC cache are not implemented. No `usdLod`
+  schema is applied to the authored stage.
 - Writing LAS or LAZ is out of scope; both plugins export as `usda`.
