@@ -115,7 +115,6 @@ void TestFileFormatIntegration() {
     const auto intensityValue = intensityAttribute->GetDefaultValue();
     Check(intensityValue.IsHolding<pxr::VtIntArray>());
     intensity = intensityValue.UncheckedGet<pxr::VtIntArray>();
-    std::fprintf(stderr, "LAS intensity authored\n");
     Check(intensity.size() == 2 && intensity[0] == 42 && intensity[1] == 84);
 
     pxr::VtArray<unsigned char> classification;
