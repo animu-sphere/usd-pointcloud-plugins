@@ -1,4 +1,4 @@
-# USD Geo Plugins
+# OpenUSD Geospatial Geometry Plugins
 
 [![ost source ci](https://github.com/animu-sphere/usd-geo-plugins/actions/workflows/ost-source-ci.yml/badge.svg?branch=main)](https://github.com/animu-sphere/usd-geo-plugins/actions/workflows/ost-source-ci.yml)
 
