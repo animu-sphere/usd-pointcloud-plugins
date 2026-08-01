@@ -42,7 +42,8 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
     std::string error;
     auto decoder = usdlaz::CreateFileDecoder(resolvedPath, error);
     if (!decoder) {
-        TF_RUNTIME_ERROR("Unable to open LAZ file {}: {}", resolvedPath, error);
+        TF_RUNTIME_ERROR("Unable to open LAZ file %s: %s",
+                         resolvedPath.c_str(), error.c_str());
         return false;
     }
 
@@ -94,8 +95,8 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
         },
         header, error);
     if (!consumed) {
-        TF_RUNTIME_ERROR("Unable to decode LAZ file {}: {}", resolvedPath,
-                         error);
+        TF_RUNTIME_ERROR("Unable to decode LAZ file %s: %s",
+                         resolvedPath.c_str(), error.c_str());
         return false;
     }
 
@@ -108,8 +109,8 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
     reference.localOrigin = header.bounds.minimum;
     usdgeo::SpatialBounds bounds;
     if (!reference.TryToLocal(header.bounds, bounds)) {
-        TF_RUNTIME_ERROR("Unable to transform LAZ bounds to USD: {}",
-                         resolvedPath);
+        TF_RUNTIME_ERROR("Unable to transform LAZ bounds to USD: %s",
+                         resolvedPath.c_str());
         return false;
     }
 
@@ -139,20 +140,20 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
         "geo-laz.generated.usda", usda);
     const auto stage = UsdStage::Open(generated);
     if (!stage) {
-        TF_RUNTIME_ERROR("Unable to create a USD layer for LAZ: {}",
-                         resolvedPath);
+        TF_RUNTIME_ERROR("Unable to create a USD layer for LAZ: %s",
+                         resolvedPath.c_str());
         return false;
     }
     if (!UsdGeomSetStageUpAxis(stage, TfToken("Y")) ||
         !UsdGeomSetStageMetersPerUnit(stage, 1.0)) {
-        TF_RUNTIME_ERROR("Unable to set USD stage metrics for LAZ: {}",
-                         resolvedPath);
+        TF_RUNTIME_ERROR("Unable to set USD stage metrics for LAZ: %s",
+                         resolvedPath.c_str());
         return false;
     }
     if (!usdgeo::PointCloudLayer::AuthorPointCloud(
             stage, "/PointCloud", reference, bounds, chunk, pointData)) {
-        TF_RUNTIME_ERROR("Unable to author LAZ point cloud to USD layer: {}",
-                         resolvedPath);
+        TF_RUNTIME_ERROR("Unable to author LAZ point cloud to USD layer: %s",
+                         resolvedPath.c_str());
         return false;
     }
     layer->TransferContent(generated);

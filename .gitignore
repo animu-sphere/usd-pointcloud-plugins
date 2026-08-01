@@ -2,6 +2,9 @@
 /build/
 /build-*/
 /.strata/
+**/build/
+**/.strata/
+plugins/*/lib/
 CMakeUserPresets.json
 
 # CI and release scratch.

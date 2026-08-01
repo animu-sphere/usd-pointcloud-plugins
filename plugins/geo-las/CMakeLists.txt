@@ -14,6 +14,30 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/OpenStrataPlugin.cmake")
 openstrata_default_build_type()
 
+if(NOT TARGET usdgeo::core)
+    add_subdirectory(
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-geo-core"
+        "${CMAKE_CURRENT_BINARY_DIR}/usd-geo-core")
+endif()
+if(NOT TARGET usdpointcloud::core)
+    add_subdirectory(
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-pointcloud-core"
+        "${CMAKE_CURRENT_BINARY_DIR}/usd-pointcloud-core")
+endif()
+if(NOT TARGET OpenGL::GL)
+    find_package(OpenGL REQUIRED)
+endif()
+if(NOT TARGET usdgeo::usd)
+    add_subdirectory(
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-geo-usd"
+        "${CMAKE_CURRENT_BINARY_DIR}/usd-geo-usd")
+endif()
+if(NOT TARGET usdlas::core)
+    add_subdirectory(
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-las"
+        "${CMAKE_CURRENT_BINARY_DIR}/usd-las")
+endif()
+
 if(NOT pxr_FOUND)
     find_package(pxr CONFIG REQUIRED)
 endif()

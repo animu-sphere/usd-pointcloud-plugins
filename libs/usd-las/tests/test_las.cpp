@@ -1,5 +1,6 @@
 #include "usdlas/Las.h"
 
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <string>

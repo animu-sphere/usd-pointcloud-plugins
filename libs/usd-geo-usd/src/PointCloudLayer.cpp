@@ -1,5 +1,7 @@
 #include "usdgeo/PointCloudLayer.h"
 
+#include <cstdint>
+
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/base/gf/vec3d.h>
 #include <pxr/base/vt/array.h>
