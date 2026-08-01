@@ -27,6 +27,13 @@ void AddDiagnostic(const std::string& error,
                             std::nullopt, std::nullopt});
 }
 
+void AddDiagnostic(const std::string& error,
+                   std::uint64_t pointIndex,
+                   std::vector<usdgeo::Diagnostic>& diagnostics) {
+    AddDiagnostic(error, diagnostics);
+    diagnostics.back().pointIndex = pointIndex;
+}
+
 } // namespace
 
 namespace usdlaz {
@@ -120,12 +127,60 @@ bool LazReader::Read(
     usdlas::LasHeader& header,
     std::vector<usdgeo::Diagnostic>& diagnostics) {
     diagnostics.clear();
-    std::string error;
-    if (Read(options, consume, header, error)) {
-        return true;
+    if (!decoder_) {
+        AddDiagnostic("LAZ decoder is not configured", diagnostics);
+        return false;
     }
-    AddDiagnostic(error, diagnostics);
-    return false;
+    if (options.chunkPointLimit == 0 || !consume) {
+        AddDiagnostic("LAZ read options or consumer are invalid", diagnostics);
+        return false;
+    }
+    if (!decoder_->ReadHeader(header, diagnostics)) {
+        return false;
+    }
+
+    std::uint64_t pointsRead = 0;
+    bool complete = false;
+    while (!complete) {
+        std::vector<usdlas::LasPoint> points;
+        complete = false;
+        if (!decoder_->ReadChunk(options.chunkPointLimit, points, complete,
+                                 diagnostics)) {
+            if (diagnostics.empty()) {
+                AddDiagnostic("LAZ decoder failed", pointsRead, diagnostics);
+            }
+            return false;
+        }
+        if (points.empty() && !complete) {
+            AddDiagnostic("LAZ decoder returned an empty incomplete chunk",
+                          pointsRead, diagnostics);
+            return false;
+        }
+        if (points.size() > options.chunkPointLimit) {
+            AddDiagnostic("LAZ decoder exceeded the requested chunk size",
+                          pointsRead, diagnostics);
+            return false;
+        }
+        if (points.size() > header.pointCount - pointsRead ||
+            pointsRead > std::numeric_limits<std::uint64_t>::max() -
+                              points.size()) {
+            AddDiagnostic("LAZ decoder returned too many points", pointsRead,
+                          diagnostics);
+            return false;
+        }
+        pointsRead += points.size();
+        if (!consume(header, points)) {
+            AddDiagnostic("LAZ chunk consumer rejected a chunk", pointsRead,
+                          diagnostics);
+            return false;
+        }
+    }
+    if (pointsRead != header.pointCount) {
+        AddDiagnostic("LAZ decoder point count does not match the header",
+                      pointsRead, diagnostics);
+        return false;
+    }
+    return true;
 }
 
 } // namespace usdlaz
