@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Added
+
+- Standing development policy covering contracts, LAS/LAZ scope, tiling,
+  streaming, caching, diagnostics, binary safety, testing, and licensing.
+- Supported formats document with the exact point format, attribute, VLR, CRS,
+  and authored USD matrices.
+- Diagnostics contract describing the migration from string errors to typed
+  diagnostics.
+- Binary distribution document covering the LGPL-2.1 obligations for `geo-laz`.
+- OpenUSD compatibility statement for the pinned runtime and tested platforms.
+- Roadmap entries for COPC, PLY, delimited text point formats, E57, GeoTIFF and
+  DEM elevation, and COG.
+
+### Changed
+
+- README states the exact LAS point format range, plugin discovery, usage
+  examples, the authored prim shape, and known limitations.
+- Roadmap phase table reflects the state shipped in v0.1.0.
+
 ## [0.1.0] - 2026-08-01
 
 ### Added

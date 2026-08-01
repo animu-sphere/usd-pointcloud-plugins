@@ -12,3 +12,9 @@ The checked-in real-data subset is from Virtual Shizuoka and is distributed
 under the dataset's CC BY 4.0/ODbL dual license. It is not public-domain data.
 
 The USGS 3DEP subset is public-domain data from the U.S. Government.
+
+The target coverage, one fixture per LAS version and point format plus the
+negative corpus, is defined in the
+[development policy](../../../../docs/development-policy.md). New fixtures are
+preferred from CC0 or public-domain sources so that redistribution stays
+unencumbered.

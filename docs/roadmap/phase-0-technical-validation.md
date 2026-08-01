@@ -29,7 +29,18 @@ Validate the minimum path from an OpenUSD FileFormat Plugin to a LAS / LAZ reade
 
 ## Validated Environment
 
-- OpenStrata target: `cy2026-windows-x86_64-py313-usd`
-- OpenUSD extension: 26.08 with the core feature set
+- OpenStrata target: `cy2026`, profile `usd`, CLI 0.21.0
+- OpenUSD extension: 26.08 with the core feature set; plugin manifests declare
+  `>=26.08,<27.0`
 - Build path: `ost configure`, `ost build`, and `ost test`
-- Current result: `usdGeoCore` builds and its unit test passes under the pinned runtime
+- Current result: the core libraries, `geo-las`, and `geo-laz` build and test
+  on Windows x86_64, Linux x86_64, and macOS arm64 under the pinned runtime
+
+See [OpenUSD compatibility](../compatibility/openusd.md) for the full
+statement.
+
+## Outstanding
+
+- Open time and peak memory measurements above one million points
+- Verification of the OpenUSD 26.08 LOD mechanism against a real tile
+  hierarchy

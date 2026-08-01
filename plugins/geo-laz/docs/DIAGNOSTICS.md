@@ -6,6 +6,15 @@ machine-readable prefix; the remainder of the message is human-readable.
 All current codes have `FATAL` severity because the LAZ stage cannot be
 opened or authored when they are emitted.
 
+Codes are stable. Adding a code is a compatible change; changing what a code
+means is not. The planned migration to typed diagnostics keeps these codes as
+the user-visible contract; see the
+[diagnostics contract](../../../docs/architecture/diagnostics.md).
+
+LAZ decoding delegates record interpretation to the LAS reader, so a decode
+failure inside a chunk is reported as `LAZ003` even when its cause is a LAS
+record condition.
+
 | Code | Severity | Source | Description |
 | --- | --- | --- | --- |
 | LAZ001 | FATAL | import | Read requires a writable layer and full point data |
