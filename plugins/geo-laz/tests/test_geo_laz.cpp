@@ -3,6 +3,7 @@
 
 #include <pxr/base/plug/plugin.h>
 #include <pxr/base/plug/registry.h>
+#include <pxr/base/tf/errorMark.h>
 #include <pxr/base/vt/array.h>
 #include <pxr/usd/sdf/fileFormat.h>
 #include <pxr/usd/sdf/layer.h>
@@ -117,10 +118,23 @@ void TestCheckedInAssets() {
         4096);
 }
 
+void TestMissingFileDiagnostic() {
+    pxr::TfErrorMark mark;
+    const auto path = std::filesystem::temp_directory_path() /
+                      "usd_geo_plugins_missing.laz";
+    const auto layer = pxr::SdfLayer::FindOrOpen(path.string());
+    Check(!layer);
+    Check(!mark.IsClean());
+    Check(mark.GetErrors().back().GetCommentary().find("[LAZ002]") !=
+          std::string::npos);
+    mark.Clear();
+}
+
 } // namespace
 
 int main() {
     TestFileFormatIntegration();
+    TestMissingFileDiagnostic();
     TestCheckedInAssets();
     return 0;
 }

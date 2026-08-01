@@ -1,4 +1,5 @@
 #include "geolaz/GeoLazFileFormat.h"
+#include "geolaz/GeoLazDiagnostics.h"
 
 #include "usdgeo/PointCloudLayer.h"
 #include "usdlaz/Laz.h"
@@ -35,15 +36,21 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
                             const std::string& resolvedPath,
                             bool metadataOnly) const {
     if (!layer || metadataOnly) {
-        TF_RUNTIME_ERROR("geoLaz requires a writable layer and full point data");
+        TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
+                                  geolaz::diagnostics::InvalidReadRequest,
+                                  "geoLaz requires a writable layer and full point data")
+                                  .c_str());
         return false;
     }
 
     std::string error;
     auto decoder = usdlaz::CreateFileDecoder(resolvedPath, error);
     if (!decoder) {
-        TF_RUNTIME_ERROR("Unable to open LAZ file %s: %s",
-                         resolvedPath.c_str(), error.c_str());
+        TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
+                                  geolaz::diagnostics::FileOpenFailed,
+                                  "Unable to open LAZ file " + resolvedPath +
+                                      ": " + error)
+                                  .c_str());
         return false;
     }
 
@@ -95,8 +102,11 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
         },
         header, error);
     if (!consumed) {
-        TF_RUNTIME_ERROR("Unable to decode LAZ file %s: %s",
-                         resolvedPath.c_str(), error.c_str());
+        TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
+                                  geolaz::diagnostics::DecodeFailed,
+                                  "Unable to decode LAZ file " + resolvedPath +
+                                      ": " + error)
+                                  .c_str());
         return false;
     }
 
@@ -109,8 +119,11 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
     reference.localOrigin = header.bounds.minimum;
     usdgeo::SpatialBounds bounds;
     if (!reference.TryToLocal(header.bounds, bounds)) {
-        TF_RUNTIME_ERROR("Unable to transform LAZ bounds to USD: %s",
-                         resolvedPath.c_str());
+        TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
+                                  geolaz::diagnostics::BoundsTransformFailed,
+                                  "Unable to transform LAZ bounds to USD: " +
+                                      resolvedPath)
+                                  .c_str());
         return false;
     }
 
@@ -140,20 +153,29 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
         "geo-laz.generated.usda", usda);
     const auto stage = UsdStage::Open(generated);
     if (!stage) {
-        TF_RUNTIME_ERROR("Unable to create a USD layer for LAZ: %s",
-                         resolvedPath.c_str());
+        TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
+                                  geolaz::diagnostics::UsdLayerCreateFailed,
+                                  "Unable to create a USD layer for LAZ: " +
+                                      resolvedPath)
+                                  .c_str());
         return false;
     }
     if (!UsdGeomSetStageUpAxis(stage, TfToken("Y")) ||
         !UsdGeomSetStageMetersPerUnit(stage, 1.0)) {
-        TF_RUNTIME_ERROR("Unable to set USD stage metrics for LAZ: %s",
-                         resolvedPath.c_str());
+        TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
+                                  geolaz::diagnostics::StageMetricsFailed,
+                                  "Unable to set USD stage metrics for LAZ: " +
+                                      resolvedPath)
+                                  .c_str());
         return false;
     }
     if (!usdgeo::PointCloudLayer::AuthorPointCloud(
             stage, "/PointCloud", reference, bounds, chunk, pointData)) {
-        TF_RUNTIME_ERROR("Unable to author LAZ point cloud to USD layer: %s",
-                         resolvedPath.c_str());
+        TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
+                                  geolaz::diagnostics::PointCloudAuthorFailed,
+                                  "Unable to author LAZ point cloud to USD layer: " +
+                                      resolvedPath)
+                                  .c_str());
         return false;
     }
     layer->TransferContent(generated);
