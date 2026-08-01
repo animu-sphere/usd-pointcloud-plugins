@@ -68,7 +68,7 @@ void TestPointCloudRoundTrip() {
     data.waveformDataExternal = {1, 0};
     data.waveformDataFile = "sample.wdp";
 
-    Check(usdgeo::PointCloudLayer::AuthorPointCloud(
+    Check(usdgeo::AuthorPointCloudAsset(
         stage, "/PointCloud", reference, chunk.bounds, chunk, data));
 
     const auto layerPath =
@@ -141,7 +141,7 @@ void TestOptionalAttributesAreIndependent() {
     data.positions = {{0.0, 0.0, 0.0}};
     data.scanAngle = {-12};
 
-    Check(usdgeo::PointCloudLayer::AuthorPointCloud(
+    Check(usdgeo::AuthorPointCloudAsset(
         stage, "/PointCloud", reference, chunk.bounds, chunk, data));
 
     const auto prim = stage->GetPrimAtPath(pxr::SdfPath("/PointCloud"));
@@ -163,7 +163,7 @@ void TestInvalidPositionDoesNotMutateStage() {
 
     const std::vector<usdgeo::Vec3d> positions = {
         {std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0}};
-    Check(!usdgeo::PointCloudLayer::AuthorPointCloud(
+    Check(!usdgeo::AuthorPointCloudAsset(
         stage, "/InvalidPointCloud", reference, chunk.bounds, chunk,
         positions));
     Check(!stage->GetPrimAtPath(pxr::SdfPath("/InvalidPointCloud")).IsValid());

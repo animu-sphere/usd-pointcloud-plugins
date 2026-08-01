@@ -39,7 +39,7 @@
 - [x] Record the OpenUSD 26.08 `usdLod` tile and LOD contract
 - [x] Record the plugin adapter and file-format argument contracts
 - [x] Move `geo-las` onto `usdlas::LasReader`
-- [ ] Add `usdgeo::AuthorPointCloudAsset` as the shared authoring entry point
+- [x] Add `usdgeo::AuthorPointCloudAsset` as the shared authoring entry point
 - [ ] Normalize file-format arguments and pass read options through the plugins
 - [ ] Shared LOD contracts (`PointTileId`, `PointLodItem`, `PointLodHierarchy`)
 - [ ] LOD validation invariants and typed diagnostics

@@ -283,7 +283,7 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
                                   .c_str());
         return false;
     }
-    if (!usdgeo::PointCloudLayer::AuthorPointCloud(
+    if (!usdgeo::AuthorPointCloudAsset(
             stage, "/PointCloud", reference, bounds, chunk, pointData)) {
         TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
                                   geolaz::diagnostics::PointCloudAuthorFailed,

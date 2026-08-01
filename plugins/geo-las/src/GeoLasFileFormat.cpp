@@ -307,7 +307,7 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
                                   .c_str());
         return false;
     }
-        if (!usdgeo::PointCloudLayer::AuthorPointCloud(
+    if (!usdgeo::AuthorPointCloudAsset(
             stage, "/PointCloud", reference, bounds, chunk, pointData)) {
         TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
                                   geolas::diagnostics::PointCloudAuthorFailed,

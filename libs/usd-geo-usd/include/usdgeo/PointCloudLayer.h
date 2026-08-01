@@ -59,4 +59,20 @@ public:
                                  const Data& data);
 };
 
+bool AuthorPointCloudAsset(
+    const pxr::UsdStageRefPtr& stage,
+    const std::string& primPath,
+    const GeoReference& reference,
+    const SpatialBounds& bounds,
+    const usdpointcloud::PointChunk& chunk,
+    const std::vector<Vec3d>& positions);
+
+bool AuthorPointCloudAsset(
+    const pxr::UsdStageRefPtr& stage,
+    const std::string& primPath,
+    const GeoReference& reference,
+    const SpatialBounds& bounds,
+    const usdpointcloud::PointChunk& chunk,
+    const PointCloudLayer::Data& data);
+
 } // namespace usdgeo
