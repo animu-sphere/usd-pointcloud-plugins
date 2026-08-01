@@ -128,6 +128,8 @@ public:
 
 private:
     std::string filename_;
+    std::optional<std::uint64_t> failureByteOffset_;
+    std::optional<std::uint64_t> failurePointIndex_;
 };
 
 bool InspectHeader(const std::vector<std::uint8_t>& bytes,

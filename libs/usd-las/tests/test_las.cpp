@@ -174,6 +174,29 @@ void TestRangeReader() {
         },
         header, error));
     Check(points == 1);
+
+    auto invalidBytes = MakeHeader(2, 0);
+    Write(invalidBytes, 131, std::numeric_limits<double>::max());
+    std::vector<std::uint8_t> invalidRecord(20, 0);
+    Write(invalidRecord, 0, std::int32_t{2});
+    invalidBytes.insert(invalidBytes.end(), invalidRecord.begin(),
+                        invalidRecord.end());
+    {
+        std::ofstream output(filename, std::ios::binary);
+        output.write(reinterpret_cast<const char*>(invalidBytes.data()),
+                     static_cast<std::streamsize>(invalidBytes.size()));
+    }
+    usdgeo::Diagnostic diagnostics;
+    std::vector<usdgeo::Diagnostic> typedDiagnostics;
+    Check(!reader.Read(
+        {},
+        [&](const usdlas::LasHeader&,
+            const std::vector<usdlas::LasPoint>&) { return true; },
+        header, typedDiagnostics));
+    Check(typedDiagnostics.size() == 1);
+    diagnostics = typedDiagnostics.front();
+    Check(diagnostics.code == usdgeo::DiagnosticCode::NonFiniteCoordinate &&
+          diagnostics.pointIndex == 0 && diagnostics.byteOffset == 227);
     Check(std::remove(filename.string().c_str()) == 0);
 }
 

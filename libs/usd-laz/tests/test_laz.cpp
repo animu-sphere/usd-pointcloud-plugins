@@ -99,6 +99,7 @@ class BudgetDecoder final : public usdlaz::LazDecoder {
 public:
     bool ReadHeader(usdlas::LasHeader& header, std::string&) override {
         header.pointCount = 3;
+        header.pointRecordLength = 20;
         return true;
     }
 
@@ -196,7 +197,7 @@ void TestRangeMemoryBudgetAndCancellation() {
     usdlaz::LazReader reader(std::make_unique<BudgetDecoder>());
     usdlaz::LazReadOptions options;
     options.chunkPointLimit = 2;
-    options.memoryBudgetBytes = sizeof(usdlas::LasPoint);
+    options.memoryBudgetBytes = sizeof(usdlas::LasPoint) + 40;
     options.range = {1, 1};
     usdlas::LasHeader header;
     std::string error;

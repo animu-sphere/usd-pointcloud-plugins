@@ -343,6 +343,8 @@ bool LasReader::Read(const LasReadOptions& options,
                      LasHeader& header,
                      std::string& error) {
     error.clear();
+    failureByteOffset_.reset();
+    failurePointIndex_.reset();
     if (!options.IsValid() || !consume) {
         error = "LAS read options or consumer are invalid";
         return false;
@@ -436,19 +438,20 @@ bool LasReader::Read(const LasReadOptions& options,
         return false;
     }
 
-    std::uint64_t pointsRead = 0;
+    std::uint64_t pointsRead = options.range.firstPoint;
     std::uint64_t selectedPointsRead = 0;
-    while (pointsRead < header.pointCount) {
+    while (pointsRead < rangeEnd) {
         if (options.isCancelled && options.isCancelled()) {
             error = "LAS read cancelled";
             return false;
         }
-        const auto remaining = header.pointCount - pointsRead;
+        const auto remaining = rangeEnd - pointsRead;
         const auto count = (std::min)(
             static_cast<std::uint64_t>(maximumPoints), remaining);
         const auto byteOffset = header.pointDataOffset + pointsRead * recordLength;
         const auto byteCount = static_cast<std::size_t>(count * recordLength);
         if (!ReadFileRange(stream, byteOffset, byteCount, bytes, error)) {
+            failureByteOffset_ = byteOffset;
             return false;
         }
 
@@ -462,6 +465,10 @@ bool LasReader::Read(const LasReadOptions& options,
                                     static_cast<std::size_t>(recordLength));
             LasPoint point;
             if (!DecodePoint(header, record, point, error)) {
+                failureByteOffset_ = byteOffset +
+                                     static_cast<std::uint64_t>(index) *
+                                         recordLength;
+                failurePointIndex_ = pointsRead + index;
                 return false;
             }
             points.push_back(point);
@@ -503,7 +510,7 @@ bool LasReader::Read(const LasReadOptions& options,
         return true;
     }
     diagnostics.push_back({CodeForError(error), usdgeo::Severity::Error, error,
-                           std::nullopt, std::nullopt});
+                           failureByteOffset_, failurePointIndex_});
     return false;
 }
 

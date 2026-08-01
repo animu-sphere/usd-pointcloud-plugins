@@ -97,8 +97,16 @@ bool LazReader::Read(
                               ? header.pointCount
                               : options.range.firstPoint +
                                     options.range.pointCount;
-    const auto budgetPointLimit =
-        options.memoryBudgetBytes / sizeof(usdlas::LasPoint);
+    const auto maximumSize = (std::numeric_limits<std::size_t>::max)();
+    if (header.pointRecordLength >
+        (maximumSize - sizeof(usdlas::LasPoint)) / 2) {
+        error = "LAZ point record size is invalid";
+        return false;
+    }
+    const auto bytesPerPoint =
+        sizeof(usdlas::LasPoint) +
+        static_cast<std::size_t>(header.pointRecordLength) * 2;
+    const auto budgetPointLimit = options.memoryBudgetBytes / bytesPerPoint;
     const auto maximumPoints =
         (std::min)(options.chunkPointLimit, budgetPointLimit);
     if (maximumPoints == 0) {
@@ -192,8 +200,16 @@ bool LazReader::Read(
                               ? header.pointCount
                               : options.range.firstPoint +
                                     options.range.pointCount;
-    const auto budgetPointLimit =
-        options.memoryBudgetBytes / sizeof(usdlas::LasPoint);
+    const auto maximumSize = (std::numeric_limits<std::size_t>::max)();
+    if (header.pointRecordLength >
+        (maximumSize - sizeof(usdlas::LasPoint)) / 2) {
+        AddDiagnostic("LAZ point record size is invalid", diagnostics);
+        return false;
+    }
+    const auto bytesPerPoint =
+        sizeof(usdlas::LasPoint) +
+        static_cast<std::size_t>(header.pointRecordLength) * 2;
+    const auto budgetPointLimit = options.memoryBudgetBytes / bytesPerPoint;
     const auto maximumPoints =
         (std::min)(options.chunkPointLimit, budgetPointLimit);
     if (maximumPoints == 0) {
