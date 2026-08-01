@@ -23,6 +23,9 @@ public:
                            std::string& error) = 0;
 };
 
+std::unique_ptr<LazDecoder> CreateFileDecoder(const std::string& filename,
+                                              std::string& error);
+
 struct LazReadOptions {
     std::size_t chunkPointLimit = 65536;
 };

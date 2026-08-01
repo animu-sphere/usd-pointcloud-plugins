@@ -101,10 +101,18 @@ void TestCompleteFlagIsResetBeforeEachChunk() {
     Check(error == "LAZ decoder returned an empty incomplete chunk");
 }
 
+void TestFileDecoderReportsOpenFailure() {
+    std::string error;
+    auto decoder = usdlaz::CreateFileDecoder("missing-file.laz", error);
+    Check(!decoder);
+    Check(!error.empty());
+}
+
 } // namespace
 
 int main() {
     TestChunkForwarding();
     TestCompleteFlagIsResetBeforeEachChunk();
+    TestFileDecoderReportsOpenFailure();
     return 0;
 }
