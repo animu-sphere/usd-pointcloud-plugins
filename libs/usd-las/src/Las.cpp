@@ -41,6 +41,42 @@ bool IsSupportedFormatForVersion(std::uint8_t versionMinor,
     return IsSupportedFormat(format) && (format < 6 || versionMinor == 4);
 }
 
+usdgeo::DiagnosticCode CodeForError(const std::string& error) {
+    if (error == "LAS header is missing or has an invalid signature") {
+        return usdgeo::DiagnosticCode::InvalidSignature;
+    }
+    if (error == "unsupported LAS version") {
+        return usdgeo::DiagnosticCode::UnsupportedVersion;
+    }
+    if (error == "unsupported LAS point format") {
+        return usdgeo::DiagnosticCode::UnsupportedPointFormat;
+    }
+    if (error == "LAS header offsets are invalid" ||
+        error == "LAS extended variable-length record offset is invalid") {
+        return usdgeo::DiagnosticCode::InvalidOffset;
+    }
+    if (error == "LAS point record length is too small for its format") {
+        return usdgeo::DiagnosticCode::InvalidRecordLength;
+    }
+    if (error == "LAS variable-length record header is truncated" ||
+        error == "LAS 1.4 extended point count is missing") {
+        return usdgeo::DiagnosticCode::TruncatedHeader;
+    }
+    if (error == "LAS variable-length record data is truncated") {
+        return usdgeo::DiagnosticCode::TruncatedRecord;
+    }
+    if (error == "decoded LAS point contains a non-finite coordinate") {
+        return usdgeo::DiagnosticCode::NonFiniteCoordinate;
+    }
+    return usdgeo::DiagnosticCode::DecodeFailure;
+}
+
+void AddErrorDiagnostic(const std::string& error,
+                        std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.push_back({CodeForError(error), usdgeo::Severity::Error, error,
+                            std::nullopt, std::nullopt});
+}
+
 std::size_t MinimumHeaderSize(std::uint8_t versionMinor) {
     switch (versionMinor) {
     case 2:
@@ -311,6 +347,58 @@ bool DecodePoint(const LasHeader& header,
         return false;
     }
     return true;
+}
+
+bool InspectHeader(const std::vector<std::uint8_t>& bytes,
+                   LasHeader& header,
+                   std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    std::string error;
+    if (InspectHeader(bytes, header, error)) {
+        return true;
+    }
+    AddErrorDiagnostic(error, diagnostics);
+    return false;
+}
+
+bool InspectMetadata(const std::vector<std::uint8_t>& bytes,
+                     LasHeader& header,
+                     std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    std::string error;
+    if (InspectMetadata(bytes, header, error)) {
+        return true;
+    }
+    AddErrorDiagnostic(error, diagnostics);
+    return false;
+}
+
+bool InspectRecords(const std::vector<std::uint8_t>& bytes,
+                    std::size_t offset,
+                    std::uint32_t count,
+                    bool extended,
+                    std::vector<LasVariableLengthRecord>& records,
+                    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    std::string error;
+    if (InspectRecords(bytes, offset, count, extended, records, error)) {
+        return true;
+    }
+    AddErrorDiagnostic(error, diagnostics);
+    return false;
+}
+
+bool DecodePoint(const LasHeader& header,
+                 const std::vector<std::uint8_t>& record,
+                 LasPoint& point,
+                 std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    std::string error;
+    if (DecodePoint(header, record, point, error)) {
+        return true;
+    }
+    AddErrorDiagnostic(error, diagnostics);
+    return false;
 }
 
 } // namespace usdlas

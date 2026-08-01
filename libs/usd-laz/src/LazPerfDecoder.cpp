@@ -213,4 +213,21 @@ std::unique_ptr<LazDecoder> CreateFileDecoder(const std::string& filename,
     }
 }
 
+std::unique_ptr<LazDecoder> CreateFileDecoder(
+    const std::string& filename,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    std::string error;
+    auto decoder = CreateFileDecoder(filename, error);
+    if (decoder || error.empty()) {
+        return decoder;
+    }
+    diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
+                           usdgeo::Severity::Error,
+                           error,
+                           std::nullopt,
+                           std::nullopt});
+    return nullptr;
+}
+
 } // namespace usdlaz

@@ -4,7 +4,57 @@
 #include <limits>
 #include <utility>
 
+namespace {
+
+usdgeo::DiagnosticCode CodeForError(const std::string& error) {
+    if (error == "LAZ header is truncated" ||
+        error == "LAS extended variable-length record header is truncated") {
+        return usdgeo::DiagnosticCode::TruncatedHeader;
+    }
+    if (error == "LAZ point data offset is outside the file" ||
+        error == "LAZ EVLR offset is outside the file") {
+        return usdgeo::DiagnosticCode::InvalidOffset;
+    }
+    if (error == "LAS extended variable-length record data is truncated") {
+        return usdgeo::DiagnosticCode::TruncatedRecord;
+    }
+    return usdgeo::DiagnosticCode::DecodeFailure;
+}
+
+void AddDiagnostic(const std::string& error,
+                   std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.push_back({CodeForError(error), usdgeo::Severity::Error, error,
+                            std::nullopt, std::nullopt});
+}
+
+} // namespace
+
 namespace usdlaz {
+
+bool LazDecoder::ReadHeader(usdlas::LasHeader& header,
+                            std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    std::string error;
+    if (ReadHeader(header, error)) {
+        return true;
+    }
+    AddDiagnostic(error, diagnostics);
+    return false;
+}
+
+bool LazDecoder::ReadChunk(
+    std::size_t maximumPoints,
+    std::vector<usdlas::LasPoint>& points,
+    bool& complete,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    std::string error;
+    if (ReadChunk(maximumPoints, points, complete, error)) {
+        return true;
+    }
+    AddDiagnostic(error, diagnostics);
+    return false;
+}
 
 LazReader::LazReader(std::unique_ptr<LazDecoder> decoder)
     : decoder_(std::move(decoder)) {}
@@ -61,6 +111,21 @@ bool LazReader::Read(
         return false;
     }
     return true;
+}
+
+bool LazReader::Read(
+    const LazReadOptions& options,
+    const std::function<bool(const usdlas::LasHeader&,
+                             const std::vector<usdlas::LasPoint>&)>& consume,
+    usdlas::LasHeader& header,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    std::string error;
+    if (Read(options, consume, header, error)) {
+        return true;
+    }
+    AddDiagnostic(error, diagnostics);
+    return false;
 }
 
 } // namespace usdlaz

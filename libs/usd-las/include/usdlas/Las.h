@@ -1,5 +1,6 @@
 #pragma once
 
+#include "usdgeo/Diagnostic.h"
 #include "usdgeo/SpatialBounds.h"
 
 #include <cstdint>
@@ -58,9 +59,17 @@ bool InspectHeader(const std::vector<std::uint8_t>& bytes,
                    LasHeader& header,
                    std::string& error);
 
+bool InspectHeader(const std::vector<std::uint8_t>& bytes,
+                   LasHeader& header,
+                   std::vector<usdgeo::Diagnostic>& diagnostics);
+
 bool InspectMetadata(const std::vector<std::uint8_t>& bytes,
                      LasHeader& header,
                      std::string& error);
+
+bool InspectMetadata(const std::vector<std::uint8_t>& bytes,
+                     LasHeader& header,
+                     std::vector<usdgeo::Diagnostic>& diagnostics);
 
 bool InspectRecords(const std::vector<std::uint8_t>& bytes,
                     std::size_t offset,
@@ -69,11 +78,23 @@ bool InspectRecords(const std::vector<std::uint8_t>& bytes,
                     std::vector<LasVariableLengthRecord>& records,
                     std::string& error);
 
+bool InspectRecords(const std::vector<std::uint8_t>& bytes,
+                    std::size_t offset,
+                    std::uint32_t count,
+                    bool extended,
+                    std::vector<LasVariableLengthRecord>& records,
+                    std::vector<usdgeo::Diagnostic>& diagnostics);
+
 std::string ExtractWktCrs(const std::vector<LasVariableLengthRecord>& records);
 
 bool DecodePoint(const LasHeader& header,
                  const std::vector<std::uint8_t>& record,
                  LasPoint& point,
                  std::string& error);
+
+bool DecodePoint(const LasHeader& header,
+                 const std::vector<std::uint8_t>& record,
+                 LasPoint& point,
+                 std::vector<usdgeo::Diagnostic>& diagnostics);
 
 } // namespace usdlas
