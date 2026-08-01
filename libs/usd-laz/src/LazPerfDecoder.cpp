@@ -2,6 +2,8 @@
 
 #include "lazperf/io.hpp"
 
+#include <array>
+#include <cstring>
 #include <fstream>
 #include <limits>
 #include <memory>
@@ -33,6 +35,11 @@ bool ReadHeaderBytes(const std::string& filename,
         error = "could not read LAZ file";
         return false;
     }
+    if (bytes.size() <= 104) {
+        error = "LAZ header is truncated";
+        return false;
+    }
+    bytes[104] &= 0x3f;
     usdlas::LasHeader inspectedHeader;
     if (!usdlas::InspectHeader(bytes, inspectedHeader, error)) {
         return false;
@@ -50,7 +57,57 @@ bool ReadHeaderBytes(const std::string& filename,
         error = "could not read LAZ header and VLRs";
         return false;
     }
+    bytes[104] &= 0x3f;
     return true;
+}
+
+bool ReadExtendedRecords(const std::string& filename,
+                         std::uint64_t offset,
+                         std::uint32_t count,
+                         std::vector<usdlas::LasVariableLengthRecord>& records,
+                         std::string& error) {
+    std::ifstream stream(filename, std::ios::binary);
+    if (!stream) {
+        error = "could not open LAZ file for EVLRs: " + filename;
+        return false;
+    }
+    stream.seekg(0, std::ios::end);
+    const auto fileSize = stream.tellg();
+    if (fileSize < 0 || offset > static_cast<std::uint64_t>(fileSize)) {
+        error = "LAZ EVLR offset is outside the file";
+        return false;
+    }
+    stream.seekg(static_cast<std::streamoff>(offset));
+    std::vector<std::uint8_t> bytes;
+    for (std::uint32_t index = 0; index < count; ++index) {
+        std::array<std::uint8_t, 60> recordHeader{};
+        stream.read(reinterpret_cast<char*>(recordHeader.data()),
+                    static_cast<std::streamsize>(recordHeader.size()));
+        if (!stream) {
+            error = "LAS extended variable-length record header is truncated";
+            return false;
+        }
+        std::uint64_t length = 0;
+        std::memcpy(&length, recordHeader.data() + 20, sizeof(length));
+        const auto dataOffset = stream.tellg();
+        if (dataOffset < 0 ||
+            length > static_cast<std::uint64_t>(fileSize - dataOffset) ||
+            length > (std::numeric_limits<std::size_t>::max)() -
+                          bytes.size()) {
+            error = "LAS extended variable-length record data is truncated";
+            return false;
+        }
+        bytes.insert(bytes.end(), recordHeader.begin(), recordHeader.end());
+        const auto oldSize = bytes.size();
+        bytes.resize(oldSize + static_cast<std::size_t>(length));
+        stream.read(reinterpret_cast<char*>(bytes.data() + oldSize),
+                    static_cast<std::streamsize>(length));
+        if (!stream) {
+            error = "LAS extended variable-length record data is truncated";
+            return false;
+        }
+    }
+    return usdlas::InspectRecords(bytes, 0, count, true, records, error);
 }
 
 class LazPerfDecoder final : public usdlaz::LazDecoder {
@@ -127,9 +184,23 @@ std::unique_ptr<LazDecoder> CreateFileDecoder(const std::string& filename,
             return nullptr;
         }
         usdlas::LasHeader header;
-        if (!usdlas::InspectMetadata(bytes, header, error)) {
+        if (!usdlas::InspectHeader(bytes, header, error)) {
             return nullptr;
         }
+        header.variableLengthRecords.clear();
+        if (!usdlas::InspectRecords(bytes, header.headerSize,
+                                    header.variableLengthRecordCount, false,
+                                    header.variableLengthRecords, error)) {
+            return nullptr;
+        }
+        if (header.extendedVariableLengthRecordCount != 0 &&
+            !ReadExtendedRecords(filename,
+                                 header.firstExtendedVariableLengthRecordOffset,
+                                 header.extendedVariableLengthRecordCount,
+                                 header.variableLengthRecords, error)) {
+            return nullptr;
+        }
+        header.crsWkt = usdlas::ExtractWktCrs(header.variableLengthRecords);
         auto decoder = std::make_unique<LazPerfDecoder>(std::move(file));
         decoder->header_ = std::move(header);
         return decoder;

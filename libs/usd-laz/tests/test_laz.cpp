@@ -1,6 +1,11 @@
 #include "usdlaz/Laz.h"
 
+#include "lazperf/io.hpp"
+#include "lazperf/las.hpp"
+
 #include <cstdlib>
+#include <cstdio>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <utility>
@@ -108,11 +113,58 @@ void TestFileDecoderReportsOpenFailure() {
     Check(!error.empty());
 }
 
+void TestLazPerfFileDecoder() {
+    const auto filename =
+        std::filesystem::temp_directory_path() / "usd-geo-plugins-test.laz";
+    {
+        lazperf::writer::named_file::config config;
+        config.scale = {0.01, 0.01, 0.01};
+        config.chunk_size = 2;
+        config.minor_version = 2;
+        lazperf::writer::named_file writer(filename.string(), config);
+        for (int index = 0; index < 3; ++index) {
+            lazperf::las::point10 source;
+            source.x = index * 100;
+            source.y = index * 200;
+            source.z = index * 300;
+            source.intensity = static_cast<unsigned short>(index + 1);
+            char record[20];
+            source.pack(record);
+            writer.writePoint(record);
+        }
+        writer.close();
+    }
+
+    {
+        std::string error;
+        auto decoder = usdlaz::CreateFileDecoder(filename.string(), error);
+        Check(decoder != nullptr);
+        usdlaz::LazReader reader(std::move(decoder));
+        usdlaz::LazReadOptions options;
+        options.chunkPointLimit = 2;
+        usdlas::LasHeader header;
+        std::size_t points = 0;
+        Check(reader.Read(
+            options,
+            [&](const usdlas::LasHeader&,
+                const std::vector<usdlas::LasPoint>& data) {
+                points += data.size();
+                return true;
+            },
+            header, error));
+        Check(error.empty());
+        Check(header.pointCount == 3);
+        Check(points == 3);
+    }
+    Check(std::remove(filename.string().c_str()) == 0);
+}
+
 } // namespace
 
 int main() {
     TestChunkForwarding();
     TestCompleteFlagIsResetBeforeEachChunk();
     TestFileDecoderReportsOpenFailure();
+    TestLazPerfFileDecoder();
     return 0;
 }
