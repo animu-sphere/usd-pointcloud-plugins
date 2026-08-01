@@ -17,8 +17,8 @@ contains:
 - `usdLas`: LAS 1.2-1.4 header inspection and uncompressed point-record
   decoding.
 
-The next planned milestone is composing `usdLas` and `usdGeoUsd` in the
-OpenUSD FileFormat Plugin PoC. See [implementation status](docs/roadmap/implementation-status.md)
+The next planned milestone is shared tile / LOD support after LAS and LAZ
+FileFormat Plugin integration. See [implementation status](docs/roadmap/implementation-status.md)
 and the [roadmap](docs/roadmap/README.md) for the full sequence.
 
 ## Requirements

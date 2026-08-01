@@ -22,12 +22,12 @@
 - [x] LAS VLR/EVLR inspection and WKT CRS extraction
 - [x] Select laz-perf as the initial LAZ codec and define the chunk reader contract
 - [x] Add the laz-perf adapter behind the `usdLaz` chunk reader contract
-- [ ] LAZ reader conformance fixture and FileFormat Plugin integration
+- [x] Add the LAZ reader conformance fixture and FileFormat Plugin integration
 - [ ] Tile / LOD
 - [ ] USDC cache
 
 ## Next Implementation Sequence
 
-1. Add the laz-perf adapter behind the `usdLaz` chunk reader contract.
+1. Define the shared tile / LOD contracts.
 
-Do not begin LAZ integration until the LAS conformance fixture passes through both the reader-only tests and the FileFormat Plugin integration test. This gate is now passing.
+The LAS conformance fixture and FileFormat Plugin integration gate passed before LAZ integration. The LAZ reader now uses the same point-cloud authoring path and validates chunked decoder output through a FileFormat Plugin integration fixture.

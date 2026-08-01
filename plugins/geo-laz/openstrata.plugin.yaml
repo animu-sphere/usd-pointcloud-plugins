@@ -1,0 +1,13 @@
+plugin:
+  name: geo-laz
+  version: 0.1.0
+  kind: usd-fileformat
+license: Apache-2.0
+runtime:
+  openusd: ">=26.08,<27.0"
+provides:
+  - usd-fileformat:laz
+requires:
+  capabilities: [usd-stage-read]
+usd:
+  plug_info: plugin/resources/geo-laz/plugInfo.json
