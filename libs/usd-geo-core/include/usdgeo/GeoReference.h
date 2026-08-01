@@ -19,6 +19,8 @@ struct GeoReference {
 
     bool IsValid() const noexcept;
     bool TryToLocal(const Vec3d& source, Vec3d& local) const noexcept;
+    bool TryToLocal(const SpatialBounds& source,
+                    SpatialBounds& local) const noexcept;
     bool TryToSource(const Vec3d& local, Vec3d& source) const noexcept;
 };
 

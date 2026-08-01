@@ -17,7 +17,7 @@
 - [x] Create `usdPointCloudCore` point-attribute and chunk contracts
 - [x] Create `usdGeoUsd` `UsdGeomPoints` authoring and metadata round-trip
 - [x] Add `usdLas` LAS 1.2-1.4 header inspection and uncompressed point decoding
-- [ ] OpenUSD FileFormat Plugin PoC
+- [x] OpenUSD FileFormat Plugin PoC (LAS discovery and UsdGeomPoints authoring path)
 - [ ] LAS reader integration and conformance corpus
 - [ ] LAZ reader
 - [ ] Tile / LOD
