@@ -32,11 +32,6 @@ bool PointCloudLayer::AuthorPointCloud(
         return false;
     }
 
-    auto points = pxr::UsdGeomPoints::Define(stage, pxr::SdfPath(primPath));
-    if (!points) {
-        return false;
-    }
-
     pxr::VtVec3fArray localPositions;
     localPositions.reserve(positions.size());
     for (const Vec3d& position : positions) {
@@ -48,6 +43,12 @@ bool PointCloudLayer::AuthorPointCloud(
             static_cast<float>(local.x), static_cast<float>(local.y),
             static_cast<float>(local.z)));
     }
+
+    auto points = pxr::UsdGeomPoints::Define(stage, pxr::SdfPath(primPath));
+    if (!points) {
+        return false;
+    }
+
     points.GetPointsAttr().Set(localPositions);
 
     points.GetPrim().CreateAttribute(

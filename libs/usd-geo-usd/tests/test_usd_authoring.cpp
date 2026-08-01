@@ -4,6 +4,7 @@
 
 #include <cstdlib>
 #include <filesystem>
+#include <limits>
 
 namespace {
 
@@ -52,9 +53,27 @@ void TestPointCloudRoundTrip() {
     Check(epsgCode == 26910);
 }
 
+void TestInvalidPositionDoesNotMutateStage() {
+    const auto stage = usdgeo::PointCloudLayer::CreateStage();
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    usdpointcloud::PointChunk chunk;
+    chunk.pointCount = 1;
+    chunk.bounds.Expand({0.0, 0.0, 0.0});
+
+    const std::vector<usdgeo::Vec3d> positions = {
+        {std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0}};
+    Check(!usdgeo::PointCloudLayer::AuthorPointCloud(
+        stage, "/InvalidPointCloud", reference, chunk.bounds, chunk,
+        positions));
+    Check(!stage->GetPrimAtPath(pxr::SdfPath("/InvalidPointCloud")).IsValid());
+}
+
 } // namespace
 
 int main() {
     TestPointCloudRoundTrip();
+    TestInvalidPositionDoesNotMutateStage();
     return 0;
 }
