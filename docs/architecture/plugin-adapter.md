@@ -32,8 +32,8 @@ tests that run without an OpenUSD runtime.
 ## Current State
 
 `geo-las` now delegates file access and LAS decoding to `usdlas::LasReader`,
-but neither plugin meets the full thin-adapter rule yet because the shared
-authoring tail is still duplicated in both plugins.
+and both plugins now meet the shared authoring portion of the thin-adapter
+rule. File-format arguments and metadata-only reads remain open.
 
 | Concern | `geo-las` | `geo-laz` |
 | --- | --- | --- |
@@ -42,27 +42,25 @@ authoring tail is still duplicated in both plugins.
 | Point-data truncation checks | In `usdlas::LasReader` | In `usdLaz` |
 | Per-record decode loop | In `usdlas::LasReader` | In `usdLaz` |
 | Uses the chunked reader API | Yes | Yes |
-| Attribute fan-out into `PointCloudLayer::Data` | In the plugin | In the plugin |
-| `PointChunk` attribute schema | In the plugin | In the plugin |
-| `GeoReference` and bounds construction | In the plugin | In the plugin |
-| Stage creation, metrics, authoring, transfer | In the plugin | In the plugin |
+| Attribute fan-out into point data | In `usdlas` | In `usdlas` |
+| `PointChunk` attribute schema | In `usdPointCloudCore` | In `usdPointCloudCore` |
+| `GeoReference` and bounds construction | In `usdlas` | In `usdlas` |
+| Stage creation, metrics, authoring, transfer | In `usdGeoUsd` | In `usdGeoUsd` |
 | `metadataOnly` | Refused | Refused |
 
 `GeoLasFileFormat::Read` now constructs a `usdlas::LasReader`, consumes its
 point chunks, and projects reader diagnostics onto the stable plugin codes.
-It still owns the shared authoring tail described below.
+It passes the validated point-cloud asset to the shared authoring entry point.
 
 `usdlas::LasReader` already provides exactly that orchestration behind
 `LasReadOptions`, a chunk consumer, and typed diagnostics. It is currently
 called from `geo-las` and its unit tests. `GeoLasFileFormat::Read` now uses it
-the same way that `GeoLazFileFormat::Read` uses `usdlaz::LazReader`, so the LAZ
-side is one step further along only for the shared authoring migration.
+the same way that `GeoLazFileFormat::Read` uses `usdlaz::LazReader`.
 
-Both plugins then duplicate the same tail: per-format `reserve` and `push_back`
-branches into `PointCloudLayer::Data`, `PointChunk` attribute construction,
-`GeoReference` construction including the CRS-unavailable fallback string, the
-bounds transform, and anonymous-layer creation with stage metrics and
-`TransferContent`.
+Both plugins now pass reader output through the shared `usdlas` point-data and
+asset builders, then call the layer-level `usdgeo::AuthorPointCloudAsset`
+entry point. The plugins no longer own point fan-out, chunk schema
+construction, CRS or bounds conversion, stage metrics, or layer transfer.
 
 ### Consequence
 
@@ -122,9 +120,11 @@ call, and the projection of typed diagnostics onto its stable `LASxxx` /
 1. [x] Move `geo-las` onto `usdlas::LasReader`, deleting the plugin's file
   access, metadata reading, truncation checks, and decode loop. The LAZ plugin
   already shows the shape.
-2. [ ] Move the shared tail into `usdgeo::AuthorPointCloudAsset`: attribute
-   fan-out, `PointChunk` construction, `GeoReference` and bounds, stage
-   metrics, and layer transfer. Both plugins call it.
+2. [x] Move the shared tail into the reader and authoring libraries:
+  attribute fan-out and LAS metadata conversion live in `usdlas`, chunk
+  schema construction lives in `usdPointCloudCore`, and stage metrics and
+  layer transfer live in `usdgeo::AuthorPointCloudAsset`. Both plugins call
+  the shared path.
 3. Normalize file-format arguments in the plugin and pass them to the reader as
    read options, making `chunkPointLimit`, `memoryBudgetBytes`, `range`, and
    `isCancelled` reachable.

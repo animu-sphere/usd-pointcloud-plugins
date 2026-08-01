@@ -113,6 +113,18 @@ using LasReadOptions = usdpointcloud::PointReadOptions;
 using LasPointChunkConsumer =
     std::function<bool(const LasHeader&, const std::vector<LasPoint>&)>;
 
+bool AppendPointData(const LasHeader& header,
+                     const std::vector<LasPoint>& points,
+                     const std::string& sourceFilename,
+                     usdpointcloud::PointData& data,
+                     std::string& error);
+
+bool BuildPointCloudAsset(const LasHeader& header,
+                          const usdpointcloud::PointData& data,
+                          const std::string& missingCrsMessage,
+                          usdpointcloud::PointCloudAsset& asset,
+                          std::string& error);
+
 enum class LasReadFailure {
     None,
     InvalidRequest,

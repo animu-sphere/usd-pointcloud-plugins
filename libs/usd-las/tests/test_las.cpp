@@ -104,6 +104,27 @@ void TestHeaderAndPoint() {
           point.gpsTime == 12.5);
 }
 
+void TestPointCloudAssetHelpers() {
+    const auto bytes = MakeHeader(2, 0);
+    usdlas::LasHeader header;
+    std::string error;
+    Check(usdlas::InspectHeader(bytes, header, error));
+
+    usdlas::LasPoint point;
+    point.sourcePosition = {1001.0, 2000.0, 3000.0};
+    point.intensity = 42;
+    usdpointcloud::PointData data;
+    Check(usdlas::AppendPointData(header, {point}, "sample.las", data, error));
+    Check(data.positions.size() == 1 && data.intensity[0] == 42);
+
+    usdpointcloud::PointCloudAsset asset;
+    Check(usdlas::BuildPointCloudAsset(
+        header, data, "LAS CRS unavailable", asset, error));
+    Check(asset.IsValid());
+    Check(asset.reference.stageUpAxis == "Y");
+    Check(asset.chunk.pointCount == 1);
+}
+
 void TestValidation() {
     usdlas::LasHeader header;
     std::string error;
@@ -378,6 +399,7 @@ void TestVariableLengthRecords() {
 
 int main() {
     TestHeaderAndPoint();
+    TestPointCloudAssetHelpers();
     TestValidation();
     TestRangeReader();
     TestReaderFailureKinds();
