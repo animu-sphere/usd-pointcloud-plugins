@@ -126,7 +126,7 @@ std::size_t MinimumRecordLength(std::uint8_t format) {
     case 9:
         return 59;
     case 10:
-        return 65;
+        return 67;
     default:
         return 0;
     }
@@ -493,7 +493,7 @@ bool DecodePoint(const LasHeader& header,
             point.blue = ReadLittle<std::uint16_t>(record, 34);
             point.hasColor = true;
         }
-        if (header.pointFormat == 8) {
+        if (header.pointFormat == 8 || header.pointFormat == 10) {
             point.nir = ReadLittle<std::uint16_t>(record, 36);
         }
         point.gpsTime = ReadLittle<double>(record, 22);
@@ -520,13 +520,14 @@ bool DecodePoint(const LasHeader& header,
         const auto waveformOffset = header.pointFormat == 4 ? std::size_t{28}
                                     : header.pointFormat == 5 ? std::size_t{34}
                                     : header.pointFormat == 9 ? std::size_t{30}
-                                                               : std::size_t{36};
+                                                               : std::size_t{38};
+        const auto descriptorIndex =
+            ReadLittle<std::uint8_t>(record, waveformOffset);
         const auto encodedOffset =
             ReadLittle<std::uint64_t>(record, waveformOffset + 1);
-        point.waveform.descriptorIndex =
-            ReadLittle<std::uint8_t>(record, waveformOffset);
-        point.waveform.external = (encodedOffset & (std::uint64_t{1} << 63)) != 0;
-        point.waveform.dataOffset = encodedOffset & ~(std::uint64_t{1} << 63);
+        point.waveform.descriptorIndex = descriptorIndex & 0x7f;
+        point.waveform.external = (descriptorIndex & 0x80) != 0;
+        point.waveform.dataOffset = encodedOffset;
         point.waveform.packetSize =
             ReadLittle<std::uint32_t>(record, waveformOffset + 9);
         point.waveform.returnPointLocation =

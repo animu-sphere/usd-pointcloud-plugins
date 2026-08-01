@@ -220,7 +220,7 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
         header.pointFormat >= 6) {
         pointData.gpsTime.reserve(static_cast<std::size_t>(header.pointCount));
     }
-    if (header.pointFormat == 8) {
+    if (header.pointFormat == 8 || header.pointFormat == 10) {
         pointData.nir.reserve(static_cast<std::size_t>(header.pointCount));
     }
     if (header.pointFormat == 4 || header.pointFormat == 5 ||
@@ -281,7 +281,7 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
         if (point.hasGpsTime) {
             pointData.gpsTime.push_back(point.gpsTime);
         }
-        if (header.pointFormat == 8) {
+        if (header.pointFormat == 8 || header.pointFormat == 10) {
             pointData.nir.push_back(point.nir);
         }
         if (point.hasWaveform) {

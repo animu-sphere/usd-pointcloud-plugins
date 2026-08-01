@@ -39,14 +39,14 @@ compressed waveform formats 4, 5, 9, and 10, so those LAZ inputs are rejected.
 | 7 | 1.4 only | Supported | Format 6 plus RGB |
 | 8 | 1.4 only | Supported | Format 7 fields plus NIR |
 | 9 | 1.4 only | Supported | Format 6 plus waveform packet metadata |
-| 10 | 1.4 only | Supported | Format 7 plus waveform packet metadata |
+| 10 | 1.4 only | Supported | Format 8 plus waveform packet metadata |
 
 Formats 6-10 are accepted only in LAS 1.4. A file that declares format 6, 7,
-or 8 in LAS 1.2 or 1.3 is rejected.
+or 10 in LAS 1.2 or 1.3 is rejected.
 
-A record length shorter than the format minimum (20, 28, 26, 34, 30, 36, and
-38 bytes for formats 0, 1, 2, 3, 6, 7, and 8) is rejected. A longer record
-length is accepted, but the trailing bytes are not interpreted.
+A record length shorter than the format minimum (20, 28, 26, 34, 57, 63, 30,
+36, 38, 59, and 67 bytes for formats 0 through 10) is rejected. A longer
+record length is accepted, but the trailing bytes are not interpreted.
 
 ## Point Attributes
 
@@ -57,16 +57,16 @@ length is accepted, but the trailing bytes are not interpreted.
 | Return number | all | Supported | `geo:returnNumber` (`uchar[]`) |
 | Number of returns | all | Supported | `geo:numberOfReturns` (`uchar[]`) |
 | Classification | all | Supported | `geo:classification` (`uchar[]`) |
-| RGB | 2, 3, 7, 8 | Supported | `geo:red`, `geo:green`, `geo:blue` (`int[]`) |
-| GPS time | 1, 3, 6, 7, 8 | Supported | `geo:gpsTime` (`double[]`) |
-| Classification flags | 6-8 | Supported | `geo:classificationFlags` (`uchar[]`) |
-| Scanner channel | 6-8 | Supported | `geo:scannerChannel` (`uchar[]`) |
+| RGB | 2, 3, 7, 8, 10 | Supported | `geo:red`, `geo:green`, `geo:blue` (`int[]`) |
+| GPS time | 1, 3, 6, 7, 8, 9, 10 | Supported | `geo:gpsTime` (`double[]`) |
+| Classification flags | 6-10 | Supported | `geo:classificationFlags` (`uchar[]`) |
+| Scanner channel | 6-10 | Supported | `geo:scannerChannel` (`uchar[]`) |
 | Scan direction flag | all | Supported | `geo:scanDirectionFlag` (`uchar[]`) |
 | Edge of flight line | all | Supported | `geo:edgeOfFlightLine` (`uchar[]`) |
 | User data | all | Supported | `geo:userData` (`uchar[]`) |
 | Scan angle / rank | all | Supported | `geo:scanAngle` (`int[]`) |
 | Point source ID | all | Supported | `geo:pointSourceId` (`int[]`) |
-| NIR | 8 | Supported | `geo:nir` (`int[]`) |
+| NIR | 8, 10 | Supported | `geo:nir` (`int[]`) |
 | Waveform descriptor index | 4, 5, 9, 10 | Supported | `geo:waveformDescriptorIndex` (`uchar[]`) |
 | Waveform data offset | 4, 5, 9, 10 | Supported | `geo:waveformDataOffset` (`uint64[]`) |
 | Waveform packet size | 4, 5, 9, 10 | Supported | `geo:waveformPacketSize` (`uint[]`) |

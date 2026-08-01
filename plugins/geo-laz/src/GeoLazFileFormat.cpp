@@ -117,7 +117,8 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
                     chunkHeader.pointFormat >= 6) {
                     pointData.gpsTime.reserve(pointCount);
                 }
-                if (chunkHeader.pointFormat == 8) {
+                if (chunkHeader.pointFormat == 8 ||
+                    chunkHeader.pointFormat == 10) {
                     pointData.nir.reserve(pointCount);
                 }
                 if (chunkHeader.pointFormat == 4 ||
@@ -157,7 +158,8 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
                 if (point.hasGpsTime) {
                     pointData.gpsTime.push_back(point.gpsTime);
                 }
-                if (chunkHeader.pointFormat == 8) {
+                if (chunkHeader.pointFormat == 8 ||
+                    chunkHeader.pointFormat == 10) {
                     pointData.nir.push_back(point.nir);
                 }
                 if (point.hasWaveform) {
