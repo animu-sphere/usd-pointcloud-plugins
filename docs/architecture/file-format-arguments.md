@@ -5,9 +5,10 @@ LOD generation, and the [library architecture](../roadmap/library-architecture.m
 requires arguments to be normalized before any reader or cache lookup. This
 document defines that contract.
 
-Status: **not implemented**. No plugin accepts an argument today, which is why
-attribute selection, point limits, and filters are listed as limitations in the
-[supported formats](../supported-formats.md).
+Status: **partially implemented**. LAS and LAZ normalize chunk and point-range
+read options plus the `attributes` subset before the shared reader and
+authoring path. LOD, filtering, and spatial arguments remain unavailable and
+are rejected with typed diagnostics.
 
 ## Why Arguments Exist
 
@@ -66,6 +67,28 @@ The first implementation may ship only `lod` and `attributes`. Explicit numeric
 controls are added once the LOD contract stabilizes, so that the compact
 profile does not become an alias for a surface that later changes meaning.
 
+The current pre-LOD surface also exposes the existing streaming reader controls
+because they do not change authored topology:
+
+| Argument | Normalized value |
+| --- | --- |
+| `chunkPointLimit` | Positive unsigned integer |
+| `memoryBudgetBytes` | Positive unsigned integer |
+| `rangeFirstPoint` | Unsigned source-point index |
+| `rangePointCount` | Unsigned count; zero means all remaining points |
+| `attributes` | Comma-separated supported names; `xyz` is implicit |
+
+`lod` and the other topology-generation candidates are recognized as planned
+arguments and rejected until their shared contracts are implemented.
+
+`NormalizeFileFormatArguments` also returns a canonical argument map. Static
+hosts must pass that map to `SdfLayer::FindOrOpen` or
+`SdfLayer::CreateIdentifier` before layer lookup. A static
+`SdfFileFormat::Read` implementation runs after that lookup and cannot repair a
+non-canonical layer identifier. Dynamic file-format support may move this
+composition to Pcp later; it is deliberately not part of the current plugin
+contract.
+
 ## Rules
 
 1. **Validate everything.** An unknown key, an unparsable value, or an
@@ -76,7 +99,9 @@ profile does not become an alias for a surface that later changes meaning.
    argument set to its default value produce identical output.
 3. **Normalize before use.** Key order, whitespace, numeric formatting, and
    list order are normalized into one canonical form before the reader or the
-   cache sees them.
+   cache sees them. Static callers use the canonical argument map when creating
+   or opening the layer; the plugin consumes the map already stored on the
+   resulting layer.
 4. **Normalized arguments participate in layer identity and cache keys.**
    Equivalent arguments that normalize to the same form share a cache entry;
    arguments that do not, do not.
@@ -86,10 +111,11 @@ profile does not become an alias for a surface that later changes meaning.
 6. **Arguments never replace the standard USD representation.** They control
    generation. LOD is still authored as `usdLod`; see the
    [tile and LOD contract](lod.md).
-7. **Normalization lives in the plugin, validation in the shared layer.** The
-   plugin parses `SDF_FORMAT_ARGS` into a project-owned options struct; the
-   readers and `usdGeoUsd` validate that struct and know nothing about Sdf
-   argument encoding.
+7. **Normalization lives at the plugin boundary, validation in the shared
+   layer.** OpenUSD parses `SDF_FORMAT_ARGS` into the layer argument map; the
+   plugin converts that map into a project-owned options struct. The readers
+   and `usdGeoUsd` validate that struct and know nothing about Sdf argument
+   encoding.
 
 ## Relationship to Read Options
 

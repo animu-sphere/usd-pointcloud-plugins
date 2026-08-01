@@ -24,3 +24,4 @@ record condition.
 | LAZ005 | FATAL | import | USD layer could not be created |
 | LAZ006 | FATAL | import | USD stage metrics could not be set |
 | LAZ007 | FATAL | import | LAZ point cloud could not be authored |
+| LAZ008 | FATAL | import | LAZ file-format arguments are invalid or unsupported |

@@ -83,6 +83,31 @@ void TestFileFormatIntegration() {
     Check(layer->GetAttributeAtPath(
               pxr::SdfPath("/PointCloud.geo:scannerChannel")) == nullptr);
 
+    const pxr::SdfLayer::FileFormatArguments arguments = {
+        {"attributes", "intensity"},
+        {"rangeFirstPoint", "1"},
+        {"rangePointCount", "1"}};
+    const auto rangedLayer = pxr::SdfLayer::FindOrOpen(
+        path.string(), arguments);
+    Check(rangedLayer);
+    const auto rangedStage = pxr::UsdStage::Open(rangedLayer);
+    Check(rangedStage);
+    const auto rangedPoints = pxr::UsdGeomPoints::Get(
+        rangedStage, pxr::SdfPath("/PointCloud"));
+    pxr::VtVec3fArray rangedPositions;
+    Check(rangedPoints.GetPointsAttr().Get(&rangedPositions));
+    Check(rangedPositions.size() == 1 &&
+          rangedPositions[0] == pxr::GfVec3f(1.0f, 3.0f, -2.0f));
+    const auto rangedIntensity = rangedLayer->GetAttributeAtPath(
+        pxr::SdfPath("/PointCloud.geo:intensity"));
+    Check(rangedIntensity != nullptr);
+    Check(rangedIntensity->GetDefaultValue().IsHolding<pxr::VtIntArray>());
+    Check(rangedIntensity->GetDefaultValue()
+              .UncheckedGet<pxr::VtIntArray>()
+              .size() == 1);
+    Check(rangedLayer->GetAttributeAtPath(
+              pxr::SdfPath("/PointCloud.geo:classification")) == nullptr);
+
     std::error_code error;
     std::filesystem::remove(path, error);
 }
@@ -130,8 +155,11 @@ void TestMissingFileDiagnostic() {
     const auto path = std::filesystem::temp_directory_path() /
                       ("usd_geo_plugins_missing_" +
                        std::to_string(uniqueSuffix) + ".laz");
-    const auto layer = pxr::SdfLayer::FindOrOpen(path.string());
-    Check(!layer);
+    const auto format = pxr::SdfFileFormat::FindByExtension("sample.laz");
+    Check(format);
+    const auto layer = pxr::SdfLayer::CreateAnonymous("missing.laz");
+    Check(layer);
+    Check(!format->Read(layer.operator->(), path.string(), false));
     Check(!mark.IsClean());
     Check(mark.GetBegin()->GetCommentary().find("[LAZ002]") !=
           std::string::npos);

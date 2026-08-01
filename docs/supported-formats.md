@@ -164,10 +164,9 @@ in the [tile and LOD contract](architecture/lod.md).
 
 - The whole point cloud is materialized in memory before authoring. LAZ
   decodes in 65,536-point chunks but still accumulates every point.
-- No file-format arguments exist yet, so attribute selection, point limits,
-  bounds filters, and classification filters are unavailable. Neither plugin
-  passes read options to the readers, so the chunked and range-based reader
-  API is not reachable from a host. See the
+- File-format arguments currently expose normalized chunk and point-range
+  read options plus attribute selection. Bounds, classification filters, and
+  LOD arguments remain unavailable. See the
   [file-format argument contract](architecture/file-format-arguments.md) and
   the [plugin adapter contract](architecture/plugin-adapter.md).
 - `metadataOnly` reads are refused; a header-only or metadata-only inspection

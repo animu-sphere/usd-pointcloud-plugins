@@ -54,7 +54,11 @@ enum class DiagnosticCode {
     UnsupportedExtraBytesType,
     MissingWaveformData,
     NonFiniteCoordinate,
-    DecodeFailure
+   DecodeFailure,
+   UnknownFormatArgument,
+   UnsupportedFormatArgument,
+   InvalidFormatArgument,
+   ConflictingFormatArguments
 };
 
 struct Diagnostic {

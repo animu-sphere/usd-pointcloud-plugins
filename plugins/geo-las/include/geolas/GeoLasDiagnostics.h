@@ -20,6 +20,7 @@ inline constexpr const char* BoundsTransformFailed = "LAS013";
 inline constexpr const char* UsdLayerCreateFailed = "LAS014";
 inline constexpr const char* StageMetricsFailed = "LAS015";
 inline constexpr const char* PointCloudAuthorFailed = "LAS016";
+inline constexpr const char* FormatArgumentInvalid = "LAS017";
 
 inline std::string Message(const char* code, const std::string& message) {
     return "[" + std::string(code) + "] " + message;

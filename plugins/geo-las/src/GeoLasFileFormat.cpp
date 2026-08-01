@@ -3,6 +3,7 @@
 
 #include "usdgeo/Diagnostic.h"
 #include "usdgeo/PointCloudLayer.h"
+#include "usdpointcloud/FileFormatArguments.h"
 #include "usdlas/Las.h"
 
 #include <pxr/base/tf/diagnostic.h>
@@ -10,6 +11,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <string>
 #include <vector>
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -75,6 +77,16 @@ const char* ReaderDiagnosticCode(
     }
 }
 
+bool MakeReadRequest(const SdfLayer* layer,
+                     const std::string& resolvedPath,
+                     std::string& sourcePath,
+                     usdpointcloud::PointReadRequest& request,
+                     std::vector<usdgeo::Diagnostic>& diagnostics) {
+    sourcePath = resolvedPath;
+                    return usdpointcloud::NormalizeFileFormatArguments(
+                        layer->GetFileFormatArguments(), request, diagnostics);
+}
+
 } // namespace
 
 TF_DEFINE_PUBLIC_TOKENS(GeoLasFileFormatTokens, GEOLAS_FILE_FORMAT_TOKENS);
@@ -102,24 +114,47 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
         return false;
     }
 
-    usdlas::LasHeader header;
+    std::string sourcePath;
+    usdpointcloud::PointReadRequest request;
     std::vector<usdgeo::Diagnostic> diagnostics;
+    if (!MakeReadRequest(layer, resolvedPath, sourcePath, request,
+                         diagnostics)) {
+        TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                  geolas::diagnostics::FormatArgumentInvalid,
+                                  "Invalid LAS file-format arguments: " +
+                                      DiagnosticDetail(diagnostics,
+                                                       "invalid arguments"))
+                                  .c_str());
+        return false;
+    }
+
+    usdlas::LasHeader header;
     usdpointcloud::PointData pointData;
-    usdlas::LasReader reader(resolvedPath);
-    usdlas::LasReadOptions options;
+    usdlas::LasReader reader(sourcePath);
     const auto consume = [&](const usdlas::LasHeader& chunkHeader,
                              const std::vector<usdlas::LasPoint>& points,
                              std::string& error) {
-        return usdlas::AppendPointData(chunkHeader, points, resolvedPath,
+        return usdlas::AppendPointData(chunkHeader, points, sourcePath,
                                         pointData, error);
     };
-    if (!reader.Read(options, consume, header, diagnostics)) {
+    if (!reader.Read(request.readOptions, consume, header, diagnostics)) {
         TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
                                   ReaderDiagnosticCode(diagnostics,
                                                        reader.FailureKind()),
                                   "Unable to read LAS file " + resolvedPath +
                                       ": " +
                                       DiagnosticDetail(diagnostics, "read failed"))
+                                  .c_str());
+        return false;
+    }
+
+    std::string selectionError;
+    if (!usdpointcloud::SelectPointDataAttributes(
+            pointData, request.attributes, selectionError)) {
+        TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                  geolas::diagnostics::FormatArgumentInvalid,
+                                  "Unable to select LAS point attributes: " +
+                                      selectionError)
                                   .c_str());
         return false;
     }
