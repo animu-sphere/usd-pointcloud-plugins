@@ -27,13 +27,29 @@ void TestPointCloudRoundTrip() {
     chunk.bounds.Expand({1002.0, 2003.0, 3004.0});
     chunk.attributes = {
         {"intensity", usdpointcloud::PointAttributeType::UInt16},
-        {"classification", usdpointcloud::PointAttributeType::UInt8}};
+        {"classification", usdpointcloud::PointAttributeType::UInt8},
+        {"classificationFlags", usdpointcloud::PointAttributeType::UInt8},
+        {"scannerChannel", usdpointcloud::PointAttributeType::UInt8},
+        {"scanDirectionFlag", usdpointcloud::PointAttributeType::UInt8},
+        {"edgeOfFlightLine", usdpointcloud::PointAttributeType::UInt8},
+        {"userData", usdpointcloud::PointAttributeType::UInt8},
+        {"scanAngle", usdpointcloud::PointAttributeType::Int16},
+        {"pointSourceId", usdpointcloud::PointAttributeType::UInt16},
+        {"nir", usdpointcloud::PointAttributeType::UInt16}};
     const std::vector<usdgeo::Vec3d> positions = {
         {1000.0, 2000.0, 3000.0}, {1002.0, 2003.0, 3004.0}};
     usdgeo::PointCloudLayer::Data data;
     data.positions = positions;
     data.intensity = {42, 84};
     data.classification = {2, 5};
+    data.classificationFlags = {1, 3};
+    data.scannerChannel = {0, 2};
+    data.scanDirectionFlag = {0, 1};
+    data.edgeOfFlightLine = {1, 0};
+    data.userData = {7, 9};
+    data.scanAngle = {-12, 34};
+    data.pointSourceId = {100, 200};
+    data.nir = {300, 400};
 
     Check(usdgeo::PointCloudLayer::AuthorPointCloud(
         stage, "/PointCloud", reference, chunk.bounds, chunk, data));
@@ -58,9 +74,48 @@ void TestPointCloudRoundTrip() {
               .Get(&authoredIntensity));
     Check(authoredIntensity.size() == 2 && authoredIntensity[1] == 84);
 
+        pxr::VtArray<unsigned char> authoredClassificationFlags;
+        Check(points.GetPrim()
+              .GetAttribute(pxr::TfToken("geo:classificationFlags"))
+              .Get(&authoredClassificationFlags));
+        Check(authoredClassificationFlags.size() == 2 &&
+            authoredClassificationFlags[1] == 3);
+        pxr::VtIntArray authoredScanAngle;
+        Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:scanAngle"))
+              .Get(&authoredScanAngle));
+        Check(authoredScanAngle.size() == 2 && authoredScanAngle[0] == -12);
+        pxr::VtIntArray authoredNir;
+        Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:nir"))
+              .Get(&authoredNir));
+        Check(authoredNir.size() == 2 && authoredNir[1] == 400);
+
     int epsgCode = 0;
     Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:epsgCode")).Get(&epsgCode));
     Check(epsgCode == 26910);
+}
+
+void TestOptionalAttributesAreIndependent() {
+    const auto stage = usdgeo::PointCloudLayer::CreateStage();
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    usdpointcloud::PointChunk chunk;
+    chunk.pointCount = 1;
+    chunk.bounds.Expand({0.0, 0.0, 0.0});
+
+    usdgeo::PointCloudLayer::Data data;
+    data.positions = {{0.0, 0.0, 0.0}};
+    data.scanAngle = {-12};
+
+    Check(usdgeo::PointCloudLayer::AuthorPointCloud(
+        stage, "/PointCloud", reference, chunk.bounds, chunk, data));
+
+    const auto prim = stage->GetPrimAtPath(pxr::SdfPath("/PointCloud"));
+    Check(prim.IsValid());
+    pxr::VtIntArray scanAngle;
+    Check(prim.GetAttribute(pxr::TfToken("geo:scanAngle")).Get(&scanAngle));
+    Check(scanAngle.size() == 1 && scanAngle[0] == -12);
+    Check(!prim.GetAttribute(pxr::TfToken("geo:classificationFlags")));
 }
 
 void TestInvalidPositionDoesNotMutateStage() {
@@ -84,6 +139,7 @@ void TestInvalidPositionDoesNotMutateStage() {
 
 int main() {
     TestPointCloudRoundTrip();
+    TestOptionalAttributesAreIndependent();
     TestInvalidPositionDoesNotMutateStage();
     return 0;
 }

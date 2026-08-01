@@ -33,7 +33,7 @@
 - [x] Move the LAS / LAZ FileFormat Plugins onto the typed diagnostics path
 - [x] GeoTIFF CRS VLR parsing (structured VLR metadata)
 - [ ] Extra Bytes descriptors and generic point attributes
-- [ ] Remaining LAS 1.4 point attributes, including NIR
+- [x] Remaining LAS 1.4 point attributes, including NIR
 - [ ] Waveform contract and point formats 4, 5, 9, and 10
 - [ ] Chunked and range-based reader API
 - [ ] Tile / LOD
@@ -41,12 +41,10 @@
 
 ## Next Implementation Sequence
 
-1. Add GeoTIFF CRS VLR parsing and Extra Bytes descriptor parsing.
-2. Complete the LAS 1.4 attribute set, including NIR for point format 8.
-3. Define the waveform contract, then add point formats 4, 5, 9, and 10.
-4. Add the chunked and range-based reader API with a memory budget and
+1. Define the waveform contract, then add point formats 4, 5, 9, and 10.
+2. Add the chunked and range-based reader API with a memory budget and
    cancellation.
-5. Define the shared tile / LOD contracts.
+3. Define the shared tile / LOD contracts.
 
 Steps 1 through 5 stabilize the shared point schema and the streaming reader
 API. Both the remaining point formats and the tile / LOD work depend on them,

@@ -38,7 +38,7 @@ diagnostic because waveform packets are not implemented.
 | XYZ, intensity, return number, number of returns, classification | Authored |
 | RGB (formats 2, 3, 7, 8) | Authored |
 | GPS time (formats 1, 3, 6, 7, 8) | Authored |
-| NIR, scan angle, user data, point source ID, classification flags, scanner channel | Not implemented |
+| NIR, scan angle, user data, point source ID, classification flags, scanner channel, scan direction, edge of flight line | Authored |
 | Extra Bytes, waveform metadata | Not implemented |
 
 The complete matrix, including VLR, CRS, and authored USD attributes, is in

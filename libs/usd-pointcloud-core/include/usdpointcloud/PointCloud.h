@@ -10,6 +10,7 @@ namespace usdpointcloud {
 
 enum class PointAttributeType {
     Int32,
+    Int16,
     UInt8,
     UInt16,
     UInt32,

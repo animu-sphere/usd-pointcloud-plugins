@@ -465,15 +465,30 @@ bool DecodePoint(const LasHeader& header,
     point.classification = ReadLittle<std::uint8_t>(record, modern ? 16 : 15);
 
     if (modern) {
+        const auto flags = ReadLittle<std::uint8_t>(record, 15);
+        point.classificationFlags = flags & 0x0f;
+        point.scannerChannel = (flags >> 4) & 0x03;
+        point.scanDirectionFlag = (flags >> 6) & 0x01;
+        point.edgeOfFlightLine = (flags >> 7) & 0x01;
+        point.userData = ReadLittle<std::uint8_t>(record, 17);
+        point.scanAngle = ReadLittle<std::int16_t>(record, 18);
+        point.pointSourceId = ReadLittle<std::uint16_t>(record, 20);
         if (header.pointFormat >= 7) {
             point.red = ReadLittle<std::uint16_t>(record, 30);
             point.green = ReadLittle<std::uint16_t>(record, 32);
             point.blue = ReadLittle<std::uint16_t>(record, 34);
             point.hasColor = true;
         }
+        if (header.pointFormat == 8) {
+            point.nir = ReadLittle<std::uint16_t>(record, 36);
+        }
         point.gpsTime = ReadLittle<double>(record, 22);
         point.hasGpsTime = true;
     } else {
+        point.scanAngle = static_cast<std::int8_t>(
+            ReadLittle<std::uint8_t>(record, 16));
+        point.userData = ReadLittle<std::uint8_t>(record, 17);
+        point.pointSourceId = ReadLittle<std::uint16_t>(record, 18);
         if (header.pointFormat == 1 || header.pointFormat == 3) {
             point.gpsTime = ReadLittle<double>(record, 20);
             point.hasGpsTime = true;

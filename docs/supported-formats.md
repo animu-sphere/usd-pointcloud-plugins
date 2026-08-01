@@ -36,7 +36,7 @@ same LAS validation.
 | 5 | 1.3-1.4 | Rejected | Waveform packets are not implemented |
 | 6 | 1.4 only | Supported | XYZ, intensity, returns, classification, GPS time |
 | 7 | 1.4 only | Supported | Format 6 plus RGB |
-| 8 | 1.4 only | Supported | Format 7 fields; NIR is not decoded yet |
+| 8 | 1.4 only | Supported | Format 7 fields plus NIR |
 | 9 | 1.4 only | Rejected | Waveform packets are not implemented |
 | 10 | 1.4 only | Rejected | Waveform packets are not implemented |
 
@@ -58,14 +58,14 @@ length is accepted, but the trailing bytes are not interpreted.
 | Classification | all | Supported | `geo:classification` (`uchar[]`) |
 | RGB | 2, 3, 7, 8 | Supported | `geo:red`, `geo:green`, `geo:blue` (`int[]`) |
 | GPS time | 1, 3, 6, 7, 8 | Supported | `geo:gpsTime` (`double[]`) |
-| Classification flags | 6-8 | Not implemented | - |
-| Scanner channel | 6-8 | Not implemented | - |
-| Scan direction flag | all | Not implemented | - |
-| Edge of flight line | all | Not implemented | - |
-| User data | all | Not implemented | - |
-| Scan angle / rank | all | Not implemented | - |
-| Point source ID | all | Not implemented | - |
-| NIR | 8 | Not implemented | - |
+| Classification flags | 6-8 | Supported | `geo:classificationFlags` (`uchar[]`) |
+| Scanner channel | 6-8 | Supported | `geo:scannerChannel` (`uchar[]`) |
+| Scan direction flag | all | Supported | `geo:scanDirectionFlag` (`uchar[]`) |
+| Edge of flight line | all | Supported | `geo:edgeOfFlightLine` (`uchar[]`) |
+| User data | all | Supported | `geo:userData` (`uchar[]`) |
+| Scan angle / rank | all | Supported | `geo:scanAngle` (`int[]`) |
+| Point source ID | all | Supported | `geo:pointSourceId` (`int[]`) |
+| NIR | 8 | Supported | `geo:nir` (`int[]`) |
 | Waveform metadata | 4, 5, 9, 10 | Not implemented | - |
 | Extra Bytes | all | Descriptor metadata supported | Raw VLR and typed descriptor metadata retained; point attributes are not decoded yet |
 

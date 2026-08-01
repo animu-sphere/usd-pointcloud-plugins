@@ -78,6 +78,10 @@ void TestFileFormatIntegration() {
     Check(intensityValue.IsHolding<pxr::VtIntArray>());
     const auto& intensity = intensityValue.UncheckedGet<pxr::VtIntArray>();
     Check(intensity.size() == 3 && intensity[0] == 1 && intensity[2] == 3);
+    Check(layer->GetAttributeAtPath(
+              pxr::SdfPath("/PointCloud.geo:classificationFlags")) == nullptr);
+    Check(layer->GetAttributeAtPath(
+              pxr::SdfPath("/PointCloud.geo:scannerChannel")) == nullptr);
 
     std::error_code error;
     std::filesystem::remove(path, error);
@@ -129,7 +133,7 @@ void TestMissingFileDiagnostic() {
     const auto layer = pxr::SdfLayer::FindOrOpen(path.string());
     Check(!layer);
     Check(!mark.IsClean());
-    Check(mark.GetErrors().back().GetCommentary().find("[LAZ002]") !=
+    Check(mark.GetBegin()->GetCommentary().find("[LAZ002]") !=
           std::string::npos);
     mark.Clear();
 }

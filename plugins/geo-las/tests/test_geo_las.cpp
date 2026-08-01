@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <chrono>
 #include <cstdlib>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -75,6 +76,9 @@ std::vector<std::uint8_t> MakeFixture() {
         Write(bytes, offset + 12, intensity);
         Write(bytes, offset + 14, std::uint8_t{0x21});
         Write(bytes, offset + 15, classification);
+        Write(bytes, offset + 16, static_cast<std::int8_t>(-12));
+        Write(bytes, offset + 17, std::uint8_t{9});
+        Write(bytes, offset + 18, std::uint16_t{44});
         Write(bytes, offset + 20, gpsTime);
         Write(bytes, offset + 28, static_cast<std::uint16_t>(100));
         Write(bytes, offset + 30, static_cast<std::uint16_t>(200));
@@ -136,6 +140,23 @@ void TestFileFormatIntegration() {
               .Get(&classification));
     Check(classification.size() == 2 && classification[0] == 2 &&
           classification[1] == 5);
+        Check(layer->GetAttributeAtPath(
+              pxr::SdfPath("/PointCloud.geo:classificationFlags")) == nullptr);
+        Check(layer->GetAttributeAtPath(
+              pxr::SdfPath("/PointCloud.geo:scannerChannel")) == nullptr);
+
+    pxr::VtIntArray scanAngle;
+    Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:scanAngle"))
+              .Get(&scanAngle));
+    Check(scanAngle.size() == 2 && scanAngle[0] == -12);
+    pxr::VtArray<unsigned char> userData;
+    Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:userData"))
+              .Get(&userData));
+    Check(userData.size() == 2 && userData[1] == 9);
+    pxr::VtIntArray pointSourceId;
+    Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:pointSourceId"))
+              .Get(&pointSourceId));
+    Check(pointSourceId.size() == 2 && pointSourceId[0] == 44);
 
     const auto wktAttribute = layer->GetAttributeAtPath(
         pxr::SdfPath("/PointCloud.geo:wkt"));
@@ -194,7 +215,7 @@ void TestMissingFileDiagnostic() {
     const auto layer = pxr::SdfLayer::FindOrOpen(path.string());
     Check(!layer);
     Check(!mark.IsClean());
-    Check(mark.GetErrors().back().GetCommentary().find("[LAS002]") !=
+    Check(mark.GetBegin()->GetCommentary().find("[LAS002]") !=
           std::string::npos);
     mark.Clear();
 }
