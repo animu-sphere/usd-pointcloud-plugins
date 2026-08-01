@@ -1,5 +1,7 @@
 #include "usdlas/Las.h"
 
+#include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -16,7 +18,14 @@ void Check(bool condition) {
 
 template <typename T>
 void Write(std::vector<std::uint8_t>& bytes, std::size_t offset, T value) {
-    std::memcpy(bytes.data() + offset, &value, sizeof(T));
+    std::array<std::uint8_t, sizeof(T)> encoded{};
+    std::memcpy(encoded.data(), &value, sizeof(T));
+    const std::uint16_t marker = 1;
+    const bool nativeLittleEndian = *reinterpret_cast<const std::uint8_t*>(&marker) == 1;
+    if (!nativeLittleEndian) {
+        std::reverse(encoded.begin(), encoded.end());
+    }
+    std::copy(encoded.begin(), encoded.end(), bytes.begin() + offset);
 }
 
 std::vector<std::uint8_t> MakeHeader(std::uint8_t versionMinor,

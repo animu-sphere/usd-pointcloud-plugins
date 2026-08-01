@@ -28,7 +28,7 @@
 - [x] Document known limitations and plugin usage in the README
 - [x] Document the typed diagnostics contract and its migration
 - [x] Document LGPL-compliant binary distribution and OpenUSD compatibility
-- [ ] Endian-safe binary decoding
+- [x] Endian-safe binary decoding
 - [ ] Typed diagnostics in `usdGeoCore`
 - [ ] GeoTIFF CRS VLR parsing
 - [ ] Extra Bytes descriptors and generic point attributes

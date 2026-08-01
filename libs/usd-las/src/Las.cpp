@@ -1,16 +1,28 @@
 #include "usdlas/Las.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 
 namespace {
 
 template <typename T>
 T ReadLittle(const std::vector<std::uint8_t>& bytes, std::size_t offset) {
+    static_assert(std::is_trivially_copyable_v<T> && sizeof(T) <= sizeof(std::uint64_t));
+    std::array<std::uint8_t, sizeof(T)> encoded{};
+    for (std::size_t index = 0; index < sizeof(T); ++index) {
+        encoded[index] = bytes[offset + index];
+    }
+    const std::uint16_t marker = 1;
+    const bool nativeLittleEndian = *reinterpret_cast<const std::uint8_t*>(&marker) == 1;
+    if (!nativeLittleEndian) {
+        std::reverse(encoded.begin(), encoded.end());
+    }
     T value{};
-    std::memcpy(&value, bytes.data() + offset, sizeof(T));
+    std::memcpy(&value, encoded.data(), sizeof(T));
     return value;
 }
 
