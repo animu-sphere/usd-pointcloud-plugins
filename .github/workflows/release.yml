@@ -1,0 +1,98 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to validate and publish'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  BUILD_DIR: build-release
+
+jobs:
+  verify:
+    name: Verify release
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate release tag
+        id: release
+        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          tag="${INPUT_TAG:-$REF_NAME}"
+          version="$(tr -d '[:space:]' < VERSION)"
+          expected="v${version}"
+          if [ "$tag" != "$expected" ]; then
+            echo "Expected tag $expected, got $tag" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Configure core build
+        run: cmake -S . -B "$BUILD_DIR" -DUSDGEO_BUILD_TESTS=ON -DUSDGEO_BUILD_USD=OFF -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build core libraries
+        run: cmake --build "$BUILD_DIR" --config Release --parallel
+
+      - name: Run core tests
+        run: ctest --test-dir "$BUILD_DIR" --output-on-failure -C Release
+
+      - name: Create source archive and checksum
+        id: archive
+        shell: bash
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          archive="usd-geo-plugins-${VERSION}.tar.gz"
+          git archive --format=tar.gz --prefix="usd-geo-plugins-${VERSION}/" -o "$archive" "$TAG"
+          sha256sum "$archive" > SHA256SUMS
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release files
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-files
+          path: |
+            ${{ steps.archive.outputs.archive }}
+            SHA256SUMS
+
+  publish:
+    name: Publish GitHub release
+    needs: verify
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download release files
+        uses: actions/download-artifact@v4
+        with:
+          name: release-files
+
+      - name: Publish draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          name: usd-geo-plugins ${{ inputs.tag || github.ref_name }}
+          body_path: docs/releases/${{ inputs.tag || github.ref_name }}.md
+          draft: true
+          generate_release_notes: false
+          files: |
+            *.tar.gz
+            SHA256SUMS

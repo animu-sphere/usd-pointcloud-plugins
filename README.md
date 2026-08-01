@@ -1,39 +1,46 @@
-# usd-geo-plugins
+# USD Geo Plugins
 
-OpenUSD plugins and format-independent geospatial libraries for surveying,
-point-cloud, terrain, and vector-data workflows.
+[![ost source ci](https://github.com/animu-sphere/usd-geo-plugins/actions/workflows/ost-source-ci.yml/badge.svg?branch=main)](https://github.com/animu-sphere/usd-geo-plugins/actions/workflows/ost-source-ci.yml)
 
-## Status
+OpenUSD FileFormat Plugins for LAS and LAZ point clouds, with shared
+geospatial metadata and point-cloud contracts for surveying and mapping
+workflows.
 
-The repository is in Phase 1 of the roadmap. The current implementation
-contains:
+## What It Does
 
-- `usdGeoCore`: CRS metadata, explicit source/local coordinate transforms,
-  spatial bounds, tile IDs, and stable cache-key inputs.
-- `usdPointCloudCore`: OpenUSD-independent point-attribute and point-chunk
-  validation contracts.
-- `usdGeoUsd`: `UsdGeomPoints` authoring with CRS, local-origin, bounds, and
-  point-count metadata.
-- `usdLas`: LAS 1.2-1.4 header inspection and uncompressed point-record
-  decoding.
+- Imports LAS 1.2-1.4 files into OpenUSD through the `las` file format.
+- Imports compressed LAZ point records through the `laz` file format.
+- Authors `UsdGeomPoints` with point positions, CRS metadata, local origin,
+  bounds, and point-count metadata.
+- Keeps format-independent validation and coordinate handling outside the USD
+  plugin layer.
+- Reports stable, machine-readable diagnostics for invalid or unsupported
+  input.
 
-The next planned milestone is shared tile / LOD support after LAS and LAZ
-FileFormat Plugin integration. See [implementation status](docs/roadmap/implementation-status.md)
-and the [roadmap](docs/roadmap/README.md) for the full sequence.
+Rendering is provided by the consuming OpenUSD application. These plugins
+provide import and USD authoring, not a point-cloud renderer.
 
-## Requirements
+## Supported Formats
+
+| Extension | Plugin | Current support |
+| --- | --- | --- |
+| `.las` | `geo-las` | LAS 1.2-1.4 headers, VLR/EVLR metadata, WKT CRS, and point records |
+| `.laz` | `geo-laz` | LAZ chunk decoding through the bundled `laz-perf` adapter |
+
+Tile / LOD streaming and a USDC cache are planned follow-up work. See the
+[implementation status](docs/roadmap/implementation-status.md) and
+[roadmap](docs/roadmap/README.md).
+
+## Quick Start
+
+Requirements:
 
 - CMake 3.23 or newer
-- C++17 compiler
-- OpenStrata 0.21.0 for the pinned USD workspace build
-- OpenUSD 26.08 or newer (the plugin contract accepts versions before 27.0)
-- The `cy2026-windows-x86_64-py313-usd` OpenStrata target for OpenUSD work
+- A C++17 compiler
+- OpenUSD 26.08, with the plugin contract accepting versions before 27.0
+- OpenStrata 0.21.0 for the pinned workspace build
 
-The core libraries and their tests do not require an OpenUSD runtime.
-
-## Build And Test
-
-For a regular CMake build on Windows:
+Build and test the libraries with plain CMake:
 
 ```powershell
 cmake -S . -B build -DUSDGEO_BUILD_TESTS=ON
@@ -41,7 +48,7 @@ cmake --build build --config Release --target ALL_BUILD
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-For the pinned OpenStrata environment:
+Build and test the OpenUSD plugins with the pinned OpenStrata workspace:
 
 ```powershell
 ost configure
@@ -49,29 +56,51 @@ ost build
 ost test
 ```
 
-The generated build directory is intentionally kept separate from source
-libraries. Do not add generated OpenStrata or CMake output to source changes.
+Open a LAS or LAZ path with any OpenUSD application that discovers FileFormat
+Plugins, such as `usdview` configured with the corresponding plugin bundle.
+
+## Status
+
+v0.1.0 is the first public release. It establishes the shared geospatial and
+point-cloud contracts, LAS and LAZ readers, and the OpenUSD FileFormat Plugin
+integration. See the [release record](docs/releases/v0.1.0.md).
+
+## Architecture
+
+```text
+.las -> usdLas -> usdGeoUsd -> geo-las -> OpenUSD stage
+.laz -> usdLaz -> usdLas  -> usdGeoUsd -> geo-laz -> OpenUSD stage
+                 ^
+                 shared geo and point-cloud contracts
+```
+
+The repository separates format readers, shared validation, USD authoring, and
+plugin adapters so the core tests remain independent of an OpenUSD runtime.
 
 ## Repository Layout
 
 ```text
+libs/usd-geo-core/        Geospatial values, transforms, bounds, and cache keys
+libs/usd-pointcloud-core/ Point-attribute and chunk validation contracts
+libs/usd-geo-usd/         OpenUSD metadata and point authoring
+libs/usd-las/             LAS header and point-record reader
+libs/usd-laz/             LAZ chunk reader and laz-perf adapter
+plugins/geo-las/          LAS OpenUSD FileFormat Plugin
+plugins/geo-laz/          LAZ OpenUSD FileFormat Plugin
 docs/roadmap/             Architecture decisions and implementation phases
-libs/usd-geo-core/        Shared geospatial value types and contracts
-libs/usd-pointcloud-core/ Format-independent point-cloud contracts
-libs/usd-geo-usd/         OpenUSD metadata and point-cloud authoring
+docs/releases/            Immutable release records
 ```
 
-Format readers, OpenUSD authoring, cache support, and plugin adapters are kept
-in separate libraries so that pure data-model tests remain independent of
-optional runtimes and codecs.
+## Documentation
 
-## Formatting
+- [Release records](docs/releases/README.md)
+- [Implementation status](docs/roadmap/implementation-status.md)
+- [Roadmap](docs/roadmap/README.md)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)
 
-The repository uses the root [.clang-format](.clang-format) configuration.
-Format C++ files with:
+## License
 
-```powershell
-clang-format -i path/to/file.cpp path/to/file.h
-```
-
-Use the formatter version provided by the project toolchain when available.
+Project code is licensed under the Apache License 2.0; see [LICENSE](LICENSE)
+and [NOTICE](NOTICE). The LAZ adapter incorporates `laz-perf 2.0.0`, which is
+distributed under LGPL-2.1; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+for the applicable third-party terms.
