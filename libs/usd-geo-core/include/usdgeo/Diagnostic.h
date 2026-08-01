@@ -29,6 +29,11 @@ enum class DiagnosticCode {
     UnsupportedFormatArgument,
     InvalidFormatArgument,
     ConflictingFormatArguments,
+    InvalidPointTileId,
+    InvalidPointSourceRange,
+    InvalidLodItem,
+    InvalidLodHierarchy,
+    InvalidPointTile,
 };
 
 struct Diagnostic {
