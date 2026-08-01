@@ -10,10 +10,17 @@
 #   that a bare ubuntu-24.04 runner does not carry, so every Linux cell declares
 #   them under `host_packages.apt`:
 #
-#     libx11-dev, libxt-dev  OpenUSD 26.08's MaterialX 1.39.5 exports an
-#       unconditional `find_dependency(X11 REQUIRED COMPONENTS Xt)` on non-Apple
-#       UNIX, so a consumer cannot even configure — `ost runtime validate` fails
-#       its `consumer-configure` check — without X11 dev headers.
+#     libx11-dev, libxt-dev, libxext-dev  OpenUSD 26.08's MaterialX 1.39.5
+#       exports an unconditional `find_dependency(X11 REQUIRED COMPONENTS Xt)` on
+#       non-Apple UNIX, so a consumer cannot even configure — `ost runtime
+#       validate` fails its `consumer-configure` check — without X11 dev headers.
+#       Separately, the runtime's `garch` target hardcodes the absolute paths it
+#       was built against: libX11.so, libSM.so, libICE.so and libXext.so. SM and
+#       ICE arrive with libxt-dev, but libXext.so needs libxext-dev explicitly or
+#       the link fails with "missing and no known rule to make it". That list is
+#       the complete set of absolute system libraries baked into the runtime's
+#       CMake exports; libpython3.13.so also appears, but only as a Python3_LIBRARY
+#       hint that setup-python's toolcache overrides.
 #
 #     libgl1-mesa-dev  the runtime's `garch` target carries `OpenGL::GL` in its
 #       INTERFACE_LINK_LIBRARIES, which is why each bundle's CMakeLists issues
@@ -115,7 +122,7 @@ cells:
     host_python: "3.13"
     # MaterialX and garch pull X11/GL into the link interface; see header.
     host_packages:
-      apt: [libx11-dev, libxt-dev, libgl1-mesa-dev]
+      apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
     up_to: 5
 
   - name: geo-laz-pr-macos-arm64
@@ -144,5 +151,5 @@ cells:
     host_python: "3.13"
     # MaterialX and garch pull X11/GL into the link interface; see header.
     host_packages:
-      apt: [libx11-dev, libxt-dev, libgl1-mesa-dev]
+      apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
     up_to: 5
