@@ -31,30 +31,32 @@ tests that run without an OpenUSD runtime.
 
 ## Current State
 
-Neither plugin meets the rule yet.
+`geo-las` now delegates file access and LAS decoding to `usdlas::LasReader`,
+but neither plugin meets the full thin-adapter rule yet because the shared
+authoring tail is still duplicated in both plugins.
 
 | Concern | `geo-las` | `geo-laz` |
 | --- | --- | --- |
-| Source file access | In the plugin (`std::ifstream`, explicit seeks) | In `usdLaz` |
-| Header and VLR/EVLR reading | In the plugin | In `usdLaz` |
-| Point-data truncation checks | In the plugin | In `usdLaz` |
-| Per-record decode loop | In the plugin | In `usdLaz` |
-| Uses the chunked reader API | No | Yes |
+| Source file access | In `usdlas::LasReader` | In `usdLaz` |
+| Header and VLR/EVLR reading | In `usdlas::LasReader` | In `usdLaz` |
+| Point-data truncation checks | In `usdlas::LasReader` | In `usdLaz` |
+| Per-record decode loop | In `usdlas::LasReader` | In `usdLaz` |
+| Uses the chunked reader API | Yes | Yes |
 | Attribute fan-out into `PointCloudLayer::Data` | In the plugin | In the plugin |
 | `PointChunk` attribute schema | In the plugin | In the plugin |
 | `GeoReference` and bounds construction | In the plugin | In the plugin |
 | Stage creation, metrics, authoring, transfer | In the plugin | In the plugin |
 | `metadataOnly` | Refused | Refused |
 
-`GeoLasFileFormat::Read` is roughly 350 lines. It opens the file itself, reads
-a 375-byte header window, reads the VLR and EVLR byte ranges, performs the
-`pointDataOffset + pointCount * pointRecordLength` overflow check, and runs its
-own per-record `usdlas::DecodePoint` loop.
+`GeoLasFileFormat::Read` now constructs a `usdlas::LasReader`, consumes its
+point chunks, and projects reader diagnostics onto the stable plugin codes.
+It still owns the shared authoring tail described below.
 
 `usdlas::LasReader` already provides exactly that orchestration behind
 `LasReadOptions`, a chunk consumer, and typed diagnostics. It is currently
-called only from `libs/usd-las/tests`. `GeoLazFileFormat::Read` does use
-`usdlaz::LazReader`, so the LAZ side is one step further along.
+called from `geo-las` and its unit tests. `GeoLasFileFormat::Read` now uses it
+the same way that `GeoLazFileFormat::Read` uses `usdlaz::LazReader`, so the LAZ
+side is one step further along only for the shared authoring migration.
 
 Both plugins then duplicate the same tail: per-format `reserve` and `push_back`
 branches into `PointCloudLayer::Data`, `PointChunk` attribute construction,
@@ -117,9 +119,9 @@ call, and the projection of typed diagnostics onto its stable `LASxxx` /
 
 ## Migration
 
-1. Move `geo-las` onto `usdlas::LasReader`, deleting the plugin's file access,
-   metadata reading, truncation checks, and decode loop. The LAZ plugin already
-   shows the shape.
+1. [x] Move `geo-las` onto `usdlas::LasReader`, deleting the plugin's file
+  access, metadata reading, truncation checks, and decode loop. The LAZ plugin
+  already shows the shape.
 2. Move the shared tail into `usdgeo::AuthorPointCloudAsset`: attribute
    fan-out, `PointChunk` construction, `GeoReference` and bounds, stage
    metrics, and layer transfer. Both plugins call it.

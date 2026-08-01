@@ -38,7 +38,7 @@
 - [x] Chunked and range-based reader API
 - [x] Record the OpenUSD 26.08 `usdLod` tile and LOD contract
 - [x] Record the plugin adapter and file-format argument contracts
-- [ ] Move `geo-las` onto `usdlas::LasReader`
+- [x] Move `geo-las` onto `usdlas::LasReader`
 - [ ] Add `usdgeo::AuthorPointCloudAsset` as the shared authoring entry point
 - [ ] Normalize file-format arguments and pass read options through the plugins
 - [ ] Shared LOD contracts (`PointTileId`, `PointLodItem`, `PointLodHierarchy`)
@@ -53,8 +53,8 @@
 
 ## Next Implementation Sequence
 
-1. Thin the plugins: move `geo-las` onto `usdlas::LasReader`, then move the
-   shared authoring tail out of both plugins.
+1. Finish thinning the plugins by moving the shared authoring tail out of both
+   plugins.
 2. Normalize file-format arguments and pass read options through, which makes
    the existing chunked reader reachable from a host.
 3. Verify the `usdLod` schema surface against the pinned OpenUSD 26.08 runtime.
