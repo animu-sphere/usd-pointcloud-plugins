@@ -22,6 +22,24 @@ bool IsSupportedFormat(std::uint8_t format) {
     return format <= 3 || (format >= 6 && format <= 8);
 }
 
+bool IsSupportedFormatForVersion(std::uint8_t versionMinor,
+                                 std::uint8_t format) {
+    return IsSupportedFormat(format) && (format < 6 || versionMinor == 4);
+}
+
+std::size_t MinimumHeaderSize(std::uint8_t versionMinor) {
+    switch (versionMinor) {
+    case 2:
+        return 227;
+    case 3:
+        return 235;
+    case 4:
+        return 375;
+    default:
+        return 0;
+    }
+}
+
 std::size_t MinimumRecordLength(std::uint8_t format) {
     switch (format) {
     case 0:
@@ -78,11 +96,12 @@ bool InspectHeader(const std::vector<std::uint8_t>& bytes,
         error = "unsupported LAS version";
         return false;
     }
-    if (!IsSupportedFormat(header.pointFormat)) {
+    if (!IsSupportedFormatForVersion(header.versionMinor,
+                                     header.pointFormat)) {
         error = "unsupported LAS point format";
         return false;
     }
-    const auto minimumHeaderSize = header.versionMinor == 4 ? 375 : 227;
+    const auto minimumHeaderSize = MinimumHeaderSize(header.versionMinor);
     if (header.headerSize < minimumHeaderSize ||
         header.pointDataOffset < header.headerSize ||
         !Has(bytes, 0, header.headerSize)) {
@@ -129,7 +148,10 @@ bool DecodePoint(const LasHeader& header,
                  std::string& error) {
     point = {};
     error.clear();
-    if (!header.IsValid() || !IsSupportedFormat(header.pointFormat) ||
+    if (!header.IsValid() ||
+        !IsSupportedFormatForVersion(header.versionMinor,
+                                     header.pointFormat) ||
+        header.pointRecordLength < MinimumRecordLength(header.pointFormat) ||
         record.size() < header.pointRecordLength) {
         error = "LAS point record is invalid or truncated";
         return false;

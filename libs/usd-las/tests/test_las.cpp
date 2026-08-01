@@ -20,13 +20,16 @@ void Write(std::vector<std::uint8_t>& bytes, std::size_t offset, T value) {
 
 std::vector<std::uint8_t> MakeHeader(std::uint8_t versionMinor,
                                      std::uint8_t format) {
-    const std::size_t size = versionMinor == 4 ? 375 : 227;
+    const std::size_t size = versionMinor == 4 ? 375
+                              : versionMinor == 3 ? 235
+                                                  : 227;
     std::vector<std::uint8_t> bytes(size, 0);
     std::memcpy(bytes.data(), "LASF", 4);
     Write(bytes, 24, std::uint8_t{1});
     Write(bytes, 25, versionMinor);
-    const auto headerSize = versionMinor == 4 ? std::uint32_t{375}
-                                              : std::uint32_t{227};
+    const auto headerSize = versionMinor == 4   ? std::uint32_t{375}
+                            : versionMinor == 3 ? std::uint32_t{235}
+                                                : std::uint32_t{227};
     Write(bytes, 94, static_cast<std::uint16_t>(headerSize));
     Write(bytes, 96, headerSize);
     Write(bytes, 104, format);
@@ -83,12 +86,19 @@ void TestValidation() {
     std::string error;
     auto unsupported = MakeHeader(2, 5);
     Check(!usdlas::InspectHeader(unsupported, header, error));
+    auto modernOnOldVersion = MakeHeader(2, 6);
+    Check(!usdlas::InspectHeader(modernOnOldVersion, header, error));
+    auto las13 = MakeHeader(3, 0);
+    Check(usdlas::InspectHeader(las13, header, error));
     auto las14 = MakeHeader(4, 6);
     Check(usdlas::InspectHeader(las14, header, error));
     Check(header.pointCount == 1);
     std::vector<std::uint8_t> shortRecord(10);
     usdlas::LasPoint point;
     Check(!usdlas::DecodePoint(header, shortRecord, point, error));
+    header.pointRecordLength = 1;
+    Check(!usdlas::DecodePoint(header, std::vector<std::uint8_t>(1), point,
+                               error));
 }
 
 } // namespace
