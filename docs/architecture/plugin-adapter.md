@@ -122,7 +122,7 @@ call, and the projection of typed diagnostics onto its stable `LASxxx` /
 1. [x] Move `geo-las` onto `usdlas::LasReader`, deleting the plugin's file
   access, metadata reading, truncation checks, and decode loop. The LAZ plugin
   already shows the shape.
-2. Move the shared tail into `usdgeo::AuthorPointCloudAsset`: attribute
+2. [ ] Move the shared tail into `usdgeo::AuthorPointCloudAsset`: attribute
    fan-out, `PointChunk` construction, `GeoReference` and bounds, stage
    metrics, and layer transfer. Both plugins call it.
 3. Normalize file-format arguments in the plugin and pass them to the reader as
