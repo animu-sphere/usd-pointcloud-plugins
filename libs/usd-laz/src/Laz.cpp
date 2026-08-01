@@ -1,5 +1,6 @@
 #include "usdlaz/Laz.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <utility>
@@ -76,7 +77,7 @@ bool LazReader::Read(
         error = "LAZ decoder is not configured";
         return false;
     }
-    if (options.chunkPointLimit == 0 || !consume) {
+    if (!options.IsValid() || !consume) {
         error = "LAZ read options or consumer are invalid";
         return false;
     }
@@ -84,12 +85,38 @@ bool LazReader::Read(
         return false;
     }
 
+    if (options.range.firstPoint > header.pointCount ||
+        (options.range.pointCount != 0 &&
+         options.range.pointCount > header.pointCount -
+                                        options.range.firstPoint)) {
+        error = "LAZ point range is outside the header";
+        return false;
+    }
+
+    const auto rangeEnd = options.range.pointCount == 0
+                              ? header.pointCount
+                              : options.range.firstPoint +
+                                    options.range.pointCount;
+    const auto budgetPointLimit =
+        options.memoryBudgetBytes / sizeof(usdlas::LasPoint);
+    const auto maximumPoints =
+        (std::min)(options.chunkPointLimit, budgetPointLimit);
+    if (maximumPoints == 0) {
+        error = "LAZ memory budget is too small for one point";
+        return false;
+    }
+
     std::uint64_t pointsRead = 0;
+    std::uint64_t selectedPointsRead = 0;
     bool complete = false;
     while (!complete) {
+        if (options.isCancelled && options.isCancelled()) {
+            error = "LAZ read cancelled";
+            return false;
+        }
         std::vector<usdlas::LasPoint> points;
         complete = false;
-        if (!decoder_->ReadChunk(options.chunkPointLimit, points, complete,
+        if (!decoder_->ReadChunk(maximumPoints, points, complete,
                                  error)) {
             return false;
         }
@@ -97,7 +124,7 @@ bool LazReader::Read(
             error = "LAZ decoder returned an empty incomplete chunk";
             return false;
         }
-        if (points.size() > options.chunkPointLimit) {
+        if (points.size() > maximumPoints) {
             error = "LAZ decoder exceeded the requested chunk size";
             return false;
         }
@@ -107,13 +134,27 @@ bool LazReader::Read(
             error = "LAZ decoder returned too many points";
             return false;
         }
+        const auto chunkStart = pointsRead;
         pointsRead += points.size();
-        if (!consume(header, points)) {
-            error = "LAZ chunk consumer rejected a chunk";
-            return false;
+        const auto selectedStart =
+            (std::max)(chunkStart, options.range.firstPoint);
+        const auto selectedEnd = (std::min)(pointsRead, rangeEnd);
+        if (selectedStart < selectedEnd) {
+            const auto first = static_cast<std::size_t>(selectedStart -
+                                                         chunkStart);
+            const auto last = static_cast<std::size_t>(selectedEnd -
+                                                        chunkStart);
+            points.erase(points.begin(), points.begin() + first);
+            points.erase(points.begin() + (last - first), points.end());
+            selectedPointsRead += points.size();
+            if (!consume(header, points)) {
+                error = "LAZ chunk consumer rejected a chunk";
+                return false;
+            }
         }
     }
-    if (pointsRead != header.pointCount) {
+    if (pointsRead != header.pointCount ||
+        selectedPointsRead != rangeEnd - options.range.firstPoint) {
         error = "LAZ decoder point count does not match the header";
         return false;
     }
@@ -131,7 +172,7 @@ bool LazReader::Read(
         AddDiagnostic("LAZ decoder is not configured", diagnostics);
         return false;
     }
-    if (options.chunkPointLimit == 0 || !consume) {
+    if (!options.IsValid() || !consume) {
         AddDiagnostic("LAZ read options or consumer are invalid", diagnostics);
         return false;
     }
@@ -139,12 +180,39 @@ bool LazReader::Read(
         return false;
     }
 
+    if (options.range.firstPoint > header.pointCount ||
+        (options.range.pointCount != 0 &&
+         options.range.pointCount > header.pointCount -
+                                        options.range.firstPoint)) {
+        AddDiagnostic("LAZ point range is outside the header", diagnostics);
+        return false;
+    }
+
+    const auto rangeEnd = options.range.pointCount == 0
+                              ? header.pointCount
+                              : options.range.firstPoint +
+                                    options.range.pointCount;
+    const auto budgetPointLimit =
+        options.memoryBudgetBytes / sizeof(usdlas::LasPoint);
+    const auto maximumPoints =
+        (std::min)(options.chunkPointLimit, budgetPointLimit);
+    if (maximumPoints == 0) {
+        AddDiagnostic("LAZ memory budget is too small for one point",
+                      diagnostics);
+        return false;
+    }
+
     std::uint64_t pointsRead = 0;
+    std::uint64_t selectedPointsRead = 0;
     bool complete = false;
     while (!complete) {
+        if (options.isCancelled && options.isCancelled()) {
+            AddDiagnostic("LAZ read cancelled", pointsRead, diagnostics);
+            return false;
+        }
         std::vector<usdlas::LasPoint> points;
         complete = false;
-        if (!decoder_->ReadChunk(options.chunkPointLimit, points, complete,
+        if (!decoder_->ReadChunk(maximumPoints, points, complete,
                                  diagnostics)) {
             if (diagnostics.empty()) {
                 AddDiagnostic("LAZ decoder failed", pointsRead, diagnostics);
@@ -156,7 +224,7 @@ bool LazReader::Read(
                           pointsRead, diagnostics);
             return false;
         }
-        if (points.size() > options.chunkPointLimit) {
+        if (points.size() > maximumPoints) {
             AddDiagnostic("LAZ decoder exceeded the requested chunk size",
                           pointsRead, diagnostics);
             return false;
@@ -168,14 +236,28 @@ bool LazReader::Read(
                           diagnostics);
             return false;
         }
+        const auto chunkStart = pointsRead;
         pointsRead += points.size();
-        if (!consume(header, points)) {
-            AddDiagnostic("LAZ chunk consumer rejected a chunk", pointsRead,
-                          diagnostics);
-            return false;
+        const auto selectedStart =
+            (std::max)(chunkStart, options.range.firstPoint);
+        const auto selectedEnd = (std::min)(pointsRead, rangeEnd);
+        if (selectedStart < selectedEnd) {
+            const auto first = static_cast<std::size_t>(selectedStart -
+                                                         chunkStart);
+            const auto last = static_cast<std::size_t>(selectedEnd -
+                                                        chunkStart);
+            points.erase(points.begin(), points.begin() + first);
+            points.erase(points.begin() + (last - first), points.end());
+            selectedPointsRead += points.size();
+            if (!consume(header, points)) {
+                AddDiagnostic("LAZ chunk consumer rejected a chunk",
+                              pointsRead, diagnostics);
+                return false;
+            }
         }
     }
-    if (pointsRead != header.pointCount) {
+    if (pointsRead != header.pointCount ||
+        selectedPointsRead != rangeEnd - options.range.firstPoint) {
         AddDiagnostic("LAZ decoder point count does not match the header",
                       pointsRead, diagnostics);
         return false;

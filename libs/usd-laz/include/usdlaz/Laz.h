@@ -1,5 +1,6 @@
 #pragma once
 
+#include "usdpointcloud/PointCloud.h"
 #include "usdlas/Las.h"
 
 #include <cstddef>
@@ -35,9 +36,7 @@ std::unique_ptr<LazDecoder> CreateFileDecoder(
     const std::string& filename,
     std::vector<usdgeo::Diagnostic>& diagnostics);
 
-struct LazReadOptions {
-    std::size_t chunkPointLimit = 65536;
-};
+using LazReadOptions = usdpointcloud::PointReadOptions;
 
 class LazReader {
 public:

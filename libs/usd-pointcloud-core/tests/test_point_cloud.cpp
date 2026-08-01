@@ -1,6 +1,7 @@
 #include "usdpointcloud/PointCloud.h"
 
 #include <cstdlib>
+#include <limits>
 
 namespace {
 
@@ -41,10 +42,24 @@ void TestInvalidChunk() {
     Check(!chunk.IsValid());
 }
 
+void TestReadOptions() {
+    usdpointcloud::PointReadOptions options;
+    Check(options.IsValid());
+
+    options.range = {4, 3};
+    Check(options.IsValid());
+    options.range = {(std::numeric_limits<std::uint64_t>::max)(), 2};
+    Check(!options.IsValid());
+    options.range = {};
+    options.memoryBudgetBytes = 0;
+    Check(!options.IsValid());
+}
+
 } // namespace
 
 int main() {
     TestAttributesAndChunks();
     TestInvalidChunk();
+    TestReadOptions();
     return 0;
 }

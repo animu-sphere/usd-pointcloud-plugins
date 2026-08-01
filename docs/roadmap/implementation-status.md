@@ -35,18 +35,17 @@
 - [ ] Extra Bytes descriptors and generic point attributes
 - [x] Remaining LAS 1.4 point attributes, including NIR
 - [x] Waveform contract and LAS point formats 4, 5, 9, and 10
-- [ ] Chunked and range-based reader API
+- [x] Chunked and range-based reader API
 - [ ] Tile / LOD
 - [ ] USDC cache
 
 ## Next Implementation Sequence
 
-1. Add the chunked and range-based reader API with a memory budget and
-   cancellation.
-2. Define the shared tile / LOD contracts.
+1. Define the shared tile / LOD contracts.
 
-The chunked reader API stabilizes the shared point schema and streaming path
-before tile / LOD work begins.
+The shared reader API stabilizes the point schema and streaming path before
+tile / LOD work begins. Its current contract is documented in
+[point reader architecture](../architecture/point-reader.md).
 
 The LAS conformance fixture and FileFormat Plugin integration gate passed
 before LAZ integration. The LAZ reader now uses the same point-cloud authoring

@@ -151,8 +151,8 @@ axis is `Z` and the stage up axis is `Y`, so
 - Waveform sample data is not fetched or interpreted; packet offsets, sizes,
   parameters, external-data flag, and sibling `.wdp` reference are retained
   for deferred loading.
-- Errors are string messages carrying a stable `LASxxx` or `LAZxxx` prefix; a
-  typed diagnostics API is planned. See
+- Reader errors expose shared typed diagnostics and remain projected to stable
+  `LASxxx` or `LAZxxx` plugin prefixes. See
   [diagnostics](architecture/diagnostics.md).
 - Tile/LOD streaming and the USDC cache are not implemented.
 - Writing LAS or LAZ is out of scope; both plugins export as `usda`.

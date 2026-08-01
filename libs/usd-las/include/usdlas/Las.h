@@ -2,8 +2,10 @@
 
 #include "usdgeo/Diagnostic.h"
 #include "usdgeo/SpatialBounds.h"
+#include "usdpointcloud/PointCloud.h"
 
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -105,6 +107,27 @@ struct LasPoint {
     bool hasColor = false;
     bool hasGpsTime = false;
     bool hasWaveform = false;
+};
+
+using LasReadOptions = usdpointcloud::PointReadOptions;
+using LasPointChunkConsumer =
+    std::function<bool(const LasHeader&, const std::vector<LasPoint>&)>;
+
+class LasReader {
+public:
+    explicit LasReader(std::string filename);
+
+    bool Read(const LasReadOptions& options,
+              const LasPointChunkConsumer& consume,
+              LasHeader& header,
+              std::string& error);
+    bool Read(const LasReadOptions& options,
+              const LasPointChunkConsumer& consume,
+              LasHeader& header,
+              std::vector<usdgeo::Diagnostic>& diagnostics);
+
+private:
+    std::string filename_;
 };
 
 bool InspectHeader(const std::vector<std::uint8_t>& bytes,
