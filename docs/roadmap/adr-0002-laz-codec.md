@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted for the first LAZ reader implementation.
+Accepted for the first LAZ reader implementation and shipped in v0.1.0.
 
 ## Decision
 

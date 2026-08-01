@@ -13,7 +13,12 @@ Provide the minimum geospatial model shared by point clouds, terrain, and vector
 5. Add normalized cache keys
 6. Add format-independent point-cloud attribute and chunk contracts in `usdPointCloudCore`
 7. Add OpenUSD metadata, API Schema, and common authoring in `usdGeoUsd`
-8. Add cache lookup and USDC tile-layout contracts in `usdGeoCache`
+8. Add shared typed diagnostic value types in `usdGeoCore`
+9. Add cache lookup and USDC tile-layout contracts in `usdGeoCache`
+
+Steps 1 through 7 shipped in v0.1.0, except the API Schema, which stays
+deferred until the tile and LOD representation is settled. Steps 8 and 9 are
+open; see the [diagnostics contract](../architecture/diagnostics.md).
 
 ## Contracts
 
@@ -24,6 +29,8 @@ Provide the minimum geospatial model shared by point clouds, terrain, and vector
 - Do not expose external-library types in the public API.
 - Keep `usdGeoCore` independent of OpenUSD and format libraries.
 - Keep readers independent of `usdGeoUsd`; plugin adapters compose both sides.
+- Report failures as typed diagnostics with stable codes; do not throw across a
+  reader API boundary.
 
 ## Tests
 
@@ -35,6 +42,7 @@ Provide the minimum geospatial model shared by point clouds, terrain, and vector
 - Point-attribute validation without an OpenUSD runtime
 - Equivalent metadata authored through `usdGeoUsd` and reconstructed from a stage
 - Stable cache keys for equivalent normalized file-format arguments
+- Typed diagnostics carrying stable codes, severity, and byte or point anchors
 
 ## Exit Criteria
 

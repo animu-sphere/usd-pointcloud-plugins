@@ -17,16 +17,33 @@ Priority is determined by:
 
 | Order | Format | Initial scope | Why this position | Entry gate |
 | --- | --- | --- | --- | --- |
-| 1 | LAS | LAS 1.2-1.4 headers, common point formats, VLR/EVLR, XYZ, intensity, returns, classification, RGB, GPS time, CRS | Uncompressed records expose the complete coordinate and point-attribute model without codec complexity | `usdGeoCore`, `usdPointCloudCore`, and a minimal `usdGeoUsd` writer are tested |
+| 1 | LAS | LAS 1.2-1.4 headers, point formats 0-3 and 6-8, VLR/EVLR, XYZ, intensity, returns, classification, RGB, GPS time, CRS; then the full LAS 1.4 attribute set, Extra Bytes, and formats 4, 5, 9, 10 | Uncompressed records expose the complete coordinate and point-attribute model without codec complexity | `usdGeoCore`, `usdPointCloudCore`, and a minimal `usdGeoUsd` writer are tested |
 | 2 | LAZ | The LAS logical model with chunked decompression and the same file-format arguments | Delivers the common production format while reusing LAS semantics | LAS conformance corpus passes and the codec decision is recorded |
 | 3 | COPC | Read existing hierarchy, bounds, chunks, and LOD metadata; no writer initially | Validates native spatial hierarchy and partial loading before inventing a repository-specific point-cloud container | Stable LAZ chunk reading and tile contracts exist |
-| 4 | GeoTIFF | Elevation bands, CRS, geotransform, NoData, bounds, and mesh or heightfield output | First non-point-cloud format validates that `usdGeoCore` is genuinely shared | CRS and local-origin contracts work across independently authored datasets |
-| 5 | COG | GeoTIFF semantics plus overview and range-based tile access | Reuses GeoTIFF interpretation and validates remote/partial raster loading | GeoTIFF correctness is stable and tile-provider APIs exist |
-| 6 | GeoJSON | Point, LineString, Polygon, Multi* geometries, feature properties, CRS policy, deterministic prim naming | Small fixtures and simple parsing make it the best first vector format | `usdVectorCore` geometry and property contracts are tested |
-| 7 | FlatGeobuf | Indexed feature reads and large vector datasets | Extends the GeoJSON model with spatial indexing and partial reads | GeoJSON mapping and vector tiling contracts are stable |
-| 8 | E57 | Multiple scans, sensor poses, timestamps, common point attributes, optional images later | High-value but semantically different from LAS; requires a dedicated reader and scan model | Point-cloud contracts support multiple scans without LAS-specific assumptions |
-| 9 | GeoPackage | Read-only, selected feature tables and metadata | Useful interoperability format, but database and layer-selection semantics broaden the dependency surface | Vector layer selection and SQLite dependency policy are settled |
-| 10 | Shapefile | Read-only compatibility for common geometry and DBF attributes | Legacy value does not justify preceding indexed or self-describing vector formats | Encoding, sidecar, and missing-file policies are defined |
+| 4 | PLY | Binary and ASCII vertex elements, arbitrary per-vertex properties, XYZ, normals, RGB, intensity; CRS and units from file-format arguments; face elements deferred | Smallest self-describing point container; proves the generic attribute mapping is not LAS-specific | Generic point attributes and deterministic primvar naming are stable |
+| 5 | XYZ / PTS / CSV | Delimiter and column mapping, optional header line, unit and CRS arguments, line-anchored diagnostics, bounded streaming | Exercises normalized file-format arguments and cache keys harder than any binary format, and is ubiquitous in survey exchange | File-format argument normalization, cache-key inputs, and the streaming reader API exist |
+| 6 | E57 | Multiple `Data3D` scans, per-scan pose, cartesian and spherical coordinates, intensity, RGB, timestamps, per-scan bounds; `Image2D` deferred | High-value survey format whose multi-scan model is a real contract extension rather than another LAS variant | Point-cloud contracts carry multiple scans and per-scan transforms without LAS-specific assumptions |
+| 7 | GeoTIFF / DEM | Elevation bands, CRS, geotransform, NoData, bounds, and mesh or heightfield output | First non-point-cloud format validates that `usdGeoCore` is genuinely shared | CRS and local-origin contracts work across independently authored datasets |
+| 8 | COG | GeoTIFF semantics plus overview and range-based tile access | Reuses GeoTIFF interpretation and validates remote/partial raster loading | GeoTIFF correctness is stable and tile-provider APIs exist |
+| 9 | GeoJSON | Point, LineString, Polygon, Multi* geometries, feature properties, CRS policy, deterministic prim naming | Small fixtures and simple parsing make it the best first vector format | `usdVectorCore` geometry and property contracts are tested |
+| 10 | FlatGeobuf | Indexed feature reads and large vector datasets | Extends the GeoJSON model with spatial indexing and partial reads | GeoJSON mapping and vector tiling contracts are stable |
+| 11 | GeoPackage | Read-only, selected feature tables and metadata | Useful interoperability format, but database and layer-selection semantics broaden the dependency surface | Vector layer selection and SQLite dependency policy are settled |
+| 12 | Shapefile | Read-only compatibility for common geometry and DBF attributes | Legacy value does not justify preceding indexed or self-describing vector formats | Encoding, sidecar, and missing-file policies are defined |
+
+Orders 1 through 6 keep the point-cloud family contiguous, so the shared point
+schema evolves once instead of being revisited after unrelated work. Each step
+feeds the next: Extra Bytes produces the generic attribute model that PLY
+needs, PLY forces deterministic primvar naming, ASCII forces the file-format
+argument contract, and E57 then extends the model to multiple scans.
+
+Formats without embedded georeferencing (PLY, XYZ, PTS, CSV, and some E57
+files) never guess a CRS or unit. Missing georeferencing is reported as a
+diagnostic and can only be supplied explicitly through file-format arguments.
+
+"DEM" here means elevation delivered as GeoTIFF. Other DEM containers, such as
+ESRI ASCII Grid, USGS DEM, and national XML grid formats, are evaluated
+separately once the raster and terrain contracts are stable; they are not
+implied by the GeoTIFF entry.
 
 ## Delivery Stages Per Format
 
@@ -64,9 +81,34 @@ A later stage must not delay a correct implementation of an earlier stage. Write
 - Provide two or three deterministic nested LOD levels.
 - Connect tile representations to the verified OpenUSD 26.08 LOD mechanism.
 
+COPC-specific structures stay out of `usd-laz`. They live either in a separate
+`usd-copc` library or in an isolated COPC module inside `usd-laz`, and their
+hierarchy, octree keys, byte ranges, and resolution map onto the shared tile
+contract.
+
+### Milestone D: Generic Point Containers
+
+- Open `.ply` and delimited text point files through the same reader and
+  authoring path as LAS.
+- Map arbitrary per-vertex or per-column properties onto the generic point
+  attribute model, with deterministic primvar names.
+- Require explicit CRS, unit, and column arguments instead of guessing, and
+  report their absence as a diagnostic.
+- Keep parse failures anchored to a byte offset or a line number.
+
+### Milestone E: Multi-Scan Point Clouds
+
+- Read an E57 file containing several `Data3D` scans in one pass.
+- Represent per-scan pose, bounds, and attribute availability through the
+  shared point-cloud contracts, without LAS-specific assumptions.
+- Author scans as separate prims under a shared georeferenced parent, so a
+  single scan can be loaded independently.
+- Convert spherical coordinates and per-scan transforms with the same
+  precision budget as LAS.
+
 ## Terrain Milestone
 
-GeoTIFF and COG are complete for the first terrain milestone when elevation data and LAS / LAZ point clouds can be placed in one stage through the same CRS, unit, and local-origin contracts. Differences in horizontal CRS, vertical reference, units, and NoData handling must be visible diagnostics.
+GeoTIFF, DEM, and COG are complete for the first terrain milestone when elevation data and LAS / LAZ point clouds can be placed in one stage through the same CRS, unit, and local-origin contracts. Differences in horizontal CRS, vertical reference, units, and NoData handling must be visible diagnostics.
 
 ## Vector Milestone
 
@@ -77,7 +119,8 @@ GeoJSON and FlatGeobuf are complete for the first vector milestone when equivale
 The following remain deferred until a concrete workflow and ownership boundary are established:
 
 - Full LAS / LAZ write-back and round-trip guarantees
-- Waveform packet interpretation
+- Waveform sample data interpretation beyond packet metadata and external
+  packet references
 - E57 image extraction and advanced scan reconstruction
 - Arbitrary raster imagery and multidimensional GDAL datasets
 - Full GeoPackage raster support

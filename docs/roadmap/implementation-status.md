@@ -23,11 +23,40 @@
 - [x] Select laz-perf as the initial LAZ codec and define the chunk reader contract
 - [x] Add the laz-perf adapter behind the `usdLaz` chunk reader contract
 - [x] Add the LAZ reader conformance fixture and FileFormat Plugin integration
+- [x] Record the standing development policy
+- [x] Document the exact point format, attribute, VLR, and CRS support matrix
+- [x] Document known limitations and plugin usage in the README
+- [x] Document the typed diagnostics contract and its migration
+- [x] Document LGPL-compliant binary distribution and OpenUSD compatibility
+- [ ] Endian-safe binary decoding
+- [ ] Typed diagnostics in `usdGeoCore`
+- [ ] GeoTIFF CRS VLR parsing
+- [ ] Extra Bytes descriptors and generic point attributes
+- [ ] Remaining LAS 1.4 point attributes, including NIR
+- [ ] Waveform contract and point formats 4, 5, 9, and 10
+- [ ] Chunked and range-based reader API
 - [ ] Tile / LOD
 - [ ] USDC cache
 
 ## Next Implementation Sequence
 
-1. Define the shared tile / LOD contracts.
+1. Introduce endian-safe decoding in the LAS binary reader.
+2. Add the shared typed diagnostic value types to `usdGeoCore` and return them
+   from `usdLas`.
+3. Add GeoTIFF CRS VLR parsing and Extra Bytes descriptor parsing.
+4. Complete the LAS 1.4 attribute set, including NIR for point format 8.
+5. Define the waveform contract, then add point formats 4, 5, 9, and 10.
+6. Add the chunked and range-based reader API with a memory budget and
+   cancellation.
+7. Define the shared tile / LOD contracts.
 
-The LAS conformance fixture and FileFormat Plugin integration gate passed before LAZ integration. The LAZ reader now uses the same point-cloud authoring path and validates chunked decoder output through a FileFormat Plugin integration fixture.
+Steps 1 through 6 stabilize the shared point schema and the streaming reader
+API. Both the remaining point formats and the tile / LOD work depend on them,
+so neither runs ahead of those contracts.
+
+The LAS conformance fixture and FileFormat Plugin integration gate passed
+before LAZ integration. The LAZ reader now uses the same point-cloud authoring
+path and validates chunked decoder output through a FileFormat Plugin
+integration fixture. Documented support is tracked in
+[supported formats](../supported-formats.md), which is updated in the same
+change as any decoder that widens it.

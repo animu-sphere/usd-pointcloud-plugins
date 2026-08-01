@@ -1,7 +1,8 @@
-# ADR 0001: Coordinate Model
+# ADR-0001: Coordinate Model
 
-- Status: accepted
-- Scope: Phase 1
+## Status
+
+Accepted for Phase 1 and implemented in `usdGeoCore`.
 
 ## Decision
 
