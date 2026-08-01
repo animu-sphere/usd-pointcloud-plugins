@@ -14,9 +14,11 @@ contains:
   validation contracts.
 - `usdGeoUsd`: `UsdGeomPoints` authoring with CRS, local-origin, bounds, and
   point-count metadata.
+- `usdLas`: LAS 1.2-1.4 header inspection and uncompressed point-record
+  decoding.
 
-The next planned milestone is LAS metadata inspection and uncompressed point
-record decoding. See [implementation status](docs/roadmap/implementation-status.md)
+The next planned milestone is composing `usdLas` and `usdGeoUsd` in the
+OpenUSD FileFormat Plugin PoC. See [implementation status](docs/roadmap/implementation-status.md)
 and the [roadmap](docs/roadmap/README.md) for the full sequence.
 
 ## Requirements
