@@ -67,13 +67,13 @@ length is accepted, but the trailing bytes are not interpreted.
 | Point source ID | all | Not implemented | - |
 | NIR | 8 | Not implemented | - |
 | Waveform metadata | 4, 5, 9, 10 | Not implemented | - |
-| Extra Bytes | all | Not implemented | Raw VLR data only |
+| Extra Bytes | all | Descriptor metadata supported | Raw VLR and typed descriptor metadata retained; point attributes are not decoded yet |
 
 Positions are decoded as `double` in source coordinates using the header scale
 and offset, then translated by the local origin and converted to the stage up
-axis before being written as `float3`. Extra Bytes appended to a point record
-are preserved in neither the point schema nor primvars yet; only the Extra
-Bytes VLR itself is retained as raw record data.
+axis before being written as `float3`. Extra Bytes descriptors are parsed and
+retained, but their appended point-record values are not decoded into the
+generic point schema or primvars yet.
 
 ## VLR and EVLR
 
@@ -82,8 +82,8 @@ Bytes VLR itself is retained as raw record data.
 | Any VLR | Read only | User ID, record ID, description, raw payload retained |
 | Any EVLR (LAS 1.4) | Read only | Same fields, 64-bit length |
 | `LASF_Projection` 2112 (WKT) | Supported | Extracted into `geo:wkt` |
-| `LASF_Projection` 34735-34737 (GeoTIFF) | Read only | Keys are not parsed |
-| `LASF_Spec` 4 (Extra Bytes) | Read only | Descriptors are not parsed |
+| `LASF_Projection` 34735-34737 (GeoTIFF) | Supported | Key directory, double parameters, and ASCII parameters are parsed |
+| `LASF_Spec` 4 (Extra Bytes) | Supported | Descriptor type, options, name, limits, scale, offset, and description are parsed |
 | Waveform packet descriptors | Read only | Not interpreted |
 
 ## CRS
@@ -91,8 +91,8 @@ Bytes VLR itself is retained as raw record data.
 | Source | Status |
 | --- | --- |
 | WKT VLR / EVLR | Supported |
-| GeoTIFF `KeyDirectoryTag` | Not implemented |
-| `GeoDoubleParamsTag` / `GeoAsciiParamsTag` | Not implemented |
+| GeoTIFF `KeyDirectoryTag` | Parsed | Structured key directory is retained on the LAS header |
+| `GeoDoubleParamsTag` / `GeoAsciiParamsTag` | Parsed | Structured parameter arrays and text are retained on the LAS header |
 | EPSG inference | Not implemented |
 | Conflicting CRS detection | Not implemented |
 

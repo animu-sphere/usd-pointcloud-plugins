@@ -156,7 +156,16 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
             return false;
         }
     }
-    header.crsWkt = usdlas::ExtractWktCrs(header.variableLengthRecords);
+    if (!usdlas::ParseKnownMetadata(header.variableLengthRecords, header,
+                                    diagnostics)) {
+        TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                  geolas::diagnostics::VlrInvalid,
+                                  "Unable to parse known LAS metadata " +
+                                      resolvedPath + ": " +
+                                      DiagnosticDetail(diagnostics, "metadata is invalid"))
+                                  .c_str());
+        return false;
+    }
 
     const auto recordLength = static_cast<std::size_t>(header.pointRecordLength);
     const auto pointOffset = static_cast<std::size_t>(header.pointDataOffset);

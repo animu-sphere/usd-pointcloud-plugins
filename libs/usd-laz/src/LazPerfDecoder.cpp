@@ -38,6 +38,13 @@ usdgeo::DiagnosticCode CodeForError(const std::string& error) {
     if (error == "LAS variable-length record data is truncated") {
         return usdgeo::DiagnosticCode::TruncatedRecord;
     }
+    if (error == "LAS GeoTIFF key directory is truncated" ||
+        error == "LAS GeoTIFF double parameters are truncated") {
+        return usdgeo::DiagnosticCode::InvalidCrs;
+    }
+    if (error == "LAS Extra Bytes VLR has an invalid length") {
+        return usdgeo::DiagnosticCode::InvalidRecordLength;
+    }
     if (error == "decoded LAS point contains a non-finite coordinate") {
         return usdgeo::DiagnosticCode::NonFiniteCoordinate;
     }
@@ -258,7 +265,10 @@ std::unique_ptr<LazDecoder> CreateFileDecoder(const std::string& filename,
                                  header.variableLengthRecords, error)) {
             return nullptr;
         }
-        header.crsWkt = usdlas::ExtractWktCrs(header.variableLengthRecords);
+        if (!usdlas::ParseKnownMetadata(header.variableLengthRecords, header,
+                                         error)) {
+            return nullptr;
+        }
         auto decoder = std::make_unique<LazPerfDecoder>(std::move(file));
         decoder->header_ = std::move(header);
         return decoder;

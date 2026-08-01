@@ -167,6 +167,70 @@ void TestVariableLengthRecords() {
                                   diagnostics));
     Check(diagnostics.size() == 1 && diagnostics.front().byteOffset.has_value() &&
           diagnostics.front().byteOffset.value() == 227);
+
+        auto structuredBytes = MakeHeader(2, 0);
+        auto appendRecord = [&](const char* userId,
+                        std::uint16_t recordId,
+                        const std::vector<std::uint8_t>& data) {
+          const auto offset = structuredBytes.size();
+          structuredBytes.resize(offset + 54 + data.size());
+          std::memcpy(structuredBytes.data() + offset + 2, userId,
+                  std::strlen(userId));
+          Write(structuredBytes, offset + 18, recordId);
+          Write(structuredBytes, offset + 20,
+              static_cast<std::uint16_t>(data.size()));
+          std::copy(data.begin(), data.end(), structuredBytes.begin() + offset + 54);
+        };
+
+        std::vector<std::uint8_t> keyDirectory(24, 0);
+        Write(keyDirectory, 0, std::uint16_t{1});
+        Write(keyDirectory, 2, std::uint16_t{1});
+        Write(keyDirectory, 6, std::uint16_t{2});
+        Write(keyDirectory, 8, std::uint16_t{2048});
+        Write(keyDirectory, 12, std::uint16_t{1});
+        Write(keyDirectory, 14, std::uint16_t{4326});
+        Write(keyDirectory, 16, std::uint16_t{3072});
+        Write(keyDirectory, 20, std::uint16_t{1});
+        Write(keyDirectory, 22, std::uint16_t{32610});
+        appendRecord("LASF_Projection", 34735, keyDirectory);
+
+        std::vector<std::uint8_t> doubleParameters(2 * sizeof(double));
+        Write(doubleParameters, 0, 0.01);
+        Write(doubleParameters, sizeof(double), 1000.0);
+        appendRecord("LASF_Projection", 34736, doubleParameters);
+
+        const std::string asciiParameters = "WGS 84|UTM zone 10 N|";
+        appendRecord("LASF_Projection", 34737,
+                 std::vector<std::uint8_t>(asciiParameters.begin(),
+                                 asciiParameters.end()));
+
+        std::vector<std::uint8_t> extraBytes(192, 0);
+        Write(extraBytes, 2, std::uint8_t{9});
+        std::memcpy(extraBytes.data() + 4, "temperature", 11);
+        Write(extraBytes, 40, -9999.0);
+        Write(extraBytes, 64, -50.0);
+        Write(extraBytes, 88, 100.0);
+        Write(extraBytes, 112, 0.01);
+        Write(extraBytes, 136, 100.0);
+        std::memcpy(extraBytes.data() + 160, "scaled temperature", 18);
+        appendRecord("LASF_Spec", 4, extraBytes);
+        Write(structuredBytes, 100, std::uint32_t{4});
+        Write(structuredBytes, 96, static_cast<std::uint32_t>(structuredBytes.size()));
+
+        Check(usdlas::InspectMetadata(structuredBytes, header, error));
+        Check(header.geoTiffMetadata.has_value());
+        Check(header.geoTiffMetadata->keys.size() == 2 &&
+            header.geoTiffMetadata->keys[0].keyId == 2048 &&
+            header.geoTiffMetadata->keys[1].valueOffset == 32610);
+        Check(header.geoTiffMetadata->doubleParameters.size() == 2 &&
+            header.geoTiffMetadata->doubleParameters[1] == 1000.0 &&
+            header.geoTiffMetadata->asciiParameters == "WGS 84|UTM zone 10 N|");
+        Check(header.extraBytes.size() == 1 &&
+            header.extraBytes.front().dataType == 9 &&
+            header.extraBytes.front().name == "temperature" &&
+            header.extraBytes.front().scale.x == 0.01 &&
+            header.extraBytes.front().offset.x == 100.0 &&
+            header.extraBytes.front().description == "scaled temperature");
 }
 
 } // namespace

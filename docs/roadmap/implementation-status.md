@@ -31,7 +31,7 @@
 - [x] Endian-safe binary decoding
 - [x] Add typed diagnostics to `usdGeoCore` and LAS / LAZ reader APIs
 - [x] Move the LAS / LAZ FileFormat Plugins onto the typed diagnostics path
-- [ ] GeoTIFF CRS VLR parsing
+- [x] GeoTIFF CRS VLR parsing (structured VLR metadata)
 - [ ] Extra Bytes descriptors and generic point attributes
 - [ ] Remaining LAS 1.4 point attributes, including NIR
 - [ ] Waveform contract and point formats 4, 5, 9, and 10

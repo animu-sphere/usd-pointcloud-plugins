@@ -65,6 +65,13 @@ usdgeo::DiagnosticCode CodeForError(const std::string& error) {
     if (error == "LAS variable-length record data is truncated") {
         return usdgeo::DiagnosticCode::TruncatedRecord;
     }
+    if (error == "LAS GeoTIFF key directory is truncated" ||
+        error == "LAS GeoTIFF double parameters are truncated") {
+        return usdgeo::DiagnosticCode::InvalidCrs;
+    }
+    if (error == "LAS Extra Bytes VLR has an invalid length") {
+        return usdgeo::DiagnosticCode::InvalidRecordLength;
+    }
     if (error == "decoded LAS point contains a non-finite coordinate") {
         return usdgeo::DiagnosticCode::NonFiniteCoordinate;
     }
@@ -118,6 +125,135 @@ std::string ReadText(const std::vector<std::uint8_t>& bytes,
                                bytes.begin() + offset + size, std::uint8_t{0});
     return std::string(reinterpret_cast<const char*>(bytes.data() + offset),
                        static_cast<std::size_t>(end - (bytes.begin() + offset)));
+}
+
+constexpr std::size_t kExtraBytesDescriptorSize = 192;
+
+bool IsProjectionRecord(const usdlas::LasVariableLengthRecord& record,
+                        std::uint16_t recordId) {
+    return record.userId == "LASF_Projection" && record.recordId == recordId;
+}
+
+bool IsExtraBytesRecord(const usdlas::LasVariableLengthRecord& record) {
+    return record.userId == "LASF_Spec" && record.recordId == 4;
+}
+
+bool ParseGeoTiffRecords(
+    const std::vector<usdlas::LasVariableLengthRecord>& records,
+    std::optional<usdlas::LasGeoTiffMetadata>& metadata,
+    std::string& error) {
+    const usdlas::LasVariableLengthRecord* keyDirectory = nullptr;
+    const usdlas::LasVariableLengthRecord* doubleParameters = nullptr;
+    const usdlas::LasVariableLengthRecord* asciiParameters = nullptr;
+    for (const auto& record : records) {
+        if (IsProjectionRecord(record, 34735) && keyDirectory == nullptr) {
+            keyDirectory = &record;
+        } else if (IsProjectionRecord(record, 34736) &&
+                   doubleParameters == nullptr) {
+            doubleParameters = &record;
+        } else if (IsProjectionRecord(record, 34737) &&
+                   asciiParameters == nullptr) {
+            asciiParameters = &record;
+        }
+    }
+    if (keyDirectory == nullptr && doubleParameters == nullptr &&
+        asciiParameters == nullptr) {
+        metadata.reset();
+        return true;
+    }
+
+    usdlas::LasGeoTiffMetadata parsed;
+    if (keyDirectory != nullptr) {
+        const auto& data = keyDirectory->data;
+        if (data.size() < 8) {
+            error = "LAS GeoTIFF key directory is truncated";
+            return false;
+        }
+        const auto keyCount = ReadLittle<std::uint16_t>(data, 6);
+        const auto expectedSize = std::size_t{8} +
+                                  static_cast<std::size_t>(keyCount) * 8;
+        if (data.size() != expectedSize) {
+            error = "LAS GeoTIFF key directory is truncated";
+            return false;
+        }
+        parsed.keyDirectoryVersion = ReadLittle<std::uint16_t>(data, 0);
+        parsed.keyRevision = ReadLittle<std::uint16_t>(data, 2);
+        parsed.minorRevision = ReadLittle<std::uint16_t>(data, 4);
+        parsed.keys.reserve(keyCount);
+        for (std::uint16_t index = 0; index < keyCount; ++index) {
+            const auto offset = std::size_t{8} +
+                                static_cast<std::size_t>(index) * 8;
+            parsed.keys.push_back({ReadLittle<std::uint16_t>(data, offset),
+                                   ReadLittle<std::uint16_t>(data, offset + 2),
+                                   ReadLittle<std::uint16_t>(data, offset + 4),
+                                   ReadLittle<std::uint16_t>(data, offset + 6)});
+        }
+    }
+    if (doubleParameters != nullptr) {
+        const auto& data = doubleParameters->data;
+        if (data.size() % sizeof(double) != 0) {
+            error = "LAS GeoTIFF double parameters are truncated";
+            return false;
+        }
+        parsed.doubleParameters.reserve(data.size() / sizeof(double));
+        for (std::size_t offset = 0; offset < data.size();
+             offset += sizeof(double)) {
+            parsed.doubleParameters.push_back(ReadLittle<double>(data, offset));
+        }
+    }
+    if (asciiParameters != nullptr) {
+        parsed.asciiParameters.assign(
+            reinterpret_cast<const char*>(asciiParameters->data.data()),
+            asciiParameters->data.size());
+        while (!parsed.asciiParameters.empty() &&
+               parsed.asciiParameters.back() == '\0') {
+            parsed.asciiParameters.pop_back();
+        }
+    }
+    metadata = std::move(parsed);
+    return true;
+}
+
+bool ParseExtraBytesRecords(
+    const std::vector<usdlas::LasVariableLengthRecord>& records,
+    std::vector<usdlas::LasExtraBytesDescriptor>& descriptors,
+    std::string& error) {
+    descriptors.clear();
+    for (const auto& record : records) {
+        if (!IsExtraBytesRecord(record)) {
+            continue;
+        }
+        if (record.data.size() % kExtraBytesDescriptorSize != 0) {
+            error = "LAS Extra Bytes VLR has an invalid length";
+            return false;
+        }
+        for (std::size_t offset = 0; offset < record.data.size();
+             offset += kExtraBytesDescriptorSize) {
+            const auto& data = record.data;
+            usdlas::LasExtraBytesDescriptor descriptor;
+            descriptor.dataType = ReadLittle<std::uint8_t>(data, offset + 2);
+            descriptor.options = ReadLittle<std::uint8_t>(data, offset + 3);
+            descriptor.name = ReadText(data, offset + 4, 32);
+            descriptor.noData = {ReadLittle<double>(data, offset + 40),
+                                 ReadLittle<double>(data, offset + 48),
+                                 ReadLittle<double>(data, offset + 56)};
+            descriptor.minimum = {ReadLittle<double>(data, offset + 64),
+                                  ReadLittle<double>(data, offset + 72),
+                                  ReadLittle<double>(data, offset + 80)};
+            descriptor.maximum = {ReadLittle<double>(data, offset + 88),
+                                  ReadLittle<double>(data, offset + 96),
+                                  ReadLittle<double>(data, offset + 104)};
+            descriptor.scale = {ReadLittle<double>(data, offset + 112),
+                                ReadLittle<double>(data, offset + 120),
+                                ReadLittle<double>(data, offset + 128)};
+            descriptor.offset = {ReadLittle<double>(data, offset + 136),
+                                 ReadLittle<double>(data, offset + 144),
+                                 ReadLittle<double>(data, offset + 152)};
+            descriptor.description = ReadText(data, offset + 160, 32);
+            descriptors.push_back(std::move(descriptor));
+        }
+    }
+    return true;
 }
 
 bool ReadRecords(const std::vector<std::uint8_t>& bytes,
@@ -263,8 +399,7 @@ bool InspectMetadata(const std::vector<std::uint8_t>& bytes,
             return false;
         }
     }
-    header.crsWkt = ExtractWktCrs(header.variableLengthRecords);
-    return true;
+    return ParseKnownMetadata(header.variableLengthRecords, header, error);
 }
 
 bool InspectRecords(const std::vector<std::uint8_t>& bytes,
@@ -274,6 +409,17 @@ bool InspectRecords(const std::vector<std::uint8_t>& bytes,
                     std::vector<LasVariableLengthRecord>& records,
                     std::string& error) {
     return ReadRecords(bytes, offset, count, extended, records, error);
+}
+
+bool ParseKnownMetadata(const std::vector<LasVariableLengthRecord>& records,
+                        LasHeader& header,
+                        std::string& error) {
+    error.clear();
+    header.crsWkt = ExtractWktCrs(records);
+    if (!ParseGeoTiffRecords(records, header.geoTiffMetadata, error)) {
+        return false;
+    }
+    return ParseExtraBytesRecords(records, header.extraBytes, error);
 }
 
 std::string ExtractWktCrs(const std::vector<LasVariableLengthRecord>& records) {
@@ -388,6 +534,18 @@ bool InspectRecords(const std::vector<std::uint8_t>& bytes,
     if (!diagnostics.empty()) {
         diagnostics.front().byteOffset = offset;
     }
+    return false;
+}
+
+bool ParseKnownMetadata(const std::vector<LasVariableLengthRecord>& records,
+                        LasHeader& header,
+                        std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    std::string error;
+    if (ParseKnownMetadata(records, header, error)) {
+        return true;
+    }
+    AddErrorDiagnostic(error, diagnostics);
     return false;
 }
 

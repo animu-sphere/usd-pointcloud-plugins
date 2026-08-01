@@ -4,6 +4,7 @@
 #include "usdgeo/SpatialBounds.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -15,6 +16,34 @@ struct LasVariableLengthRecord {
     std::string description;
     std::vector<std::uint8_t> data;
     bool isExtended = false;
+};
+
+struct LasGeoTiffKey {
+    std::uint16_t keyId = 0;
+    std::uint16_t tiffTagLocation = 0;
+    std::uint16_t count = 0;
+    std::uint16_t valueOffset = 0;
+};
+
+struct LasGeoTiffMetadata {
+    std::uint16_t keyDirectoryVersion = 0;
+    std::uint16_t keyRevision = 0;
+    std::uint16_t minorRevision = 0;
+    std::vector<LasGeoTiffKey> keys;
+    std::vector<double> doubleParameters;
+    std::string asciiParameters;
+};
+
+struct LasExtraBytesDescriptor {
+    std::uint8_t dataType = 0;
+    std::uint8_t options = 0;
+    std::string name;
+    usdgeo::Vec3d noData;
+    usdgeo::Vec3d minimum;
+    usdgeo::Vec3d maximum;
+    usdgeo::Vec3d scale;
+    usdgeo::Vec3d offset;
+    std::string description;
 };
 
 struct LasHeader {
@@ -37,6 +66,8 @@ struct LasHeader {
     std::uint32_t extendedVariableLengthRecordCount = 0;
     std::vector<LasVariableLengthRecord> variableLengthRecords;
     std::string crsWkt;
+    std::optional<LasGeoTiffMetadata> geoTiffMetadata;
+    std::vector<LasExtraBytesDescriptor> extraBytes;
 
     bool IsValid() const noexcept;
 };
@@ -84,6 +115,14 @@ bool InspectRecords(const std::vector<std::uint8_t>& bytes,
                     bool extended,
                     std::vector<LasVariableLengthRecord>& records,
                     std::vector<usdgeo::Diagnostic>& diagnostics);
+
+bool ParseKnownMetadata(const std::vector<LasVariableLengthRecord>& records,
+                        LasHeader& header,
+                        std::string& error);
+
+bool ParseKnownMetadata(const std::vector<LasVariableLengthRecord>& records,
+                        LasHeader& header,
+                        std::vector<usdgeo::Diagnostic>& diagnostics);
 
 std::string ExtractWktCrs(const std::vector<LasVariableLengthRecord>& records);
 
