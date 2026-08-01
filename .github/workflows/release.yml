@@ -1,6 +1,5 @@
-# Release workflow for the OpenUSD Geospatial Geometry Plugins source release.
-# Tag pushes verify the VERSION, build and test the core libraries, then create
-# a draft GitHub release with the source archive and its checksum manifest.
+# Cross-platform release workflow. Tag pushes build both USD FileFormat
+# Plugins on Windows, Linux, and macOS, then assemble a draft release.
 name: release
 
 on:
@@ -10,27 +9,200 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag to validate and publish'
+        description: 'Release tag to validate and build'
         required: true
         type: string
 
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
-  BUILD_DIR: build-release
+  OST_VERSION: '0.21.0'
+  OST_REPOSITORY: animu-sphere/open-strata
+  OST_PLATFORM: cy2026
+  OST_PROFILE: usd
 
 jobs:
-  verify:
-    name: Verify release
-    runs-on: ubuntu-24.04
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x86_64
+            runs_on: windows-2022
+            runner_profile: windows-hosted
+            runtime_artifact: sha256:e3368364f8f4661a7c34371e907f2e5ddcdec4e680b76f5e9e1c1ed656022f48
+            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
+            host_python: ''
+            host_packages_apt: ''
+            up_to: 4
+          - name: linux-x86_64
+            runs_on: ubuntu-24.04
+            runner_profile: linux-hosted
+            runtime_artifact: sha256:70b47d1b1a337b71d6c6fd63898e3295c0f91dc4b2ad2f5c09d14d6ac0ff2e1d
+            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
+            host_python: '3.13'
+            host_packages_apt: libx11-dev libxt-dev libxext-dev libgl1-mesa-dev
+            up_to: 5
+          - name: macos-arm64
+            runs_on: macos-15
+            runner_profile: macos-arm64-hosted
+            runtime_artifact: sha256:b2cb7b68e72b05e486d57e96cde2ec7a8dc5a17b02b774af923aa58ee31d6d21
+            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:f8de29a4176d02ffbcf50a2205bb6b23d9a3cd9463e0d58a28a3c1c6ee5cb82c
+            host_python: '3.13'
+            host_packages_apt: ''
+            up_to: 5
+    env:
+      OST_CI_CELL: geo-${{ matrix.name }}-release
+      OST_CI_LANE: release
+      OST_CI_RUNNER_PROFILE: ${{ matrix.runner_profile }}
+      OST_CI_RUNS_ON: ${{ matrix.runs_on }}
+      OST_CI_RUNTIME_ARTIFACT: ${{ matrix.runtime_artifact }}
+      OST_CI_MINIMUM_TRUST: local
+      OST_HOME: ${{ runner.os != 'Windows' && format('{0}/.ost-ci-home', github.workspace) || '' }}
     steps:
-      - name: Check out the repository
+      - name: Check out the tagged source
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Resolve and validate release tag
+        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          tag="${INPUT_TAG:-$REF_NAME}"
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [ "$tag" != "v${version}" ]; then
+            echo "Expected tag v${version}, got ${tag}" >&2
+            exit 1
+          fi
+
+      - name: Bootstrap ost
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ost-ci/bootstrap-bin
+          case "${RUNNER_OS}-${RUNNER_ARCH}" in
+            Linux-X64) triple=x86_64-unknown-linux-musl; ext=tar.xz ;;
+            macOS-ARM64) triple=aarch64-apple-darwin; ext=tar.xz ;;
+            Windows-X64) triple=x86_64-pc-windows-msvc; ext=zip ;;
+            *) echo "Unsupported runner ${RUNNER_OS}-${RUNNER_ARCH}" >&2; exit 1 ;;
+          esac
+          asset="ost-cli-${triple}.${ext}"
+          base="https://github.com/${OST_REPOSITORY}/releases/download/v${OST_VERSION}"
+          curl -fsSLo "$asset" "$base/$asset"
+          curl -fsSLo "$asset.sha256" "$base/$asset.sha256"
+          actual="$( (command -v sha256sum > /dev/null && sha256sum "$asset" || shasum -a 256 "$asset") | cut -d' ' -f1 )"
+          published="$(cut -d' ' -f1 "$asset.sha256")"
+          if [ "$actual" != "$published" ]; then
+            echo "ost checksum mismatch for $asset" >&2
+            exit 1
+          fi
+          if [ "$ext" = zip ]; then
+            powershell -NoProfile -Command "Expand-Archive -LiteralPath '$asset' -DestinationPath '.ost-ci/bootstrap-bin' -Force"
+          else
+            tar -xf "$asset" -C .ost-ci/bootstrap-bin
+          fi
+          bin="$(find .ost-ci/bootstrap-bin -type f \( -name ost -o -name ost.exe \) | head -n 1)"
+          if [ -z "$bin" ]; then echo 'ost binary not found' >&2; exit 1; fi
+          chmod +x "$bin" 2>/dev/null || true
+          bin_dir="$(cd "$(dirname "$bin")" && pwd)"
+          if [ "$RUNNER_OS" = Windows ] && command -v cygpath >/dev/null; then
+            bin_dir="$(cygpath -w "$bin_dir")"
+          fi
+          echo "$bin_dir" >> "$GITHUB_PATH"
+
+      - name: Install Linux host packages
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          HOST_PACKAGES: ${{ matrix.host_packages_apt }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends $HOST_PACKAGES
+
+      - name: Set up host Python
+        if: matrix.host_python != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.host_python }}
+
+      - name: Verify ost and CI contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          ost --version
+          ost ci validate
+
+      - name: Pull and verify the OpenUSD runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${OST_HOME:-}" ]; then
+            mkdir -p "$OST_HOME/artifacts"
+          fi
+          if ! ost artifact show "$OST_CI_RUNTIME_ARTIFACT" --json >/dev/null 2>&1; then
+            ost artifact pull "${{ matrix.runtime_remote }}" \
+              --expect-artifact "$OST_CI_RUNTIME_ARTIFACT" --require-kind runtime --json
+          fi
+          ost artifact verify "$OST_CI_RUNTIME_ARTIFACT" --minimum-trust local
+          ost runtime pull "$OST_PLATFORM" --profile "$OST_PROFILE" \
+            --from-artifact "$OST_CI_RUNTIME_ARTIFACT" --force
+          ost runtime validate "$OST_PLATFORM" --profile "$OST_PROFILE" --json
+
+      - name: Build and test LAS and LAZ plugins
+        shell: bash
+        run: |
+          set -euo pipefail
+          for bundle in plugins/geo-las plugins/geo-laz; do
+            ost plugin build "$bundle" --target "$OST_PLATFORM" --profile "$OST_PROFILE"
+            ost plugin test "$bundle" --target "$OST_PLATFORM" --profile "$OST_PROFILE" --up-to "${{ matrix.up_to }}" --json
+          done
+
+      - name: Package LAS and LAZ plugins
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-stage
+          ost plugin package --workspace --product --target "$OST_PLATFORM" \
+            --profile "$OST_PROFILE" --json
+          find . -type f \( -name '*-plugin-product.tar.zst' -o -name '*.manifest.json' -o -name '*.sbom.spdx.json' \) \
+            -exec cp {} release-stage/ \;
+          test -n "$(find release-stage -type f -print -quit)"
+          ls -la release-stage
+
+      - name: Upload platform release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.name }}
+          path: release-stage/
+          if-no-files-found: error
+
+  release:
+    name: Assemble draft release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the tagged source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Resolve release version
         id: release
         shell: bash
         env:
@@ -40,44 +212,41 @@ jobs:
           set -euo pipefail
           tag="${INPUT_TAG:-$REF_NAME}"
           version="$(tr -d '[:space:]' < VERSION)"
-          expected="v${version}"
-          if [ "$tag" != "$expected" ]; then
-            echo "Expected tag $expected, got $tag" >&2
-            exit 1
-          fi
+          test "$tag" = "v${version}"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Configure core build
-        run: cmake -S . -B "$BUILD_DIR" -DUSDGEO_BUILD_TESTS=ON -DUSDGEO_BUILD_USD=OFF -DCMAKE_BUILD_TYPE=Release
+      - name: Download platform assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist-release
+          merge-multiple: true
 
-      - name: Build core libraries
-        run: cmake --build "$BUILD_DIR" --config Release --parallel
-
-      - name: Run core tests
-        run: ctest --test-dir "$BUILD_DIR" --output-on-failure -C Release
-
-      - name: Create source archive and checksum
-        id: archive
+      - name: Add source archive and checksums
         shell: bash
         env:
           TAG: ${{ steps.release.outputs.tag }}
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
-          archive="usd-geo-plugins-${VERSION}-src.tar.gz"
-          git archive --format=tar.gz --prefix="usd-geo-plugins-${VERSION}/" -o "$archive" "$TAG"
-          sha256sum "$archive" > SHA256SUMS
+          git archive --format=tar.gz \
+            --prefix="usd-geo-plugins-${VERSION}/" \
+            -o "dist-release/usd-geo-plugins-${VERSION}-src.tar.gz" "$TAG"
+          cd dist-release
+          find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%P\n' | LC_ALL=C sort | xargs sha256sum > SHA256SUMS
           sha256sum -c SHA256SUMS
-          cp "docs/releases/v${VERSION}.md" RELEASE_NOTES.md
+          cp "../docs/releases/v${VERSION}.md" RELEASE_NOTES.md
           {
             echo
             echo '## Artifacts'
             echo
             echo '| File | Description |'
             echo '| --- | --- |'
-            printf '| `%s` | Source archive at tag `%s` |\n' "$archive" "$TAG"
-            echo '| `SHA256SUMS` | SHA-256 checksum for every release artifact |'
+            while IFS= read -r file; do
+              printf '| `%s` | Platform plugin or source release asset |\n' "$file"
+            done < <(find . -maxdepth 1 -type f ! -name SHA256SUMS ! -name RELEASE_NOTES.md -printf '%P\n' | LC_ALL=C sort)
+            echo '| `SHA256SUMS` | SHA-256 checksums for all release artifacts |'
             echo
             echo '## SHA-256 checksums'
             echo
@@ -85,51 +254,23 @@ jobs:
             cat SHA256SUMS
             echo '```'
           } >> RELEASE_NOTES.md
-          echo "archive=$archive" >> "$GITHUB_OUTPUT"
 
-      - name: Upload release files
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-files
-          path: |
-            ${{ steps.archive.outputs.archive }}
-            SHA256SUMS
-            RELEASE_NOTES.md
-
-  release:
-    name: Assemble draft GitHub release
-    needs: verify
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Download release files
-        uses: actions/download-artifact@v4
-        with:
-          name: release-files
-
-      - name: Create draft release
+      - name: Create draft GitHub release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag || github.ref_name }}
+          TAG: ${{ steps.release.outputs.tag }}
         run: |
           set -euo pipefail
           if gh release view "$TAG" --json isDraft > existing.json 2>/dev/null; then
-            if [ "$(jq -r .isDraft existing.json)" = "true" ]; then
+            if [ "$(jq -r .isDraft existing.json)" = true ]; then
               gh release delete "$TAG" --yes
             else
               echo "Release $TAG is already published; refusing to replace it" >&2
               exit 1
             fi
           fi
-          gh release create "$TAG" \
-            --draft \
+          gh release create "$TAG" --draft \
             --title "OpenUSD Geospatial Geometry Plugins $TAG" \
-            --notes-file RELEASE_NOTES.md \
-            *.tar.gz SHA256SUMS
+            --notes-file dist-release/RELEASE_NOTES.md \
+            dist-release/*
