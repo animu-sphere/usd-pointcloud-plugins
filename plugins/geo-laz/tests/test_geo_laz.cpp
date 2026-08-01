@@ -129,7 +129,7 @@ void TestMissingFileDiagnostic() {
     const auto layer = pxr::SdfLayer::FindOrOpen(path.string());
     Check(!layer);
     Check(!mark.IsClean());
-    Check(mark.GetErrors().back().GetCommentary().find("[LAZ002]") !=
+    Check(mark.GetBegin()->GetCommentary().find("[LAZ002]") !=
           std::string::npos);
     mark.Clear();
 }

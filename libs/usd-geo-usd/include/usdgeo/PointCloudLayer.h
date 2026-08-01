@@ -19,9 +19,17 @@ public:
         std::vector<std::uint8_t> returnNumber;
         std::vector<std::uint8_t> numberOfReturns;
         std::vector<std::uint8_t> classification;
+        std::vector<std::uint8_t> classificationFlags;
+        std::vector<std::uint8_t> scannerChannel;
+        std::vector<std::uint8_t> scanDirectionFlag;
+        std::vector<std::uint8_t> edgeOfFlightLine;
+        std::vector<std::uint8_t> userData;
+        std::vector<std::int16_t> scanAngle;
+        std::vector<std::uint16_t> pointSourceId;
         std::vector<std::uint16_t> red;
         std::vector<std::uint16_t> green;
         std::vector<std::uint16_t> blue;
+        std::vector<std::uint16_t> nir;
         std::vector<double> gpsTime;
     };
 

@@ -94,6 +94,13 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
                 pointData.returnNumber.reserve(pointCount);
                 pointData.numberOfReturns.reserve(pointCount);
                 pointData.classification.reserve(pointCount);
+                pointData.classificationFlags.reserve(pointCount);
+                pointData.scannerChannel.reserve(pointCount);
+                pointData.scanDirectionFlag.reserve(pointCount);
+                pointData.edgeOfFlightLine.reserve(pointCount);
+                pointData.userData.reserve(pointCount);
+                pointData.scanAngle.reserve(pointCount);
+                pointData.pointSourceId.reserve(pointCount);
                 if (chunkHeader.pointFormat == 2 ||
                     chunkHeader.pointFormat == 3 ||
                     chunkHeader.pointFormat == 7 ||
@@ -107,6 +114,9 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
                     chunkHeader.pointFormat >= 6) {
                     pointData.gpsTime.reserve(pointCount);
                 }
+                if (chunkHeader.pointFormat == 8) {
+                    pointData.nir.reserve(pointCount);
+                }
             }
             for (const auto& point : points) {
                 pointData.positions.push_back(point.sourcePosition);
@@ -114,6 +124,13 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
                 pointData.returnNumber.push_back(point.returnNumber);
                 pointData.numberOfReturns.push_back(point.numberOfReturns);
                 pointData.classification.push_back(point.classification);
+                pointData.classificationFlags.push_back(point.classificationFlags);
+                pointData.scannerChannel.push_back(point.scannerChannel);
+                pointData.scanDirectionFlag.push_back(point.scanDirectionFlag);
+                pointData.edgeOfFlightLine.push_back(point.edgeOfFlightLine);
+                pointData.userData.push_back(point.userData);
+                pointData.scanAngle.push_back(point.scanAngle);
+                pointData.pointSourceId.push_back(point.pointSourceId);
                 if (point.hasColor) {
                     pointData.red.push_back(point.red);
                     pointData.green.push_back(point.green);
@@ -121,6 +138,9 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
                 }
                 if (point.hasGpsTime) {
                     pointData.gpsTime.push_back(point.gpsTime);
+                }
+                if (chunkHeader.pointFormat == 8) {
+                    pointData.nir.push_back(point.nir);
                 }
             }
             return true;
@@ -160,7 +180,14 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
         {"intensity", usdpointcloud::PointAttributeType::UInt16},
         {"returnNumber", usdpointcloud::PointAttributeType::UInt8},
         {"numberOfReturns", usdpointcloud::PointAttributeType::UInt8},
-        {"classification", usdpointcloud::PointAttributeType::UInt8}};
+        {"classification", usdpointcloud::PointAttributeType::UInt8},
+        {"classificationFlags", usdpointcloud::PointAttributeType::UInt8},
+        {"scannerChannel", usdpointcloud::PointAttributeType::UInt8},
+        {"scanDirectionFlag", usdpointcloud::PointAttributeType::UInt8},
+        {"edgeOfFlightLine", usdpointcloud::PointAttributeType::UInt8},
+        {"userData", usdpointcloud::PointAttributeType::UInt8},
+        {"scanAngle", usdpointcloud::PointAttributeType::Int16},
+        {"pointSourceId", usdpointcloud::PointAttributeType::UInt16}};
     if (!pointData.red.empty()) {
         chunk.attributes.push_back(
             {"red", usdpointcloud::PointAttributeType::UInt16});
@@ -172,6 +199,10 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
     if (!pointData.gpsTime.empty()) {
         chunk.attributes.push_back(
             {"gpsTime", usdpointcloud::PointAttributeType::Float64});
+    }
+    if (!pointData.nir.empty()) {
+        chunk.attributes.push_back(
+            {"nir", usdpointcloud::PointAttributeType::UInt16});
     }
 
     const auto usda = SdfFileFormat::FindByExtension("usda");

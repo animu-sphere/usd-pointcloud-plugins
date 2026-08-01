@@ -78,9 +78,17 @@ struct LasPoint {
     std::uint8_t returnNumber = 0;
     std::uint8_t numberOfReturns = 0;
     std::uint8_t classification = 0;
+    std::uint8_t classificationFlags = 0;
+    std::uint8_t scannerChannel = 0;
+    std::uint8_t scanDirectionFlag = 0;
+    std::uint8_t edgeOfFlightLine = 0;
+    std::uint8_t userData = 0;
+    std::int16_t scanAngle = 0;
+    std::uint16_t pointSourceId = 0;
     std::uint16_t red = 0;
     std::uint16_t green = 0;
     std::uint16_t blue = 0;
+    std::uint16_t nir = 0;
     double gpsTime = 0.0;
     bool hasColor = false;
     bool hasGpsTime = false;
