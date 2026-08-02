@@ -107,10 +107,10 @@ bool GeoLasFileFormat::CanRead(const std::string& file) const {
 bool GeoLasFileFormat::Read(SdfLayer* layer,
                             const std::string& resolvedPath,
                             bool metadataOnly) const {
-    if (!layer || metadataOnly) {
+    if (!layer) {
         TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
                                   geolas::diagnostics::InvalidReadRequest,
-                                  "geoLas requires a writable layer and full point data")
+                                  "geoLas requires a writable layer")
                                   .c_str());
         return false;
     }
@@ -127,6 +127,38 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
                                                        "invalid arguments"))
                                   .c_str());
         return false;
+    }
+
+    if (metadataOnly) {
+        usdlas::LasHeader header;
+        usdlas::LasReader reader(sourcePath);
+        if (!reader.ReadMetadata(header, diagnostics)) {
+            TF_RUNTIME_ERROR("%s", geolas::diagnostics::Message(
+                                      ReaderDiagnosticCode(diagnostics,
+                                                           reader.FailureKind()),
+                                      "Unable to inspect LAS file " + resolvedPath +
+                                          ": " + DiagnosticDetail(
+                                              diagnostics, "inspection failed"))
+                                      .c_str());
+            return false;
+        }
+        usdpointcloud::PointChunk chunk;
+        usdgeo::GeoReference reference;
+        usdgeo::SpatialBounds bounds;
+        usdgeo::PointCloudSourceMetadata sourceMetadata{
+            header.pointFormat,
+            {header.xScale, header.yScale, header.zScale},
+            {header.xOffset, header.yOffset, header.zOffset}};
+        std::string metadataError;
+        if (!usdlas::BuildPointCloudMetadata(
+                header, chunk, reference, bounds, metadataError) ||
+            !usdgeo::AuthorPointCloudMetadata(
+                layer, "/PointCloud", reference, bounds, chunk,
+                sourceMetadata)) {
+            TF_RUNTIME_ERROR("%s", geolas::diagnostics::PointCloudAuthorFailed);
+            return false;
+        }
+        return true;
     }
 
     usdlas::LasHeader header;

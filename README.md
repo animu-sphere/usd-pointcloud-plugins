@@ -200,8 +200,9 @@ from `geo:localOrigin`; the exact expression is in
   chunked and range-based reads, and compact `lod` profiles. Bounds and
   classification filters are unavailable; see the [file-format argument
   contract](docs/architecture/file-format-arguments.md).
-- `metadataOnly` reads are refused; there is no header-only inspection path
-  through the plugins.
+- `metadataOnly` reads author the `/PointCloud` metadata namespace without
+  decoding point records. The stage contains source count, bounds, CRS, and
+  available-attribute metadata, but no point positions.
 - CRS comes from the WKT VLR only. GeoTIFF keys are retained but not parsed,
   and EPSG codes are not inferred.
 - Point decoding assumes a little-endian host.

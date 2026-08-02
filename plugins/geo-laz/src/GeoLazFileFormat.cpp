@@ -67,10 +67,10 @@ bool GeoLazFileFormat::CanRead(const std::string& file) const {
 bool GeoLazFileFormat::Read(SdfLayer* layer,
                             const std::string& resolvedPath,
                             bool metadataOnly) const {
-    if (!layer || metadataOnly) {
+    if (!layer) {
         TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
                                   geolaz::diagnostics::InvalidReadRequest,
-                                  "geoLaz requires a writable layer and full point data")
+                                  "geoLaz requires a writable layer")
                                   .c_str());
         return false;
     }
@@ -87,6 +87,47 @@ bool GeoLazFileFormat::Read(SdfLayer* layer,
                                                        "invalid arguments"))
                                   .c_str());
         return false;
+    }
+
+    if (metadataOnly) {
+        auto decoder = usdlaz::CreateFileDecoder(sourcePath, diagnostics);
+        if (!decoder) {
+            TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
+                                      geolaz::diagnostics::FileOpenFailed,
+                                      "Unable to open LAZ file " + sourcePath +
+                                          ": " + DiagnosticDetail(
+                                              diagnostics, "decoder could not be created"))
+                                      .c_str());
+            return false;
+        }
+        usdlaz::LazReader reader(std::move(decoder));
+        usdlas::LasHeader header;
+        if (!reader.ReadMetadata(header, diagnostics)) {
+            TF_RUNTIME_ERROR("%s", geolaz::diagnostics::Message(
+                                      geolaz::diagnostics::DecodeFailed,
+                                      "Unable to inspect LAZ file " + resolvedPath +
+                                          ": " + DiagnosticDetail(
+                                              diagnostics, "inspection failed"))
+                                      .c_str());
+            return false;
+        }
+        usdpointcloud::PointChunk chunk;
+        usdgeo::GeoReference reference;
+        usdgeo::SpatialBounds bounds;
+        usdgeo::PointCloudSourceMetadata sourceMetadata{
+            header.pointFormat,
+            {header.xScale, header.yScale, header.zScale},
+            {header.xOffset, header.yOffset, header.zOffset}};
+        std::string metadataError;
+        if (!usdlas::BuildPointCloudMetadata(
+                header, chunk, reference, bounds, metadataError) ||
+            !usdgeo::AuthorPointCloudMetadata(
+                layer, "/PointCloud", reference, bounds, chunk,
+                sourceMetadata)) {
+            TF_RUNTIME_ERROR("%s", geolaz::diagnostics::PointCloudAuthorFailed);
+            return false;
+        }
+        return true;
     }
 
     auto decoder = usdlaz::CreateFileDecoder(sourcePath, diagnostics);

@@ -355,6 +355,92 @@ LasReadFailure LasReader::FailureKind() const noexcept {
     return failureKind_;
 }
 
+bool LasReader::ReadMetadata(
+    LasHeader& header,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    failureByteOffset_.reset();
+    failurePointIndex_.reset();
+    failureKind_ = LasReadFailure::None;
+
+    std::ifstream stream(filename_, std::ios::binary | std::ios::ate);
+    if (!stream) {
+        failureKind_ = LasReadFailure::FileOpen;
+        diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
+                               usdgeo::Severity::Error,
+                               "could not open LAS file: " + filename_,
+                               std::nullopt, std::nullopt});
+        return false;
+    }
+    const auto fileSizePosition = stream.tellg();
+    if (fileSizePosition < 0) {
+        failureKind_ = LasReadFailure::FileSize;
+        diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
+                               usdgeo::Severity::Error,
+                               "could not determine LAS file size",
+                               std::nullopt, std::nullopt});
+        return false;
+    }
+    const auto fileSize = static_cast<std::uint64_t>(fileSizePosition);
+    std::vector<std::uint8_t> bytes;
+    RangeReadFailure rangeFailure;
+    const auto headerReadSize = (std::min)(fileSize, std::uint64_t{375});
+    std::string error;
+    if (!ReadFileRange(stream, 0, static_cast<std::size_t>(headerReadSize),
+                       bytes, error, rangeFailure) ||
+        !InspectHeader(bytes, header, error)) {
+        failureKind_ = LasReadFailure::Header;
+        diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
+                               usdgeo::Severity::Error, error,
+                               std::nullopt, std::nullopt});
+        return false;
+    }
+    if (header.pointDataOffset > fileSize ||
+        !ReadFileRange(stream, 0, static_cast<std::size_t>(header.pointDataOffset),
+                       bytes, error, rangeFailure) ||
+        !InspectRecords(bytes, header.headerSize,
+                        header.variableLengthRecordCount, false,
+                        header.variableLengthRecords, error)) {
+        failureKind_ = LasReadFailure::Vlr;
+        diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
+                               usdgeo::Severity::Error, error,
+                               std::nullopt, std::nullopt});
+        return false;
+    }
+    if (header.extendedVariableLengthRecordCount != 0) {
+        if (header.firstExtendedVariableLengthRecordOffset > fileSize) {
+            failureKind_ = LasReadFailure::EvlrOffset;
+            error = "LAS extended variable-length record offset is invalid";
+            diagnostics.push_back({usdgeo::DiagnosticCode::InvalidOffset,
+                                   usdgeo::Severity::Error, error,
+                                   std::nullopt, std::nullopt});
+            return false;
+        }
+        std::vector<std::uint8_t> extendedBytes;
+        if (!ReadFileRange(stream, header.firstExtendedVariableLengthRecordOffset,
+                           static_cast<std::size_t>(
+                               fileSize - header.firstExtendedVariableLengthRecordOffset),
+                           extendedBytes, error, rangeFailure) ||
+            !InspectRecords(extendedBytes, 0,
+                            header.extendedVariableLengthRecordCount, true,
+                            header.variableLengthRecords, error)) {
+            failureKind_ = LasReadFailure::Evlr;
+            diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
+                                   usdgeo::Severity::Error, error,
+                                   std::nullopt, std::nullopt});
+            return false;
+        }
+    }
+    if (!ParseKnownMetadata(header.variableLengthRecords, header, error)) {
+        failureKind_ = LasReadFailure::Vlr;
+        diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
+                               usdgeo::Severity::Error, error,
+                               std::nullopt, std::nullopt});
+        return false;
+    }
+    return true;
+}
+
 bool LasReader::Read(const LasReadOptions& options,
                      const LasPointChunkConsumer& consume,
                      LasHeader& header,
@@ -1027,6 +1113,76 @@ bool BuildPointCloudAsset(const LasHeader& header,
         return false;
     }
     return true;
+}
+
+bool BuildPointCloudMetadata(const LasHeader& header,
+                             usdpointcloud::PointChunk& chunk,
+                             usdgeo::GeoReference& reference,
+                             usdgeo::SpatialBounds& bounds,
+                             std::string& error) {
+    if (!header.IsValid()) {
+        error = "LAS metadata does not contain a valid point cloud";
+        return false;
+    }
+    reference = {};
+    reference.wkt = header.crsWkt.empty()
+                        ? "LAS CRS unavailable; inspect VLR metadata"
+                        : header.crsWkt;
+    reference.sourceUpAxis = "Z";
+    reference.stageUpAxis = "Y";
+    reference.localOrigin = header.bounds.minimum;
+    if (!reference.TryToLocal(header.bounds, bounds)) {
+        error = "LAS bounds could not be transformed to local coordinates";
+        return false;
+    }
+    chunk = {};
+    chunk.pointCount = header.pointCount;
+    chunk.bounds = bounds;
+    chunk.attributes = {{"xyz", usdpointcloud::PointAttributeType::Float64}};
+    chunk.attributes.push_back({"intensity", usdpointcloud::PointAttributeType::UInt16});
+    chunk.attributes.push_back({"returnNumber", usdpointcloud::PointAttributeType::UInt8});
+    chunk.attributes.push_back({"numberOfReturns", usdpointcloud::PointAttributeType::UInt8});
+    chunk.attributes.push_back({"classification", usdpointcloud::PointAttributeType::UInt8});
+    chunk.attributes.push_back({"scanDirectionFlag", usdpointcloud::PointAttributeType::UInt8});
+    chunk.attributes.push_back({"edgeOfFlightLine", usdpointcloud::PointAttributeType::UInt8});
+    chunk.attributes.push_back({"userData", usdpointcloud::PointAttributeType::UInt8});
+    chunk.attributes.push_back({"scanAngle", usdpointcloud::PointAttributeType::Int16});
+    chunk.attributes.push_back({"pointSourceId", usdpointcloud::PointAttributeType::UInt16});
+    if (header.pointFormat >= 6) {
+        chunk.attributes.push_back({"classificationFlags", usdpointcloud::PointAttributeType::UInt8});
+        chunk.attributes.push_back({"scannerChannel", usdpointcloud::PointAttributeType::UInt8});
+    }
+    if (header.pointFormat == 2 || header.pointFormat == 3 ||
+        header.pointFormat == 7 || header.pointFormat == 8) {
+        chunk.attributes.push_back({"red", usdpointcloud::PointAttributeType::UInt16});
+        chunk.attributes.push_back({"green", usdpointcloud::PointAttributeType::UInt16});
+        chunk.attributes.push_back({"blue", usdpointcloud::PointAttributeType::UInt16});
+    }
+    if (header.pointFormat == 1 || header.pointFormat == 3 ||
+        header.pointFormat >= 6) {
+        chunk.attributes.push_back({"gpsTime", usdpointcloud::PointAttributeType::Float64});
+    }
+    if (header.pointFormat == 8 || header.pointFormat == 10) {
+        chunk.attributes.push_back({"nir", usdpointcloud::PointAttributeType::UInt16});
+    }
+    if (header.pointFormat == 4 || header.pointFormat == 5 ||
+        header.pointFormat == 9 || header.pointFormat == 10) {
+        chunk.attributes.push_back({"waveformDescriptorIndex", usdpointcloud::PointAttributeType::UInt8});
+        chunk.attributes.push_back({"waveformDataOffset", usdpointcloud::PointAttributeType::UInt64});
+        chunk.attributes.push_back({"waveformPacketSize", usdpointcloud::PointAttributeType::UInt32});
+        chunk.attributes.push_back({"returnPointWaveformLocation", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back({"waveformXt", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back({"waveformYt", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back({"waveformZt", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back({"waveformDataExternal", usdpointcloud::PointAttributeType::UInt8});
+    }
+    for (const auto& extra : header.extraBytes) {
+        if (!extra.name.empty()) {
+            chunk.attributes.push_back(
+                {extra.name, usdpointcloud::PointAttributeType::Float64});
+        }
+    }
+    return chunk.IsValid();
 }
 
 } // namespace usdlas

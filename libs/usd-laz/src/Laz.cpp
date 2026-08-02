@@ -67,6 +67,17 @@ bool LazDecoder::ReadChunk(
 LazReader::LazReader(std::unique_ptr<LazDecoder> decoder)
     : decoder_(std::move(decoder)) {}
 
+bool LazReader::ReadMetadata(
+    usdlas::LasHeader& header,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    if (!decoder_) {
+        AddDiagnostic("LAZ decoder is not configured", diagnostics);
+        return false;
+    }
+    return decoder_->ReadHeader(header, diagnostics);
+}
+
 bool LazReader::Read(
     const LazReadOptions& options,
     const LazPointChunkConsumer& consume,
