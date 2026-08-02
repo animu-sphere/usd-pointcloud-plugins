@@ -379,19 +379,27 @@ void TestTiledLodPayloadAuthoring() {
 
     const auto payloadDirectory =
         std::filesystem::temp_directory_path() / "usd_geo_payloads";
+    const auto rootLayerPath = payloadDirectory / "PointCloud.usda";
     std::filesystem::remove_all(payloadDirectory);
     Check(usdgeo::AuthorPointCloudTiledAssetWithPayloads(
         stage, "/PointCloud", {tile},
-        {payloadDirectory.string()}));
+        {payloadDirectory.string(), rootLayerPath.string()}));
 
     const auto lodPrim = stage->GetPrimAtPath(pxr::SdfPath(
         "/PointCloud/Tiles/Tile_L0_p0_p0_p0/LOD0"));
     Check(lodPrim.IsValid());
-    std::string authoredLayer;
-    Check(stage->GetRootLayer()->ExportToString(&authoredLayer));
-    Check(authoredLayer.find("payload") != std::string::npos);
     Check(std::filesystem::exists(
         payloadDirectory / "Tile_L0_p0_p0_p0_LOD0.usdc"));
+    Check(stage->GetRootLayer()->Export(rootLayerPath.string()));
+    const auto reopenedStage = pxr::UsdStage::Open(rootLayerPath.string());
+    Check(reopenedStage);
+    const auto points = pxr::UsdGeomPoints::Get(
+        reopenedStage,
+        pxr::SdfPath("/PointCloud/Tiles/Tile_L0_p0_p0_p0/LOD0/Points"));
+    Check(points.GetPrim().IsValid());
+    pxr::VtVec3fArray positions;
+    Check(points.GetPointsAttr().Get(&positions));
+    Check(positions.size() == 1 && positions[0] == pxr::GfVec3f(0.0f));
     std::filesystem::remove_all(payloadDirectory);
 }
 

@@ -104,6 +104,7 @@ struct PointCloudTileAsset {
 
 struct PointCloudPayloadOptions {
     std::string directory;
+    std::string rootLayerPath;
 };
 
 bool AuthorPointCloudTiledAsset(

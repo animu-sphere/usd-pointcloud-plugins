@@ -73,7 +73,8 @@ bool AuthorLodRoot(
     const usdpointcloud::PointLodHierarchy& hierarchy,
     const pxr::SdfPath& heuristicPath,
     bool defineHeuristic,
-    const std::filesystem::path* payloadDirectory = nullptr) {
+    const std::filesystem::path* payloadDirectory = nullptr,
+    const std::filesystem::path* rootLayerPath = nullptr) {
     if (!stage || !IsValidPrimPath(primPath) ||
         levels.size() != hierarchy.items.size()) {
         return false;
@@ -117,17 +118,27 @@ bool AuthorLodRoot(
         const auto payloadPath = *payloadDirectory /
             (primPath.substr(primPath.find_last_of('/') + 1) + "_" +
              lodName + ".usdc");
+        std::error_code relativeError;
+        const auto payloadIdentifier = std::filesystem::relative(
+            payloadPath, rootLayerPath->parent_path(), relativeError);
+        if (relativeError || payloadIdentifier.empty() ||
+            payloadIdentifier.is_absolute()) {
+            return false;
+        }
         const auto payloadStage = pxr::UsdStage::CreateNew(payloadPath.string());
-        if (!payloadStage ||
-            !pxr::UsdGeomXform::Define(payloadStage, pxr::SdfPath("/" + lodName)) ||
+        if (!payloadStage || !pxr::UsdGeomXform::Define(
+                                  payloadStage, pxr::SdfPath("/" + lodName)) ||
             !AuthorPointCloudAsset(payloadStage, "/" + lodName + "/Points",
                                    level.reference, level.bounds, level.chunk,
                                    level.data) ||
-            !pxr::UsdGeomXform::Define(stage, pxr::SdfPath(lodPath))
-                    .GetPrim()
-                    .GetPayloads()
-                    .AddPayload(pxr::SdfPayload(
-                        payloadPath.string(), pxr::SdfPath("/" + lodName)))) {
+            !payloadStage->GetRootLayer()->Save()) {
+            return false;
+        }
+        const auto lodPrim = pxr::UsdGeomXform::Define(
+            stage, pxr::SdfPath(lodPath));
+        if (!lodPrim || !lodPrim.GetPrim().GetPayloads().AddPayload(
+                pxr::SdfPayload(payloadIdentifier.generic_string(),
+                                pxr::SdfPath("/" + lodName)))) {
             return false;
         }
     }
@@ -539,16 +550,38 @@ bool AuthorPointCloudTiledAssetWithPayloads(
     const std::vector<PointCloudTileAsset>& tiles,
     const PointCloudPayloadOptions& options) {
     if (!stage || !IsValidPrimPath(primPath) || tiles.empty() ||
-        options.directory.empty()) {
+        options.directory.empty() || options.rootLayerPath.empty()) {
         return false;
     }
 
     const std::filesystem::path payloadDirectory(options.directory);
+    const std::filesystem::path rootLayerPath(options.rootLayerPath);
     std::error_code error;
     std::filesystem::create_directories(payloadDirectory, error);
     if (error) {
         return false;
     }
+
+    std::vector<std::filesystem::path> payloadPaths;
+    for (const auto& tile : tiles) {
+        const auto tilePath = primPath + "/Tiles/" + TilePrimName(tile.tile.id);
+        for (std::size_t index = 0; index < tile.levels.size(); ++index) {
+            const auto payloadPath = payloadDirectory /
+                (tilePath.substr(tilePath.find_last_of('/') + 1) + "_LOD" +
+                 std::to_string(index) + ".usdc");
+            if (std::filesystem::exists(payloadPath)) {
+                return false;
+            }
+            payloadPaths.push_back(payloadPath);
+        }
+    }
+    const auto cleanup = [&payloadPaths]() {
+        std::error_code cleanupError;
+        for (const auto& payloadPath : payloadPaths) {
+            std::filesystem::remove(payloadPath, cleanupError);
+            cleanupError.clear();
+        }
+    };
 
     std::set<std::string> tileNames;
     std::vector<float> sharedThresholds;
@@ -592,7 +625,8 @@ bool AuthorPointCloudTiledAssetWithPayloads(
             primPath + "/Tiles/" + TilePrimName(tile.tile.id));
         if (!AuthorLodRoot(stage, tilePath.GetString(), tile.levels,
                            tile.tile.lod, heuristicPath, defineHeuristic,
-                           &payloadDirectory)) {
+                           &payloadDirectory, &rootLayerPath)) {
+            cleanup();
             return false;
         }
         defineHeuristic = false;
