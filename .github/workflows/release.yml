@@ -168,7 +168,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for bundle in plugins/geo-las plugins/geo-laz; do
+          for bundle in plugins/geospatial-las plugins/geospatial-laz; do
             ost plugin build "$bundle" --target "$OST_PLATFORM" --profile "$OST_PROFILE"
             ost plugin test "$bundle" --target "$OST_PLATFORM" --profile "$OST_PROFILE" --up-to "${{ matrix.up_to }}" --json
           done

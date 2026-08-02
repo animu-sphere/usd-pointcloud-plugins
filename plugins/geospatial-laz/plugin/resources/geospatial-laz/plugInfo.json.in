@@ -1,0 +1,23 @@
+{
+    "Plugins": [
+        {
+            "Type": "library",
+            "Name": "UsdGeoLazFileFormat",
+            "Root": ".",
+            "LibraryPath": "../../../lib/@OPENSTRATA_PLUGIN_LIBRARY_FILENAME@",
+            "ResourcePath": ".",
+            "Info": {
+                "Types": {
+                    "UsdGeoLazFileFormat": {
+                        "bases": ["SdfFileFormat"],
+                        "displayName": "LAZ File Format",
+                        "extensions": ["laz"],
+                        "formatId": "laz",
+                        "primary": true,
+                        "target": "usd"
+                    }
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,34 @@
+#pragma once
+
+#include "pxr/base/tf/staticTokens.h"
+#include <pxr/usd/sdf/fileFormat.h>
+
+PXR_NAMESPACE_OPEN_SCOPE
+
+#define USDGEOLAS_FILE_FORMAT_TOKENS \
+    ((Id, "las")) \
+    ((Version, "1.0")) \
+    ((Target, "usd")) \
+    ((Extension, "las"))
+
+TF_DECLARE_PUBLIC_TOKENS(UsdGeoLasFileFormatTokens, USDGEOLAS_FILE_FORMAT_TOKENS);
+
+class UsdGeoLasFileFormat final : public SdfFileFormat {
+public:
+    bool CanRead(const std::string& file) const override;
+    bool Read(SdfLayer* layer,
+              const std::string& resolvedPath,
+              bool metadataOnly) const override;
+    bool WriteToString(const SdfLayer& layer,
+                       std::string* str,
+                       const std::string& comment = std::string()) const override;
+
+    UsdGeoLasFileFormat();
+    ~UsdGeoLasFileFormat() override;
+
+protected:
+    SDF_FILE_FORMAT_FACTORY_ACCESS;
+
+};
+
+PXR_NAMESPACE_CLOSE_SCOPE
