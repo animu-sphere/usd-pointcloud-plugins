@@ -20,7 +20,7 @@ Status: `usdGeoCore`, `usdPointCloudCore`, `usdLas`, `usdLaz`, and
 | `usdPointCloudAuthoring` | `libs/usd-pointcloud-authoring` | plain CMake/OpenStrata static library | implemented | Shared OpenUSD authoring: `UsdGeomPoints` and geospatial metadata authoring, point-attribute authoring, `usdLod` hierarchy authoring, tiled point-cloud authoring, payload-backed tile assets, root layer generation, and stage/layer validation. Renamed from `usdPointCloudAuthoring` after v0.1.0. |
 | `geospatial-las` | `plugins/geospatial-las` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | OpenUSD `SdfFileFormat` adapter for `.las`: plugin registration, argument normalization, `LasReader` construction, and authoring through the shared library. Owns its `LASxxx` diagnostic codes. |
 | `geospatial-laz` | `plugins/geospatial-laz` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | The same adapter shape for `.laz`, using `LazReader` and the laz-perf codec integration. Owns its `LAZxxx` diagnostic codes. |
-| `usdPointCloudTiling` | `libs/usd-pointcloud-tiling` | plain library | reserved, not implemented | Format-independent spatial partitioning and bounded-memory tile preparation: tile keys and bounds, tiling configuration, source-coordinate bucketing, tile buffering and spill-to-disk, tile manifests, fixed-stride LOD sampling, deterministic tile and level ordering, and cleanup of incomplete temporary output. See the [streaming and tiling plan](../roadmap/streaming-and-tiling.md). |
+| `usdPointCloudTiling` | `libs/usd-pointcloud-tiling` | plain library | implemented (initial contracts) | Format-independent spatial partitioning and bounded-memory tile preparation: fixed-grid tile keys and source-coordinate bucketing are implemented; tile buffering and spill-to-disk, tile manifests, fixed-stride LOD sampling, deterministic tile and level ordering, and cleanup of incomplete temporary output remain. See the [streaming and tiling plan](../roadmap/streaming-and-tiling.md). |
 | `usdGeoCache` | `libs/usd-geo-cache` | plain library | reserved, not implemented | Stable cache keys, USDC tile layout, cache lookup and invalidation. |
 | `usdCopc`, `usdPly`, `usdAsciiPoints`, `usdE57` | `libs/` | plain libraries | reserved, not implemented | Additional point-cloud readers targeting the same shared contracts. `usdCopc` is a candidate, not a commitment; the alternative is an isolated COPC module inside `usdLaz`. |
 | `usdTerrainCore`, `usdVectorCore` | `libs/` | plain libraries | reserved, not implemented | Raster/terrain and vector-feature contracts. These are a later family of work: raster and terrain data require different storage and authoring contracts from point clouds. |
@@ -89,6 +89,7 @@ identity and CMake package/target. A bundle declares the edge in its manifest;
 | `usdGeoCore` | `usdGeoCore` | `usdgeo::core` |
 | `usdPointCloudCore` | `usdPointCloudCore` | `usdpointcloud::core` |
 | `usdPointCloudAuthoring` | `usdPointCloudAuthoring` | `usdpointcloud::authoring` |
+| `usdPointCloudTiling` | `usdPointCloudTiling` | `usdpointcloud::tiling` |
 | `usdLas` | `usdLas` | `usdlas::core` |
 | `usdLaz` | `usdLaz` | `usdlaz::core` |
 

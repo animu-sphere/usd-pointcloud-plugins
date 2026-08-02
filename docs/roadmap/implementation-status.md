@@ -86,7 +86,7 @@ ordered plan is in [README.md](README.md).
 The plan is [streaming and tiling](streaming-and-tiling.md).
 
 - [x] `PointStream` pull interface in `usdPointCloudCore`
-- [ ] `usdPointCloudTiling`: tile keys, tiling configuration, tile router
+- [x] `usdPointCloudTiling`: fixed-grid tile keys, configuration, and source-coordinate tile router
 - [ ] Spool schema, thresholds, cleanup, and deterministic iteration order
 - [ ] LAS `PointStream` connected to tiled payload authoring
 - [ ] LAZ `PointStream` connected to tiled payload authoring
