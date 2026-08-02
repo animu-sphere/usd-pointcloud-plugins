@@ -1,5 +1,6 @@
 #pragma once
 
+#include "usdgeo/Diagnostic.h"
 #include "usdgeo/GeoReference.h"
 #include "usdgeo/SpatialBounds.h"
 
@@ -95,6 +96,22 @@ struct PointReadOptions {
     std::function<bool()> isCancelled;
 
     bool IsValid() const noexcept;
+};
+
+enum class PointStreamStatus {
+    Chunk,
+    End,
+    Error,
+};
+
+class PointStream {
+public:
+    virtual ~PointStream() = default;
+
+    virtual PointStreamStatus ReadNext(
+        PointChunk& chunk,
+        PointData& data,
+        usdgeo::Diagnostic& diagnostic) = 0;
 };
 
 } // namespace usdpointcloud
