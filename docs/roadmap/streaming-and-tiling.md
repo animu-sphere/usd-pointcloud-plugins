@@ -4,8 +4,9 @@ This is the plan for the next major capability: consuming large point clouds
 without accumulating the complete cloud in memory, and turning the result into
 payload-backed `usdLod` tile assets.
 
-Status: **not started**. Every contract below is a target, not a description of
-`main`. What `main` implements today is in
+Status: **in progress**. The `usdPointCloudCore` `PointStream` contract is now
+defined; the format-specific readers and bounded-memory pipeline remain targets.
+What `main` implements today is in
 [implementation status](implementation-status.md) and
 [capability matrix](../reference/CAPABILITY_MATRIX.md).
 

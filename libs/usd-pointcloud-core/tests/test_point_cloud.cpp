@@ -81,6 +81,24 @@ void TestReadOptions() {
     Check(!options.IsValid());
 }
 
+void TestPointStreamContract() {
+    class EmptyStream final : public usdpointcloud::PointStream {
+    public:
+        bool ReadNext(usdpointcloud::PointChunk&,
+                      usdpointcloud::PointData&,
+                      usdgeo::Diagnostic& diagnostic) override {
+            diagnostic = {};
+            return false;
+        }
+    } stream;
+
+    usdpointcloud::PointChunk chunk;
+    usdpointcloud::PointData data;
+    usdgeo::Diagnostic diagnostic;
+    Check(!stream.ReadNext(chunk, data, diagnostic));
+    Check(diagnostic.message.empty());
+}
+
 void TestFileFormatArgumentNormalization() {
     std::map<std::string, std::string> arguments = {
         {"attributes", "rgb, xyz"},
@@ -297,6 +315,7 @@ int main() {
     TestInvalidChunk();
     TestPointDataAndAssetChunk();
     TestReadOptions();
+    TestPointStreamContract();
     TestFileFormatArgumentNormalization();
     TestAttributeSelection();
     TestLodContracts();
