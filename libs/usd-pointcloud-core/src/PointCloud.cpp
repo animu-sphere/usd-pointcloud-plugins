@@ -69,6 +69,11 @@ bool PointData::IsValid() const noexcept {
            HasPointCountOrIsEmpty(waveformYt, pointCount) &&
            HasPointCountOrIsEmpty(waveformZt, pointCount) &&
            HasPointCountOrIsEmpty(waveformDataExternal, pointCount) &&
+           extraByteNames.size() == extraBytes.size() &&
+           std::all_of(extraBytes.begin(), extraBytes.end(),
+                       [&](const auto& values) {
+                           return values.empty() || values.size() == pointCount;
+                       }) &&
            (returnNumber.empty() == numberOfReturns.empty()) &&
            (red.empty() == green.empty()) && (red.empty() == blue.empty()) &&
            (waveformDescriptorIndex.empty() == waveformDataOffset.empty()) &&
@@ -133,6 +138,12 @@ PointChunk MakePointChunk(const PointData& data,
     add("waveformZt", PointAttributeType::Float32, data.waveformZt.size());
     add("waveformDataExternal", PointAttributeType::UInt8,
         data.waveformDataExternal.size());
+    for (std::size_t index = 0; index < data.extraBytes.size(); ++index) {
+        if (!data.extraBytes[index].empty() && index < data.extraByteNames.size()) {
+            chunk.attributes.push_back(
+                {data.extraByteNames[index], PointAttributeType::Float64});
+        }
+    }
     return chunk;
 }
 

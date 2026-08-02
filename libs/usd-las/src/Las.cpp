@@ -89,6 +89,9 @@ usdgeo::DiagnosticCode CodeForError(const std::string& error) {
     if (error == "LAS Extra Bytes VLR has an invalid length") {
         return usdgeo::DiagnosticCode::InvalidRecordLength;
     }
+    if (error == "unsupported LAS Extra Bytes data type") {
+        return usdgeo::DiagnosticCode::UnsupportedExtraBytesType;
+    }
     if (error == "decoded LAS point contains a non-finite coordinate") {
         return usdgeo::DiagnosticCode::NonFiniteCoordinate;
     }
@@ -140,6 +143,56 @@ std::size_t MinimumRecordLength(std::uint8_t format) {
         return 67;
     default:
         return 0;
+    }
+}
+
+std::size_t ExtraByteScalarSize(std::uint8_t dataType) {
+    switch (dataType) {
+    case 1:
+    case 2:
+        return 1;
+    case 3:
+    case 4:
+        return 2;
+    case 5:
+    case 6:
+    case 9:
+        return 4;
+    case 7:
+    case 8:
+    case 10:
+        return 8;
+    default:
+        return 0;
+    }
+}
+
+double ReadExtraByteScalar(const std::vector<std::uint8_t>& record,
+                           std::size_t offset,
+                           std::uint8_t dataType) {
+    switch (dataType) {
+    case 1:
+        return ReadLittle<std::uint8_t>(record, offset);
+    case 2:
+        return ReadLittle<std::int8_t>(record, offset);
+    case 3:
+        return ReadLittle<std::uint16_t>(record, offset);
+    case 4:
+        return ReadLittle<std::int16_t>(record, offset);
+    case 5:
+        return ReadLittle<std::uint32_t>(record, offset);
+    case 6:
+        return ReadLittle<std::int32_t>(record, offset);
+    case 7:
+        return static_cast<double>(ReadLittle<std::uint64_t>(record, offset));
+    case 8:
+        return static_cast<double>(ReadLittle<std::int64_t>(record, offset));
+    case 9:
+        return ReadLittle<float>(record, offset);
+    case 10:
+        return ReadLittle<double>(record, offset);
+    default:
+        return 0.0;
     }
 }
 
@@ -900,6 +953,25 @@ bool DecodePoint(const LasHeader& header,
         point.waveform.zt = ReadLittle<float>(record, waveformOffset + 25);
         point.hasWaveform = true;
     }
+    const auto extraOffset = MinimumRecordLength(header.pointFormat);
+    std::size_t extraBytesOffset = extraOffset;
+    point.extraBytes.reserve(header.extraBytes.size());
+    for (const auto& descriptor : header.extraBytes) {
+        const auto scalarSize = ExtraByteScalarSize(descriptor.dataType);
+        if (scalarSize == 0) {
+            error = "unsupported LAS Extra Bytes data type";
+            return false;
+        }
+        if (!Has(record, extraBytesOffset, scalarSize)) {
+            error = "LAS point record Extra Bytes are truncated";
+            return false;
+        }
+        const auto raw = ReadExtraByteScalar(record, extraBytesOffset,
+                                              descriptor.dataType);
+        point.extraBytes.push_back(raw * descriptor.scale.x +
+                                   descriptor.offset.x);
+        extraBytesOffset += scalarSize;
+    }
     if (!std::isfinite(point.sourcePosition.x) ||
         !std::isfinite(point.sourcePosition.y) ||
         !std::isfinite(point.sourcePosition.z)) {
@@ -1028,6 +1100,16 @@ bool AppendPointData(const LasHeader& header,
             data.waveformZt.reserve(pointCount);
             data.waveformDataExternal.reserve(pointCount);
         }
+        data.extraByteNames.clear();
+        data.extraByteNames.reserve(header.extraBytes.size());
+        data.extraBytes.clear();
+        data.extraBytes.resize(header.extraBytes.size());
+        for (const auto& descriptor : header.extraBytes) {
+            data.extraByteNames.push_back(descriptor.name);
+        }
+        for (auto& values : data.extraBytes) {
+            values.reserve(pointCount);
+        }
     }
 
     for (const auto& point : points) {
@@ -1071,6 +1153,13 @@ bool AppendPointData(const LasHeader& header,
                 waveformPath.replace_extension(".wdp");
                 data.waveformDataFile = waveformPath.string();
             }
+        }
+        if (point.extraBytes.size() != data.extraBytes.size()) {
+            error = "LAS point Extra Bytes do not match the header";
+            return false;
+        }
+        for (std::size_t index = 0; index < data.extraBytes.size(); ++index) {
+            data.extraBytes[index].push_back(point.extraBytes[index]);
         }
     }
 

@@ -102,6 +102,14 @@ void TestHeaderAndPoint() {
           point.numberOfReturns == 2 && point.classification == 2);
     Check(point.hasColor && point.red == 100 && point.hasGpsTime &&
           point.gpsTime == 12.5);
+
+    header.extraBytes.push_back({9, 0, "temperature", {}, {}, {},
+                                 {0.01, 0.0, 0.0}, {100.0, 0.0, 0.0}, {}});
+    header.pointRecordLength = 38;
+    record.resize(38, 0);
+    Write(record, 34, 123.0F);
+    Check(usdlas::DecodePoint(header, record, point, error));
+    Check(point.extraBytes.size() == 1 && point.extraBytes.front() == 101.23);
 }
 
 void TestPointCloudAssetHelpers() {

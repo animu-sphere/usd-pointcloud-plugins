@@ -335,6 +335,12 @@ bool SelectPointDataAttributes(PointData& data,
         data.waveformDataExternal.clear();
         data.waveformDataFile.clear();
     }
+    for (std::size_t index = 0; index < data.extraBytes.size(); ++index) {
+        if (index >= data.extraByteNames.size() ||
+            !keep(data.extraByteNames[index].c_str())) {
+            data.extraBytes[index].clear();
+        }
+    }
     if (!data.IsValid()) {
         error = "selected point attributes are inconsistent";
         return false;

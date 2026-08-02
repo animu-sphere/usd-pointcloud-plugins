@@ -427,6 +427,17 @@ bool AuthorPointCloudAsset(
             pxr::SdfValueTypeNames->String)
             .Set(data.waveformDataFile);
     }
+    for (std::size_t index = 0; index < data.extraBytes.size(); ++index) {
+        if (index >= data.extraByteNames.size() ||
+            data.extraByteNames[index].empty() || data.extraBytes[index].empty()) {
+            continue;
+        }
+        points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:" + data.extraByteNames[index]),
+            pxr::SdfValueTypeNames->DoubleArray)
+            .Set(pxr::VtArray<double>(data.extraBytes[index].begin(),
+                                      data.extraBytes[index].end()));
+    }
 
     points.GetPrim().CreateAttribute(
         pxr::TfToken("geo:epsgCode"), pxr::SdfValueTypeNames->Int)
