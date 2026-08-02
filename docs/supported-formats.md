@@ -75,13 +75,14 @@ Bytes VLR.
 | Waveform parameters | 4, 5, 9, 10 | Supported | `geo:waveformXt`, `geo:waveformYt`, `geo:waveformZt` (`float[]`) |
 | External waveform data flag | 4, 5, 9, 10 | Supported | `geo:waveformDataExternal` (`uchar[]`) |
 | External waveform data file | 4, 5, 9, 10 | Supported | `geo:waveformDataFile` (`string`) |
-| Extra Bytes | all | Scalar types 1-10 supported | `geo:<descriptor name>` (`double[]`), with descriptor scale and offset applied |
+| Extra Bytes | all | Scalar types 1-10 supported when exactly representable as `double` | `geo:<descriptor name>` (`double[]`), with descriptor scale and offset applied |
 
 Positions are decoded as `double` in source coordinates using the header scale
 and offset, then translated by the local origin and converted to the stage up
 axis before being written as `float3`. Scalar Extra Bytes values are decoded
 from the appended point-record data and written after applying their
-descriptor scale and offset. Vector Extra Bytes types are not supported.
+descriptor scale and offset. Vector Extra Bytes types, non-finite values, and
+integer values that cannot be represented exactly as `double` are rejected.
 
 ## VLR and EVLR
 

@@ -110,6 +110,21 @@ void TestHeaderAndPoint() {
     Write(record, 34, 123.0F);
     Check(usdlas::DecodePoint(header, record, point, error));
     Check(point.extraBytes.size() == 1 && point.extraBytes.front() == 101.23);
+
+    header.extraBytes.front().dataType = 7;
+    header.pointRecordLength = 42;
+    record.resize(42, 0);
+    Write(record, 34, (std::uint64_t{1} << 53) + 1);
+    Check(!usdlas::DecodePoint(header, record, point, error));
+
+    header.extraBytes.front().dataType = 9;
+    header.pointRecordLength = 38;
+    record.resize(38, 0);
+    Write(record, 34, std::numeric_limits<float>::quiet_NaN());
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!usdlas::DecodePoint(header, record, point, diagnostics));
+    Check(diagnostics.size() == 1 &&
+          diagnostics.front().code == usdgeo::DiagnosticCode::NonFiniteExtraBytes);
 }
 
 void TestPointCloudAssetHelpers() {
@@ -399,6 +414,7 @@ void TestVariableLengthRecords() {
         appendRecord("LASF_Spec", 4, extraBytes);
         Write(structuredBytes, 100, std::uint32_t{4});
         Write(structuredBytes, 96, static_cast<std::uint32_t>(structuredBytes.size()));
+        Write(structuredBytes, 105, std::uint16_t{24});
 
         Check(usdlas::InspectMetadata(structuredBytes, header, error));
         Check(header.geoTiffMetadata.has_value());

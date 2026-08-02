@@ -6,6 +6,7 @@
 
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/base/gf/vec3d.h>
+#include <pxr/base/tf/stringUtils.h>
 #include <pxr/base/vt/array.h>
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/sdf/layer.h>
@@ -432,11 +433,17 @@ bool AuthorPointCloudAsset(
             data.extraByteNames[index].empty() || data.extraBytes[index].empty()) {
             continue;
         }
-        points.GetPrim().CreateAttribute(
+        if (!pxr::TfIsValidIdentifier(data.extraByteNames[index])) {
+            return false;
+        }
+        const auto attribute = points.GetPrim().CreateAttribute(
             pxr::TfToken("geo:" + data.extraByteNames[index]),
-            pxr::SdfValueTypeNames->DoubleArray)
-            .Set(pxr::VtArray<double>(data.extraBytes[index].begin(),
-                                      data.extraBytes[index].end()));
+            pxr::SdfValueTypeNames->DoubleArray);
+        if (!attribute ||
+            !attribute.Set(pxr::VtArray<double>(data.extraBytes[index].begin(),
+                                                data.extraBytes[index].end()))) {
+            return false;
+        }
     }
 
     points.GetPrim().CreateAttribute(

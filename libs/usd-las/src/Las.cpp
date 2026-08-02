@@ -89,11 +89,17 @@ usdgeo::DiagnosticCode CodeForError(const std::string& error) {
     if (error == "LAS Extra Bytes VLR has an invalid length") {
         return usdgeo::DiagnosticCode::InvalidRecordLength;
     }
+    if (error == "LAS point record length does not match Extra Bytes descriptors") {
+        return usdgeo::DiagnosticCode::InvalidRecordLength;
+    }
     if (error == "unsupported LAS Extra Bytes data type") {
         return usdgeo::DiagnosticCode::UnsupportedExtraBytesType;
     }
     if (error == "decoded LAS point contains a non-finite coordinate") {
         return usdgeo::DiagnosticCode::NonFiniteCoordinate;
+    }
+    if (error == "decoded LAS point contains a non-finite Extra Bytes value") {
+        return usdgeo::DiagnosticCode::NonFiniteExtraBytes;
     }
     return usdgeo::DiagnosticCode::DecodeFailure;
 }
@@ -165,6 +171,32 @@ std::size_t ExtraByteScalarSize(std::uint8_t dataType) {
     default:
         return 0;
     }
+}
+
+bool ValidateExtraBytesLayout(const usdlas::LasHeader& header,
+                              std::string& error) {
+    std::size_t extraBytesSize = 0;
+    for (const auto& descriptor : header.extraBytes) {
+        const auto scalarSize = ExtraByteScalarSize(descriptor.dataType);
+        if (scalarSize == 0) {
+            error = "unsupported LAS Extra Bytes data type";
+            return false;
+        }
+        if (extraBytesSize > (std::numeric_limits<std::size_t>::max)() -
+                                 scalarSize) {
+            error = "LAS Extra Bytes layout is too large";
+            return false;
+        }
+        extraBytesSize += scalarSize;
+    }
+    const auto baseSize = MinimumRecordLength(header.pointFormat);
+    if (baseSize > (std::numeric_limits<std::size_t>::max)() -
+                        extraBytesSize ||
+        header.pointRecordLength != baseSize + extraBytesSize) {
+        error = "LAS point record length does not match Extra Bytes descriptors";
+        return false;
+    }
+    return true;
 }
 
 double ReadExtraByteScalar(const std::vector<std::uint8_t>& record,
@@ -849,7 +881,10 @@ bool ParseKnownMetadata(const std::vector<LasVariableLengthRecord>& records,
     if (!ParseGeoTiffRecords(records, header.geoTiffMetadata, error)) {
         return false;
     }
-    return ParseExtraBytesRecords(records, header.extraBytes, error);
+    if (!ParseExtraBytesRecords(records, header.extraBytes, error)) {
+        return false;
+    }
+    return ValidateExtraBytesLayout(header, error);
 }
 
 std::string ExtractWktCrs(const std::vector<LasVariableLengthRecord>& records) {
@@ -966,10 +1001,29 @@ bool DecodePoint(const LasHeader& header,
             error = "LAS point record Extra Bytes are truncated";
             return false;
         }
+        if (descriptor.dataType == 7 &&
+            ReadLittle<std::uint64_t>(record, extraBytesOffset) >
+                (std::uint64_t{1} << 53)) {
+            error = "LAS Extra Bytes integer cannot be represented exactly as double";
+            return false;
+        }
+        if (descriptor.dataType == 8) {
+            const auto rawInteger =
+                ReadLittle<std::int64_t>(record, extraBytesOffset);
+            if (rawInteger > (std::int64_t{1} << 53) ||
+                rawInteger < -(std::int64_t{1} << 53)) {
+                error = "LAS Extra Bytes integer cannot be represented exactly as double";
+                return false;
+            }
+        }
         const auto raw = ReadExtraByteScalar(record, extraBytesOffset,
                                               descriptor.dataType);
-        point.extraBytes.push_back(raw * descriptor.scale.x +
-                                   descriptor.offset.x);
+        const auto value = raw * descriptor.scale.x + descriptor.offset.x;
+        if (!std::isfinite(value)) {
+            error = "decoded LAS point contains a non-finite Extra Bytes value";
+            return false;
+        }
+        point.extraBytes.push_back(value);
         extraBytesOffset += scalarSize;
     }
     if (!std::isfinite(point.sourcePosition.x) ||

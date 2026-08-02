@@ -24,6 +24,7 @@ enum class DiagnosticCode {
     UnsupportedExtraBytesType,
     MissingWaveformData,
     NonFiniteCoordinate,
+    NonFiniteExtraBytes,
     DecodeFailure,
     UnknownFormatArgument,
     UnsupportedFormatArgument,
