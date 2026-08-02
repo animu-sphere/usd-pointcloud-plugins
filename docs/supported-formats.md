@@ -143,19 +143,18 @@ axis is `Z` and the stage up axis is `Y`, so
 | Item | Status |
 | --- | --- |
 | Spatial tiling | Not implemented |
-| LOD hierarchy | Not implemented |
-| `UsdLodRootAPI` | Not authored |
-| `UsdLodScreenSizeHeuristic` | Not authored |
+| LOD hierarchy | Compact profile, single non-tiled root |
+| `UsdLodRootAPI` | Authored when `lod` is not `off` |
+| `UsdLodScreenSizeHeuristic` | Authored when `lod` is not `off` |
 | `UsdLodOverrideAPI` | Not consumed |
 | Payload-partitioned tiles | Not authored |
-| LOD file-format arguments | Not implemented |
+| LOD file-format arguments | `lod=off|preview|balanced|quality` |
 
-Every read authors one `UsdGeomPoints` prim at `/PointCloud` containing every
-point in the source. There is no LOD root, no heuristic, no default index, and
-no payload partitioning.
+With `lod=off` every read authors one `UsdGeomPoints` prim at `/PointCloud`.
+The other profiles author a single non-tiled `usdLod` root with fixed-stride
+levels and a screen-size heuristic. There is no payload partitioning.
 
-When LOD lands, it will be authored with the OpenUSD 26.08 `usdLod` schemas and
-nothing else. The project will not publish a repository-specific LOD schema, a
+LOD is authored with the OpenUSD 26.08 `usdLod` schemas and nothing else. The project will not publish a repository-specific LOD schema, a
 `lodLevel` primvar, or a variant-set convention, and LOD selection will remain
 the host application's responsibility. The target namespace and invariants are
 in the [tile and LOD contract](architecture/lod.md).
@@ -165,8 +164,8 @@ in the [tile and LOD contract](architecture/lod.md).
 - The whole point cloud is materialized in memory before authoring. LAZ
   decodes in 65,536-point chunks but still accumulates every point.
 - File-format arguments currently expose normalized chunk and point-range
-  read options plus attribute selection. Bounds, classification filters, and
-  LOD arguments remain unavailable. See the
+  read options, attribute selection, and compact LOD profiles. Bounds and
+  classification filters remain unavailable. See the
   [file-format argument contract](architecture/file-format-arguments.md) and
   the [plugin adapter contract](architecture/plugin-adapter.md).
 - `metadataOnly` reads are refused; a header-only or metadata-only inspection
@@ -179,6 +178,6 @@ in the [tile and LOD contract](architecture/lod.md).
 - Reader errors expose shared typed diagnostics and remain projected to stable
   `LASxxx` or `LAZxxx` plugin prefixes. See
   [diagnostics](architecture/diagnostics.md).
-- Tile/LOD streaming and the USDC cache are not implemented. No `usdLod`
-  schema is applied to the authored stage.
+- Tile/LOD streaming, payload packaging, and the USDC cache are not
+  implemented. LOD is currently single-root and non-tiled.
 - Writing LAS or LAZ is out of scope; both plugins export as `usda`.

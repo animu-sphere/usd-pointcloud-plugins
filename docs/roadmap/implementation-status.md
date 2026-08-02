@@ -46,7 +46,7 @@
 - [x] LOD validation invariants and typed diagnostics
 - [x] Deterministic, versioned fixed-stride point sampling and cache-key inputs
 - [x] `usdLod` authoring in `usdGeoUsd` (single non-tiled root)
-- [ ] LOD file-format arguments
+- [x] LOD file-format arguments (compact profiles)
 - [ ] Spatial tiling and per-tile LOD roots
 - [ ] Payload packaging and working-set measurement
 - [ ] Metadata-only reads
@@ -54,9 +54,8 @@
 
 ## Next Implementation Sequence
 
-1. Verify the `usdLod` schema surface against the pinned OpenUSD 26.08 runtime.
-2. Author a single non-tiled LOD root through `usdGeoUsd` for LAS and LAZ.
-3. Add spatial tiling, one LOD root per tile, and payload packaging.
+1. Add spatial tiling, one LOD root per tile, and payload packaging.
+2. Measure payload working sets and add the USDC cache.
 
 The initial sampling contract uses a versioned fixed-stride selection that
 preserves source order and applies the same indices to every populated point
@@ -74,10 +73,10 @@ tile / LOD work begins. Its current contract is documented in
 [point reader architecture](../architecture/point-reader.md), and the LOD
 target is fixed in the [tile and LOD contract](../architecture/lod.md).
 
-No LOD is authored today. Both plugins still produce a single `UsdGeomPoints`
-prim with no LOD root, heuristic, or override, and neither accepts a
-file-format argument. Whether the plugins should also become dynamic file
-formats is open; see
+Compact `lod` profiles now author a single non-tiled `usdLod` root through the
+shared authoring path for LAS and LAZ. Spatial tiling and payload packaging
+remain open. Whether the plugins should also become dynamic file formats is
+open; see
 [ADR-0003](adr-0003-dynamic-file-format.md).
 
 The LAS conformance fixture and FileFormat Plugin integration gate passed

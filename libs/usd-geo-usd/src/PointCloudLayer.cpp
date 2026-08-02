@@ -406,4 +406,23 @@ bool AuthorPointCloudLodAsset(
     return true;
 }
 
+bool AuthorPointCloudLodAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const std::vector<usdpointcloud::PointCloudAsset>& levels,
+    const usdpointcloud::PointLodHierarchy& hierarchy) {
+    if (!layer || levels.empty() || !levels.front().reference.IsValid()) {
+        return false;
+    }
+    const auto stage = PointCloudLayer::CreateStage();
+    if (!stage || !pxr::UsdGeomSetStageUpAxis(
+                      stage, pxr::TfToken(levels.front().reference.stageUpAxis)) ||
+        !pxr::UsdGeomSetStageMetersPerUnit(stage, 1.0) ||
+        !AuthorPointCloudLodAsset(stage, primPath, levels, hierarchy)) {
+        return false;
+    }
+    layer->TransferContent(stage->GetRootLayer());
+    return true;
+}
+
 } // namespace usdgeo

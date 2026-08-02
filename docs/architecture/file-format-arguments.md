@@ -81,10 +81,10 @@ because they do not change authored topology:
 
 The `lod` profile is normalized as `off`, `preview`, `balanced`, or `quality`.
 `off` is the default and has the same canonical identity as an omitted
-argument. The profile is currently carried by the shared request but does not
-yet change authored topology; the remaining topology-generation candidates are
-recognized as planned arguments and rejected until their shared contracts are
-implemented.
+argument. The other profiles author a single non-tiled `usdLod` root using
+versioned fixed-stride samples. Explicit level counts, spatial tiling, and
+the remaining topology-generation candidates are recognized as planned
+arguments and rejected until their shared contracts are implemented.
 
 `NormalizeFileFormatArguments` also returns a canonical argument map. Static
 hosts must pass that map to `SdfLayer::FindOrOpen` or

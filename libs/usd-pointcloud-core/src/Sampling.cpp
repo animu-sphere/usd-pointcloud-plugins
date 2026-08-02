@@ -1,5 +1,7 @@
 #include "usdpointcloud/Sampling.h"
 
+#include <algorithm>
+
 namespace usdpointcloud {
 namespace {
 
@@ -98,6 +100,65 @@ bool SamplePointData(const PointData& source,
                     sampled.waveformDataExternal);
     sampled.waveformDataFile = source.waveformDataFile;
     return true;
+}
+
+bool BuildPointLodAssets(const PointCloudAsset& source,
+                         LodProfile profile,
+                         std::vector<PointCloudAsset>& levels,
+                         PointLodHierarchy& hierarchy,
+                         std::vector<usdgeo::Diagnostic>& diagnostics) {
+    levels.clear();
+    hierarchy = {};
+    diagnostics.clear();
+    if (!source.IsValid() || profile == LodProfile::Off) {
+        AddDiagnostic("LOD source asset or profile is invalid", diagnostics);
+        return false;
+    }
+
+    const auto pointCount = source.data.positions.size();
+    std::vector<std::uint64_t> targets;
+    const auto addTarget = [&](std::uint64_t divisor) {
+        targets.push_back(std::max<std::uint64_t>(
+            1, (pointCount + divisor - 1) / divisor));
+    };
+    if (profile == LodProfile::Preview) {
+        addTarget(4);
+    } else if (profile == LodProfile::Balanced) {
+        addTarget(16);
+        addTarget(4);
+    } else {
+        addTarget(64);
+        addTarget(16);
+        addTarget(4);
+    }
+    targets.push_back(pointCount);
+    std::reverse(targets.begin(), targets.end());
+
+    for (std::size_t index = 0; index < targets.size(); ++index) {
+        PointCloudAsset level = source;
+        if (targets[index] != pointCount) {
+            PointData sampled;
+            PointSamplingOptions options;
+            options.targetPointCount = targets[index];
+            if (!SamplePointData(source.data, options, sampled, diagnostics)) {
+                return false;
+            }
+            level.data = std::move(sampled);
+            level.chunk = MakePointChunk(level.data, source.bounds);
+        }
+        levels.push_back(std::move(level));
+    }
+
+    hierarchy.bounds = source.bounds;
+    hierarchy.defaultIndex = 0;
+    hierarchy.screenSizeThresholds = {0.75F, 0.25F, 0.05F};
+    hierarchy.screenSizeThresholds.resize(levels.size() - 1);
+    for (std::size_t index = 0; index < levels.size(); ++index) {
+        hierarchy.items.push_back(
+            {static_cast<std::uint32_t>(index), levels[index].chunk.pointCount,
+             source.bounds, {0, pointCount}});
+    }
+    return hierarchy.IsValid();
 }
 
 usdgeo::CacheArguments MakeSamplingCacheArguments(

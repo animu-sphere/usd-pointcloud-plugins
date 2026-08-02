@@ -4,6 +4,7 @@
 #include "usdgeo/Diagnostic.h"
 #include "usdgeo/PointCloudLayer.h"
 #include "usdpointcloud/FileFormatArguments.h"
+#include "usdpointcloud/Sampling.h"
 #include "usdlas/Las.h"
 
 #include <pxr/base/tf/diagnostic.h>
@@ -171,9 +172,24 @@ bool GeoLasFileFormat::Read(SdfLayer* layer,
                                   .c_str());
         return false;
     }
-    usdgeo::PointCloudAuthorFailure authorFailure;
-    if (!usdgeo::AuthorPointCloudAsset(layer, "/PointCloud", asset,
-                                       authorFailure)) {
+    bool authored = false;
+    usdgeo::PointCloudAuthorFailure authorFailure =
+        usdgeo::PointCloudAuthorFailure::PointCloud;
+    if (request.lodProfile != usdpointcloud::LodProfile::Off) {
+        std::vector<usdpointcloud::PointCloudAsset> levels;
+        usdpointcloud::PointLodHierarchy hierarchy;
+        if (!usdpointcloud::BuildPointLodAssets(
+                asset, request.lodProfile, levels, hierarchy, diagnostics)) {
+            authored = false;
+        } else {
+            authored = usdgeo::AuthorPointCloudLodAsset(
+                layer, "/PointCloud", levels, hierarchy);
+        }
+    } else {
+        authored = usdgeo::AuthorPointCloudAsset(layer, "/PointCloud", asset,
+                                                 authorFailure);
+    }
+    if (!authored) {
         const char* code = geolas::diagnostics::PointCloudAuthorFailed;
         if (authorFailure == usdgeo::PointCloudAuthorFailure::InvalidLayer ||
             authorFailure == usdgeo::PointCloudAuthorFailure::StageCreation) {
