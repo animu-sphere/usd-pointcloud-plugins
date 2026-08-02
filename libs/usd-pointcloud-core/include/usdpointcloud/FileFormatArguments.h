@@ -11,8 +11,16 @@
 
 namespace usdpointcloud {
 
+enum class LodProfile {
+    Off,
+    Preview,
+    Balanced,
+    Quality,
+};
+
 struct PointReadRequest {
     PointReadOptions readOptions;
+    LodProfile lodProfile = LodProfile::Off;
     std::vector<std::string> attributes;
     std::map<std::string, std::string> canonicalArguments;
     std::string normalizedArguments;

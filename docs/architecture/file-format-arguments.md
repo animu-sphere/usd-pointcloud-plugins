@@ -7,8 +7,9 @@ document defines that contract.
 
 Status: **partially implemented**. LAS and LAZ normalize chunk and point-range
 read options plus the `attributes` subset before the shared reader and
-authoring path. LOD, filtering, and spatial arguments remain unavailable and
-are rejected with typed diagnostics.
+authoring path. The compact `lod` profile is now parsed and canonicalized;
+LOD authoring, filtering, and spatial arguments remain unavailable and are
+rejected with typed diagnostics.
 
 ## Why Arguments Exist
 
@@ -78,8 +79,12 @@ because they do not change authored topology:
 | `rangePointCount` | Unsigned count; zero means all remaining points |
 | `attributes` | Comma-separated supported names; `xyz` is implicit |
 
-`lod` and the other topology-generation candidates are recognized as planned
-arguments and rejected until their shared contracts are implemented.
+The `lod` profile is normalized as `off`, `preview`, `balanced`, or `quality`.
+`off` is the default and has the same canonical identity as an omitted
+argument. The profile is currently carried by the shared request but does not
+yet change authored topology; the remaining topology-generation candidates are
+recognized as planned arguments and rejected until their shared contracts are
+implemented.
 
 `NormalizeFileFormatArguments` also returns a canonical argument map. Static
 hosts must pass that map to `SdfLayer::FindOrOpen` or

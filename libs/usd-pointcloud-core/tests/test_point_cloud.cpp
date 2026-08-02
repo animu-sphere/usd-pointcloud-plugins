@@ -104,6 +104,22 @@ void TestFileFormatArgumentNormalization() {
               {"rangeFirstPoint", "4"},
               {"rangePointCount", "3"}});
 
+    arguments = {{"lod", " balanced "}};
+    Check(usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics));
+    Check(request.lodProfile == usdpointcloud::LodProfile::Balanced);
+    Check(request.normalizedArguments == "lod=balanced");
+    arguments = {{"lod", "quality"}};
+    Check(usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics));
+    Check(request.lodProfile == usdpointcloud::LodProfile::Quality);
+    Check(request.normalizedArguments == "lod=quality");
+    arguments = {{"lod", "off"}};
+    Check(usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics));
+    Check(request.lodProfile == usdpointcloud::LodProfile::Off &&
+          request.normalizedArguments.empty());
+
     arguments = {{"chunkPointLimit", "065536"},
                  {"memoryBudgetBytes", "67108864"},
                  {"rangePointCount", "0"}};
