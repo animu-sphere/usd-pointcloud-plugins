@@ -102,6 +102,10 @@ struct PointCloudTileAsset {
     std::vector<usdpointcloud::PointCloudAsset> levels;
 };
 
+struct PointCloudPayloadOptions {
+    std::string directory;
+};
+
 bool AuthorPointCloudTiledAsset(
     const pxr::UsdStageRefPtr& stage,
     const std::string& primPath,
@@ -111,5 +115,11 @@ bool AuthorPointCloudTiledAsset(
     pxr::SdfLayer* layer,
     const std::string& primPath,
     const std::vector<PointCloudTileAsset>& tiles);
+
+bool AuthorPointCloudTiledAssetWithPayloads(
+    const pxr::UsdStageRefPtr& stage,
+    const std::string& primPath,
+    const std::vector<PointCloudTileAsset>& tiles,
+    const PointCloudPayloadOptions& options);
 
 } // namespace usdgeo

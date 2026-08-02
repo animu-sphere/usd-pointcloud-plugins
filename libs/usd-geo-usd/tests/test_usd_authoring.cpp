@@ -4,6 +4,7 @@
 #include <pxr/usd/usdGeom/points.h>
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/usdLod/rootAPI.h>
+#include <pxr/usd/usd/payloads.h>
 
 #include <cstdlib>
 #include <filesystem>
@@ -358,6 +359,42 @@ void TestTiledLodAuthoringRejectsMismatchedThresholds() {
     Check(!stage->GetPrimAtPath(pxr::SdfPath("/PointCloud")).IsValid());
 }
 
+void TestTiledLodPayloadAuthoring() {
+    const auto stage = usdgeo::PointCloudLayer::CreateStage();
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    usdgeo::PointCloudTileAsset tile;
+    tile.tile.id = {0, 0, 0, 0};
+    tile.tile.bounds.Expand({0.0, 0.0, 0.0});
+    tile.tile.lod.bounds = tile.tile.bounds;
+    tile.tile.lod.items = {{0, 1, tile.tile.bounds, {0, 1}}};
+
+    usdpointcloud::PointCloudAsset level;
+    level.reference = reference;
+    level.bounds = tile.tile.bounds;
+    level.data.positions = {{0.0, 0.0, 0.0}};
+    level.chunk = usdpointcloud::MakePointChunk(level.data, level.bounds);
+    tile.levels.push_back(std::move(level));
+
+    const auto payloadDirectory =
+        std::filesystem::temp_directory_path() / "usd_geo_payloads";
+    std::filesystem::remove_all(payloadDirectory);
+    Check(usdgeo::AuthorPointCloudTiledAssetWithPayloads(
+        stage, "/PointCloud", {tile},
+        {payloadDirectory.string()}));
+
+    const auto lodPrim = stage->GetPrimAtPath(pxr::SdfPath(
+        "/PointCloud/Tiles/Tile_L0_p0_p0_p0/LOD0"));
+    Check(lodPrim.IsValid());
+    std::string authoredLayer;
+    Check(stage->GetRootLayer()->ExportToString(&authoredLayer));
+    Check(authoredLayer.find("payload") != std::string::npos);
+    Check(std::filesystem::exists(
+        payloadDirectory / "Tile_L0_p0_p0_p0_LOD0.usdc"));
+    std::filesystem::remove_all(payloadDirectory);
+}
+
 } // namespace
 
 int main() {
@@ -371,5 +408,6 @@ int main() {
     TestTiledLodAuthoring();
     TestTiledLodAuthoringSupportsNegativeTileCoordinates();
     TestTiledLodAuthoringRejectsMismatchedThresholds();
+    TestTiledLodPayloadAuthoring();
     return 0;
 }
