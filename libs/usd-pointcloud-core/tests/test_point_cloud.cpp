@@ -105,8 +105,10 @@ void TestFileFormatArgumentNormalization() {
               {"rangePointCount", "3"}});
 
     arguments = {{"lod", " balanced "}};
-    Check(!usdpointcloud::NormalizeFileFormatArguments(
+    Check(usdpointcloud::NormalizeFileFormatArguments(
         arguments, request, diagnostics));
+    Check(request.lodProfile == usdpointcloud::LodProfile::Balanced);
+    Check(request.normalizedArguments == "lod=balanced");
     arguments = {{"lod", "quality"}};
     Check(usdpointcloud::NormalizeFileFormatArguments(
         arguments, request, diagnostics));

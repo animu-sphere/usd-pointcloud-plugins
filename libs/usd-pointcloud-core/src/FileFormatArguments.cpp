@@ -163,13 +163,14 @@ bool NormalizeFileFormatArguments(
         std::uint64_t parsed = 0;
         std::string error;
         if (key == "lod") {
-            if (value == "off") {
+            const auto normalizedProfile = Trim(value);
+            if (normalizedProfile == "off") {
                 request.lodProfile = LodProfile::Off;
-            } else if (value == "preview") {
+            } else if (normalizedProfile == "preview") {
                 request.lodProfile = LodProfile::Preview;
-            } else if (value == "balanced") {
+            } else if (normalizedProfile == "balanced") {
                 request.lodProfile = LodProfile::Balanced;
-            } else if (value == "quality") {
+            } else if (normalizedProfile == "quality") {
                 request.lodProfile = LodProfile::Quality;
             } else {
                 AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
