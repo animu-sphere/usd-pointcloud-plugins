@@ -82,21 +82,47 @@ void TestReadOptions() {
 }
 
 void TestPointStreamContract() {
-    class EmptyStream final : public usdpointcloud::PointStream {
+    class TestStream final : public usdpointcloud::PointStream {
     public:
-        bool ReadNext(usdpointcloud::PointChunk&,
-                      usdpointcloud::PointData&,
-                      usdgeo::Diagnostic& diagnostic) override {
+        usdpointcloud::PointStreamStatus ReadNext(
+            usdpointcloud::PointChunk& chunk,
+            usdpointcloud::PointData& data,
+            usdgeo::Diagnostic& diagnostic) override {
             diagnostic = {};
-            return false;
+            if (readCount++ == 0) {
+                chunk.pointCount = 1;
+                data.positions = {{1.0, 2.0, 3.0}};
+                return usdpointcloud::PointStreamStatus::Chunk;
+            }
+            return usdpointcloud::PointStreamStatus::End;
         }
+
+    private:
+        std::size_t readCount = 0;
     } stream;
 
     usdpointcloud::PointChunk chunk;
     usdpointcloud::PointData data;
     usdgeo::Diagnostic diagnostic;
-    Check(!stream.ReadNext(chunk, data, diagnostic));
-    Check(diagnostic.message.empty());
+    Check(stream.ReadNext(chunk, data, diagnostic) ==
+          usdpointcloud::PointStreamStatus::Chunk);
+    Check(chunk.pointCount == 1 && data.positions.size() == 1);
+    Check(stream.ReadNext(chunk, data, diagnostic) ==
+          usdpointcloud::PointStreamStatus::End);
+
+    class ErrorStream final : public usdpointcloud::PointStream {
+    public:
+        usdpointcloud::PointStreamStatus ReadNext(
+            usdpointcloud::PointChunk&,
+            usdpointcloud::PointData&,
+            usdgeo::Diagnostic& diagnostic) override {
+            diagnostic.message = "test failure";
+            return usdpointcloud::PointStreamStatus::Error;
+        }
+    } errorStream;
+    Check(errorStream.ReadNext(chunk, data, diagnostic) ==
+          usdpointcloud::PointStreamStatus::Error);
+    Check(diagnostic.message == "test failure");
 }
 
 void TestFileFormatArgumentNormalization() {

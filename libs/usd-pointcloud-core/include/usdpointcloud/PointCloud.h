@@ -98,13 +98,20 @@ struct PointReadOptions {
     bool IsValid() const noexcept;
 };
 
+enum class PointStreamStatus {
+    Chunk,
+    End,
+    Error,
+};
+
 class PointStream {
 public:
     virtual ~PointStream() = default;
 
-    virtual bool ReadNext(PointChunk& chunk,
-                          PointData& data,
-                          usdgeo::Diagnostic& diagnostic) = 0;
+    virtual PointStreamStatus ReadNext(
+        PointChunk& chunk,
+        PointData& data,
+        usdgeo::Diagnostic& diagnostic) = 0;
 };
 
 } // namespace usdpointcloud

@@ -56,7 +56,7 @@ class PointStream {
 public:
     virtual ~PointStream() = default;
 
-    virtual bool ReadNext(
+    virtual PointStreamStatus ReadNext(
         PointChunk& chunk,
         PointData& data,
         Diagnostic& diagnostic) = 0;
