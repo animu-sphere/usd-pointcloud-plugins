@@ -32,7 +32,7 @@
 - [x] Add typed diagnostics to `usdGeoCore` and LAS / LAZ reader APIs
 - [x] Move the LAS / LAZ FileFormat Plugins onto the typed diagnostics path
 - [x] GeoTIFF CRS VLR parsing (structured VLR metadata)
-- [ ] Extra Bytes descriptors and generic point attributes
+- [x] Extra Bytes descriptors and scalar generic point attributes
 - [x] Remaining LAS 1.4 point attributes, including NIR
 - [x] Waveform contract and LAS point formats 4, 5, 9, and 10
 - [x] Chunked and range-based reader API

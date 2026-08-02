@@ -99,6 +99,12 @@ bool SamplePointData(const PointData& source,
     SampleAttribute(source.waveformDataExternal, indices,
                     sampled.waveformDataExternal);
     sampled.waveformDataFile = source.waveformDataFile;
+    sampled.extraByteNames = source.extraByteNames;
+    sampled.extraBytes.resize(source.extraBytes.size());
+    for (std::size_t index = 0; index < source.extraBytes.size(); ++index) {
+        SampleAttribute(source.extraBytes[index], indices,
+                        sampled.extraBytes[index]);
+    }
     return true;
 }
 

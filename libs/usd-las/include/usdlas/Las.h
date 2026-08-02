@@ -103,6 +103,7 @@ struct LasPoint {
     std::uint16_t blue = 0;
     std::uint16_t nir = 0;
     double gpsTime = 0.0;
+    std::vector<double> extraBytes;
     LasWaveformPacket waveform;
     bool hasColor = false;
     bool hasGpsTime = false;

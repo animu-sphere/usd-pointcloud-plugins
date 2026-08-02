@@ -6,6 +6,7 @@
 
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/base/gf/vec3d.h>
+#include <pxr/base/tf/stringUtils.h>
 #include <pxr/base/vt/array.h>
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/sdf/layer.h>
@@ -426,6 +427,23 @@ bool AuthorPointCloudAsset(
             pxr::TfToken("geo:waveformDataFile"),
             pxr::SdfValueTypeNames->String)
             .Set(data.waveformDataFile);
+    }
+    for (std::size_t index = 0; index < data.extraBytes.size(); ++index) {
+        if (index >= data.extraByteNames.size() ||
+            data.extraByteNames[index].empty() || data.extraBytes[index].empty()) {
+            continue;
+        }
+        if (!pxr::TfIsValidIdentifier(data.extraByteNames[index])) {
+            return false;
+        }
+        const auto attribute = points.GetPrim().CreateAttribute(
+            pxr::TfToken("geo:" + data.extraByteNames[index]),
+            pxr::SdfValueTypeNames->DoubleArray);
+        if (!attribute ||
+            !attribute.Set(pxr::VtArray<double>(data.extraBytes[index].begin(),
+                                                data.extraBytes[index].end()))) {
+            return false;
+        }
     }
 
     points.GetPrim().CreateAttribute(

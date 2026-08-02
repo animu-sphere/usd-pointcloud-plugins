@@ -63,6 +63,8 @@ struct PointData {
     std::vector<float> waveformZt;
     std::vector<std::uint8_t> waveformDataExternal;
     std::string waveformDataFile;
+    std::vector<std::string> extraByteNames;
+    std::vector<std::vector<double>> extraBytes;
 
     bool IsValid() const noexcept;
 };

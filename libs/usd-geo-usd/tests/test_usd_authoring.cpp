@@ -430,6 +430,25 @@ void TestTiledLodPayloadAuthoring() {
     std::filesystem::remove_all(payloadDirectory);
 }
 
+void TestInvalidExtraByteNameDoesNotAuthor() {
+    const auto stage = usdgeo::PointCloudLayer::CreateStage();
+    usdgeo::GeoReference reference;
+    reference.localOrigin = {0.0, 0.0, 0.0};
+
+    usdpointcloud::PointChunk chunk;
+    chunk.pointCount = 1;
+    chunk.bounds.Expand({0.0, 0.0, 0.0});
+    chunk.attributes = {
+        {"temperature (C)", usdpointcloud::PointAttributeType::Float64}};
+    usdpointcloud::PointData data;
+    data.positions = {{0.0, 0.0, 0.0}};
+    data.extraByteNames = {"temperature (C)"};
+    data.extraBytes = {{21.5}};
+
+    Check(!usdgeo::AuthorPointCloudAsset(
+        stage, "/PointCloud", reference, chunk.bounds, chunk, data));
+}
+
 } // namespace
 
 int main() {
@@ -443,6 +462,7 @@ int main() {
     TestLodAuthoringRejectsInvalidLevelWithoutMutation();
     TestTiledLodAuthoring();
     TestTiledLodAuthoringSupportsNegativeTileCoordinates();
+    TestInvalidExtraByteNameDoesNotAuthor();
     TestTiledLodAuthoringRejectsMismatchedThresholds();
     TestTiledLodPayloadAuthoring();
     return 0;
