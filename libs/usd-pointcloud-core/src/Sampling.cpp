@@ -38,6 +38,11 @@ bool SamplePointData(const PointData& source,
                      const PointSamplingOptions& options,
                      PointData& sampled,
                      std::vector<usdgeo::Diagnostic>& diagnostics) {
+    if (&source == &sampled) {
+        AddDiagnostic("source and sampled point data must be distinct",
+                      diagnostics);
+        return false;
+    }
     if (!source.IsValid()) {
         AddDiagnostic("point data is invalid", diagnostics);
         return false;

@@ -240,6 +240,14 @@ void TestDeterministicSampling() {
     Check(!usdpointcloud::SamplePointData(
         source, {0}, first, diagnostics));
     Check(diagnostics.back().code == usdgeo::DiagnosticCode::InvalidLodItem);
+
+    diagnostics.clear();
+    const auto sourceBeforeAliasAttempt = source.positions;
+    Check(!usdpointcloud::SamplePointData(
+        source, options, source, diagnostics));
+    Check(diagnostics.size() == 1 &&
+          diagnostics.front().code == usdgeo::DiagnosticCode::InvalidLodItem);
+    Check(source.positions.size() == sourceBeforeAliasAttempt.size());
 }
 
 } // namespace
