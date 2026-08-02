@@ -52,7 +52,7 @@ bool ParseUnsigned(std::string_view value,
 
 bool IsUnsupportedArgument(const std::string& key) {
     static const std::set<std::string> keys = {
-        "lod", "lodLevels", "lodPointCounts", "lodRatios",
+        "lodLevels", "lodPointCounts", "lodRatios",
         "lodThresholds", "tile", "tileDepth", "tilePointLimit",
         "sampling", "classification", "bounds", "originMode", "upAxis"};
     return keys.find(key) != keys.end();
@@ -162,7 +162,21 @@ bool NormalizeFileFormatArguments(
     for (const auto& [key, value] : arguments) {
         std::uint64_t parsed = 0;
         std::string error;
-        if (key == "chunkPointLimit") {
+        if (key == "lod") {
+            if (value == "off") {
+                request.lodProfile = LodProfile::Off;
+            } else if (value == "preview") {
+                request.lodProfile = LodProfile::Preview;
+            } else if (value == "balanced") {
+                request.lodProfile = LodProfile::Balanced;
+            } else if (value == "quality") {
+                request.lodProfile = LodProfile::Quality;
+            } else {
+                AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                              "invalid lod profile: " + value, diagnostics);
+                return false;
+            }
+        } else if (key == "chunkPointLimit") {
             if (!ParseUnsigned(value, parsed, error) ||
                 parsed > (std::numeric_limits<std::size_t>::max)()) {
                 AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
@@ -253,6 +267,14 @@ bool NormalizeFileFormatArguments(
     if (request.readOptions.range.pointCount != 0) {
         normalized.emplace_back("rangePointCount",
                                 std::to_string(request.readOptions.range.pointCount));
+    }
+    if (request.lodProfile != LodProfile::Off) {
+        const char* profile = request.lodProfile == LodProfile::Preview
+                                  ? "preview"
+                                  : request.lodProfile == LodProfile::Balanced
+                                        ? "balanced"
+                                        : "quality";
+        normalized.emplace_back("lod", profile);
     }
     if (attributesSpecified) {
         normalized.emplace_back("attributes", Join(selectedAttributes));
