@@ -8,6 +8,10 @@
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/sdf/layer.h>
 #include <pxr/usd/usdGeom/points.h>
+#include <pxr/usd/usdGeom/xform.h>
+#include <pxr/usd/usdLod/rootAPI.h>
+#include <pxr/usd/usdLod/screenSizeHeuristic.h>
+#include <pxr/usd/usdLod/tokens.h>
 
 namespace usdgeo {
 
@@ -333,6 +337,59 @@ bool AuthorPointCloudAsset(
         pxr::TfToken("geo:pointCount"), pxr::SdfValueTypeNames->UInt64)
         .Set(chunk.pointCount);
 
+    return true;
+}
+
+bool AuthorPointCloudLodAsset(
+    const pxr::UsdStageRefPtr& stage,
+    const std::string& primPath,
+    const std::vector<usdpointcloud::PointCloudAsset>& levels,
+    const usdpointcloud::PointLodHierarchy& hierarchy) {
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    if (!stage || !IsValidPrimPath(primPath) ||
+        levels.size() != hierarchy.items.size() ||
+        !usdpointcloud::ValidatePointLodHierarchy(hierarchy, diagnostics)) {
+        return false;
+    }
+    for (const auto& level : levels) {
+        if (!level.IsValid()) {
+            return false;
+        }
+    }
+
+    const auto root = pxr::UsdGeomXform::Define(stage, pxr::SdfPath(primPath));
+    if (!root || !pxr::UsdLodRootAPI::Apply(root.GetPrim())) {
+        return false;
+    }
+    const auto lodRoot = pxr::UsdLodRootAPI(root.GetPrim());
+    if (!lodRoot.CreateLodDefaultIndexAttr().Set(
+            static_cast<int>(hierarchy.defaultIndex))) {
+        return false;
+    }
+
+    if (!hierarchy.screenSizeThresholds.empty()) {
+        const auto heuristicPath =
+            pxr::SdfPath(primPath + "/LodHeuristics/ScreenSize");
+        const auto heuristic =
+            pxr::UsdLodScreenSizeHeuristic::Define(stage, heuristicPath);
+        if (!heuristic ||
+            !heuristic.CreateLodDomainAttr().Set(pxr::UsdLodTokens->imaging) ||
+            !heuristic.CreateThresholdsAttr().Set(
+                pxr::VtArray<float>(hierarchy.screenSizeThresholds.begin(),
+                                    hierarchy.screenSizeThresholds.end())) ||
+            !lodRoot.CreateLodHeuristicsRel().AddTarget(heuristicPath)) {
+            return false;
+        }
+    }
+
+    for (std::size_t index = 0; index < levels.size(); ++index) {
+        if (!AuthorPointCloudAsset(
+                stage, primPath + "/LOD" + std::to_string(index),
+                levels[index].reference, levels[index].bounds,
+                levels[index].chunk, levels[index].data)) {
+            return false;
+        }
+    }
     return true;
 }
 
