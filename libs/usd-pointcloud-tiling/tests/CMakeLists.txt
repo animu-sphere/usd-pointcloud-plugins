@@ -1,0 +1,3 @@
+add_executable(usdPointCloudTiling_tests test_tiling.cpp)
+target_link_libraries(usdPointCloudTiling_tests PRIVATE usdpointcloud::tiling)
+add_test(NAME usdPointCloudTiling_unit COMMAND usdPointCloudTiling_tests)
