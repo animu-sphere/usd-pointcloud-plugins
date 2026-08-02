@@ -1,0 +1,23 @@
+{
+    "Plugins": [
+        {
+            "Type": "library",
+            "Name": "UsdGeoLasFileFormat",
+            "Root": ".",
+            "LibraryPath": "../../../lib/libUsdGeoLasFileFormat.dll",
+            "ResourcePath": ".",
+            "Info": {
+                "Types": {
+                    "UsdGeoLasFileFormat": {
+                        "bases": ["SdfFileFormat"],
+                        "displayName": "LAS File Format",
+                        "extensions": ["las"],
+                        "formatId": "las",
+                        "primary": true,
+                        "target": "usd"
+                    }
+                }
+            }
+        }
+    ]
+}

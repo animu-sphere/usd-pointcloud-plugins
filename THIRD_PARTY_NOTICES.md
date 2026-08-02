@@ -20,13 +20,13 @@ version 2.1 (LGPL-2.1). The complete license text is retained at
 components are described in `third_party/laz-perf/VENDORING.md`.
 
 The laz-perf sources are compiled into the static library `usdLaz`, which is
-linked into the `geo-laz` plugin binary. The `geo-las` plugin contains no
+linked into the `geospatial-laz` plugin binary. The `geospatial-las` plugin contains no
 laz-perf code.
 
 When distributing binaries that include the LAZ adapter, preserve this notice
 and the LGPL-2.1 terms. The project does not relicense the upstream
 `laz-perf` source under Apache-2.0. The concrete obligations for a binary
-release are recorded in [docs/distribution.md](docs/distribution.md).
+release are recorded in [docs/guides/DISTRIBUTION.md](docs/guides/DISTRIBUTION.md).
 
 ## OpenUSD
 

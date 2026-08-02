@@ -19,15 +19,15 @@ Validate the minimum path from an OpenUSD FileFormat Plugin to a LAS / LAZ reade
 
 - XYZ and bounds can be expanded into USD without loss
 - Source coordinates can be reconstructed from the local origin
-- OpenUSD dependencies are confined to `usdGeoUsd` and the plugin adapter
+- OpenUSD dependencies are confined to `usdPointCloudAuthoring` and the plugin adapter
 - The LAS reader can be tested without loading an OpenUSD plugin
 - The build is reproducible with CMake on Windows
 
 ## Open Decisions
 
-- LAZ decoder: use laz-perf behind the `usdLaz` adapter; see [ADR-0002](adr-0002-laz-codec.md)
+- LAZ decoder: use laz-perf behind the `usdLaz` adapter; see [ADR-0002](../adr/0002-laz-codec.md)
 - OpenUSD API Schema: no repository-specific LOD schema is defined; the public
-  representation is `usdLod`. See the [tile and LOD contract](../architecture/lod.md)
+  representation is `usdLod`. See the [tile and LOD contract](../architecture/LOD.md)
 - LOD API: verify the `usdLod` schema surface and behavior against the pinned
   OpenUSD 26.08 runtime
 
@@ -37,10 +37,10 @@ Validate the minimum path from an OpenUSD FileFormat Plugin to a LAS / LAZ reade
 - OpenUSD extension: 26.08 with the core feature set; plugin manifests declare
   `>=26.08,<27.0`
 - Build path: `ost configure`, `ost build`, and `ost test`
-- Current result: the core libraries, `geo-las`, and `geo-laz` build and test
+- Current result: the core libraries, `geospatial-las`, and `geospatial-laz` build and test
   on Windows x86_64, Linux x86_64, and macOS arm64 under the pinned runtime
 
-See [OpenUSD compatibility](../compatibility/openusd.md) for the full
+See [OpenUSD compatibility](../compatibility/OPENUSD.md) for the full
 statement.
 
 ## Outstanding

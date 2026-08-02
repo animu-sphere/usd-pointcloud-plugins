@@ -17,7 +17,7 @@ Priority is determined by:
 
 | Order | Format | Initial scope | Why this position | Entry gate |
 | --- | --- | --- | --- | --- |
-| 1 | LAS | LAS 1.2-1.4 headers, point formats 0-3 and 6-8, VLR/EVLR, XYZ, intensity, returns, classification, RGB, GPS time, CRS; then the full LAS 1.4 attribute set, Extra Bytes, and formats 4, 5, 9, 10 | Uncompressed records expose the complete coordinate and point-attribute model without codec complexity | `usdGeoCore`, `usdPointCloudCore`, and a minimal `usdGeoUsd` writer are tested |
+| 1 | LAS | LAS 1.2-1.4 headers, point formats 0-3 and 6-8, VLR/EVLR, XYZ, intensity, returns, classification, RGB, GPS time, CRS; then the full LAS 1.4 attribute set, Extra Bytes, and formats 4, 5, 9, 10 | Uncompressed records expose the complete coordinate and point-attribute model without codec complexity | `usdGeoCore`, `usdPointCloudCore`, and a minimal `usdPointCloudAuthoring` writer are tested |
 | 2 | LAZ | The LAS logical model with chunked decompression and the same file-format arguments | Delivers the common production format while reusing LAS semantics | LAS conformance corpus passes and the codec decision is recorded |
 | 3 | COPC | Read existing hierarchy, bounds, chunks, and LOD metadata; no writer initially | Validates native spatial hierarchy and partial loading before inventing a repository-specific point-cloud container | Stable LAZ chunk reading and tile contracts exist |
 | 4 | PLY | Binary and ASCII vertex elements, arbitrary per-vertex properties, XYZ, normals, RGB, intensity; CRS and units from file-format arguments; face elements deferred | Smallest self-describing point container; proves the generic attribute mapping is not LAS-specific | Generic point attributes and deterministic primvar naming are stable |
@@ -86,7 +86,7 @@ A later stage must not delay a correct implementation of an earlier stage. Write
   render visibility.
 
 The public representation and its invariants are fixed in the
-[tile and LOD contract](../architecture/lod.md).
+[tile and LOD contract](../architecture/LOD.md).
 
 COPC-specific structures stay out of `usd-laz`. They live either in a separate
 `usd-copc` library or in an isolated COPC module inside `usd-laz`, and their

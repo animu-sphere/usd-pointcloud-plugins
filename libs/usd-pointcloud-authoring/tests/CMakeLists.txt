@@ -1,0 +1,3 @@
+add_executable(usdPointCloudAuthoring_tests test_usd_authoring.cpp)
+target_link_libraries(usdPointCloudAuthoring_tests PRIVATE usdpointcloud::authoring)
+add_test(NAME usdPointCloudAuthoring_unit COMMAND usdPointCloudAuthoring_tests)

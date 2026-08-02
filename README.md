@@ -6,34 +6,34 @@ OpenUSD FileFormat Plugins for LAS and LAZ point clouds, with shared
 geospatial metadata and point-cloud contracts for surveying and mapping
 workflows.
 
-## What It Does
+**What it does**
 
-- Imports LAS 1.2-1.4 headers and point formats 0-10 into OpenUSD through the
-  `las` file format, including waveform packet metadata for formats 4, 5, 9,
-  and 10.
+- Imports LAS 1.2-1.4 headers and point formats 0-10 through the `las` file
+  format, including waveform packet metadata for formats 4, 5, 9, and 10 and
+  scalar Extra Bytes point attributes.
 - Imports compressed LAZ point records through the `laz` file format for the
-  point formats supported by the bundled codec.
-- Authors `UsdGeomPoints` with point positions, intensity, returns,
-  classification, RGB, GPS time, CRS metadata, local origin, bounds, and
-  point-count metadata.
+  point formats the bundled `laz-perf` codec supports.
+- Authors `UsdGeomPoints` with positions, intensity, returns, classification,
+  RGB, NIR, GPS time, waveform metadata, Extra Bytes, CRS metadata, local
+  origin, bounds, and point-count metadata.
+- Authors OpenUSD 26.08 `usdLod` roots from compact `lod` profiles, and reads
+  headers alone through `metadataOnly`.
 - Keeps format-independent validation and coordinate handling outside the USD
-  plugin layer.
-- Reports stable, machine-readable diagnostics for invalid or unsupported
-  input.
+  plugin layer, so the core libraries test without an OpenUSD runtime.
+- Reports stable, machine-readable `LASxxx` / `LAZxxx` diagnostics for invalid
+  or unsupported input.
 
-Rendering is provided by the consuming OpenUSD application. These plugins
-provide import and USD authoring, not a point-cloud renderer. Level of detail
-follows the same split: when tiling and LOD land, the plugins will author the
-OpenUSD 26.08 `usdLod` hierarchy and its heuristics, and the host application
-will select the active LOD. See the
-[tile and LOD contract](docs/architecture/lod.md).
+Rendering is the consuming application's responsibility. These plugins provide
+import and USD authoring, not a point-cloud renderer, and LOD selection stays
+with the host application. See the
+[tile and LOD contract](docs/architecture/LOD.md).
 
 ## Supported Formats
 
 | Extension | Plugin | Current support |
 | --- | --- | --- |
-| `.las` | `geo-las` | LAS 1.2-1.4 headers, VLR/EVLR metadata, WKT CRS, point formats 0-10 |
-| `.laz` | `geo-laz` | Point formats 0-3 and 6-8 through the bundled `laz-perf` adapter |
+| `.las` | `geospatial-las` | LAS 1.2-1.4 headers, VLR/EVLR metadata, WKT CRS, GeoTIFF keys, point formats 0-10 |
+| `.laz` | `geospatial-laz` | Point formats 0-3 and 6-8 through the bundled `laz-perf` adapter |
 
 Point formats 4 and 5 require LAS 1.3 or newer; formats 6-10 require LAS 1.4.
 The LAZ adapter rejects waveform formats because the bundled `laz-perf` codec
@@ -42,14 +42,23 @@ does not provide their compressed record decoders.
 | Attribute | Status |
 | --- | --- |
 | XYZ, intensity, return number, number of returns, classification | Authored |
-| RGB (formats 2, 3, 7, 8) | Authored |
-| GPS time (formats 1, 3, 6, 7, 8) | Authored |
+| RGB (formats 2, 3, 7, 8, 10) | Authored |
+| GPS time (formats 1, 3, 6-10) | Authored |
 | NIR, scan angle, user data, point source ID, classification flags, scanner channel, scan direction, edge of flight line | Authored |
 | Waveform packet metadata and external `.wdp` reference (LAS formats 4, 5, 9, 10) | Authored |
-| Extra Bytes point attributes | Not implemented |
+| Extra Bytes point attributes | Scalar types 1-10 authored; vector types rejected |
+
+Scalar Extra Bytes are authored as `geo:<descriptor name>` (`double[]`) with
+the descriptor scale and offset applied. The current limits are: vector Extra
+Bytes are unsupported, non-finite values are rejected, 64-bit integer values
+must be exactly representable as `double`, and a descriptor name must already
+be a valid USD identifier — a name such as `temperature (C)` currently fails
+the file rather than being normalized. Name normalization is a planned
+contract; see
+[streaming and tiling §12](docs/roadmap/streaming-and-tiling.md).
 
 The complete matrix, including VLR, CRS, and authored USD attributes, is in
-[supported formats](docs/supported-formats.md).
+the [capability matrix](docs/reference/CAPABILITY_MATRIX.md).
 
 COPC, PLY, delimited text point files (XYZ, PTS, CSV), E57, GeoTIFF and DEM
 elevation, and COG are planned in that order; see
@@ -57,22 +66,11 @@ elevation, and COG are planned in that order; see
 
 ## Quick Start
 
-Requirements:
+Requirements: CMake 3.23+, a C++17 compiler, OpenUSD 26.08 (the plugin
+contract accepts `>=26.08,<27.0`), and OpenStrata 0.21.0 for the pinned
+workspace build.
 
-- CMake 3.23 or newer
-- A C++17 compiler
-- OpenUSD 26.08, with the plugin contract accepting versions before 27.0
-- OpenStrata 0.21.0 for the pinned workspace build
-
-Build and test the libraries with plain CMake:
-
-```powershell
-cmake -S . -B build -DUSDGEO_BUILD_TESTS=ON
-cmake --build build --config Release --target ALL_BUILD
-ctest --test-dir build -C Release --output-on-failure
-```
-
-Build and test the OpenUSD plugins with the pinned OpenStrata workspace:
+Build and test everything through the pinned OpenStrata workspace:
 
 ```powershell
 ost configure
@@ -80,83 +78,92 @@ ost build
 ost test
 ```
 
-To build an individual OpenStrata plugin bundle, pass the bundle directory:
+Build and verify a single bundle:
 
 ```powershell
-ost plugin build .\plugins\geo-las
-ost plugin build .\plugins\geo-laz
+ost plugin build .\plugins\geospatial-las
+ost plugin test .\plugins\geospatial-las --up-to 4
 ```
+
+Build and test the libraries with plain CMake — without an OpenUSD runtime,
+this covers `usdGeoCore`, `usdPointCloudCore`, `usdLas`, and `usdLaz`:
+
+```powershell
+cmake -S . -B build -DUSDGEO_BUILD_TESTS=ON
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
+```
+
+The full surface is in [BUILDING.md](docs/guides/BUILDING.md).
 
 ## Using the Plugins
 
-### Plugin discovery
-
-An installed bundle has this layout:
-
-```text
-<bundle>/lib/GeoLasFileFormat.dll        # or .so / .dylib
-<bundle>/plugin/resources/geo-las/plugInfo.json
-<bundle>/openstrata.plugin.yaml
-```
-
-Point `PXR_PLUGINPATH_NAME` at the directory that holds `plugInfo.json`. A
-trailing slash makes OpenUSD search the subdirectories, which registers both
-plugins at once:
+Point `PXR_PLUGINPATH_NAME` at the directory holding `plugInfo.json`. A
+trailing slash makes OpenUSD search subdirectories, registering both bundles at
+once:
 
 ```powershell
-$env:PXR_PLUGINPATH_NAME = "C:\path\to\geo-las\plugin\resources\"
+$env:PXR_PLUGINPATH_NAME = "C:\path\to\geospatial-las\plugin\resources\"
 ```
 
 ```bash
-export PXR_PLUGINPATH_NAME=/path/to/geo-las/plugin/resources/
+export PXR_PLUGINPATH_NAME=/path/to/geospatial-las/plugin/resources/
 ```
 
-The plugin library must be able to load the OpenUSD libraries it was built
-against, so keep the runtime used for the build on `PATH` or
-`LD_LIBRARY_PATH`.
-
-### Opening a file
+Then open a file with any OpenUSD tool, or reference it from a layer:
 
 ```bash
 usdview sample.las
-usdcat sample.laz
 usdcat --flatten sample.las -o sample.usda
 ```
 
-On Windows, `ost plugin view` prepares the managed OpenUSD runtime and plugin
-environment for a bundle. The LAS preview command is:
-
-```powershell
-ost plugin view `
-  .\plugins\geo-las `
-  C:\path\to\sample.las `
-  --with .\plugins\geo-laz
-```
-
-The `--with` option is useful when the same session should discover both LAS
-and LAZ. Compact LOD preview arguments can be passed in the standard USD
-format-argument suffix:
-
-```powershell
-ost plugin view `
-  .\plugins\geo-las `
-  'C:\path\to\sample.las:SDF_FORMAT_ARGS:lod=balanced' `
-  --with .\plugins\geo-laz
-```
-
-The supported compact profiles are `off`, `preview`, `balanced`, and
-`quality`. Spatial `tile=true` preview is not available yet; it is rejected
-until spatial tiling is connected to the plugin read path.
-
-Any OpenUSD application that discovers FileFormat Plugins can reference a LAS
-or LAZ path directly:
-
 ```usda
 def "Survey" (
-    references = @./sample.las@
+    references = @./sample.las:SDF_FORMAT_ARGS:lod=balanced@
 )
 {
 }
+```
+
+The supported compact profiles are `off`, `preview`, `balanced`, and
+`quality`. `tile=true` is recognized but rejected: spatial tiling is not
+connected to the plugin read path yet. Registration details are in
+[INSTALL.md](docs/guides/INSTALL.md); the argument surface is in the
+[file-format argument contract](docs/architecture/FILE_FORMAT_ARGUMENTS.md).
+
+### Previewing without installing
+
+`ost plugin view` prepares the managed OpenUSD runtime and the plugin
+environment for a bundle, so a built bundle can be inspected in place:
+
+```powershell
+ost plugin view `
+  .\plugins\geospatial-las `
+  C:\path\to\sample.las `
+  --with .\plugins\geospatial-laz
+```
+
+```bash
+ost plugin view \
+  ./plugins/geospatial-las \
+  /path/to/sample.las \
+  --with ./plugins/geospatial-laz
+```
+
+`--with` makes one session discover both LAS and LAZ. Compact LOD profiles are
+passed in the standard USD format-argument suffix:
+
+```powershell
+ost plugin view `
+  .\plugins\geospatial-las `
+  'C:\path\to\sample.las:SDF_FORMAT_ARGS:lod=balanced' `
+  --with .\plugins\geospatial-laz
+```
+
+To run any other USD tool under the same composed environment:
+
+```powershell
+ost plugin run .\plugins\geospatial-las -- usdcat --flatten sample.las -o sample.usda
 ```
 
 ### Authored result
@@ -187,28 +194,55 @@ def Points "PointCloud"
 ```
 
 Positions are stage-local `float` values. Source coordinates are recovered
-from `geo:localOrigin`; the exact expression is in
-[supported formats](docs/supported-formats.md).
+from `geo:localOrigin`; the exact expression is in the
+[capability matrix](docs/reference/CAPABILITY_MATRIX.md).
+
+## Tiling and LOD Status
+
+Library capability and FileFormat integration are deliberately reported
+separately, because they differ today.
+
+Authoring library (`usdPointCloudAuthoring`):
+
+- `usdLod` hierarchy authoring: implemented
+- spatial tiled authoring: implemented
+- payload-backed tile output: implemented
+
+LAS/LAZ FileFormat read path:
+
+- compact non-spatial LOD profiles (`lod=preview|balanced|quality`):
+  implemented
+- spatial `tile` argument: not yet connected
+- bounded-memory payload generation during file open: not yet implemented
+
+Bringing the two together is the next major capability; the plan is in
+[streaming and tiling](docs/roadmap/streaming-and-tiling.md).
 
 ## Known Limitations
 
 - The whole point cloud is loaded into memory before the layer is authored.
-  LAZ decodes in 65,536-point chunks but still accumulates every point. Expect
-  memory use proportional to the point count, and plan accordingly for files
-  above a few tens of millions of points.
-- File-format arguments currently expose normalized attribute selection,
-  chunked and range-based reads, and compact `lod` profiles. Bounds and
-  classification filters are unavailable; see the [file-format argument
-  contract](docs/architecture/file-format-arguments.md).
+  LAZ decodes in 65,536-point chunks and the readers accept a memory budget,
+  but the plugin still accumulates every point. Expect memory use proportional
+  to the point count, and plan accordingly for files above a few tens of
+  millions of points.
+- Payload-backed tiled authoring is available through the authoring API, but
+  direct LAS and LAZ FileFormat reads do not yet stream decoded chunks into
+  tile payloads.
+- File-format arguments expose normalized attribute selection, chunked and
+  range-based reads, and compact `lod` profiles. Spatial tiling, bounds
+  filters, and classification filters are unavailable and are rejected with
+  typed diagnostics.
 - `metadataOnly` reads author the `/PointCloud` metadata namespace without
-  decoding point records. The stage contains source count, bounds, CRS, and
-  available-attribute metadata, but no point positions.
-- CRS comes from the WKT VLR only. GeoTIFF keys are retained but not parsed,
-  and EPSG codes are not inferred.
+  decoding point records: source count, bounds, CRS, and available-attribute
+  metadata, but no point positions.
+- Extra Bytes support covers scalar types 1-10 only. Vector types, non-finite
+  values, integers not exactly representable as `double`, and descriptor names
+  that are not valid USD identifiers are rejected.
+- CRS comes from the WKT VLR only. GeoTIFF keys are parsed and retained but not
+  interpreted, and EPSG codes are not inferred.
 - Point decoding assumes a little-endian host.
-- Spatial tile streaming, payload packaging, and a USDC cache are not
-  implemented. `lod=preview|balanced|quality` authors a single non-tiled
-  `usdLod` root with fixed-stride point samples.
+- A USDC cache is not implemented, and payload working-set behavior is
+  unmeasured.
 - Writing LAS or LAZ is out of scope; both plugins export as `usda`.
 
 See the [implementation status](docs/roadmap/implementation-status.md) and
@@ -216,65 +250,89 @@ See the [implementation status](docs/roadmap/implementation-status.md) and
 
 ## Status
 
-v0.1.0 is the first public release. It establishes the shared geospatial and
-point-cloud contracts, LAS and LAZ readers, and the OpenUSD FileFormat Plugin
-integration. See the [release record](docs/releases/v0.1.0.md).
+Latest release: **v0.1.0** — the shared geospatial and point-cloud contracts,
+the LAS and LAZ readers, and the OpenUSD FileFormat Plugin integration. See the
+[release record](docs/releases/v0.1.0.md).
 
-Direction for the work after v0.1.0 is fixed in the
-[development policy](docs/development-policy.md). The next major capability is
-tiling and level of detail, whose public representation is fixed as OpenUSD
-26.08 `usdLod` in the [tile and LOD contract](docs/architecture/lod.md).
+Current `main` carries unreleased work: LAS 1.4 attributes and waveform point
+formats, GeoTIFF key parsing, scalar Extra Bytes, chunked and range-based
+reads, normalized file-format arguments, the shared authoring entry point,
+`usdLod` authoring with compact LOD profiles, tiled and payload-backed
+authoring, metadata-only reads, and the module and bundle rename recorded in
+[MIGRATION.md](docs/compatibility/MIGRATION.md). See
+[CHANGELOG.md](CHANGELOG.md).
+
+Direction is fixed in the [design policy](docs/design/DESIGN_POLICY.md); the
+structure is fixed in the
+[workspace contract](docs/architecture/WORKSPACE.md).
 
 ## Architecture
 
 ```text
-.las -> usdLas -> usdGeoUsd -> geo-las -> OpenUSD stage
-.laz -> usdLaz -> usdLas  -> usdGeoUsd -> geo-laz -> OpenUSD stage
-                 ^
-                 shared geo and point-cloud contracts
+.las -> usdLas -----------\
+                           >-- usdPointCloudAuthoring -- geospatial-las/laz -> stage
+.laz -> usdLaz -> usdLas -/
+          ^
+          usdGeoCore + usdPointCloudCore
+          (shared geospatial and point-cloud contracts)
 ```
 
 The repository separates format readers, shared validation, USD authoring, and
 plugin adapters so the core tests remain independent of an OpenUSD runtime.
+The reserved `usdPointCloudTiling` module will sit between the readers and the
+authoring library; readers never depend on tiling or OpenUSD, and tiling never
+depends on LAS or LAZ. The binding version of this is
+[WORKSPACE.md](docs/architecture/WORKSPACE.md).
 
 ## Repository Layout
 
 ```text
-libs/usd-geo-core/        Geospatial values, transforms, bounds, and cache keys
-libs/usd-pointcloud-core/ Point-attribute and chunk validation contracts
-libs/usd-geo-usd/         OpenUSD metadata and point authoring
-libs/usd-las/             LAS header and point-record reader
-libs/usd-laz/             LAZ chunk reader and laz-perf adapter
-plugins/geo-las/          LAS OpenUSD FileFormat Plugin
-plugins/geo-laz/          LAZ OpenUSD FileFormat Plugin
-docs/architecture/        Cross-cutting design contracts
-docs/compatibility/       Runtime and OpenUSD compatibility statements
-docs/roadmap/             Architecture decisions and implementation phases
-docs/releases/            Immutable release records
+libs/usd-geo-core/              Geospatial values, transforms, bounds, cache keys, diagnostics
+libs/usd-pointcloud-core/       Point attribute, chunk, read-option, sampling, and LOD contracts
+libs/usd-pointcloud-authoring/  OpenUSD point-cloud, usdLod, and payload authoring
+libs/usd-las/                   LAS header, metadata, and point-record reader
+libs/usd-laz/                   LAZ chunk reader and laz-perf adapter
+plugins/geospatial-las/         LAS OpenUSD FileFormat Plugin
+plugins/geospatial-laz/         LAZ OpenUSD FileFormat Plugin
+docs/                           See docs/README.md for the documentation index
 ```
+
+Every module under `libs/` and `plugins/` carries its own `README.md` stating
+what it owns and refuses to own; that README is part of the module contract.
+See the [module README contract](docs/contributing/MODULE_README_CONTRACT.md).
 
 ## Documentation
 
-- [Development policy](docs/development-policy.md)
-- [Supported formats](docs/supported-formats.md)
-- [Binary distribution and licensing](docs/distribution.md)
-- [OpenUSD compatibility](docs/compatibility/openusd.md)
-- [Tile and LOD contract](docs/architecture/lod.md)
-- [Plugin adapter contract](docs/architecture/plugin-adapter.md)
-- [File-format argument contract](docs/architecture/file-format-arguments.md)
-- [Point reader architecture](docs/architecture/point-reader.md)
-- [Diagnostics contract](docs/architecture/diagnostics.md)
-- [Implementation status](docs/roadmap/implementation-status.md)
-- [Roadmap](docs/roadmap/README.md)
-- [Release records](docs/releases/README.md)
-- [Third-party notices](THIRD_PARTY_NOTICES.md)
+Start at the [documentation index](docs/README.md).
+
+- [Workspace contract](docs/architecture/WORKSPACE.md) — structure and
+  dependency directions
+- [Capability matrix](docs/reference/CAPABILITY_MATRIX.md) — what is supported
+  today
+- [Building and testing](docs/guides/BUILDING.md) ·
+  [Installing](docs/guides/INSTALL.md) ·
+  [Binary distribution and licensing](docs/guides/DISTRIBUTION.md)
+- [Design policy](docs/design/DESIGN_POLICY.md)
+- [Tile and LOD contract](docs/architecture/LOD.md) ·
+  [Plugin adapter](docs/architecture/PLUGIN_ADAPTER.md) ·
+  [File-format arguments](docs/architecture/FILE_FORMAT_ARGUMENTS.md) ·
+  [Point reader](docs/architecture/POINT_READER.md) ·
+  [Diagnostics](docs/architecture/DIAGNOSTICS.md)
+- [Roadmap](docs/roadmap/README.md) ·
+  [Streaming and tiling](docs/roadmap/streaming-and-tiling.md) ·
+  [Implementation status](docs/roadmap/implementation-status.md)
+- [OpenUSD compatibility](docs/compatibility/OPENUSD.md) ·
+  [Migration](docs/compatibility/MIGRATION.md)
+- [Release records](docs/releases/README.md) ·
+  [Third-party notices](THIRD_PARTY_NOTICES.md)
 
 ## License
 
 Project code is licensed under the Apache License 2.0; see [LICENSE](LICENSE)
 and [NOTICE](NOTICE). The LAZ adapter incorporates `laz-perf 2.0.0`, which is
-distributed under LGPL-2.1, and the `geo-laz` plugin binary therefore contains
-LGPL-2.1 code. Redistributing `geo-laz` binaries carries the obligations
-described in [binary distribution](docs/distribution.md); see
+distributed under LGPL-2.1, and the `geospatial-laz` plugin binary therefore
+contains LGPL-2.1 code. Redistributing `geospatial-laz` binaries carries the
+obligations described in
+[binary distribution](docs/guides/DISTRIBUTION.md); see
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the applicable
-third-party terms. The `geo-las` plugin contains no laz-perf code.
+third-party terms. The `geospatial-las` plugin contains no laz-perf code.
