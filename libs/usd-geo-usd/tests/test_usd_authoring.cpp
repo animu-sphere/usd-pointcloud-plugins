@@ -3,6 +3,7 @@
 #include <pxr/usd/sdf/layer.h>
 #include <pxr/usd/usdGeom/points.h>
 #include <pxr/usd/usdGeom/metrics.h>
+#include <pxr/usd/usdLod/rootAPI.h>
 
 #include <cstdlib>
 #include <filesystem>
@@ -196,6 +197,80 @@ void TestLayerAuthoringEntryPoint() {
     Check(failure == usdgeo::PointCloudAuthorFailure::InvalidLayer);
 }
 
+void TestLodAuthoring() {
+    const auto stage = usdgeo::PointCloudLayer::CreateStage();
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    std::vector<usdpointcloud::PointCloudAsset> levels(2);
+    for (auto& level : levels) {
+        level.reference = reference;
+        level.data.positions = {{0.0, 0.0, 0.0}};
+        level.bounds.Expand({0.0, 0.0, 0.0});
+        level.chunk = usdpointcloud::MakePointChunk(level.data, level.bounds);
+    }
+    usdpointcloud::PointLodHierarchy hierarchy;
+    hierarchy.bounds = levels[0].bounds;
+    hierarchy.items = {{0, 1, hierarchy.bounds, {0, 1}},
+                        {1, 1, hierarchy.bounds, {0, 1}}};
+    hierarchy.screenSizeThresholds = {0.1f};
+
+    Check(usdgeo::AuthorPointCloudLodAsset(
+        stage, "/PointCloud", levels, hierarchy));
+    const auto prim = stage->GetPrimAtPath(pxr::SdfPath("/PointCloud"));
+    Check(prim.HasAPI<pxr::UsdLodRootAPI>());
+    Check(prim.GetAttribute(pxr::TfToken("lod:default:index")).IsValid());
+    Check(stage->GetPrimAtPath(pxr::SdfPath("/PointCloud/LOD0")).IsValid());
+    Check(stage->GetPrimAtPath(pxr::SdfPath("/PointCloud/LOD1")).IsValid());
+    Check(stage->GetPrimAtPath(
+              pxr::SdfPath("/PointCloud/LodHeuristics/ScreenSize"))
+              .IsValid());
+}
+
+void TestLodAuthoringRejectsMismatchedMetadata() {
+    const auto stage = usdgeo::PointCloudLayer::CreateStage();
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    usdpointcloud::PointCloudAsset level;
+    level.reference = reference;
+    level.data.positions = {{0.0, 0.0, 0.0}};
+    level.bounds.Expand({0.0, 0.0, 0.0});
+    level.chunk = usdpointcloud::MakePointChunk(level.data, level.bounds);
+
+    usdpointcloud::PointLodHierarchy hierarchy;
+    hierarchy.bounds = level.bounds;
+    hierarchy.items = {{0, 2, hierarchy.bounds, {0, 2}}};
+
+    Check(!usdgeo::AuthorPointCloudLodAsset(
+        stage, "/PointCloud", {level}, hierarchy));
+    Check(!stage->GetPrimAtPath(pxr::SdfPath("/PointCloud")).IsValid());
+}
+
+void TestLodAuthoringRejectsInvalidLevelWithoutMutation() {
+    const auto stage = usdgeo::PointCloudLayer::CreateStage();
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    usdpointcloud::PointCloudAsset validLevel;
+    validLevel.reference = reference;
+    validLevel.data.positions = {{0.0, 0.0, 0.0}};
+    validLevel.bounds.Expand({0.0, 0.0, 0.0});
+    validLevel.chunk = usdpointcloud::MakePointChunk(
+        validLevel.data, validLevel.bounds);
+    auto invalidLevel = validLevel;
+    invalidLevel.reference.epsgCode.reset();
+
+    usdpointcloud::PointLodHierarchy hierarchy;
+    hierarchy.bounds = validLevel.bounds;
+    hierarchy.items = {{0, 1, hierarchy.bounds, {0, 1}},
+                        {1, 1, hierarchy.bounds, {0, 1}}};
+
+    Check(!usdgeo::AuthorPointCloudLodAsset(
+        stage, "/PointCloud", {validLevel, invalidLevel}, hierarchy));
+    Check(!stage->GetPrimAtPath(pxr::SdfPath("/PointCloud")).IsValid());
+}
+
 } // namespace
 
 int main() {
@@ -203,5 +278,8 @@ int main() {
     TestOptionalAttributesAreIndependent();
     TestInvalidPositionDoesNotMutateStage();
     TestLayerAuthoringEntryPoint();
+    TestLodAuthoring();
+    TestLodAuthoringRejectsMismatchedMetadata();
+    TestLodAuthoringRejectsInvalidLevelWithoutMutation();
     return 0;
 }

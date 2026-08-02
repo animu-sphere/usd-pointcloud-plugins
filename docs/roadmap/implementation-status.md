@@ -45,7 +45,7 @@
 - [x] Shared LOD contracts (`PointTileId`, `PointLodItem`, `PointLodHierarchy`)
 - [x] LOD validation invariants and typed diagnostics
 - [x] Deterministic, versioned fixed-stride point sampling and cache-key inputs
-- [ ] `usdLod` authoring in `usdGeoUsd`
+- [x] `usdLod` authoring in `usdGeoUsd` (single non-tiled root)
 - [ ] LOD file-format arguments
 - [ ] Spatial tiling and per-tile LOD roots
 - [ ] Payload packaging and working-set measurement

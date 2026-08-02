@@ -18,7 +18,8 @@ target_link_libraries(usdGeoUsd
     PUBLIC
         usdgeo::core
         usdpointcloud::core
-        usdGeom)
+        usdGeom
+        usdLod)
 target_include_directories(usdGeoUsd
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"

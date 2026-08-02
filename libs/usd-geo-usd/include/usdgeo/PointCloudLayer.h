@@ -2,6 +2,7 @@
 
 #include "usdgeo/GeoReference.h"
 #include "usdpointcloud/PointCloud.h"
+#include "usdpointcloud/Lod.h"
 
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/sdf/layer.h>
@@ -83,5 +84,11 @@ bool AuthorPointCloudAsset(
     const SpatialBounds& bounds,
     const usdpointcloud::PointChunk& chunk,
     const PointCloudLayer::Data& data);
+
+bool AuthorPointCloudLodAsset(
+    const pxr::UsdStageRefPtr& stage,
+    const std::string& primPath,
+    const std::vector<usdpointcloud::PointCloudAsset>& levels,
+    const usdpointcloud::PointLodHierarchy& hierarchy);
 
 } // namespace usdgeo
