@@ -164,19 +164,18 @@ from `geo:localOrigin`; the exact expression is in
   LAZ decodes in 65,536-point chunks but still accumulates every point. Expect
   memory use proportional to the point count, and plan accordingly for files
   above a few tens of millions of points.
-- There are no file-format arguments yet, so attribute selection, point
-  limits, and bounds or classification filters are unavailable. The readers
-  support chunked and range-based access, but the plugins do not yet pass
-  those options through; see the
-  [plugin adapter contract](docs/architecture/plugin-adapter.md).
+- File-format arguments currently expose normalized attribute selection,
+  chunked and range-based reads, and compact `lod` profiles. Bounds and
+  classification filters are unavailable; see the [file-format argument
+  contract](docs/architecture/file-format-arguments.md).
 - `metadataOnly` reads are refused; there is no header-only inspection path
   through the plugins.
 - CRS comes from the WKT VLR only. GeoTIFF keys are retained but not parsed,
   and EPSG codes are not inferred.
 - Point decoding assumes a little-endian host.
-- Tile/LOD streaming and a USDC cache are not implemented. Every read authors a
-  single full-resolution `UsdGeomPoints` prim with no LOD root, heuristic, or
-  payload partitioning.
+- Spatial tile streaming, payload packaging, and a USDC cache are not
+  implemented. `lod=preview|balanced|quality` authors a single non-tiled
+  `usdLod` root with fixed-stride point samples.
 - Writing LAS or LAZ is out of scope; both plugins export as `usda`.
 
 See the [implementation status](docs/roadmap/implementation-status.md) and

@@ -266,6 +266,30 @@ void TestDeterministicSampling() {
     Check(source.positions.size() == sourceBeforeAliasAttempt.size());
 }
 
+void TestLodProfileBuild() {
+    usdpointcloud::PointCloudAsset source;
+    source.reference.epsgCode = 4326;
+    for (int index = 0; index < 100; ++index) {
+        source.data.positions.push_back(
+            {static_cast<double>(index), 0.0, 0.0});
+    }
+    source.bounds.Expand({0.0, 0.0, 0.0});
+    source.bounds.Expand({99.0, 0.0, 0.0});
+    source.chunk = usdpointcloud::MakePointChunk(source.data, source.bounds);
+
+    std::vector<usdpointcloud::PointCloudAsset> levels;
+    usdpointcloud::PointLodHierarchy hierarchy;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(usdpointcloud::BuildPointLodAssets(
+        source, usdpointcloud::LodProfile::Balanced, levels, hierarchy,
+        diagnostics));
+    Check(diagnostics.empty());
+        Check(levels.size() == 3 && levels[0].data.positions.size() == 100 &&
+            levels[1].data.positions.size() == 25 &&
+            levels[2].data.positions.size() == 7);
+    Check(hierarchy.IsValid() && hierarchy.defaultIndex == 0);
+}
+
 } // namespace
 
 int main() {
@@ -277,5 +301,6 @@ int main() {
     TestAttributeSelection();
     TestLodContracts();
     TestDeterministicSampling();
+    TestLodProfileBuild();
     return 0;
 }

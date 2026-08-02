@@ -2,7 +2,9 @@
 
 #include "usdgeo/CacheKey.h"
 #include "usdgeo/Diagnostic.h"
+#include "usdpointcloud/FileFormatArguments.h"
 #include "usdpointcloud/PointCloud.h"
+#include "usdpointcloud/Lod.h"
 
 #include <cstdint>
 #include <string>
@@ -25,6 +27,12 @@ bool SamplePointData(const PointData& source,
                      const PointSamplingOptions& options,
                      PointData& sampled,
                      std::vector<usdgeo::Diagnostic>& diagnostics);
+
+bool BuildPointLodAssets(const PointCloudAsset& source,
+                         LodProfile profile,
+                         std::vector<PointCloudAsset>& levels,
+                         PointLodHierarchy& hierarchy,
+                         std::vector<usdgeo::Diagnostic>& diagnostics);
 
 usdgeo::CacheArguments MakeSamplingCacheArguments(
     const PointSamplingOptions& options);
