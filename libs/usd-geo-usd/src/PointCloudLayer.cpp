@@ -1,6 +1,7 @@
 #include "usdgeo/PointCloudLayer.h"
 
 #include <cstdint>
+#include <filesystem>
 #include <set>
 
 #include <pxr/base/gf/vec3f.h>
@@ -11,6 +12,8 @@
 #include <pxr/usd/usdGeom/points.h>
 #include <pxr/usd/usdGeom/scope.h>
 #include <pxr/usd/usdGeom/xform.h>
+#include <pxr/usd/sdf/payload.h>
+#include <pxr/usd/usd/payloads.h>
 #include <pxr/usd/usdLod/rootAPI.h>
 #include <pxr/usd/usdLod/screenSizeHeuristic.h>
 #include <pxr/usd/usdLod/tokens.h>
@@ -69,7 +72,9 @@ bool AuthorLodRoot(
     const std::vector<usdpointcloud::PointCloudAsset>& levels,
     const usdpointcloud::PointLodHierarchy& hierarchy,
     const pxr::SdfPath& heuristicPath,
-    bool defineHeuristic) {
+    bool defineHeuristic,
+    const std::filesystem::path* payloadDirectory = nullptr,
+    const std::filesystem::path* rootLayerPath = nullptr) {
     if (!stage || !IsValidPrimPath(primPath) ||
         levels.size() != hierarchy.items.size()) {
         return false;
@@ -100,10 +105,40 @@ bool AuthorLodRoot(
     }
     for (std::size_t index = 0; index < levels.size(); ++index) {
         const auto& level = levels[index];
-        if (!AuthorPointCloudAsset(stage, primPath + "/LOD" +
-                                             std::to_string(index),
+        const auto lodName = "LOD" + std::to_string(index);
+        const auto lodPath = primPath + "/" + lodName;
+        if (payloadDirectory == nullptr) {
+            if (!AuthorPointCloudAsset(stage, lodPath, level.reference,
+                                       level.bounds, level.chunk, level.data)) {
+                return false;
+            }
+            continue;
+        }
+
+        const auto payloadPath = *payloadDirectory /
+            (primPath.substr(primPath.find_last_of('/') + 1) + "_" +
+             lodName + ".usdc");
+        std::error_code relativeError;
+        const auto payloadIdentifier = std::filesystem::relative(
+            payloadPath, rootLayerPath->parent_path(), relativeError);
+        if (relativeError || payloadIdentifier.empty() ||
+            payloadIdentifier.is_absolute()) {
+            return false;
+        }
+        const auto payloadStage = pxr::UsdStage::CreateNew(payloadPath.string());
+        if (!payloadStage || !pxr::UsdGeomXform::Define(
+                                  payloadStage, pxr::SdfPath("/" + lodName)) ||
+            !AuthorPointCloudAsset(payloadStage, "/" + lodName + "/Points",
                                    level.reference, level.bounds, level.chunk,
-                                   level.data)) {
+                                   level.data) ||
+            !payloadStage->GetRootLayer()->Save()) {
+            return false;
+        }
+        const auto lodPrim = pxr::UsdGeomXform::Define(
+            stage, pxr::SdfPath(lodPath));
+        if (!lodPrim || !lodPrim.GetPrim().GetPayloads().AddPayload(
+                pxr::SdfPayload(payloadIdentifier.generic_string(),
+                                pxr::SdfPath("/" + lodName)))) {
             return false;
         }
     }
@@ -502,6 +537,96 @@ bool AuthorPointCloudTiledAsset(
             primPath + "/Tiles/" + TilePrimName(tile.tile.id));
         if (!AuthorLodRoot(stage, tilePath.GetString(), tile.levels,
                            tile.tile.lod, heuristicPath, defineHeuristic)) {
+            return false;
+        }
+        defineHeuristic = false;
+    }
+    return true;
+}
+
+bool AuthorPointCloudTiledAssetWithPayloads(
+    const pxr::UsdStageRefPtr& stage,
+    const std::string& primPath,
+    const std::vector<PointCloudTileAsset>& tiles,
+    const PointCloudPayloadOptions& options) {
+    if (!stage || !IsValidPrimPath(primPath) || tiles.empty() ||
+        options.directory.empty() || options.rootLayerPath.empty()) {
+        return false;
+    }
+
+    const std::filesystem::path payloadDirectory(options.directory);
+    const std::filesystem::path rootLayerPath(options.rootLayerPath);
+    std::error_code error;
+    std::filesystem::create_directories(payloadDirectory, error);
+    if (error) {
+        return false;
+    }
+
+    std::vector<std::filesystem::path> payloadPaths;
+    for (const auto& tile : tiles) {
+        const auto tilePath = primPath + "/Tiles/" + TilePrimName(tile.tile.id);
+        for (std::size_t index = 0; index < tile.levels.size(); ++index) {
+            const auto payloadPath = payloadDirectory /
+                (tilePath.substr(tilePath.find_last_of('/') + 1) + "_LOD" +
+                 std::to_string(index) + ".usdc");
+            if (std::filesystem::exists(payloadPath)) {
+                return false;
+            }
+            payloadPaths.push_back(payloadPath);
+        }
+    }
+    const auto cleanup = [&payloadPaths]() {
+        std::error_code cleanupError;
+        for (const auto& payloadPath : payloadPaths) {
+            std::filesystem::remove(payloadPath, cleanupError);
+            cleanupError.clear();
+        }
+    };
+
+    std::set<std::string> tileNames;
+    std::vector<float> sharedThresholds;
+    bool thresholdsInitialized = false;
+    for (const auto& tile : tiles) {
+        std::vector<usdgeo::Diagnostic> diagnostics;
+        if (!usdpointcloud::ValidatePointTile(tile.tile, diagnostics) ||
+            tile.levels.size() != tile.tile.lod.items.size() ||
+            !tileNames.insert(tile.tile.id.ToString()).second) {
+            return false;
+        }
+        if (!thresholdsInitialized) {
+            sharedThresholds = tile.tile.lod.screenSizeThresholds;
+            thresholdsInitialized = true;
+        } else if (tile.tile.lod.screenSizeThresholds != sharedThresholds) {
+            return false;
+        }
+        for (std::size_t index = 0; index < tile.levels.size(); ++index) {
+            const auto& level = tile.levels[index];
+            const auto& item = tile.tile.lod.items[index];
+            if (!level.IsValid() || level.chunk.pointCount != item.pointCount ||
+                !SameBounds(level.bounds, item.bounds)) {
+                return false;
+            }
+        }
+    }
+
+    if (!pxr::UsdGeomXform::Define(stage, pxr::SdfPath(primPath)) ||
+        !pxr::UsdGeomScope::Define(
+            stage, pxr::SdfPath(primPath + "/LodHeuristics")) ||
+        !pxr::UsdGeomScope::Define(
+            stage, pxr::SdfPath(primPath + "/Tiles"))) {
+        return false;
+    }
+
+    const auto heuristicPath =
+        pxr::SdfPath(primPath + "/LodHeuristics/ScreenSize");
+    bool defineHeuristic = true;
+    for (const auto& tile : tiles) {
+        const auto tilePath = pxr::SdfPath(
+            primPath + "/Tiles/" + TilePrimName(tile.tile.id));
+        if (!AuthorLodRoot(stage, tilePath.GetString(), tile.levels,
+                           tile.tile.lod, heuristicPath, defineHeuristic,
+                           &payloadDirectory, &rootLayerPath)) {
+            cleanup();
             return false;
         }
         defineHeuristic = false;
