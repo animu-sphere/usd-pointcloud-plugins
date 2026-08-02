@@ -47,6 +47,9 @@ void TestInvalidRouting() {
     const usdpointcloud::FixedGridTileRouter valid({1.0, 0});
     Check(!valid.GetTileId({std::numeric_limits<double>::infinity(), 0.0, 0.0})
                .IsValid());
+    const double int64UpperExclusive = std::ldexp(1.0, 63);
+    Check(!valid.GetTileId({int64UpperExclusive, 0.0, 0.0}).IsValid());
+    Check(valid.GetTileId({-int64UpperExclusive, 0.0, 0.0}).IsValid());
 }
 
 } // namespace

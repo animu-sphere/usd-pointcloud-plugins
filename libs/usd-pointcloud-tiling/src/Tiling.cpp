@@ -17,11 +17,11 @@ bool ToTileCoordinate(double coordinate,
                       std::int64_t& result) noexcept {
     const long double index = std::floor(static_cast<long double>(coordinate) /
                                          static_cast<long double>(tileSize));
-    const auto minimum = static_cast<long double>(
-        (std::numeric_limits<std::int64_t>::min)());
-    const auto maximum = static_cast<long double>(
-        (std::numeric_limits<std::int64_t>::max)());
-    if (index < minimum || index > maximum) {
+    // Use the exclusive power-of-two upper bound because INT64_MAX can round
+    // to 2^63 when long double has double precision, as it does on MSVC.
+    constexpr long double minimum = -9223372036854775808.0L;
+    constexpr long double maximumExclusive = 9223372036854775808.0L;
+    if (index < minimum || index >= maximumExclusive) {
         return false;
     }
 
