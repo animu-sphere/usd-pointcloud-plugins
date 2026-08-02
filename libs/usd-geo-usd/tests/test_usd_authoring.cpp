@@ -227,6 +227,50 @@ void TestLodAuthoring() {
               .IsValid());
 }
 
+void TestLodAuthoringRejectsMismatchedMetadata() {
+    const auto stage = usdgeo::PointCloudLayer::CreateStage();
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    usdpointcloud::PointCloudAsset level;
+    level.reference = reference;
+    level.data.positions = {{0.0, 0.0, 0.0}};
+    level.bounds.Expand({0.0, 0.0, 0.0});
+    level.chunk = usdpointcloud::MakePointChunk(level.data, level.bounds);
+
+    usdpointcloud::PointLodHierarchy hierarchy;
+    hierarchy.bounds = level.bounds;
+    hierarchy.items = {{0, 2, hierarchy.bounds, {0, 2}}};
+
+    Check(!usdgeo::AuthorPointCloudLodAsset(
+        stage, "/PointCloud", {level}, hierarchy));
+    Check(!stage->GetPrimAtPath(pxr::SdfPath("/PointCloud")).IsValid());
+}
+
+void TestLodAuthoringRejectsInvalidLevelWithoutMutation() {
+    const auto stage = usdgeo::PointCloudLayer::CreateStage();
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    usdpointcloud::PointCloudAsset validLevel;
+    validLevel.reference = reference;
+    validLevel.data.positions = {{0.0, 0.0, 0.0}};
+    validLevel.bounds.Expand({0.0, 0.0, 0.0});
+    validLevel.chunk = usdpointcloud::MakePointChunk(
+        validLevel.data, validLevel.bounds);
+    auto invalidLevel = validLevel;
+    invalidLevel.reference.epsgCode.reset();
+
+    usdpointcloud::PointLodHierarchy hierarchy;
+    hierarchy.bounds = validLevel.bounds;
+    hierarchy.items = {{0, 1, hierarchy.bounds, {0, 1}},
+                        {1, 1, hierarchy.bounds, {0, 1}}};
+
+    Check(!usdgeo::AuthorPointCloudLodAsset(
+        stage, "/PointCloud", {validLevel, invalidLevel}, hierarchy));
+    Check(!stage->GetPrimAtPath(pxr::SdfPath("/PointCloud")).IsValid());
+}
+
 } // namespace
 
 int main() {
@@ -235,5 +279,7 @@ int main() {
     TestInvalidPositionDoesNotMutateStage();
     TestLayerAuthoringEntryPoint();
     TestLodAuthoring();
+    TestLodAuthoringRejectsMismatchedMetadata();
+    TestLodAuthoringRejectsInvalidLevelWithoutMutation();
     return 0;
 }

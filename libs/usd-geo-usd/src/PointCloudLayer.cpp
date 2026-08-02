@@ -21,6 +21,16 @@ bool IsValidPrimPath(const std::string& primPath) {
     return !primPath.empty() && primPath.front() == '/';
 }
 
+bool SameBounds(const usdgeo::SpatialBounds& left,
+                const usdgeo::SpatialBounds& right) {
+    return left.minimum.x == right.minimum.x &&
+           left.minimum.y == right.minimum.y &&
+           left.minimum.z == right.minimum.z &&
+           left.maximum.x == right.maximum.x &&
+           left.maximum.y == right.maximum.y &&
+           left.maximum.z == right.maximum.z;
+}
+
 pxr::VtIntArray ToIntArray(const std::vector<std::uint16_t>& values) {
     pxr::VtIntArray result;
     result.reserve(values.size());
@@ -351,8 +361,11 @@ bool AuthorPointCloudLodAsset(
         !usdpointcloud::ValidatePointLodHierarchy(hierarchy, diagnostics)) {
         return false;
     }
-    for (const auto& level : levels) {
-        if (!level.IsValid()) {
+    for (std::size_t index = 0; index < levels.size(); ++index) {
+        const auto& level = levels[index];
+        const auto& item = hierarchy.items[index];
+        if (!level.IsValid() || level.chunk.pointCount != item.pointCount ||
+            !SameBounds(level.bounds, item.bounds)) {
             return false;
         }
     }
