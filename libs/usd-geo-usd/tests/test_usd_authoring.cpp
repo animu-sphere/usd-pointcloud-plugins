@@ -271,6 +271,93 @@ void TestLodAuthoringRejectsInvalidLevelWithoutMutation() {
     Check(!stage->GetPrimAtPath(pxr::SdfPath("/PointCloud")).IsValid());
 }
 
+void TestTiledLodAuthoring() {
+    const auto stage = usdgeo::PointCloudLayer::CreateStage();
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    const auto makeTile = [&](const usdpointcloud::PointTileId& id,
+                              double x) {
+        usdgeo::PointCloudTileAsset result;
+        result.tile.id = id;
+        result.tile.bounds.Expand({x, 0.0, 0.0});
+        result.tile.lod.bounds = result.tile.bounds;
+        result.tile.lod.screenSizeThresholds = {0.1F};
+        result.tile.lod.items = {
+            {0, 1, result.tile.bounds, {0, 1}},
+            {1, 1, result.tile.bounds, {0, 1}}};
+        for (int index = 0; index < 2; ++index) {
+            usdpointcloud::PointCloudAsset level;
+            level.reference = reference;
+            level.bounds = result.tile.bounds;
+            level.data.positions = {{x, 0.0, 0.0}};
+            level.chunk = usdpointcloud::MakePointChunk(
+                level.data, level.bounds);
+            result.levels.push_back(std::move(level));
+        }
+        return result;
+    };
+
+    Check(usdgeo::AuthorPointCloudTiledAsset(
+        stage, "/PointCloud",
+        {makeTile({0, 0, 0, 0}, 0.0), makeTile({0, 1, 0, 0}, 10.0)}));
+    Check(stage->GetPrimAtPath(pxr::SdfPath(
+              "/PointCloud/Tiles/Tile_L0_p0_p0_p0"))
+              .HasAPI<pxr::UsdLodRootAPI>());
+    Check(stage->GetPrimAtPath(pxr::SdfPath(
+              "/PointCloud/Tiles/Tile_L0_p1_p0_p0/LOD1"))
+              .IsValid());
+    Check(stage->GetPrimAtPath(pxr::SdfPath(
+              "/PointCloud/LodHeuristics/ScreenSize"))
+              .IsValid());
+}
+
+void TestTiledLodAuthoringSupportsNegativeTileCoordinates() {
+    const auto stage = usdgeo::PointCloudLayer::CreateStage();
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+    usdgeo::PointCloudTileAsset tile;
+    tile.tile.id = {0, std::numeric_limits<std::int64_t>::min(), -2, 3};
+    tile.tile.bounds.Expand({0.0, 0.0, 0.0});
+    tile.tile.lod.bounds = tile.tile.bounds;
+    tile.tile.lod.items = {{0, 1, tile.tile.bounds, {0, 1}}};
+    usdpointcloud::PointCloudAsset level;
+    level.reference = reference;
+    level.bounds = tile.tile.bounds;
+    level.data.positions = {{0.0, 0.0, 0.0}};
+    level.chunk = usdpointcloud::MakePointChunk(level.data, level.bounds);
+    tile.levels.push_back(std::move(level));
+
+    Check(usdgeo::AuthorPointCloudTiledAsset(stage, "/PointCloud", {tile}));
+    Check(stage->GetPrimAtPath(pxr::SdfPath(
+              "/PointCloud/Tiles/Tile_L0_n9223372036854775808_n2_p3"))
+              .IsValid());
+}
+
+void TestTiledLodAuthoringRejectsMismatchedThresholds() {
+    const auto stage = usdgeo::PointCloudLayer::CreateStage();
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+    usdgeo::PointCloudTileAsset tile;
+    tile.tile.id = {0, 0, 0, 0};
+    tile.tile.bounds.Expand({0.0, 0.0, 0.0});
+    tile.tile.lod.bounds = tile.tile.bounds;
+    tile.tile.lod.items = {{0, 1, tile.tile.bounds, {0, 1}}};
+    usdpointcloud::PointCloudAsset level;
+    level.reference = reference;
+    level.bounds = tile.tile.bounds;
+    level.data.positions = {{0.0, 0.0, 0.0}};
+    level.chunk = usdpointcloud::MakePointChunk(level.data, level.bounds);
+    tile.levels.push_back(level);
+    auto secondTile = tile;
+    secondTile.tile.id.x = 1;
+    secondTile.tile.lod.screenSizeThresholds = {0.1F};
+
+    Check(!usdgeo::AuthorPointCloudTiledAsset(
+        stage, "/PointCloud", {tile, secondTile}));
+    Check(!stage->GetPrimAtPath(pxr::SdfPath("/PointCloud")).IsValid());
+}
+
 } // namespace
 
 int main() {
@@ -281,5 +368,8 @@ int main() {
     TestLodAuthoring();
     TestLodAuthoringRejectsMismatchedMetadata();
     TestLodAuthoringRejectsInvalidLevelWithoutMutation();
+    TestTiledLodAuthoring();
+    TestTiledLodAuthoringSupportsNegativeTileCoordinates();
+    TestTiledLodAuthoringRejectsMismatchedThresholds();
     return 0;
 }

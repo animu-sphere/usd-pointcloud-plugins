@@ -80,6 +80,13 @@ ost build
 ost test
 ```
 
+To build an individual OpenStrata plugin bundle, pass the bundle directory:
+
+```powershell
+ost plugin build .\plugins\geo-las
+ost plugin build .\plugins\geo-laz
+```
+
 ## Using the Plugins
 
 ### Plugin discovery
@@ -115,6 +122,31 @@ usdview sample.las
 usdcat sample.laz
 usdcat --flatten sample.las -o sample.usda
 ```
+
+On Windows, `ost plugin view` prepares the managed OpenUSD runtime and plugin
+environment for a bundle. The LAS preview command is:
+
+```powershell
+ost plugin view `
+  .\plugins\geo-las `
+  C:\path\to\sample.las `
+  --with .\plugins\geo-laz
+```
+
+The `--with` option is useful when the same session should discover both LAS
+and LAZ. Compact LOD preview arguments can be passed in the standard USD
+format-argument suffix:
+
+```powershell
+ost plugin view `
+  .\plugins\geo-las `
+  'C:\path\to\sample.las:SDF_FORMAT_ARGS:lod=balanced' `
+  --with .\plugins\geo-laz
+```
+
+The supported compact profiles are `off`, `preview`, `balanced`, and
+`quality`. Spatial `tile=true` preview is not available yet; it is rejected
+until spatial tiling is connected to the plugin read path.
 
 Any OpenUSD application that discovers FileFormat Plugins can reference a LAS
 or LAZ path directly:
