@@ -1,6 +1,7 @@
 #include "usdpointcloud/PointCloud.h"
 #include "usdpointcloud/FileFormatArguments.h"
 #include "usdpointcloud/Lod.h"
+#include "usdpointcloud/Sampling.h"
 
 #include <cstdlib>
 #include <limits>
@@ -207,6 +208,40 @@ void TestLodContracts() {
     Check(diagnostics.front().code == usdgeo::DiagnosticCode::InvalidPointTileId);
 }
 
+void TestDeterministicSampling() {
+    usdpointcloud::PointData source;
+    source.positions = {{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0},
+                        {2.0, 2.0, 2.0}, {3.0, 3.0, 3.0},
+                        {4.0, 4.0, 4.0}};
+    source.classification = {10, 11, 12, 13, 14};
+    source.gpsTime = {20.0, 21.0, 22.0, 23.0, 24.0};
+    const usdpointcloud::PointSamplingOptions options{3};
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    usdpointcloud::PointData first;
+    usdpointcloud::PointData second;
+    Check(usdpointcloud::SamplePointData(source, options, first, diagnostics));
+    Check(usdpointcloud::SamplePointData(source, options, second, diagnostics));
+    Check(diagnostics.empty() && first.IsValid() && second.IsValid());
+    Check(first.positions.size() == second.positions.size());
+    for (std::size_t index = 0; index < first.positions.size(); ++index) {
+        Check(first.positions[index].x == second.positions[index].x &&
+              first.positions[index].y == second.positions[index].y &&
+              first.positions[index].z == second.positions[index].z);
+    }
+    Check(first.classification == std::vector<std::uint8_t>{10, 11, 13});
+    Check(first.gpsTime == std::vector<double>{20.0, 21.0, 23.0});
+
+    const auto firstKey = usdgeo::StableCacheKey(
+        usdpointcloud::MakeSamplingCacheArguments(options));
+    const auto secondKey = usdgeo::StableCacheKey(
+        usdpointcloud::MakeSamplingCacheArguments({2}));
+    Check(firstKey != secondKey);
+
+    Check(!usdpointcloud::SamplePointData(
+        source, {0}, first, diagnostics));
+    Check(diagnostics.back().code == usdgeo::DiagnosticCode::InvalidLodItem);
+}
+
 } // namespace
 
 int main() {
@@ -217,5 +252,6 @@ int main() {
     TestFileFormatArgumentNormalization();
     TestAttributeSelection();
     TestLodContracts();
+    TestDeterministicSampling();
     return 0;
 }

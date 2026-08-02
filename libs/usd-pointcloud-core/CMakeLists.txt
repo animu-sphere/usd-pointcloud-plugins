@@ -8,7 +8,8 @@ project(usdPointCloudCore
 add_library(usdPointCloudCore STATIC
     src/FileFormatArguments.cpp
     src/Lod.cpp
-    src/PointCloud.cpp)
+    src/PointCloud.cpp
+    src/Sampling.cpp)
 add_library(usdpointcloud::core ALIAS usdPointCloudCore)
 set_target_properties(usdPointCloudCore PROPERTIES
     EXPORT_NAME core
