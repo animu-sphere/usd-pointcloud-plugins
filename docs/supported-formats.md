@@ -142,17 +142,20 @@ axis is `Z` and the stage up axis is `Y`, so
 
 | Item | Status |
 | --- | --- |
-| Spatial tiling | Not implemented |
-| LOD hierarchy | Compact profile, single non-tiled root |
+| Spatial tiling | Authoring API supports deterministic per-tile roots |
+| LOD hierarchy | Compact profile or per-tile `usdLod` roots |
 | `UsdLodRootAPI` | Authored when `lod` is not `off` |
 | `UsdLodScreenSizeHeuristic` | Authored when `lod` is not `off` |
 | `UsdLodOverrideAPI` | Not consumed |
-| Payload-partitioned tiles | Not authored |
+| Payload-partitioned tiles | Authoring API emits one USDC payload per tile/LOD |
 | LOD file-format arguments | `lod=off|preview|balanced|quality` |
 
 With `lod=off` every read authors one `UsdGeomPoints` prim at `/PointCloud`.
 The other profiles author a single non-tiled `usdLod` root with fixed-stride
-levels and a screen-size heuristic. There is no payload partitioning.
+levels and a screen-size heuristic. The shared USD authoring API can also
+author tiled, payload-backed roots, but the LAS and LAZ plugins do not yet
+expose spatial tiling arguments. Payload working-set behavior is not inferred
+from this authoring capability and remains unmeasured.
 
 LOD is authored with the OpenUSD 26.08 `usdLod` schemas and nothing else. The project will not publish a repository-specific LOD schema, a
 `lodLevel` primvar, or a variant-set convention, and LOD selection will remain
@@ -168,8 +171,8 @@ in the [tile and LOD contract](architecture/lod.md).
   classification filters remain unavailable. See the
   [file-format argument contract](architecture/file-format-arguments.md) and
   the [plugin adapter contract](architecture/plugin-adapter.md).
-- `metadataOnly` reads are refused; a header-only or metadata-only inspection
-  path is not exposed through the plugins.
+- `metadataOnly` reads author source metadata without decoding point records;
+  they do not produce point positions.
 - Positions are stored as `float` relative to the local origin. Absolute source
   precision is preserved only through `geo:localOrigin`.
 - Waveform sample data is not fetched or interpreted; packet offsets, sizes,
@@ -178,6 +181,7 @@ in the [tile and LOD contract](architecture/lod.md).
 - Reader errors expose shared typed diagnostics and remain projected to stable
   `LASxxx` or `LAZxxx` plugin prefixes. See
   [diagnostics](architecture/diagnostics.md).
-- Tile/LOD streaming, payload packaging, and the USDC cache are not
-  implemented. LOD is currently single-root and non-tiled.
+- Tile planning is not yet exposed through LAS/LAZ file-format arguments, and
+  payload working-set measurement plus the USDC cache remain open. The shared
+  USD authoring bridge supports tiled and payload-backed LOD roots.
 - Writing LAS or LAZ is out of scope; both plugins export as `usda`.

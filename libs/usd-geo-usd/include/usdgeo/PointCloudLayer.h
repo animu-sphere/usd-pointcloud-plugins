@@ -7,6 +7,7 @@
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/sdf/layer.h>
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -85,6 +86,14 @@ bool AuthorPointCloudAsset(
     const usdpointcloud::PointChunk& chunk,
     const PointCloudLayer::Data& data);
 
+bool AuthorPointCloudMetadata(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const GeoReference& reference,
+    const SpatialBounds& bounds,
+    const usdpointcloud::PointChunk& chunk,
+    const struct PointCloudSourceMetadata& sourceMetadata);
+
 bool AuthorPointCloudLodAsset(
     const pxr::UsdStageRefPtr& stage,
     const std::string& primPath,
@@ -100,6 +109,12 @@ bool AuthorPointCloudLodAsset(
 struct PointCloudTileAsset {
     usdpointcloud::PointTile tile;
     std::vector<usdpointcloud::PointCloudAsset> levels;
+};
+
+struct PointCloudSourceMetadata {
+    std::uint8_t pointFormat = 0;
+    Vec3d scale;
+    Vec3d offset;
 };
 
 struct PointCloudPayloadOptions {

@@ -127,6 +127,12 @@ bool BuildPointCloudAsset(const LasHeader& header,
                           usdpointcloud::PointCloudAsset& asset,
                           std::string& error);
 
+bool BuildPointCloudMetadata(const LasHeader& header,
+                             usdpointcloud::PointChunk& chunk,
+                             usdgeo::GeoReference& reference,
+                             usdgeo::SpatialBounds& bounds,
+                             std::string& error);
+
 enum class LasReadFailure {
     None,
     InvalidRequest,
@@ -159,6 +165,8 @@ public:
               const LasPointChunkErrorConsumer& consume,
               LasHeader& header,
               std::vector<usdgeo::Diagnostic>& diagnostics);
+    bool ReadMetadata(LasHeader& header,
+                      std::vector<usdgeo::Diagnostic>& diagnostics);
 
     LasReadFailure FailureKind() const noexcept;
 

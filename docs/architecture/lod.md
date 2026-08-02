@@ -7,8 +7,9 @@ invariants the shared layer enforces.
 
 Status: **shared contracts and authoring implemented**. The format-independent
 tile and LOD value types and validation live in `usdPointCloudCore`; single-root
-and multi-tile `usdLod` authoring lives in `usdGeoUsd`. Reader-side spatial
-partitioning and payload packaging remain open; see the
+and multi-tile `usdLod` authoring, including payload-backed LOD children, lives
+in `usdGeoUsd`. Reader-side spatial partitioning, plugin argument exposure,
+and payload working-set measurement remain open; see the
 [implementation status](../roadmap/implementation-status.md).
 
 ## 1. Standing Policy

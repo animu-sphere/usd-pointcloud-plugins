@@ -33,8 +33,8 @@ tests that run without an OpenUSD runtime.
 
 `geo-las` now delegates file access and LAS decoding to `usdlas::LasReader`,
 and both plugins normalize the supported file-format arguments before calling
-their shared readers and authoring path. Metadata-only reads and LOD arguments
-remain open.
+their shared readers and authoring path. Metadata-only reads use the same
+header/VLR contracts without decoding point records.
 
 | Concern | `geo-las` | `geo-laz` |
 | --- | --- | --- |
@@ -47,7 +47,7 @@ remain open.
 | `PointChunk` attribute schema | In `usdPointCloudCore` | In `usdPointCloudCore` |
 | `GeoReference` and bounds construction | In `usdlas` | In `usdlas` |
 | Stage creation, metrics, authoring, transfer | In `usdGeoUsd` | In `usdGeoUsd` |
-| `metadataOnly` | Refused | Refused |
+| `metadataOnly` | Header/VLR inspection | Decoder header inspection |
 
 `GeoLasFileFormat::Read` now constructs a `usdlas::LasReader`, consumes its
 point chunks, and projects reader diagnostics onto the stable plugin codes.

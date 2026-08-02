@@ -446,6 +446,89 @@ bool AuthorPointCloudAsset(
     return true;
 }
 
+bool AuthorPointCloudMetadata(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const GeoReference& reference,
+    const SpatialBounds& bounds,
+    const usdpointcloud::PointChunk& chunk,
+    const PointCloudSourceMetadata& sourceMetadata) {
+    if (!layer || !IsValidPrimPath(primPath) || !reference.IsValid() ||
+        !bounds.IsValid() || !chunk.IsValid()) {
+        return false;
+    }
+
+    const auto stage = PointCloudLayer::CreateStage();
+    if (!stage || !pxr::UsdGeomSetStageUpAxis(
+                      stage, pxr::TfToken(reference.stageUpAxis)) ||
+        !pxr::UsdGeomSetStageMetersPerUnit(stage, 1.0)) {
+        return false;
+    }
+
+    const auto points = pxr::UsdGeomPoints::Define(
+        stage, pxr::SdfPath(primPath));
+    if (!points) {
+        return false;
+    }
+    points.GetPointsAttr().Set(pxr::VtVec3fArray());
+    points.GetPrim().CreateAttribute(
+        pxr::TfToken("geo:epsgCode"), pxr::SdfValueTypeNames->Int)
+        .Set(reference.epsgCode.value_or(0));
+    points.GetPrim().CreateAttribute(
+        pxr::TfToken("geo:wkt"), pxr::SdfValueTypeNames->String)
+        .Set(reference.wkt);
+    points.GetPrim().CreateAttribute(
+        pxr::TfToken("geo:projJson"), pxr::SdfValueTypeNames->String)
+        .Set(reference.projJson);
+    points.GetPrim().CreateAttribute(
+        pxr::TfToken("geo:linearUnit"), pxr::SdfValueTypeNames->String)
+        .Set(reference.linearUnit);
+    points.GetPrim().CreateAttribute(
+        pxr::TfToken("geo:upAxis"), pxr::SdfValueTypeNames->String)
+        .Set(reference.stageUpAxis);
+    points.GetPrim().CreateAttribute(
+        pxr::TfToken("geo:localOrigin"), pxr::SdfValueTypeNames->Double3)
+        .Set(pxr::GfVec3d(reference.localOrigin.x, reference.localOrigin.y,
+                          reference.localOrigin.z));
+    points.GetPrim().CreateAttribute(
+        pxr::TfToken("geo:boundsMin"), pxr::SdfValueTypeNames->Double3)
+        .Set(pxr::GfVec3d(bounds.minimum.x, bounds.minimum.y,
+                          bounds.minimum.z));
+    points.GetPrim().CreateAttribute(
+        pxr::TfToken("geo:boundsMax"), pxr::SdfValueTypeNames->Double3)
+        .Set(pxr::GfVec3d(bounds.maximum.x, bounds.maximum.y,
+                          bounds.maximum.z));
+    points.GetPrim().CreateAttribute(
+        pxr::TfToken("geo:pointCount"), pxr::SdfValueTypeNames->UInt64)
+        .Set(chunk.pointCount);
+    points.GetPrim().CreateAttribute(
+        pxr::TfToken("geo:pointFormat"), pxr::SdfValueTypeNames->UChar)
+        .Set(sourceMetadata.pointFormat);
+    points.GetPrim().CreateAttribute(
+        pxr::TfToken("geo:scale"), pxr::SdfValueTypeNames->Double3)
+        .Set(pxr::GfVec3d(sourceMetadata.scale.x, sourceMetadata.scale.y,
+                          sourceMetadata.scale.z));
+    points.GetPrim().CreateAttribute(
+        pxr::TfToken("geo:offset"), pxr::SdfValueTypeNames->Double3)
+        .Set(pxr::GfVec3d(sourceMetadata.offset.x, sourceMetadata.offset.y,
+                          sourceMetadata.offset.z));
+    points.GetPrim().CreateAttribute(
+        pxr::TfToken("geo:metadataOnly"), pxr::SdfValueTypeNames->Bool)
+        .Set(true);
+    pxr::VtStringArray availableAttributes;
+    availableAttributes.reserve(chunk.attributes.size());
+    for (const auto& attribute : chunk.attributes) {
+        availableAttributes.push_back(attribute.name);
+    }
+    points.GetPrim().CreateAttribute(
+        pxr::TfToken("geo:availableAttributes"),
+        pxr::SdfValueTypeNames->StringArray)
+        .Set(availableAttributes);
+
+    layer->TransferContent(stage->GetRootLayer());
+    return true;
+}
+
 bool AuthorPointCloudLodAsset(
     const pxr::UsdStageRefPtr& stage,
     const std::string& primPath,

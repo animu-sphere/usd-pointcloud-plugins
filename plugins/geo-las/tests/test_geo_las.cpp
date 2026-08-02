@@ -190,6 +190,34 @@ void TestFileFormatIntegration() {
     Check(rangedLayer->GetAttributeAtPath(
               pxr::SdfPath("/PointCloud.geo:classification")) == nullptr);
 
+    const auto metadataLayer =
+        pxr::SdfLayer::CreateAnonymous("metadata.las");
+    Check(metadataLayer);
+    Check(format->Read(metadataLayer.operator->(), path.string(), true));
+    const auto metadataStage = pxr::UsdStage::Open(metadataLayer);
+    Check(metadataStage);
+    const auto metadataPoints = pxr::UsdGeomPoints::Get(
+        metadataStage, pxr::SdfPath("/PointCloud"));
+    Check(metadataPoints.GetPrim().IsValid());
+    pxr::VtVec3fArray metadataPositions;
+    Check(metadataPoints.GetPointsAttr().Get(&metadataPositions));
+    Check(metadataPositions.empty());
+    std::uint64_t metadataPointCount = 0;
+    Check(metadataPoints.GetPrim()
+              .GetAttribute(pxr::TfToken("geo:pointCount"))
+              .Get(&metadataPointCount));
+    Check(metadataPointCount == 2);
+    bool metadataOnlyValue = false;
+    Check(metadataPoints.GetPrim()
+              .GetAttribute(pxr::TfToken("geo:metadataOnly"))
+              .Get(&metadataOnlyValue));
+    Check(metadataOnlyValue);
+    pxr::VtArray<std::string> availableAttributes;
+    Check(metadataPoints.GetPrim()
+              .GetAttribute(pxr::TfToken("geo:availableAttributes"))
+              .Get(&availableAttributes));
+    Check(!availableAttributes.empty());
+
     std::error_code error;
     std::filesystem::remove(path, error);
 }

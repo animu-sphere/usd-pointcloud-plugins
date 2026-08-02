@@ -59,6 +59,8 @@ public:
               const LazPointChunkErrorConsumer& consume,
               usdlas::LasHeader& header,
               std::vector<usdgeo::Diagnostic>& diagnostics);
+    bool ReadMetadata(usdlas::LasHeader& header,
+                      std::vector<usdgeo::Diagnostic>& diagnostics);
 
 private:
     std::unique_ptr<LazDecoder> decoder_;
