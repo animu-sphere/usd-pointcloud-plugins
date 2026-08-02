@@ -97,4 +97,19 @@ bool AuthorPointCloudLodAsset(
     const std::vector<usdpointcloud::PointCloudAsset>& levels,
     const usdpointcloud::PointLodHierarchy& hierarchy);
 
+struct PointCloudTileAsset {
+    usdpointcloud::PointTile tile;
+    std::vector<usdpointcloud::PointCloudAsset> levels;
+};
+
+bool AuthorPointCloudTiledAsset(
+    const pxr::UsdStageRefPtr& stage,
+    const std::string& primPath,
+    const std::vector<PointCloudTileAsset>& tiles);
+
+bool AuthorPointCloudTiledAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const std::vector<PointCloudTileAsset>& tiles);
+
 } // namespace usdgeo

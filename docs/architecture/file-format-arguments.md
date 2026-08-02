@@ -7,9 +7,9 @@ document defines that contract.
 
 Status: **partially implemented**. LAS and LAZ normalize chunk and point-range
 read options plus the `attributes` subset before the shared reader and
-authoring path. The compact `lod` profile is now parsed and canonicalized;
-LOD authoring, filtering, and spatial arguments remain unavailable and are
-rejected with typed diagnostics.
+authoring path. The compact `lod` profile is parsed and canonicalized, and
+single-root LOD authoring is available; filtering and spatial file-format
+arguments remain unavailable and are rejected with typed diagnostics.
 
 ## Why Arguments Exist
 

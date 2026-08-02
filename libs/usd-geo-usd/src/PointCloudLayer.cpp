@@ -1,6 +1,7 @@
 #include "usdgeo/PointCloudLayer.h"
 
 #include <cstdint>
+#include <set>
 
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/base/gf/vec3d.h>
@@ -8,6 +9,7 @@
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/sdf/layer.h>
 #include <pxr/usd/usdGeom/points.h>
+#include <pxr/usd/usdGeom/scope.h>
 #include <pxr/usd/usdGeom/xform.h>
 #include <pxr/usd/usdLod/rootAPI.h>
 #include <pxr/usd/usdLod/screenSizeHeuristic.h>
@@ -47,6 +49,65 @@ pxr::VtIntArray ToIntArray(const std::vector<std::int16_t>& values) {
         result.push_back(static_cast<int>(value));
     }
     return result;
+}
+
+std::string TilePrimName(const usdpointcloud::PointTileId& id) {
+    const auto axisName = [](std::int64_t value) {
+        if (value >= 0) {
+            return "p" + std::to_string(static_cast<std::uint64_t>(value));
+        }
+        const auto magnitude = static_cast<std::uint64_t>(-(value + 1)) + 1;
+        return "n" + std::to_string(magnitude);
+    };
+    return "Tile_L" + std::to_string(id.level) + "_" + axisName(id.x) +
+           "_" + axisName(id.y) + "_" + axisName(id.z);
+}
+
+bool AuthorLodRoot(
+    const pxr::UsdStageRefPtr& stage,
+    const std::string& primPath,
+    const std::vector<usdpointcloud::PointCloudAsset>& levels,
+    const usdpointcloud::PointLodHierarchy& hierarchy,
+    const pxr::SdfPath& heuristicPath,
+    bool defineHeuristic) {
+    if (!stage || !IsValidPrimPath(primPath) ||
+        levels.size() != hierarchy.items.size()) {
+        return false;
+    }
+    const auto root = pxr::UsdGeomXform::Define(stage, pxr::SdfPath(primPath));
+    if (!root || !pxr::UsdLodRootAPI::Apply(root.GetPrim())) {
+        return false;
+    }
+    const auto lodRoot = pxr::UsdLodRootAPI(root.GetPrim());
+    if (!lodRoot.CreateLodDefaultIndexAttr().Set(
+            static_cast<int>(hierarchy.defaultIndex))) {
+        return false;
+    }
+    if (!hierarchy.screenSizeThresholds.empty()) {
+        const auto heuristic =
+            defineHeuristic
+                ? pxr::UsdLodScreenSizeHeuristic::Define(stage, heuristicPath)
+                : pxr::UsdLodScreenSizeHeuristic::Get(stage, heuristicPath);
+        if (!heuristic ||
+            (defineHeuristic &&
+             (!heuristic.CreateLodDomainAttr().Set(pxr::UsdLodTokens->imaging) ||
+              !heuristic.CreateThresholdsAttr().Set(pxr::VtArray<float>(
+                  hierarchy.screenSizeThresholds.begin(),
+                  hierarchy.screenSizeThresholds.end())))) ||
+            !lodRoot.CreateLodHeuristicsRel().AddTarget(heuristicPath)) {
+            return false;
+        }
+    }
+    for (std::size_t index = 0; index < levels.size(); ++index) {
+        const auto& level = levels[index];
+        if (!AuthorPointCloudAsset(stage, primPath + "/LOD" +
+                                             std::to_string(index),
+                                   level.reference, level.bounds, level.chunk,
+                                   level.data)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 } // namespace
@@ -370,40 +431,9 @@ bool AuthorPointCloudLodAsset(
         }
     }
 
-    const auto root = pxr::UsdGeomXform::Define(stage, pxr::SdfPath(primPath));
-    if (!root || !pxr::UsdLodRootAPI::Apply(root.GetPrim())) {
-        return false;
-    }
-    const auto lodRoot = pxr::UsdLodRootAPI(root.GetPrim());
-    if (!lodRoot.CreateLodDefaultIndexAttr().Set(
-            static_cast<int>(hierarchy.defaultIndex))) {
-        return false;
-    }
-
-    if (!hierarchy.screenSizeThresholds.empty()) {
-        const auto heuristicPath =
-            pxr::SdfPath(primPath + "/LodHeuristics/ScreenSize");
-        const auto heuristic =
-            pxr::UsdLodScreenSizeHeuristic::Define(stage, heuristicPath);
-        if (!heuristic ||
-            !heuristic.CreateLodDomainAttr().Set(pxr::UsdLodTokens->imaging) ||
-            !heuristic.CreateThresholdsAttr().Set(
-                pxr::VtArray<float>(hierarchy.screenSizeThresholds.begin(),
-                                    hierarchy.screenSizeThresholds.end())) ||
-            !lodRoot.CreateLodHeuristicsRel().AddTarget(heuristicPath)) {
-            return false;
-        }
-    }
-
-    for (std::size_t index = 0; index < levels.size(); ++index) {
-        if (!AuthorPointCloudAsset(
-                stage, primPath + "/LOD" + std::to_string(index),
-                levels[index].reference, levels[index].bounds,
-                levels[index].chunk, levels[index].data)) {
-            return false;
-        }
-    }
-    return true;
+    return AuthorLodRoot(
+        stage, primPath, levels, hierarchy,
+        pxr::SdfPath(primPath + "/LodHeuristics/ScreenSize"), true);
 }
 
 bool AuthorPointCloudLodAsset(
@@ -419,6 +449,80 @@ bool AuthorPointCloudLodAsset(
                       stage, pxr::TfToken(levels.front().reference.stageUpAxis)) ||
         !pxr::UsdGeomSetStageMetersPerUnit(stage, 1.0) ||
         !AuthorPointCloudLodAsset(stage, primPath, levels, hierarchy)) {
+        return false;
+    }
+    layer->TransferContent(stage->GetRootLayer());
+    return true;
+}
+
+bool AuthorPointCloudTiledAsset(
+    const pxr::UsdStageRefPtr& stage,
+    const std::string& primPath,
+    const std::vector<PointCloudTileAsset>& tiles) {
+    if (!stage || !IsValidPrimPath(primPath) || tiles.empty()) {
+        return false;
+    }
+    std::set<std::string> tileNames;
+    std::vector<float> sharedThresholds;
+    bool thresholdsInitialized = false;
+    for (const auto& tile : tiles) {
+        std::vector<usdgeo::Diagnostic> diagnostics;
+        if (!usdpointcloud::ValidatePointTile(tile.tile, diagnostics) ||
+            tile.levels.size() != tile.tile.lod.items.size() ||
+            !tileNames.insert(tile.tile.id.ToString()).second) {
+            return false;
+        }
+        for (std::size_t index = 0; index < tile.levels.size(); ++index) {
+            const auto& level = tile.levels[index];
+            const auto& item = tile.tile.lod.items[index];
+            if (!level.IsValid() || level.chunk.pointCount != item.pointCount ||
+                !SameBounds(level.bounds, item.bounds)) {
+                return false;
+            }
+        }
+        if (!thresholdsInitialized) {
+            sharedThresholds = tile.tile.lod.screenSizeThresholds;
+            thresholdsInitialized = true;
+        } else if (tile.tile.lod.screenSizeThresholds != sharedThresholds) {
+            return false;
+        }
+    }
+
+    if (!pxr::UsdGeomXform::Define(stage, pxr::SdfPath(primPath)) ||
+        !pxr::UsdGeomScope::Define(
+            stage, pxr::SdfPath(primPath + "/LodHeuristics")) ||
+        !pxr::UsdGeomScope::Define(stage, pxr::SdfPath(primPath + "/Tiles"))) {
+        return false;
+    }
+    const auto heuristicPath =
+        pxr::SdfPath(primPath + "/LodHeuristics/ScreenSize");
+    bool defineHeuristic = true;
+    for (const auto& tile : tiles) {
+        const auto tilePath = pxr::SdfPath(
+            primPath + "/Tiles/" + TilePrimName(tile.tile.id));
+        if (!AuthorLodRoot(stage, tilePath.GetString(), tile.levels,
+                           tile.tile.lod, heuristicPath, defineHeuristic)) {
+            return false;
+        }
+        defineHeuristic = false;
+    }
+    return true;
+}
+
+bool AuthorPointCloudTiledAsset(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    const std::vector<PointCloudTileAsset>& tiles) {
+    if (!layer || tiles.empty() || tiles.front().levels.empty() ||
+        !tiles.front().levels.front().reference.IsValid()) {
+        return false;
+    }
+    const auto stage = PointCloudLayer::CreateStage();
+    if (!stage || !pxr::UsdGeomSetStageUpAxis(
+                      stage, pxr::TfToken(
+                          tiles.front().levels.front().reference.stageUpAxis)) ||
+        !pxr::UsdGeomSetStageMetersPerUnit(stage, 1.0) ||
+        !AuthorPointCloudTiledAsset(stage, primPath, tiles)) {
         return false;
     }
     layer->TransferContent(stage->GetRootLayer());
