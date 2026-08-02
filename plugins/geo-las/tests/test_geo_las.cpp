@@ -216,7 +216,21 @@ void TestFileFormatIntegration() {
     Check(metadataPoints.GetPrim()
               .GetAttribute(pxr::TfToken("geo:availableAttributes"))
               .Get(&availableAttributes));
-    Check(!availableAttributes.empty());
+    const auto hasAttribute = [&](const std::string& name) {
+        for (const auto& attribute : availableAttributes) {
+            if (attribute == name) {
+                return true;
+            }
+        }
+        return false;
+    };
+    Check(hasAttribute("xyz"));
+    Check(hasAttribute("intensity"));
+    Check(hasAttribute("classification"));
+    Check(hasAttribute("red"));
+    Check(hasAttribute("green"));
+    Check(hasAttribute("blue"));
+    Check(hasAttribute("gpsTime"));
 
     std::error_code error;
     std::filesystem::remove(path, error);

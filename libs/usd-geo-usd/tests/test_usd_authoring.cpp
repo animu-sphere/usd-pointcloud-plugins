@@ -198,6 +198,33 @@ void TestLayerAuthoringEntryPoint() {
     Check(failure == usdgeo::PointCloudAuthorFailure::InvalidLayer);
 }
 
+void TestMetadataAuthoringAllowsEmptyPointCloud() {
+    const auto layer = pxr::SdfLayer::CreateAnonymous("metadata.usda");
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+    usdgeo::SpatialBounds bounds;
+    bounds.Expand({0.0, 0.0, 0.0});
+
+    usdpointcloud::PointChunk chunk;
+    chunk.bounds = bounds;
+    chunk.attributes = {{"xyz", usdpointcloud::PointAttributeType::Float64}};
+
+    Check(usdgeo::AuthorPointCloudMetadata(
+        layer.operator->(), "/PointCloud", reference, bounds, chunk,
+        {3, {0.01, 0.01, 0.01}, {1000.0, 2000.0, 3000.0}}));
+    const auto stage = pxr::UsdStage::Open(layer);
+    Check(stage);
+    const auto points = pxr::UsdGeomPoints::Get(
+        stage, pxr::SdfPath("/PointCloud"));
+    pxr::VtVec3fArray positions;
+    Check(points.GetPointsAttr().Get(&positions));
+    Check(positions.empty());
+    std::uint64_t pointCount = 1;
+    Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:pointCount"))
+              .Get(&pointCount));
+    Check(pointCount == 0);
+}
+
 void TestLodAuthoring() {
     const auto stage = usdgeo::PointCloudLayer::CreateStage();
     usdgeo::GeoReference reference;
@@ -410,6 +437,7 @@ int main() {
     TestOptionalAttributesAreIndependent();
     TestInvalidPositionDoesNotMutateStage();
     TestLayerAuthoringEntryPoint();
+    TestMetadataAuthoringAllowsEmptyPointCloud();
     TestLodAuthoring();
     TestLodAuthoringRejectsMismatchedMetadata();
     TestLodAuthoringRejectsInvalidLevelWithoutMutation();

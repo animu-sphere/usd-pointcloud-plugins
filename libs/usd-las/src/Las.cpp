@@ -1120,7 +1120,7 @@ bool BuildPointCloudMetadata(const LasHeader& header,
                              usdgeo::GeoReference& reference,
                              usdgeo::SpatialBounds& bounds,
                              std::string& error) {
-    if (!header.IsValid() || header.pointCount == 0) {
+    if (!header.IsValid()) {
         error = "LAS metadata does not contain a valid point cloud";
         return false;
     }
@@ -1139,9 +1139,24 @@ bool BuildPointCloudMetadata(const LasHeader& header,
     chunk.pointCount = header.pointCount;
     chunk.bounds = bounds;
     chunk.attributes = {{"xyz", usdpointcloud::PointAttributeType::Float64}};
+    chunk.attributes.push_back({"intensity", usdpointcloud::PointAttributeType::UInt16});
+    chunk.attributes.push_back({"returnNumber", usdpointcloud::PointAttributeType::UInt8});
+    chunk.attributes.push_back({"numberOfReturns", usdpointcloud::PointAttributeType::UInt8});
+    chunk.attributes.push_back({"classification", usdpointcloud::PointAttributeType::UInt8});
+    chunk.attributes.push_back({"scanDirectionFlag", usdpointcloud::PointAttributeType::UInt8});
+    chunk.attributes.push_back({"edgeOfFlightLine", usdpointcloud::PointAttributeType::UInt8});
+    chunk.attributes.push_back({"userData", usdpointcloud::PointAttributeType::UInt8});
+    chunk.attributes.push_back({"scanAngle", usdpointcloud::PointAttributeType::Int16});
+    chunk.attributes.push_back({"pointSourceId", usdpointcloud::PointAttributeType::UInt16});
+    if (header.pointFormat >= 6) {
+        chunk.attributes.push_back({"classificationFlags", usdpointcloud::PointAttributeType::UInt8});
+        chunk.attributes.push_back({"scannerChannel", usdpointcloud::PointAttributeType::UInt8});
+    }
     if (header.pointFormat == 2 || header.pointFormat == 3 ||
         header.pointFormat == 7 || header.pointFormat == 8) {
-        chunk.attributes.push_back({"rgb", usdpointcloud::PointAttributeType::UInt16});
+        chunk.attributes.push_back({"red", usdpointcloud::PointAttributeType::UInt16});
+        chunk.attributes.push_back({"green", usdpointcloud::PointAttributeType::UInt16});
+        chunk.attributes.push_back({"blue", usdpointcloud::PointAttributeType::UInt16});
     }
     if (header.pointFormat == 1 || header.pointFormat == 3 ||
         header.pointFormat >= 6) {
@@ -1152,7 +1167,14 @@ bool BuildPointCloudMetadata(const LasHeader& header,
     }
     if (header.pointFormat == 4 || header.pointFormat == 5 ||
         header.pointFormat == 9 || header.pointFormat == 10) {
-        chunk.attributes.push_back({"waveform", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back({"waveformDescriptorIndex", usdpointcloud::PointAttributeType::UInt8});
+        chunk.attributes.push_back({"waveformDataOffset", usdpointcloud::PointAttributeType::UInt64});
+        chunk.attributes.push_back({"waveformPacketSize", usdpointcloud::PointAttributeType::UInt32});
+        chunk.attributes.push_back({"returnPointWaveformLocation", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back({"waveformXt", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back({"waveformYt", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back({"waveformZt", usdpointcloud::PointAttributeType::Float32});
+        chunk.attributes.push_back({"waveformDataExternal", usdpointcloud::PointAttributeType::UInt8});
     }
     for (const auto& extra : header.extraBytes) {
         if (!extra.name.empty()) {

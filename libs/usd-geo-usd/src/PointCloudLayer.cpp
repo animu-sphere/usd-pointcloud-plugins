@@ -36,6 +36,22 @@ bool SameBounds(const usdgeo::SpatialBounds& left,
            left.maximum.z == right.maximum.z;
 }
 
+bool IsValidMetadataChunk(const usdpointcloud::PointChunk& chunk) {
+    if (chunk.pointCount != 0) {
+        return chunk.IsValid();
+    }
+    if (!chunk.bounds.IsValid()) {
+        return false;
+    }
+    std::set<std::string> names;
+    for (const auto& attribute : chunk.attributes) {
+        if (!attribute.IsValid() || !names.insert(attribute.name).second) {
+            return false;
+        }
+    }
+    return true;
+}
+
 pxr::VtIntArray ToIntArray(const std::vector<std::uint16_t>& values) {
     pxr::VtIntArray result;
     result.reserve(values.size());
@@ -454,7 +470,7 @@ bool AuthorPointCloudMetadata(
     const usdpointcloud::PointChunk& chunk,
     const PointCloudSourceMetadata& sourceMetadata) {
     if (!layer || !IsValidPrimPath(primPath) || !reference.IsValid() ||
-        !bounds.IsValid() || !chunk.IsValid()) {
+        !bounds.IsValid() || !IsValidMetadataChunk(chunk)) {
         return false;
     }
 
