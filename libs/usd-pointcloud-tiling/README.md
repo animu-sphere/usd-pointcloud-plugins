@@ -14,9 +14,11 @@ coordinates remain deterministic. The router uses source X/Y and ignores Z.
 
 `SpoolSchema`, `TileSpoolWriter`, and `TileSpoolReader` define a versioned,
 source-and-stage-coordinate binary spool. Records are written in append order,
-the footer commits the point count, and readers reject missing or truncated
-footers. The writer flushes at a configured byte threshold; callers own the
-working directory and can remove it with `RemoveSpoolDirectory`.
+the footer commits the point count, and readers use the fixed record layout to
+reject missing or truncated footers. Attribute values are serialized using the
+scalar types declared by the schema. The writer buffers records up to its
+configured byte threshold before flushing; callers own the working directory
+and can remove it with `RemoveSpoolDirectory`.
 
 Tile routing, bounded-memory buffering, tile manifests, and payload authoring
 remain separate follow-up contracts described in

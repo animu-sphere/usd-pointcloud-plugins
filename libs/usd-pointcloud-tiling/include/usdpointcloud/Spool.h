@@ -8,11 +8,12 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <variant>
 #include <vector>
 
 namespace usdpointcloud {
 
-constexpr std::uint32_t kPointSpoolSchemaVersion = 1;
+constexpr std::uint32_t kPointSpoolSchemaVersion = 2;
 
 enum class SpoolCoordinateSpace : std::uint8_t {
     SourceAndStage = 1,
@@ -26,10 +27,20 @@ struct SpoolSchema {
     bool IsValid() const noexcept;
 };
 
+using SpoolAttributeValue = std::variant<
+    std::int32_t,
+    std::int16_t,
+    std::uint8_t,
+    std::uint16_t,
+    std::uint32_t,
+    std::uint64_t,
+    float,
+    double>;
+
 struct SpoolPoint {
     usdgeo::Vec3d sourcePosition;
     usdgeo::Vec3d stagePosition;
-    std::vector<double> attributes;
+    std::vector<SpoolAttributeValue> attributes;
 };
 
 class TileSpoolWriter final {

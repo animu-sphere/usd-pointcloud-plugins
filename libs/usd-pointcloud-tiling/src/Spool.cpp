@@ -4,12 +4,15 @@
 #include <fstream>
 #include <limits>
 #include <memory>
+#include <type_traits>
 
 namespace usdpointcloud {
 namespace {
 
 constexpr char kHeader[] = "USDGSP01";
 constexpr char kFooter[] = "USDGEND1";
+constexpr std::streamoff kFooterSize =
+    static_cast<std::streamoff>(sizeof(kFooter) - 1 + sizeof(std::uint64_t));
 
 void Error(std::vector<usdgeo::Diagnostic>& diagnostics,
            usdgeo::DiagnosticCode code,
@@ -47,6 +50,108 @@ bool ReadString(std::ifstream& stream, std::string& value) {
     return static_cast<bool>(stream.read(value.data(), size));
 }
 
+template <typename T>
+bool WriteAttribute(std::ofstream& stream, const SpoolAttributeValue& value) {
+    if (!std::holds_alternative<T>(value)) {
+        return false;
+    }
+    return Write(stream, std::get<T>(value));
+}
+
+bool WriteAttribute(std::ofstream& stream,
+                    PointAttributeType type,
+                    const SpoolAttributeValue& value) {
+    switch (type) {
+    case PointAttributeType::Int32:
+        return WriteAttribute<std::int32_t>(stream, value);
+    case PointAttributeType::Int16:
+        return WriteAttribute<std::int16_t>(stream, value);
+    case PointAttributeType::UInt8:
+        return WriteAttribute<std::uint8_t>(stream, value);
+    case PointAttributeType::UInt16:
+        return WriteAttribute<std::uint16_t>(stream, value);
+    case PointAttributeType::UInt32:
+        return WriteAttribute<std::uint32_t>(stream, value);
+    case PointAttributeType::UInt64:
+        return WriteAttribute<std::uint64_t>(stream, value);
+    case PointAttributeType::Float32:
+        return WriteAttribute<float>(stream, value);
+    case PointAttributeType::Float64:
+        return WriteAttribute<double>(stream, value);
+    }
+    return false;
+}
+
+bool ReadAttribute(std::ifstream& stream,
+                   PointAttributeType type,
+                   SpoolAttributeValue& value) {
+    switch (type) {
+    case PointAttributeType::Int32: {
+        std::int32_t item = 0;
+        if (!Read(stream, item)) return false;
+        value = item;
+        return true;
+    }
+    case PointAttributeType::Int16: {
+        std::int16_t item = 0;
+        if (!Read(stream, item)) return false;
+        value = item;
+        return true;
+    }
+    case PointAttributeType::UInt8: {
+        std::uint8_t item = 0;
+        if (!Read(stream, item)) return false;
+        value = item;
+        return true;
+    }
+    case PointAttributeType::UInt16: {
+        std::uint16_t item = 0;
+        if (!Read(stream, item)) return false;
+        value = item;
+        return true;
+    }
+    case PointAttributeType::UInt32: {
+        std::uint32_t item = 0;
+        if (!Read(stream, item)) return false;
+        value = item;
+        return true;
+    }
+    case PointAttributeType::UInt64: {
+        std::uint64_t item = 0;
+        if (!Read(stream, item)) return false;
+        value = item;
+        return true;
+    }
+    case PointAttributeType::Float32: {
+        float item = 0.0F;
+        if (!Read(stream, item)) return false;
+        value = item;
+        return true;
+    }
+    case PointAttributeType::Float64: {
+        double item = 0.0;
+        if (!Read(stream, item)) return false;
+        value = item;
+        return true;
+    }
+    }
+    return false;
+}
+
+std::size_t AttributeSize(PointAttributeType type) {
+    switch (type) {
+    case PointAttributeType::Int32: return sizeof(std::int32_t);
+    case PointAttributeType::Int16: return sizeof(std::int16_t);
+    case PointAttributeType::UInt8: return sizeof(std::uint8_t);
+    case PointAttributeType::UInt16: return sizeof(std::uint16_t);
+    case PointAttributeType::UInt32: return sizeof(std::uint32_t);
+    case PointAttributeType::UInt64: return sizeof(std::uint64_t);
+    case PointAttributeType::Float32: return sizeof(float);
+    case PointAttributeType::Float64: return sizeof(double);
+    }
+    return 0;
+}
+
 } // namespace
 
 class TileSpoolWriter::Impl {
@@ -56,6 +161,7 @@ public:
     std::size_t memoryLimit = 0;
     std::size_t buffered = 0;
     std::uint64_t pointCount = 0;
+    std::vector<SpoolPoint> points;
     bool open = false;
 };
 
@@ -65,6 +171,8 @@ public:
     SpoolSchema schema;
     std::uint64_t pointCount = 0;
     std::uint64_t pointsRead = 0;
+    std::streamoff dataEnd = 0;
+    std::size_t recordSize = 0;
     bool complete = false;
 };
 
@@ -75,7 +183,7 @@ bool SpoolSchema::IsValid() const noexcept {
         return false;
     }
     for (const auto& attribute : attributes) {
-        if (!attribute.IsValid()) {
+        if (!attribute.IsValid() || AttributeSize(attribute.type) == 0) {
             return false;
         }
     }
@@ -140,28 +248,58 @@ bool TileSpoolWriter::Append(const SpoolPoint& point,
               "point does not match tile spool schema");
         return false;
     }
-    impl_->stream.write(reinterpret_cast<const char*>(&point.sourcePosition), sizeof(point.sourcePosition));
-    impl_->stream.write(reinterpret_cast<const char*>(&point.stagePosition), sizeof(point.stagePosition));
-    for (const double value : point.attributes) {
-        if (!Write(impl_->stream, value)) {
-            Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
-                  "unable to write tile spool point");
+    for (std::size_t index = 0; index < point.attributes.size(); ++index) {
+        if (static_cast<std::uint8_t>(point.attributes[index].index()) !=
+            static_cast<std::uint8_t>(impl_->schema.attributes[index].type)) {
+            Error(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                  "point attribute type does not match tile spool schema");
             return false;
         }
     }
-    ++impl_->pointCount;
     impl_->buffered += sizeof(point.sourcePosition) + sizeof(point.stagePosition) +
-                       point.attributes.size() * sizeof(double);
+                       [&]() {
+                           std::size_t size = 0;
+                           for (const auto& attribute : impl_->schema.attributes) {
+                               size += AttributeSize(attribute.type);
+                           }
+                           return size;
+                       }();
+    impl_->points.push_back(point);
     return impl_->buffered >= impl_->memoryLimit ? Flush(diagnostics) : true;
 }
 
 bool TileSpoolWriter::Flush(std::vector<usdgeo::Diagnostic>& diagnostics) {
-    if (!impl_ || !impl_->open || !impl_->stream.flush()) {
+    if (!impl_ || !impl_->open) {
         Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
               "unable to flush tile spool");
         return false;
     }
+    for (const auto& point : impl_->points) {
+        if (!impl_->stream.write(reinterpret_cast<const char*>(&point.sourcePosition),
+                                 sizeof(point.sourcePosition)) ||
+            !impl_->stream.write(reinterpret_cast<const char*>(&point.stagePosition),
+                                 sizeof(point.stagePosition))) {
+            Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                  "unable to write tile spool point");
+            return false;
+        }
+        for (std::size_t index = 0; index < point.attributes.size(); ++index) {
+            if (!WriteAttribute(impl_->stream, impl_->schema.attributes[index].type,
+                                point.attributes[index])) {
+                Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                      "unable to write tile spool attribute");
+                return false;
+            }
+        }
+        ++impl_->pointCount;
+    }
+    impl_->points.clear();
     impl_->buffered = 0;
+    if (!impl_->stream.flush()) {
+        Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+              "unable to flush tile spool");
+        return false;
+    }
     return true;
 }
 
@@ -226,6 +364,28 @@ bool TileSpoolReader::Open(const std::filesystem::path& path,
               "tile spool schema or tile id is invalid");
         return false;
     }
+    impl_->recordSize = sizeof(usdgeo::Vec3d) * 2;
+    for (const auto& attribute : schema.attributes) {
+        impl_->recordSize += AttributeSize(attribute.type);
+    }
+    const auto dataStart = impl_->stream.tellg();
+    impl_->stream.seekg(0, std::ios::end);
+    const auto fileEnd = impl_->stream.tellg();
+    if (dataStart < 0 || fileEnd < dataStart ||
+        fileEnd - dataStart < kFooterSize ||
+        (fileEnd - dataStart - kFooterSize) %
+                static_cast<std::streamoff>(impl_->recordSize) != 0) {
+        Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+              "invalid tile spool record layout");
+        return false;
+    }
+    impl_->dataEnd = fileEnd - kFooterSize;
+    if (impl_->dataEnd < dataStart) {
+        Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+              "invalid tile spool footer layout");
+        return false;
+    }
+    impl_->stream.seekg(dataStart);
     impl_->schema = schema;
     return true;
 }
@@ -235,15 +395,18 @@ bool TileSpoolReader::ReadNext(SpoolPoint& point,
     if (!impl_ || !impl_->stream || impl_->complete) {
         return false;
     }
-    char marker[sizeof(kFooter) - 1] = {};
-    if (!impl_->stream.read(marker, sizeof(marker))) {
+    const auto position = impl_->stream.tellg();
+    if (position < 0 || position > impl_->dataEnd) {
         Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
               "incomplete tile spool");
         return false;
     }
-    if (std::memcmp(marker, kFooter, sizeof(marker)) == 0) {
+    if (position == impl_->dataEnd) {
+        char footer[sizeof(kFooter) - 1] = {};
         std::uint64_t count = 0;
-        if (!Read(impl_->stream, count) || count != impl_->pointsRead) {
+        if (!impl_->stream.read(footer, sizeof(footer)) ||
+            std::memcmp(footer, kFooter, sizeof(footer)) != 0 ||
+            !Read(impl_->stream, count) || count != impl_->pointsRead) {
             Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
                   "incomplete tile spool");
             return false;
@@ -252,17 +415,18 @@ bool TileSpoolReader::ReadNext(SpoolPoint& point,
         impl_->complete = true;
         return false;
     }
-    point.attributes.resize(impl_->schema.attributes.size());
-    std::memcpy(&point.sourcePosition, marker, sizeof(marker));
-    if (!impl_->stream.read(reinterpret_cast<char*>(&point.sourcePosition) + sizeof(marker),
-                            sizeof(point.sourcePosition) - sizeof(marker)) ||
+    if (impl_->dataEnd - position < static_cast<std::streamoff>(impl_->recordSize) ||
+        !impl_->stream.read(reinterpret_cast<char*>(&point.sourcePosition),
+                            sizeof(point.sourcePosition)) ||
         !impl_->stream.read(reinterpret_cast<char*>(&point.stagePosition), sizeof(point.stagePosition))) {
         Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
               "truncated tile spool point");
         return false;
     }
-    for (double& value : point.attributes) {
-        if (!Read(impl_->stream, value)) {
+    point.attributes.resize(impl_->schema.attributes.size());
+    for (std::size_t index = 0; index < point.attributes.size(); ++index) {
+        if (!ReadAttribute(impl_->stream, impl_->schema.attributes[index].type,
+                           point.attributes[index])) {
             Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
                   "truncated tile spool point");
             return false;
