@@ -5,7 +5,7 @@ project(usdPointCloudTiling
     DESCRIPTION "Format-independent point-cloud spatial tiling contracts"
     LANGUAGES CXX)
 
-add_library(usdPointCloudTiling STATIC src/Tiling.cpp)
+add_library(usdPointCloudTiling STATIC src/Tiling.cpp src/Spool.cpp)
 add_library(usdpointcloud::tiling ALIAS usdPointCloudTiling)
 set_target_properties(usdPointCloudTiling PROPERTIES
     EXPORT_NAME tiling

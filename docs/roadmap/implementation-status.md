@@ -87,7 +87,7 @@ The plan is [streaming and tiling](streaming-and-tiling.md).
 
 - [x] `PointStream` pull interface in `usdPointCloudCore`
 - [x] `usdPointCloudTiling`: fixed-grid tile keys, configuration, and source-coordinate tile router
-- [ ] Spool schema, thresholds, cleanup, and deterministic iteration order
+- [x] Spool schema, thresholds, cleanup, and deterministic iteration order
 - [ ] LAS `PointStream` connected to tiled payload authoring
 - [ ] LAZ `PointStream` connected to tiled payload authoring
 - [ ] Spatial `tile` file-format arguments enabled through the plugins

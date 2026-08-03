@@ -1,6 +1,10 @@
 #include "usdpointcloud/Tiling.h"
+#include "usdpointcloud/Spool.h"
 
 #include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <limits>
 #include <vector>
 
@@ -52,11 +56,73 @@ void TestInvalidRouting() {
     Check(valid.GetTileId({-int64UpperExclusive, 0.0, 0.0}).IsValid());
 }
 
+void TestSpoolRoundTrip() {
+    const auto path = std::filesystem::temp_directory_path() / "usdgeo-tile-spool.bin";
+    const usdpointcloud::PointTileId tile{2, -3, 4, 0};
+    usdpointcloud::SpoolSchema schema;
+    schema.attributes.push_back({"count", usdpointcloud::PointAttributeType::UInt64});
+    schema.attributes.push_back({"density", usdpointcloud::PointAttributeType::Float32});
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    usdpointcloud::TileSpoolWriter writer;
+    Check(writer.Open(path, tile, schema, 1, diagnostics));
+    Check(writer.Append({{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0},
+                         {std::uint64_t{0xFFFFFFFFFFFFFFFF}, 7.5F}}, diagnostics));
+    Check(writer.BufferedBytes() == 0);
+    Check(writer.Append({{-1.0, -2.0, 0.0}, {-4.0, -5.0, 0.0},
+                         {std::uint64_t{42}, -2.5F}}, diagnostics));
+    double markerCoordinate = 0.0;
+    const char footerBytes[] = "USDGEND1";
+    std::memcpy(&markerCoordinate, footerBytes, sizeof(markerCoordinate));
+    Check(writer.Append({{markerCoordinate, 8.0, 9.0}, {10.0, 11.0, 12.0},
+                         {std::uint64_t{7}, 1.0F}}, diagnostics));
+    Check(writer.Close(diagnostics));
+
+    {
+        usdpointcloud::TileSpoolReader reader;
+        usdpointcloud::PointTileId readTile;
+        usdpointcloud::SpoolSchema readSchema;
+        Check(reader.Open(path, readTile, readSchema, diagnostics));
+        Check(readTile.x == tile.x && readTile.y == tile.y && readSchema.IsValid());
+        usdpointcloud::SpoolPoint point;
+          Check(reader.ReadNext(point, diagnostics) &&
+              std::get<std::uint64_t>(point.attributes[0]) ==
+                std::uint64_t{0xFFFFFFFFFFFFFFFF} &&
+              std::get<float>(point.attributes[1]) == 7.5F);
+          Check(reader.ReadNext(point, diagnostics) &&
+              std::get<std::uint64_t>(point.attributes[0]) == 42 &&
+              std::get<float>(point.attributes[1]) == -2.5F);
+          Check(reader.ReadNext(point, diagnostics) &&
+              std::get<std::uint64_t>(point.attributes[0]) == 7);
+        Check(!reader.ReadNext(point, diagnostics) && reader.IsComplete());
+        Check(diagnostics.empty());
+    }
+    std::filesystem::remove(path);
+}
+
+void TestIncompleteSpool() {
+    const auto path = std::filesystem::temp_directory_path() / "usdgeo-incomplete-spool.bin";
+    {
+        std::ofstream stream(path, std::ios::binary);
+        stream.write("USDGSP01", 8);
+    }
+    {
+        usdpointcloud::TileSpoolReader reader;
+        usdpointcloud::PointTileId tile;
+        usdpointcloud::SpoolSchema schema;
+        std::vector<usdgeo::Diagnostic> diagnostics;
+        Check(!reader.Open(path, tile, schema, diagnostics));
+        Check(!diagnostics.empty());
+    }
+    std::filesystem::remove(path);
+}
+
 } // namespace
 
 int main() {
     TestConfigValidation();
     TestFixedGridRouting();
     TestInvalidRouting();
+    TestSpoolRoundTrip();
+    TestIncompleteSpool();
     return 0;
 }
