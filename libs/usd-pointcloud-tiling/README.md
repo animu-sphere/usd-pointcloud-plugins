@@ -12,5 +12,12 @@ The initial contract contains `TileGridConfig`, `TileRouter`, and
 so points on a boundary enter the tile to their positive side and negative
 coordinates remain deterministic. The router uses source X/Y and ignores Z.
 
-Spooling, bounded-memory buffering, tile manifests, and payload authoring are
-separate follow-up contracts described in `docs/roadmap/streaming-and-tiling.md`.
+`SpoolSchema`, `TileSpoolWriter`, and `TileSpoolReader` define a versioned,
+source-and-stage-coordinate binary spool. Records are written in append order,
+the footer commits the point count, and readers reject missing or truncated
+footers. The writer flushes at a configured byte threshold; callers own the
+working directory and can remove it with `RemoveSpoolDirectory`.
+
+Tile routing, bounded-memory buffering, tile manifests, and payload authoring
+remain separate follow-up contracts described in
+`docs/roadmap/streaming-and-tiling.md`.

@@ -1,6 +1,9 @@
 #include "usdpointcloud/Tiling.h"
+#include "usdpointcloud/Spool.h"
 
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <limits>
 #include <vector>
 
@@ -52,11 +55,58 @@ void TestInvalidRouting() {
     Check(valid.GetTileId({-int64UpperExclusive, 0.0, 0.0}).IsValid());
 }
 
+void TestSpoolRoundTrip() {
+    const auto path = std::filesystem::temp_directory_path() / "usdgeo-tile-spool.bin";
+    const usdpointcloud::PointTileId tile{2, -3, 4, 0};
+    usdpointcloud::SpoolSchema schema;
+    schema.attributes.push_back({"density", usdpointcloud::PointAttributeType::Float64});
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    usdpointcloud::TileSpoolWriter writer;
+    Check(writer.Open(path, tile, schema, 1, diagnostics));
+    Check(writer.Append({{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}, {7.5}}, diagnostics));
+    Check(writer.BufferedBytes() == 0);
+    Check(writer.Append({{-1.0, -2.0, 0.0}, {-4.0, -5.0, 0.0}, {-2.5}}, diagnostics));
+    Check(writer.Close(diagnostics));
+
+    {
+        usdpointcloud::TileSpoolReader reader;
+        usdpointcloud::PointTileId readTile;
+        usdpointcloud::SpoolSchema readSchema;
+        Check(reader.Open(path, readTile, readSchema, diagnostics));
+        Check(readTile.x == tile.x && readTile.y == tile.y && readSchema.IsValid());
+        usdpointcloud::SpoolPoint point;
+        Check(reader.ReadNext(point, diagnostics) && point.attributes.front() == 7.5);
+        Check(reader.ReadNext(point, diagnostics) && point.attributes.front() == -2.5);
+        Check(!reader.ReadNext(point, diagnostics) && reader.IsComplete());
+        Check(diagnostics.empty());
+    }
+    std::filesystem::remove(path);
+}
+
+void TestIncompleteSpool() {
+    const auto path = std::filesystem::temp_directory_path() / "usdgeo-incomplete-spool.bin";
+    {
+        std::ofstream stream(path, std::ios::binary);
+        stream.write("USDGSP01", 8);
+    }
+    {
+        usdpointcloud::TileSpoolReader reader;
+        usdpointcloud::PointTileId tile;
+        usdpointcloud::SpoolSchema schema;
+        std::vector<usdgeo::Diagnostic> diagnostics;
+        Check(!reader.Open(path, tile, schema, diagnostics));
+        Check(!diagnostics.empty());
+    }
+    std::filesystem::remove(path);
+}
+
 } // namespace
 
 int main() {
     TestConfigValidation();
     TestFixedGridRouting();
     TestInvalidRouting();
+    TestSpoolRoundTrip();
+    TestIncompleteSpool();
     return 0;
 }
