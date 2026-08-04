@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <set>
 
 namespace {
 
@@ -18,6 +19,24 @@ void Check(bool condition) {
     if (!condition) {
         std::abort();
     }
+}
+
+std::set<std::filesystem::path> ListPointSpoolDirectories() {
+    std::set<std::filesystem::path> directories;
+    std::error_code error;
+    const auto temporaryDirectory = std::filesystem::temp_directory_path(error);
+    if (error) return directories;
+    for (const auto& entry : std::filesystem::directory_iterator(
+             temporaryDirectory, error)) {
+        if (error) break;
+        const auto name = entry.path().filename().string();
+        if (entry.is_directory(error) &&
+            name.rfind("usdgeo_point_spool_", 0) == 0) {
+            directories.insert(entry.path());
+        }
+        error.clear();
+    }
+    return directories;
 }
 
 class TestPointStream final : public usdpointcloud::PointStream {
@@ -62,8 +81,8 @@ public:
         }
         const auto tileIndex = index_ % 32;
         const auto pointInTile = index_ / 32;
-        data.positions = {{static_cast<double>(tileIndex * 128 + pointInTile),
-                   0.0, 0.0}};
+        data.positions = {{static_cast<double>(tileIndex * 128 + 1),
+                   0.0, static_cast<double>(pointInTile)}};
         data.intensity = {static_cast<std::uint16_t>(index_)};
         usdgeo::SpatialBounds bounds;
         bounds.Expand(data.positions.front());
@@ -587,7 +606,8 @@ void TestGeneratedStreamTiledPayloadAuthoring() {
     usdgeo::GeoReference reference;
     reference.epsgCode = 26910;
 
-    GeneratedPointStream stream(4096);
+    GeneratedPointStream stream(131072);
+    const auto spoolDirectoriesBefore = ListPointSpoolDirectories();
     const auto payloadDirectory =
         std::filesystem::temp_directory_path() / "usd_geo_generated_payloads";
     const auto rootLayerPath = payloadDirectory / "PointCloud.usda";
@@ -603,6 +623,7 @@ void TestGeneratedStreamTiledPayloadAuthoring() {
         payloadDirectory / "Tile_L0_p31_p0_p0_LOD0.usdc"));
     Check(layer->GetPrimAtPath(pxr::SdfPath(
               "/PointCloud/Tiles/Tile_L0_p31_p0_p0")) != nullptr);
+    Check(ListPointSpoolDirectories() == spoolDirectoriesBefore);
     std::filesystem::remove_all(payloadDirectory);
 }
 

@@ -93,7 +93,7 @@ The plan is [streaming and tiling](streaming-and-tiling.md).
 - [x] `PointStream` pull interface in `usdPointCloudCore`
 - [x] `usdPointCloudTiling`: fixed-grid tile keys, configuration, and source-coordinate tile router
 - [x] Spool schema, thresholds, cleanup, and deterministic iteration order
-- [ ] Bounded-memory tests and generated large-corpus spill coverage
+- [x] Bounded-memory tests and generated large-corpus spill coverage
 - [ ] Streaming benchmarks and their documented commands and datasets
 
 ### Other open work
