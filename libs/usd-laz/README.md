@@ -180,10 +180,10 @@ verification together.
 
 ## Planned work
 
-- `OpenLazPointStream`, the pull-based `PointStream` factory, landing after the
-  LAS equivalent so codec issues are not mixed with tiling issues.
 - Codec-specific diagnostics for the streaming path, and cross-format
   consistency tests asserting LAS and LAZ produce equivalent tiled output.
+- Large-corpus bounded-memory measurement and failure-injection coverage for
+  tiled payload generation.
 
 See [streaming and tiling](../../docs/roadmap/streaming-and-tiling.md).
 

@@ -39,10 +39,11 @@ are still planned; see
 ## Reachability
 
 `usdlas::LasReader` and `usdlaz::LazReader` implement the callback contract;
-`usdlas::OpenLasPointStream` additionally implements the pull contract for
-LAS. Both plugins pass normalized `chunkPointLimit`, `memoryBudgetBytes`, and
-`range` values to their readers. `isCancelled` remains a host-supplied
-callback and is not a file-format argument. See the
+`usdlas::OpenLasPointStream` and `usdlaz::OpenLazPointStream` implement the pull
+contract. Both plugins pass normalized `chunkPointLimit`, `memoryBudgetBytes`,
+and `range` values to their readers. Tiled reads route stream chunks through
+the shared spool and payload authoring path. `isCancelled` remains a
+host-supplied callback and is not a file-format argument. See the
 [plugin adapter contract](PLUGIN_ADAPTER.md) and the
 [file-format argument contract](FILE_FORMAT_ARGUMENTS.md).
 

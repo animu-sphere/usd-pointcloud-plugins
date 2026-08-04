@@ -11,6 +11,7 @@
 #include <pxr/base/tf/registryManager.h>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <limits>
 #include <memory>
 #include <string>
@@ -47,6 +48,37 @@ bool MakeReadRequest(const SdfLayer* layer,
                     return usdpointcloud::NormalizeFileFormatArguments(
                         layer->GetFileFormatArguments(), request, diagnostics);
 }
+
+class SelectedPointStream final : public usdpointcloud::PointStream {
+public:
+    SelectedPointStream(std::unique_ptr<usdpointcloud::PointStream> stream,
+                        std::vector<std::string> attributes)
+        : stream_(std::move(stream)), attributes_(std::move(attributes)) {}
+
+    usdpointcloud::PointStreamStatus ReadNext(
+        usdpointcloud::PointChunk& chunk,
+        usdpointcloud::PointData& data,
+        usdgeo::Diagnostic& diagnostic) override {
+        const auto status = stream_->ReadNext(chunk, data, diagnostic);
+        if (status != usdpointcloud::PointStreamStatus::Chunk ||
+            attributes_.empty()) {
+            return status;
+        }
+        std::string error;
+        if (!usdpointcloud::SelectPointDataAttributes(data, attributes_, error)) {
+            diagnostic = {usdgeo::DiagnosticCode::InvalidFormatArgument,
+                          usdgeo::Severity::Error, error, std::nullopt,
+                          std::nullopt};
+            return usdpointcloud::PointStreamStatus::Error;
+        }
+        chunk = usdpointcloud::MakePointChunk(data, chunk.bounds);
+        return usdpointcloud::PointStreamStatus::Chunk;
+    }
+
+private:
+    std::unique_ptr<usdpointcloud::PointStream> stream_;
+    std::vector<std::string> attributes_;
+};
 
 } // namespace
 
@@ -124,6 +156,47 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
             !usdgeo::AuthorPointCloudMetadata(
                 layer, "/PointCloud", reference, bounds, chunk,
                 sourceMetadata)) {
+            TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::PointCloudAuthorFailed);
+            return false;
+        }
+        return true;
+    }
+
+    if (request.tiled) {
+        usdlas::LasHeader header;
+        auto stream = usdlaz::OpenLazPointStream(
+            sourcePath, request.readOptions, header, diagnostics);
+        if (!stream) {
+            TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
+                                      usdgeolaz::diagnostics::DecodeFailed,
+                                      "Unable to open LAZ point stream: " +
+                                          DiagnosticDetail(diagnostics,
+                                                           "stream open failed"))
+                                      .c_str());
+            return false;
+        }
+        usdpointcloud::PointChunk metadataChunk;
+        usdgeo::GeoReference reference;
+        usdgeo::SpatialBounds bounds;
+        std::string metadataError;
+        if (!usdlas::BuildPointCloudMetadata(
+                header, metadataChunk, reference, bounds, metadataError)) {
+            TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::PointCloudAuthorFailed);
+            return false;
+        }
+        std::filesystem::path payloadDirectory(request.payloadDirectory);
+        if (payloadDirectory.is_relative()) {
+            payloadDirectory = std::filesystem::path(sourcePath).parent_path() /
+                               payloadDirectory;
+        }
+        const auto rootLayerPath = resolvedPath;
+        SelectedPointStream selected(std::move(stream), request.attributes);
+        usdgeo::PointCloudPayloadOptions payloadOptions{
+            payloadDirectory.string(), rootLayerPath,
+            request.tileMemoryLimitBytes};
+        if (!usdgeo::AuthorPointCloudTiledAssetFromStream(
+                layer, "/PointCloud", selected, reference,
+                {request.tileSize, 0}, payloadOptions, diagnostics)) {
             TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::PointCloudAuthorFailed);
             return false;
         }

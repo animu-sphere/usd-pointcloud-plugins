@@ -288,6 +288,29 @@ void TestLazPerfFileDecoder() {
         Check(header.pointCount == 3);
         Check(points == 3);
     }
+    {
+        usdlaz::LazReadOptions options;
+        options.chunkPointLimit = 2;
+        usdlas::LasHeader header;
+        std::vector<usdgeo::Diagnostic> diagnostics;
+        auto stream = usdlaz::OpenLazPointStream(
+            filename.string(), options, header, diagnostics);
+        Check(stream != nullptr && diagnostics.empty());
+        std::size_t points = 0;
+        std::size_t chunks = 0;
+        for (;;) {
+            usdpointcloud::PointChunk chunk;
+            usdpointcloud::PointData data;
+            usdgeo::Diagnostic diagnostic;
+            const auto status = stream->ReadNext(chunk, data, diagnostic);
+            if (status == usdpointcloud::PointStreamStatus::End) break;
+            Check(status == usdpointcloud::PointStreamStatus::Chunk);
+            Check(chunk.IsValid() && data.IsValid());
+            points += data.positions.size();
+            ++chunks;
+        }
+        Check(header.pointCount == 3 && points == 3 && chunks == 2);
+    }
     Check(std::remove(filename.string().c_str()) == 0);
 }
 

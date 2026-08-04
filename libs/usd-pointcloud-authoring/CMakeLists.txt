@@ -7,7 +7,9 @@ project(usdPointCloudAuthoring
 
 find_package(pxr CONFIG REQUIRED)
 
-add_library(usdPointCloudAuthoring STATIC src/PointCloudLayer.cpp)
+add_library(usdPointCloudAuthoring STATIC
+    src/PointCloudLayer.cpp
+    src/PointCloudStreaming.cpp)
 add_library(usdpointcloud::authoring ALIAS usdPointCloudAuthoring)
 # Deprecated compatibility alias for the pre-rename target name. Remove in
 # v0.3.0; see docs/compatibility/MIGRATION.md.
@@ -21,6 +23,7 @@ target_link_libraries(usdPointCloudAuthoring
     PUBLIC
         usdgeo::core
         usdpointcloud::core
+        usdpointcloud::tiling
         usdGeom
         usdLod)
 target_include_directories(usdPointCloudAuthoring

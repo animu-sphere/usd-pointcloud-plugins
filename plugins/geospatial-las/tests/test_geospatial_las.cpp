@@ -190,6 +190,32 @@ void TestFileFormatIntegration() {
     Check(rangedLayer->GetAttributeAtPath(
               pxr::SdfPath("/PointCloud.geo:classification")) == nullptr);
 
+    const auto tiledPayloadDirectory =
+        std::filesystem::temp_directory_path() / "usd_geo_las_tiled_payloads" /
+        "tiles";
+    std::filesystem::remove_all(tiledPayloadDirectory);
+    const pxr::SdfLayer::FileFormatArguments tiledArguments = {
+        {"payloadDirectory", tiledPayloadDirectory.string()},
+        {"tile", "true"},
+        {"tileMemoryLimit", "1"},
+        {"tileSize", "1"}};
+    const auto tiledLayer = pxr::SdfLayer::FindOrOpen(
+        path.string(), tiledArguments);
+    Check(tiledLayer);
+    const auto tiledStage = pxr::UsdStage::Open(tiledLayer);
+    Check(tiledStage);
+    Check(tiledStage->GetPrimAtPath(pxr::SdfPath(
+              "/PointCloud/Tiles/Tile_L0_p1000_p2000_p0/LOD0"))
+              .IsValid());
+    Check(tiledStage->GetPrimAtPath(pxr::SdfPath(
+              "/PointCloud/Tiles/Tile_L0_p1001_p2001_p0/LOD0"))
+              .IsValid());
+    Check(std::filesystem::exists(
+        tiledPayloadDirectory / "Tile_L0_p1000_p2000_p0_LOD0.usdc"));
+    Check(std::filesystem::exists(
+        tiledPayloadDirectory / "Tile_L0_p1001_p2001_p0_LOD0.usdc"));
+    std::filesystem::remove_all(tiledPayloadDirectory);
+
     const auto metadataLayer =
         pxr::SdfLayer::CreateAnonymous("metadata.las");
     Check(metadataLayer);

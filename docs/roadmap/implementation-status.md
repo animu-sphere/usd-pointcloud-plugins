@@ -46,6 +46,7 @@ ordered plan is in [README.md](README.md).
 - [x] Waveform contract and LAS point formats 4, 5, 9, and 10
 - [x] Chunked and range-based reader API
 - [x] LAS pull-based `PointStream` factory and bounded chunk delivery
+- [x] LAZ pull-based `PointStream` factory and bounded chunk delivery
 - [x] Metadata-only LAS and LAZ reads
 
 ### Plugin adapters
@@ -66,6 +67,9 @@ ordered plan is in [README.md](README.md).
 - [x] LOD file-format arguments (compact profiles)
 - [x] Spatial tiling and per-tile LOD roots (authoring API)
 - [x] Payload packaging (authoring API)
+- [x] LAS and LAZ stream connection to tiled payload authoring
+- [x] Spatial `tile`, `tileSize`, `tileMemoryLimit`, and `payloadDirectory`
+      file-format arguments
 
 ### Structure and documentation
 
@@ -89,9 +93,6 @@ The plan is [streaming and tiling](streaming-and-tiling.md).
 - [x] `PointStream` pull interface in `usdPointCloudCore`
 - [x] `usdPointCloudTiling`: fixed-grid tile keys, configuration, and source-coordinate tile router
 - [x] Spool schema, thresholds, cleanup, and deterministic iteration order
-- [ ] LAS `PointStream` connected to tiled payload authoring
-- [ ] LAZ `PointStream` connected to tiled payload authoring
-- [ ] Spatial `tile` file-format arguments enabled through the plugins
 - [ ] Bounded-memory tests and generated large-corpus spill coverage
 - [ ] Streaming benchmarks and their documented commands and datasets
 
@@ -116,18 +117,17 @@ The sampling contract uses a versioned fixed-stride selection that preserves
 source order and applies the same indices to every populated point attribute.
 Its algorithm, version, and target count are normalized cache-key inputs.
 
-Argument normalization makes the streaming reader's chunk and point-range
-controls reachable through the plugin layer, and attribute selection is
-normalized before authoring; see the
+Argument normalization makes the streaming reader's chunk, point-range, and
+tiled payload controls reachable through the plugin layer, and attribute
+selection is normalized before authoring; see the
 [plugin adapter contract](../architecture/PLUGIN_ADAPTER.md) and the
 [file-format argument contract](../architecture/FILE_FORMAT_ARGUMENTS.md).
 
 Compact `lod` profiles author a single non-tiled `usdLod` root through the
-shared authoring path for LAS and LAZ. The authoring library additionally
-supports deterministic per-tile LOD roots and payload-backed LOD children, but
-direct LAS and LAZ FileFormat reads do not yet stream decoded chunks into tile
-payloads. Keeping that distinction explicit is a documentation requirement,
-not a stylistic preference.
+shared authoring path for LAS and LAZ. Tiled LAS and LAZ reads now consume
+bounded pull-stream chunks, spool points by source-coordinate tile, and author
+one payload-backed level per tile. Large-corpus bounded-memory measurement and
+failure-injection coverage remain open.
 
 The LAS conformance fixture and FileFormat Plugin integration gate passed
 before LAZ integration. The LAZ reader uses the same point-cloud authoring path
