@@ -146,16 +146,12 @@ ctest --test-dir build -C Release -R usdPointCloudCore_unit --output-on-failure
 - `PointData` is a struct of named arrays rather than a generic attribute map,
   so adding an attribute is a source change in this module.
 - The whole-cloud shape (`PointCloudAsset`) still assumes the data fits in
-  memory; the bounded-memory path is `PointStream`, which does not exist yet.
+  memory; format readers expose the bounded-memory path through `PointStream`.
 
 ## Planned work
 
-- The pull-based `PointStream` interface, so a consumer can drive a reader
-  chunk by chunk without accumulating the cloud.
 - Attribute-preservation guarantees across a spool round trip.
-- Extra Bytes descriptor-name normalization.
-
-Both are specified in
+- Spool-backed tiled consumption and payload authoring. These are specified in
 [streaming and tiling](../../docs/roadmap/streaming-and-tiling.md).
 
 ## Contracts

@@ -29,18 +29,20 @@ therefore avoids delivery of unselected points but still decodes preceding
 chunks.
 
 The plugin authoring path still accumulates all delivered points for the
-current `UsdGeomPoints` output, so chunked delivery bounds decoder buffers but
-not total memory. Removing that accumulation is the job of the pull-based
-`PointStream` interface and spill-backed tiling planned in
-[streaming and tiling](../roadmap/streaming-and-tiling.md); it consumes this
-same contract without changing format-specific point decoding.
+current `UsdGeomPoints` output, so callback-based chunked delivery bounds
+decoder buffers but not total memory. `usdlas::OpenLasPointStream` now exposes
+the same contract as a pull-based stream, which lets a caller consume one
+bounded `PointData` chunk at a time. Spill-backed tiling and payload authoring
+are still planned; see
+[streaming and tiling](../roadmap/streaming-and-tiling.md).
 
 ## Reachability
 
-`usdlas::LasReader` and `usdlaz::LazReader` implement this contract, and both
-plugins now pass normalized `chunkPointLimit`, `memoryBudgetBytes`, and `range`
-values to them. `isCancelled` remains a host-supplied callback and is not a
-file-format argument. See the
+`usdlas::LasReader` and `usdlaz::LazReader` implement the callback contract;
+`usdlas::OpenLasPointStream` additionally implements the pull contract for
+LAS. Both plugins pass normalized `chunkPointLimit`, `memoryBudgetBytes`, and
+`range` values to their readers. `isCancelled` remains a host-supplied
+callback and is not a file-format argument. See the
 [plugin adapter contract](PLUGIN_ADAPTER.md) and the
 [file-format argument contract](FILE_FORMAT_ARGUMENTS.md).
 

@@ -23,6 +23,8 @@ CMake package `usdLas`, target `usdlas::core`, C++ namespace `usdlas`.
 - Scalar Extra Bytes decoding with descriptor scale and offset applied.
 - Endian-safe decoding of the little-endian on-disk layout.
 - Chunked and range-based reads honouring `PointReadOptions`.
+- `OpenLasPointStream`, a pull-based reader that returns bounded
+  `PointData` chunks without accumulating the complete cloud.
 - Metadata-only reads: `LasReader::ReadMetadata` parses the header and records
   without touching point data.
 - Attribute fan-out into `PointData` and construction of `PointCloudAsset` and
@@ -48,7 +50,7 @@ usdlas/Las.h
 | Group | Entry points |
 | --- | --- |
 | Value types | `LasHeader`, `LasPoint`, `LasVariableLengthRecord`, `LasGeoTiffKey`, `LasGeoTiffMetadata`, `LasExtraBytesDescriptor`, `LasWaveformPacket` |
-| Orchestration | `LasReader::Read`, `LasReader::ReadMetadata`, `LasReader::FailureKind`, `LasReadFailure` |
+| Orchestration | `LasReader::Read`, `LasReader::ReadMetadata`, `LasReader::FailureKind`, `LasPointStream`, `OpenLasPointStream`, `LasReadFailure` |
 | Buffer inspection | `InspectHeader`, `InspectMetadata`, `InspectRecords`, `ParseKnownMetadata`, `ExtractWktCrs`, `DecodePoint` |
 | Shared-contract construction | `AppendPointData`, `BuildPointCloudAsset`, `BuildPointCloudMetadata` |
 | Aliases | `LasReadOptions` = `usdpointcloud::PointReadOptions`, `LasPointChunkConsumer`, `LasPointChunkErrorConsumer` |
@@ -99,6 +101,10 @@ usdpointcloud::PointData
     v
 usdpointcloud::PointCloudAsset
 ```
+
+For bounded pull-based consumption, `OpenLasPointStream` exposes the same
+decoded source coordinates and attributes through `PointStream`; each call to
+`ReadNext` owns one returned chunk until the next call.
 
 `ReadMetadata` stops after the header and record stage, and
 `BuildPointCloudMetadata` produces the chunk, reference, and bounds without
@@ -170,16 +176,16 @@ real-data corpus under `plugins/geospatial-las/tests/corpus/`.
 - GeoTIFF keys are parsed and retained but not interpreted into a CRS; EPSG is
   not inferred and conflicting CRS records are not detected.
 - Decoding assumes a little-endian host.
-- A read still delivers into a caller-accumulated `PointData`, so the reader
-  bounds its own buffers but not the caller's.
+- The callback-based `Read` API still delivers into a caller-accumulated
+  `PointData`; use `OpenLasPointStream` when the caller must not accumulate the
+  complete cloud.
 - `Las.cpp` is a single translation unit; the header/metadata/decode/CRS/Extra
   Bytes/waveform split described in the design policy has not happened yet.
 
-## Planned work
+## Remaining streaming work
 
-- `OpenLasPointStream`, the pull-based `PointStream` factory that lets a caller
-  consume chunks without accumulating the cloud.
-- Chunk-continuity and attribute-preservation tests against the spool round
+- Connect `OpenLasPointStream` to tiled payload authoring through the plugin.
+- Add chunk-continuity and attribute-preservation tests against the spool round
   trip.
 
 See [streaming and tiling](../../docs/roadmap/streaming-and-tiling.md).

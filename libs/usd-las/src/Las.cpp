@@ -463,7 +463,8 @@ LasReadFailure LasReader::FailureKind() const noexcept {
 
 bool LasReader::ReadMetadata(
     LasHeader& header,
-    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    std::vector<usdgeo::Diagnostic>& diagnostics,
+    std::size_t memoryBudgetBytes) {
     diagnostics.clear();
     failureByteOffset_.reset();
     failurePointIndex_.reset();
@@ -496,52 +497,204 @@ bool LasReader::ReadMetadata(
                        bytes, error, rangeFailure) ||
         !InspectHeader(bytes, header, error)) {
         failureKind_ = LasReadFailure::Header;
-        diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
-                               usdgeo::Severity::Error, error,
-                               std::nullopt, std::nullopt});
+        AddErrorDiagnostic(error, diagnostics);
         return false;
     }
     if (header.pointDataOffset > fileSize ||
-        !ReadFileRange(stream, 0, static_cast<std::size_t>(header.pointDataOffset),
-                       bytes, error, rangeFailure) ||
-        !InspectRecords(bytes, header.headerSize,
-                        header.variableLengthRecordCount, false,
-                        header.variableLengthRecords, error)) {
+        header.pointDataOffset > memoryBudgetBytes) {
+        failureKind_ = header.pointDataOffset > fileSize
+                            ? LasReadFailure::Vlr
+                            : LasReadFailure::Other;
+        error = header.pointDataOffset > fileSize
+                    ? "LAS point data offset is outside the file"
+                    : "LAS metadata exceeds the configured memory budget";
+        AddErrorDiagnostic(error, diagnostics);
+        return false;
+    }
+    if (!ReadFileRange(stream, 0, static_cast<std::size_t>(header.pointDataOffset),
+                       bytes, error, rangeFailure)) {
         failureKind_ = LasReadFailure::Vlr;
-        diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
-                               usdgeo::Severity::Error, error,
-                               std::nullopt, std::nullopt});
+        AddErrorDiagnostic(error, diagnostics);
+        return false;
+    }
+    if (!InspectRecords(bytes, header.headerSize,
+                        header.variableLengthRecordCount, false,
+                        header.variableLengthRecords, diagnostics)) {
+        failureKind_ = LasReadFailure::Vlr;
         return false;
     }
     if (header.extendedVariableLengthRecordCount != 0) {
         if (header.firstExtendedVariableLengthRecordOffset > fileSize) {
             failureKind_ = LasReadFailure::EvlrOffset;
             error = "LAS extended variable-length record offset is invalid";
-            diagnostics.push_back({usdgeo::DiagnosticCode::InvalidOffset,
-                                   usdgeo::Severity::Error, error,
-                                   std::nullopt, std::nullopt});
+            AddErrorDiagnostic(error, diagnostics);
+            return false;
+        }
+        const auto extendedByteCount =
+            fileSize - header.firstExtendedVariableLengthRecordOffset;
+        if (extendedByteCount > memoryBudgetBytes - header.pointDataOffset) {
+            failureKind_ = LasReadFailure::Other;
+            error = "LAS metadata exceeds the configured memory budget";
+            AddErrorDiagnostic(error, diagnostics);
             return false;
         }
         std::vector<std::uint8_t> extendedBytes;
         if (!ReadFileRange(stream, header.firstExtendedVariableLengthRecordOffset,
-                           static_cast<std::size_t>(
-                               fileSize - header.firstExtendedVariableLengthRecordOffset),
-                           extendedBytes, error, rangeFailure) ||
-            !InspectRecords(extendedBytes, 0,
-                            header.extendedVariableLengthRecordCount, true,
-                            header.variableLengthRecords, error)) {
+                           static_cast<std::size_t>(extendedByteCount),
+                           extendedBytes, error, rangeFailure)) {
             failureKind_ = LasReadFailure::Evlr;
-            diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
-                                   usdgeo::Severity::Error, error,
-                                   std::nullopt, std::nullopt});
+            AddErrorDiagnostic(error, diagnostics);
+            return false;
+        }
+        if (!InspectRecords(extendedBytes, 0,
+                            header.extendedVariableLengthRecordCount, true,
+                            header.variableLengthRecords, diagnostics)) {
+            failureKind_ = LasReadFailure::Evlr;
             return false;
         }
     }
-    if (!ParseKnownMetadata(header.variableLengthRecords, header, error)) {
+    if (!ParseKnownMetadata(header.variableLengthRecords, header, diagnostics)) {
         failureKind_ = LasReadFailure::Vlr;
-        diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
-                               usdgeo::Severity::Error, error,
-                               std::nullopt, std::nullopt});
+        return false;
+    }
+    return true;
+}
+
+bool LasReader::ReadPoints(const LasReadOptions& options,
+                           const LasPointChunkConsumer& consume,
+                           const LasHeader& header,
+                           std::string& error) {
+    error.clear();
+    failureByteOffset_.reset();
+    failurePointIndex_.reset();
+    failureKind_ = LasReadFailure::None;
+    if (!options.IsValid() || !consume) {
+        failureKind_ = LasReadFailure::InvalidRequest;
+        error = "LAS read options or consumer are invalid";
+        return false;
+    }
+
+    std::ifstream stream(filename_, std::ios::binary | std::ios::ate);
+    if (!stream) {
+        failureKind_ = LasReadFailure::FileOpen;
+        error = "could not open LAS file: " + filename_;
+        return false;
+    }
+    const auto fileSizePosition = stream.tellg();
+    if (fileSizePosition < 0 ||
+        static_cast<std::uintmax_t>(fileSizePosition) >
+            (std::numeric_limits<std::uint64_t>::max)()) {
+        failureKind_ = LasReadFailure::FileSize;
+        error = "could not determine LAS file size";
+        return false;
+    }
+    const auto fileSize = static_cast<std::uint64_t>(fileSizePosition);
+    const auto recordLength = static_cast<std::uint64_t>(
+        header.pointRecordLength);
+    RangeReadFailure rangeFailure;
+    std::vector<std::uint8_t> bytes;
+    if (recordLength == 0 ||
+        header.pointCount > (fileSize - header.pointDataOffset) / recordLength) {
+        failureKind_ = LasReadFailure::PointDataTruncated;
+        error = "LAS point data is truncated";
+        return false;
+    }
+    if (options.range.firstPoint > header.pointCount ||
+        (options.range.pointCount != 0 &&
+         options.range.pointCount >
+             header.pointCount - options.range.firstPoint)) {
+        failureKind_ = LasReadFailure::Other;
+        error = "LAS point range is outside the header";
+        return false;
+    }
+
+    const auto rangeEnd = options.range.pointCount == 0
+                              ? header.pointCount
+                              : options.range.firstPoint +
+                                    options.range.pointCount;
+    if (recordLength >
+        (std::numeric_limits<std::size_t>::max)() / 2 - sizeof(LasPoint)) {
+        failureKind_ = LasReadFailure::Other;
+        error = "LAS point record size is invalid";
+        return false;
+    }
+    const auto bytesPerPoint = static_cast<std::size_t>(recordLength) * 2 +
+                               sizeof(LasPoint);
+    const auto budgetPointLimit = options.memoryBudgetBytes / bytesPerPoint;
+    const auto maximumPoints =
+        (std::min)(options.chunkPointLimit, budgetPointLimit);
+    if (maximumPoints == 0) {
+        failureKind_ = LasReadFailure::Other;
+        error = "LAS memory budget is too small for one point";
+        return false;
+    }
+
+    std::uint64_t pointsRead = options.range.firstPoint;
+    std::uint64_t selectedPointsRead = 0;
+    while (pointsRead < rangeEnd) {
+        if (options.isCancelled && options.isCancelled()) {
+            failureKind_ = LasReadFailure::Other;
+            error = "LAS read cancelled";
+            return false;
+        }
+        const auto remaining = rangeEnd - pointsRead;
+        const auto count = (std::min)(
+            static_cast<std::uint64_t>(maximumPoints), remaining);
+        const auto byteOffset = header.pointDataOffset +
+                                pointsRead * recordLength;
+        const auto byteCount = static_cast<std::size_t>(count * recordLength);
+        if (!ReadFileRange(stream, byteOffset, byteCount, bytes, error,
+                           rangeFailure)) {
+            failureKind_ = rangeFailure == RangeReadFailure::Seek
+                               ? LasReadFailure::PointDataSeek
+                               : LasReadFailure::PointDataRead;
+            failureByteOffset_ = byteOffset;
+            return false;
+        }
+
+        std::vector<LasPoint> points;
+        points.reserve(static_cast<std::size_t>(count));
+        for (std::size_t index = 0; index < static_cast<std::size_t>(count);
+             ++index) {
+            std::vector<std::uint8_t> record(
+                bytes.begin() + index * static_cast<std::size_t>(recordLength),
+                bytes.begin() + (index + 1) *
+                                    static_cast<std::size_t>(recordLength));
+            LasPoint point;
+            if (!DecodePoint(header, record, point, error)) {
+                failureKind_ = LasReadFailure::PointDecode;
+                failureByteOffset_ = byteOffset +
+                                     static_cast<std::uint64_t>(index) *
+                                         recordLength;
+                failurePointIndex_ = pointsRead + index;
+                return false;
+            }
+            points.push_back(point);
+        }
+
+        const auto chunkStart = pointsRead;
+        pointsRead += count;
+        const auto selectedStart =
+            (std::max)(chunkStart, options.range.firstPoint);
+        const auto selectedEnd = (std::min)(pointsRead, rangeEnd);
+        if (selectedStart < selectedEnd) {
+            const auto first = static_cast<std::size_t>(selectedStart -
+                                                         chunkStart);
+            const auto last = static_cast<std::size_t>(selectedEnd -
+                                                        chunkStart);
+            points.erase(points.begin(), points.begin() + first);
+            points.erase(points.begin() + (last - first), points.end());
+            selectedPointsRead += points.size();
+            if (!consume(header, points)) {
+                failureKind_ = LasReadFailure::Other;
+                error = "LAS chunk consumer rejected a chunk";
+                return false;
+            }
+        }
+    }
+    if (selectedPointsRead != rangeEnd - options.range.firstPoint) {
+        failureKind_ = LasReadFailure::Other;
+        error = "LAS reader point count does not match the range";
         return false;
     }
     return true;
@@ -632,113 +785,7 @@ bool LasReader::Read(const LasReadOptions& options,
         failureKind_ = LasReadFailure::Vlr;
         return false;
     }
-
-    const auto recordLength = static_cast<std::uint64_t>(
-        header.pointRecordLength);
-    if (recordLength == 0 ||
-        header.pointCount > (fileSize - header.pointDataOffset) / recordLength) {
-        failureKind_ = LasReadFailure::PointDataTruncated;
-        error = "LAS point data is truncated";
-        return false;
-    }
-    if (options.range.firstPoint > header.pointCount ||
-        (options.range.pointCount != 0 &&
-         options.range.pointCount > header.pointCount -
-                                        options.range.firstPoint)) {
-                        failureKind_ = LasReadFailure::Other;
-        error = "LAS point range is outside the header";
-        return false;
-    }
-
-    const auto rangeEnd = options.range.pointCount == 0
-                              ? header.pointCount
-                              : options.range.firstPoint +
-                                    options.range.pointCount;
-    if (recordLength >
-        (std::numeric_limits<std::size_t>::max)() / 2 - sizeof(LasPoint)) {
-        failureKind_ = LasReadFailure::Other;
-        error = "LAS point record size is invalid";
-        return false;
-    }
-    const auto bytesPerPoint = static_cast<std::size_t>(recordLength) * 2 +
-                               sizeof(LasPoint);
-    const auto budgetPointLimit = options.memoryBudgetBytes / bytesPerPoint;
-    const auto maximumPoints =
-        (std::min)(options.chunkPointLimit, budgetPointLimit);
-    if (maximumPoints == 0) {
-        failureKind_ = LasReadFailure::Other;
-        error = "LAS memory budget is too small for one point";
-        return false;
-    }
-
-    std::uint64_t pointsRead = options.range.firstPoint;
-    std::uint64_t selectedPointsRead = 0;
-    while (pointsRead < rangeEnd) {
-        if (options.isCancelled && options.isCancelled()) {
-            failureKind_ = LasReadFailure::Other;
-            error = "LAS read cancelled";
-            return false;
-        }
-        const auto remaining = rangeEnd - pointsRead;
-        const auto count = (std::min)(
-            static_cast<std::uint64_t>(maximumPoints), remaining);
-        const auto byteOffset = header.pointDataOffset + pointsRead * recordLength;
-        const auto byteCount = static_cast<std::size_t>(count * recordLength);
-        if (!ReadFileRange(stream, byteOffset, byteCount, bytes, error,
-                           rangeFailure)) {
-            failureKind_ = rangeFailure == RangeReadFailure::Seek
-                               ? LasReadFailure::PointDataSeek
-                               : LasReadFailure::PointDataRead;
-            failureByteOffset_ = byteOffset;
-            return false;
-        }
-
-        std::vector<LasPoint> points;
-        points.reserve(static_cast<std::size_t>(count));
-        for (std::size_t index = 0; index < static_cast<std::size_t>(count);
-             ++index) {
-            std::vector<std::uint8_t> record(
-                bytes.begin() + index * static_cast<std::size_t>(recordLength),
-                bytes.begin() + (index + 1) *
-                                    static_cast<std::size_t>(recordLength));
-            LasPoint point;
-            if (!DecodePoint(header, record, point, error)) {
-                failureKind_ = LasReadFailure::PointDecode;
-                failureByteOffset_ = byteOffset +
-                                     static_cast<std::uint64_t>(index) *
-                                         recordLength;
-                failurePointIndex_ = pointsRead + index;
-                return false;
-            }
-            points.push_back(point);
-        }
-
-        const auto chunkStart = pointsRead;
-        pointsRead += count;
-        const auto selectedStart =
-            (std::max)(chunkStart, options.range.firstPoint);
-        const auto selectedEnd = (std::min)(pointsRead, rangeEnd);
-        if (selectedStart < selectedEnd) {
-            const auto first = static_cast<std::size_t>(selectedStart -
-                                                         chunkStart);
-            const auto last = static_cast<std::size_t>(selectedEnd -
-                                                        chunkStart);
-            points.erase(points.begin(), points.begin() + first);
-            points.erase(points.begin() + (last - first), points.end());
-            selectedPointsRead += points.size();
-            if (!consume(header, points)) {
-                failureKind_ = LasReadFailure::Other;
-                error = "LAS chunk consumer rejected a chunk";
-                return false;
-            }
-        }
-    }
-    if (selectedPointsRead != rangeEnd - options.range.firstPoint) {
-        failureKind_ = LasReadFailure::Other;
-        error = "LAS reader point count does not match the range";
-        return false;
-    }
-    return true;
+    return ReadPoints(options, consume, header, error);
 }
 
 bool LasReader::Read(const LasReadOptions& options,
@@ -774,6 +821,152 @@ bool LasReader::Read(const LasReadOptions& options,
         diagnostics.front().message = callbackError;
     }
     return false;
+}
+
+namespace {
+
+std::size_t EffectiveChunkPointLimit(const LasHeader& header,
+                                     const LasReadOptions& options) {
+    const auto recordLength = static_cast<std::uint64_t>(
+        header.pointRecordLength);
+    if (recordLength == 0 ||
+        recordLength >
+            (std::numeric_limits<std::size_t>::max)() / 2 - sizeof(LasPoint)) {
+        return 0;
+    }
+    const auto bytesPerPoint = static_cast<std::size_t>(recordLength) * 2 +
+                               sizeof(LasPoint);
+    return (std::min)(options.chunkPointLimit,
+                      options.memoryBudgetBytes / bytesPerPoint);
+}
+
+void AddStreamDiagnostic(usdgeo::DiagnosticCode code,
+                         const std::string& message,
+                         std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.push_back(
+        {code, usdgeo::Severity::Error, message, std::nullopt, std::nullopt});
+}
+
+} // namespace
+
+LasPointStream::LasPointStream(std::string filename,
+                               LasReadOptions options,
+                               LasHeader header,
+                               std::size_t effectiveChunkPointLimit)
+    : filename_(std::move(filename)),
+                                reader_(filename_),
+      options_(std::move(options)),
+      header_(std::move(header)),
+      nextPoint_(options_.range.firstPoint),
+      endPoint_(options_.range.pointCount == 0
+                    ? header_.pointCount
+                    : options_.range.firstPoint + options_.range.pointCount),
+      effectiveChunkPointLimit_(effectiveChunkPointLimit) {}
+
+LasPointStream::~LasPointStream() = default;
+
+usdpointcloud::PointStreamStatus LasPointStream::ReadNext(
+    usdpointcloud::PointChunk& chunk,
+    usdpointcloud::PointData& data,
+    usdgeo::Diagnostic& diagnostic) {
+    diagnostic = {};
+    chunk = {};
+    data = {};
+    if (nextPoint_ >= endPoint_) {
+        return usdpointcloud::PointStreamStatus::End;
+    }
+
+    const auto count = (std::min)(
+        static_cast<std::uint64_t>(effectiveChunkPointLimit_),
+        endPoint_ - nextPoint_);
+    LasReadOptions chunkOptions = options_;
+    chunkOptions.chunkPointLimit = effectiveChunkPointLimit_;
+    chunkOptions.range = {nextPoint_, count};
+    usdpointcloud::PointData pointData;
+    std::string callbackError;
+    const auto consume = [&](const LasHeader& callbackHeader,
+                             const std::vector<LasPoint>& points) {
+        callbackError.clear();
+        if (!AppendPointData(callbackHeader, points, filename_, pointData,
+                             callbackError)) {
+            return false;
+        }
+        return true;
+    };
+    std::string error;
+    if (!reader_.ReadPoints(chunkOptions, consume, header_, error)) {
+        failureKind_ = reader_.FailureKind();
+        diagnostic = {CodeForError(error), usdgeo::Severity::Error,
+                      callbackError.empty() ? error : callbackError,
+                      reader_.failureByteOffset_, reader_.failurePointIndex_};
+        return usdpointcloud::PointStreamStatus::Error;
+    }
+
+    data = std::move(pointData);
+    usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+    for (const auto& position : data.positions) {
+        bounds.Expand(position);
+    }
+    chunk = usdpointcloud::MakePointChunk(data, bounds);
+    if (!chunk.IsValid() || chunk.pointCount == 0) {
+        failureKind_ = LasReadFailure::Other;
+        diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                      usdgeo::Severity::Error,
+                      "LAS stream produced an invalid point chunk",
+                      std::nullopt, nextPoint_};
+        return usdpointcloud::PointStreamStatus::Error;
+    }
+    nextPoint_ += chunk.pointCount;
+    return usdpointcloud::PointStreamStatus::Chunk;
+}
+
+const LasHeader& LasPointStream::Header() const noexcept {
+    return header_;
+}
+
+LasReadFailure LasPointStream::FailureKind() const noexcept {
+    return failureKind_;
+}
+
+std::unique_ptr<LasPointStream> OpenLasPointStream(
+    const std::string& filename,
+    const LasReadOptions& options,
+    LasHeader& header,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    header = {};
+    if (!options.IsValid()) {
+        AddStreamDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                            "LAS stream options are invalid", diagnostics);
+        return nullptr;
+    }
+
+    LasReader reader(filename);
+    if (!reader.ReadMetadata(header, diagnostics, options.memoryBudgetBytes)) {
+        return nullptr;
+    }
+    if (options.range.firstPoint > header.pointCount ||
+        (options.range.pointCount != 0 &&
+         options.range.pointCount >
+             header.pointCount - options.range.firstPoint)) {
+        diagnostics.clear();
+        AddStreamDiagnostic(usdgeo::DiagnosticCode::InvalidPointSourceRange,
+                            "LAS point range is outside the header",
+                            diagnostics);
+        return nullptr;
+    }
+
+    const auto effectiveChunkPointLimit =
+        EffectiveChunkPointLimit(header, options);
+    if (effectiveChunkPointLimit == 0) {
+        diagnostics.clear();
+        AddStreamDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                            "LAS memory budget is too small for one point",
+                            diagnostics);
+        return nullptr;
+    }
+    return std::unique_ptr<LasPointStream>(new LasPointStream(
+        filename, options, header, effectiveChunkPointLimit));
 }
 
 bool LasHeader::IsValid() const noexcept {
@@ -1152,7 +1345,7 @@ bool AppendPointData(const LasHeader& header,
     }
 
     if (data.positions.empty()) {
-        const auto pointCount = static_cast<std::size_t>(header.pointCount);
+        const auto pointCount = points.size();
         data.positions.reserve(pointCount);
         data.intensity.reserve(pointCount);
         data.returnNumber.reserve(pointCount);

@@ -300,6 +300,82 @@ void TestRangeReader() {
     Check(std::remove(filename.string().c_str()) == 0);
 }
 
+void TestPointStream() {
+    const auto filename =
+        std::filesystem::temp_directory_path() / "usd-geo-plugins-stream.las";
+    auto bytes = MakeHeader(2, 3);
+    Write(bytes, 107, std::uint32_t{5});
+    for (int index = 0; index < 5; ++index) {
+        std::vector<std::uint8_t> record(34, 0);
+        Write(record, 0, static_cast<std::int32_t>(index + 1));
+        Write(record, 4, static_cast<std::int32_t>(index + 2));
+        Write(record, 8, static_cast<std::int32_t>(index + 3));
+        Write(record, 12, static_cast<std::uint16_t>(10 + index));
+        Write(record, 14, std::uint8_t{0x21});
+        Write(record, 20, 12.5 + index);
+        Write(record, 28, static_cast<std::uint16_t>(100 + index));
+        Write(record, 30, static_cast<std::uint16_t>(200 + index));
+        Write(record, 32, static_cast<std::uint16_t>(300 + index));
+        bytes.insert(bytes.end(), record.begin(), record.end());
+    }
+    {
+        std::ofstream output(filename, std::ios::binary);
+        output.write(reinterpret_cast<const char*>(bytes.data()),
+                     static_cast<std::streamsize>(bytes.size()));
+    }
+
+    usdlas::LasReadOptions options;
+    options.chunkPointLimit = 2;
+    options.memoryBudgetBytes = 2 * (sizeof(usdlas::LasPoint) + 68);
+    usdlas::LasHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    auto stream = usdlas::OpenLasPointStream(filename.string(), options, header,
+                                             diagnostics);
+    Check(stream != nullptr && diagnostics.empty() && header.pointCount == 5);
+
+    std::size_t totalPoints = 0;
+    std::size_t chunkCount = 0;
+    usdpointcloud::PointChunk chunk;
+    usdpointcloud::PointData data;
+    usdgeo::Diagnostic diagnostic;
+    while (stream->ReadNext(chunk, data, diagnostic) ==
+           usdpointcloud::PointStreamStatus::Chunk) {
+        ++chunkCount;
+        totalPoints += data.positions.size();
+        Check(chunk.pointCount == data.positions.size());
+          Check(data.intensity.size() == data.positions.size());
+          Check(data.red.size() == data.positions.size());
+          Check(data.gpsTime.size() == data.positions.size());
+        Check(data.positions.front().x ==
+              1000.01 + static_cast<double>(totalPoints - data.positions.size()) *
+                             0.01);
+          Check(data.intensity.front() ==
+              10 + totalPoints - data.positions.size());
+          Check(data.red.front() == 100 + totalPoints - data.positions.size());
+    }
+    Check(chunkCount == 3 && totalPoints == 5);
+    Check(stream->ReadNext(chunk, data, diagnostic) ==
+          usdpointcloud::PointStreamStatus::End);
+    Check(std::remove(filename.string().c_str()) == 0);
+}
+
+void TestPointStreamDiagnostics() {
+    const auto filename =
+        std::filesystem::temp_directory_path() / "usd-geo-plugins-invalid.las";
+    {
+        std::ofstream output(filename, std::ios::binary);
+        output.write("not LAS", 7);
+    }
+
+    usdlas::LasHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    auto stream = usdlas::OpenLasPointStream(
+        filename.string(), usdlas::LasReadOptions{}, header, diagnostics);
+    Check(stream == nullptr && diagnostics.size() == 1 &&
+          diagnostics.front().code == usdgeo::DiagnosticCode::InvalidSignature);
+    Check(std::remove(filename.string().c_str()) == 0);
+}
+
 void TestReaderFailureKinds() {
     const auto filename =
         std::filesystem::temp_directory_path() / "usd-geo-plugins-evlr-test.las";
@@ -481,6 +557,8 @@ int main() {
     TestPointCloudAssetHelpers();
     TestValidation();
     TestRangeReader();
+    TestPointStream();
+    TestPointStreamDiagnostics();
     TestReaderFailureKinds();
     TestWaveformPointFormats();
     TestVariableLengthRecords();
