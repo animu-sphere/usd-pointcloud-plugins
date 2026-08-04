@@ -237,7 +237,6 @@ implementation details are in [streaming and tiling](docs/roadmap/streaming-and-
   normalized deterministically before USD authoring.
 - CRS comes from the WKT VLR only. GeoTIFF keys are parsed and retained but not
   interpreted, and EPSG codes are not inferred.
-- Point decoding assumes a little-endian host.
 - A USDC cache is not implemented, and payload working-set behavior is
   unmeasured.
 - Writing LAS or LAZ is out of scope; both plugins export as `usda`.
@@ -247,18 +246,12 @@ See the [implementation status](docs/roadmap/implementation-status.md) and
 
 ## Status
 
-Latest release: **v0.1.0** — the shared geospatial and point-cloud contracts,
-the LAS and LAZ readers, and the OpenUSD FileFormat Plugin integration. See the
-[release record](docs/releases/v0.1.0.md).
-
-Current `main` carries the v0.2.0 release candidate work: LAS 1.4 attributes
-and waveform point formats, GeoTIFF key parsing, scalar and vector Extra Bytes,
-chunked and range-based reads, normalized file-format arguments, the shared
-authoring entry point, `usdLod` authoring with compact LOD profiles,
-stream-connected tiled and payload-backed authoring, metadata-only reads, and
-the module and bundle rename recorded in
-[MIGRATION.md](docs/compatibility/MIGRATION.md). See
-[CHANGELOG.md](CHANGELOG.md).
+Latest release: **v0.2.0** — LAS 1.4 attributes and waveform point formats,
+GeoTIFF key parsing, scalar and vector Extra Bytes, chunked and range-based
+reads, normalized file-format arguments, shared `usdLod` authoring, and
+stream-connected tiled and payload-backed authoring. The module and bundle
+rename is recorded in [MIGRATION.md](docs/compatibility/MIGRATION.md). See the
+[release record](docs/releases/v0.2.0.md) and [CHANGELOG.md](CHANGELOG.md).
 
 Direction is fixed in the [design policy](docs/design/DESIGN_POLICY.md); the
 structure is fixed in the

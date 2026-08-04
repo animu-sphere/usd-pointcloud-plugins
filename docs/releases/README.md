@@ -7,6 +7,7 @@ Release records are history and are not rewritten after publication.
 | Version | Date | Record |
 | --- | --- | --- |
 | v0.1.0 | 2026-08-01 | [v0.1.0.md](v0.1.0.md) — shared geospatial and point-cloud contracts, LAS and LAZ readers, and the OpenUSD FileFormat Plugin integration |
+| v0.2.0 | 2026-08-05 | [v0.2.0.md](v0.2.0.md) — LAS 1.4 and Extra Bytes coverage, LOD authoring, metadata-only reads, and bounded-memory tiled streaming |
 
 Create a record only once its tag exists: it pins the tagged commit, the
 consumed runtime digests, and the published artifact checksums, none of which
@@ -43,12 +44,5 @@ The workflow takes its runtime digests, `ost` version, and per-cell levels from
 `openstrata.ci.yaml` rather than restating them, so re-pinning a runtime moves
 the PR and release lanes together.
 
-## Next release
-
-A v0.2.0 tag is the natural next release: it would carry the LOD, tiled and
-payload-backed authoring, metadata-only read, and scalar Extra Bytes work
-merged after v0.1.0, together with the module and bundle rename recorded in
-[MIGRATION.md](../compatibility/MIGRATION.md). Because that rename changes
-installed bundle names, shared library names, and `plugInfo.json` type names,
-v0.2.0 is a breaking change for consumers even though no authored output
-changed.
+The v0.2.0 record is finalized for the tagged commit and is not rewritten
+after publication.

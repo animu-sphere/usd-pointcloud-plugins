@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased]
+## [0.2.0] - 2026-08-05
 
 ### Changed — breaking
 
@@ -60,6 +60,9 @@ libraries directly. The complete before/after table and checklist are in
   the authoring API.
 - Payload-backed tiled authoring: one USDC payload per tile and LOD level, with
   portable relative asset paths, through the authoring API.
+- Bounded-memory LAS and LAZ pull-stream integration for spill-backed,
+  payload-backed tiled authoring, including spool cleanup and rollback on
+  failure.
 - Typed diagnostics (`usdgeo::Diagnostic`, `Severity`, `DiagnosticCode`) in
   `usdGeoCore`, emitted by both readers and projected onto the stable plugin
   code prefixes.
@@ -146,6 +149,17 @@ libraries directly. The complete before/after table and checklist are in
 - LAS legacy attribute authoring.
 - Big-endian LAS decoding.
 
+### Known limitations
+
+- Rendering is provided by the consuming OpenUSD application.
+- Peak RSS and payload working-set measurements for real-world tiled datasets
+  are not yet published; the generated-corpus benchmark is included in the
+  release verification record.
+- Bounds and classification filters remain unavailable and are rejected with
+  typed diagnostics.
+- GeoTIFF keys are parsed and retained but are not interpreted, and EPSG codes
+  are not inferred when the WKT CRS VLR is absent.
+
 ## [0.1.0] - 2026-08-01
 
 ### Added
@@ -164,3 +178,4 @@ libraries directly. The complete before/after table and checklist are in
 - OpenUSD is a required runtime dependency for the USD targets.
 
 [0.1.0]: https://github.com/animu-sphere/usd-geo-plugins/releases/tag/v0.1.0
+[0.2.0]: https://github.com/animu-sphere/usd-geo-plugins/releases/tag/v0.2.0
