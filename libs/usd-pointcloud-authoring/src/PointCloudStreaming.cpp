@@ -214,7 +214,8 @@ std::filesystem::path MakeSpoolDirectory(
     for (std::uint32_t suffix = 0; suffix < 1000; ++suffix) {
         const auto directory = suffix == 0
                                    ? base
-                                   : base.string() + "_" + std::to_string(suffix);
+                                   : std::filesystem::path(
+                                         base.string() + "_" + std::to_string(suffix));
         if (std::filesystem::create_directory(directory, error)) return directory;
         error.clear();
     }
