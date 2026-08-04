@@ -11,3 +11,6 @@ requires:
   capabilities: [usd-stage-read]
 usd:
   plug_info: plugin/resources/geospatial-laz/plugInfo.json
+tests:
+  smoke:
+    - tests/fixtures/conformance.laz

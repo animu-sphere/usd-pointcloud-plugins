@@ -74,9 +74,9 @@ ordered plan is in [README.md](README.md).
 ### Structure and documentation
 
 - [x] Rename `usd-geo-usd` to `usd-pointcloud-authoring`
-      (`usdPointCloudAuthoring` to `usdPointCloudAuthoring`)
-- [x] Rename `plugins/geospatial-las` and `plugins/geospatial-laz` to `plugins/geospatial-las`
-      and `plugins/geospatial-laz`, including CMake targets, shared library
+      (`usdGeoUsd` to `usdPointCloudAuthoring`)
+- [x] Rename `plugins/geo-las` and `plugins/geo-laz` to
+      `plugins/geospatial-las` and `plugins/geospatial-laz`, including CMake targets, shared library
       names, `plugInfo.json` type names, and CI paths
 - [x] Reorganize `docs/` by responsibility and add the documentation index
 - [x] Promote the library architecture into a binding
@@ -104,8 +104,8 @@ The plan is [streaming and tiling](streaming-and-tiling.md).
 - [x] Vector Extra Bytes types
 - [ ] Bounds and classification filter arguments
 - [ ] EPSG inference and conflicting-CRS detection
-- [ ] Declare OST test fixtures in both bundle manifests so the L3 and L4
-      checks stop skipping
+- [x] Declare OST smoke fixtures in both bundle manifests and pass L3/L4
+      `usdcat.read` and `python.stage_open`
 - [ ] Stage licensing, notice, capability, compatibility, and installation
       documents into release assets
 - [ ] Decide whether the plugins should also become dynamic file formats
