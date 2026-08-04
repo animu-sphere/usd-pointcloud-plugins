@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <set>
 
 namespace usdpointcloud {
 
@@ -39,6 +40,44 @@ template <typename T>
 bool HasPointCountOrIsEmpty(const std::vector<T>& values,
                             std::size_t pointCount) {
     return values.empty() || values.size() == pointCount;
+}
+
+bool IsAsciiAlphaNumeric(unsigned char character) {
+    return (character >= 'A' && character <= 'Z') ||
+           (character >= 'a' && character <= 'z') ||
+           (character >= '0' && character <= '9');
+}
+
+bool IsAsciiDigit(unsigned char character) {
+    return character >= '0' && character <= '9';
+}
+
+std::string NormalizeExtraByteName(const std::string& name) {
+    std::string result;
+    result.reserve(name.size());
+    for (const unsigned char character : name) {
+        result += IsAsciiAlphaNumeric(character) || character == '_'
+                      ? static_cast<char>(character)
+                      : '_';
+    }
+    if (result.empty()) {
+        return "extra";
+    }
+    if (IsAsciiDigit(static_cast<unsigned char>(result.front()))) {
+        result.insert(result.begin(), '_');
+    }
+    return result;
+}
+
+std::set<std::string> ReservedPointAttributeNames() {
+    return {"xyz", "intensity", "returnNumber", "numberOfReturns",
+            "classification", "classificationFlags", "scannerChannel",
+            "scanDirectionFlag", "edgeOfFlightLine", "userData",
+            "scanAngle", "pointSourceId", "red", "green", "blue",
+            "nir", "gpsTime", "waveformDescriptorIndex",
+            "waveformDataOffset", "waveformPacketSize",
+            "returnPointWaveformLocation", "waveformXt", "waveformYt",
+            "waveformZt", "waveformDataExternal", "waveformDataFile"};
 }
 
 } // namespace
@@ -138,13 +177,31 @@ PointChunk MakePointChunk(const PointData& data,
     add("waveformZt", PointAttributeType::Float32, data.waveformZt.size());
     add("waveformDataExternal", PointAttributeType::UInt8,
         data.waveformDataExternal.size());
+    const auto extraByteNames = NormalizeExtraByteNames(data.extraByteNames);
     for (std::size_t index = 0; index < data.extraBytes.size(); ++index) {
-        if (!data.extraBytes[index].empty() && index < data.extraByteNames.size()) {
+        if (!data.extraBytes[index].empty() && index < extraByteNames.size()) {
             chunk.attributes.push_back(
-                {data.extraByteNames[index], PointAttributeType::Float64});
+                {extraByteNames[index], PointAttributeType::Float64});
         }
     }
     return chunk;
+}
+
+std::vector<std::string> NormalizeExtraByteNames(
+    const std::vector<std::string>& names) {
+    std::set<std::string> usedNames = ReservedPointAttributeNames();
+    std::vector<std::string> result;
+    result.reserve(names.size());
+    for (const auto& name : names) {
+        const auto baseName = NormalizeExtraByteName(name);
+        auto normalizedName = baseName;
+        std::size_t suffix = 2;
+        while (!usedNames.insert(normalizedName).second) {
+            normalizedName = baseName + "_" + std::to_string(suffix++);
+        }
+        result.push_back(std::move(normalizedName));
+    }
+    return result;
 }
 
 bool PointRange::IsValid() const noexcept {

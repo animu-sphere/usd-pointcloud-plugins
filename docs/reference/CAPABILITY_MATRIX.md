@@ -83,7 +83,7 @@ Bytes VLR.
 | Waveform parameters | 4, 5, 9, 10 | Supported | `geo:waveformXt`, `geo:waveformYt`, `geo:waveformZt` (`float[]`) |
 | External waveform data flag | 4, 5, 9, 10 | Supported | `geo:waveformDataExternal` (`uchar[]`) |
 | External waveform data file | 4, 5, 9, 10 | Supported | `geo:waveformDataFile` (`string`) |
-| Extra Bytes | all | Scalar types 1-10 supported when exactly representable as `double` | `geo:<descriptor name>` (`double[]`), with descriptor scale and offset applied |
+| Extra Bytes | all | Scalar types 1-10 supported when exactly representable as `double` | `geo:<normalized descriptor name>` (`double[]`), with descriptor scale and offset applied |
 
 Positions are decoded as `double` in source coordinates using the header scale
 and offset, then translated by the local origin and converted to the stage up
@@ -91,6 +91,11 @@ axis before being written as `float3`. Scalar Extra Bytes values are decoded
 from the appended point-record data and written after applying their
 descriptor scale and offset. Vector Extra Bytes types, non-finite values, and
 integer values that cannot be represented exactly as `double` are rejected.
+Descriptor names are normalized deterministically to ASCII USD identifiers:
+non-alphanumeric characters become `_`, a leading digit gains a leading `_`,
+an empty name becomes `extra`, and collisions with built-in or prior names gain
+`_2`, `_3`, and so on. The original descriptor names remain in the LAS header
+metadata.
 
 ## VLR and EVLR
 
@@ -188,9 +193,8 @@ in the [tile and LOD contract](../architecture/LOD.md).
   the plugin still accumulates every point, so peak memory is proportional to
   the point count rather than to any configured limit.
 - Extra Bytes support covers scalar types 1-10. Vector types, non-finite
-  values, integers not exactly representable as `double`, and descriptor names
-  that are not already valid USD identifiers are rejected. Name normalization
-  is a planned contract, not current behavior.
+  values, and integers not exactly representable as `double` are rejected.
+  Descriptor names are normalized before USD authoring.
 - File-format arguments currently expose normalized chunk and point-range
   read options, attribute selection, and compact LOD profiles. Spatial tiling,
   bounds, and classification filters remain unavailable. See the

@@ -68,6 +68,34 @@ void TestPointDataAndAssetChunk() {
     Check(!data.IsValid());
 }
 
+void TestExtraByteNameNormalization() {
+    const auto names = usdpointcloud::NormalizeExtraByteNames(
+        {"air temperature", "2nd-return", "intensity", "air-temperature",
+         "", "air_temperature"});
+    Check(names == std::vector<std::string>{
+                       "air_temperature", "_2nd_return", "intensity_2",
+                       "air_temperature_2", "extra", "air_temperature_3"});
+    Check(usdpointcloud::NormalizeExtraByteNames(
+              {std::string("\xC3\xA9") + "levation"}) ==
+          std::vector<std::string>{"__levation"});
+
+    usdpointcloud::PointData data;
+    data.positions = {{0.0, 0.0, 0.0}};
+    data.extraByteNames = {"air temperature", "intensity"};
+    data.extraBytes = {{12.0}, {24.0}};
+    usdgeo::SpatialBounds bounds;
+    bounds.Expand(data.positions.front());
+    const auto chunk = usdpointcloud::MakePointChunk(data, bounds);
+    Check(chunk.IsValid());
+    Check(chunk.attributes.size() == 2 &&
+          chunk.attributes[0].name == "air_temperature" &&
+          chunk.attributes[0].type ==
+              usdpointcloud::PointAttributeType::Float64 &&
+          chunk.attributes[1].name == "intensity_2" &&
+          chunk.attributes[1].type ==
+              usdpointcloud::PointAttributeType::Float64);
+}
+
 void TestReadOptions() {
     usdpointcloud::PointReadOptions options;
     Check(options.IsValid());
@@ -340,6 +368,7 @@ int main() {
     TestAttributesAndChunks();
     TestInvalidChunk();
     TestPointDataAndAssetChunk();
+    TestExtraByteNameNormalization();
     TestReadOptions();
     TestPointStreamContract();
     TestFileFormatArgumentNormalization();

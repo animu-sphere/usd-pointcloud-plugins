@@ -132,13 +132,28 @@ void TestPointCloudAssetHelpers() {
     usdlas::LasHeader header;
     std::string error;
     Check(usdlas::InspectHeader(bytes, header, error));
+    header.extraBytes.push_back({9, 0, "air temperature", {}, {}, {},
+                                 {0.01, 0.0, 0.0}, {100.0, 0.0, 0.0}, {}});
+    header.pointRecordLength = 24;
 
     usdlas::LasPoint point;
     point.sourcePosition = {1001.0, 2000.0, 3000.0};
     point.intensity = 42;
+    point.extraBytes = {101.23};
     usdpointcloud::PointData data;
     Check(usdlas::AppendPointData(header, {point}, "sample.las", data, error));
-    Check(data.positions.size() == 1 && data.intensity[0] == 42);
+    Check(data.positions.size() == 1 && data.intensity[0] == 42 &&
+            data.extraByteNames == std::vector<std::string>{"air_temperature"} &&
+          data.extraBytes == std::vector<std::vector<double>>{{101.23}});
+
+        usdpointcloud::PointChunk metadataChunk;
+        usdgeo::GeoReference metadataReference;
+        usdgeo::SpatialBounds metadataBounds;
+        Check(usdlas::BuildPointCloudMetadata(
+          header, metadataChunk, metadataReference, metadataBounds, error));
+        Check(metadataChunk.attributes.back().name == "air_temperature" &&
+            metadataChunk.attributes.back().type ==
+              usdpointcloud::PointAttributeType::Float64);
 
     usdpointcloud::PointCloudAsset asset;
     Check(usdlas::BuildPointCloudAsset(
@@ -146,6 +161,9 @@ void TestPointCloudAssetHelpers() {
     Check(asset.IsValid());
     Check(asset.reference.stageUpAxis == "Y");
     Check(asset.chunk.pointCount == 1);
+    Check(asset.chunk.attributes.back().name == "air_temperature" &&
+          asset.chunk.attributes.back().type ==
+              usdpointcloud::PointAttributeType::Float64);
 }
 
 void TestValidation() {

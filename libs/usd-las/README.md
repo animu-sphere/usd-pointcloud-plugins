@@ -160,9 +160,10 @@ real-data corpus under `plugins/geospatial-las/tests/corpus/`.
 
 - LAS 1.0 and 1.1 are rejected.
 - Extra Bytes: scalar types 1-10 only. Vector types, non-finite values, and
-  64-bit integers not exactly representable as `double` are rejected. A
-  descriptor name that is not already a valid USD identifier fails the file;
-  normalization is not implemented.
+  64-bit integers not exactly representable as `double` are rejected.
+  Descriptor names are normalized to deterministic ASCII USD identifiers by
+  replacing invalid characters with `_`, prefixing leading digits, and adding
+  numeric suffixes to collisions.
 - Waveform sample data is not fetched or interpreted. Packet offsets, sizes,
   parameters, the external-data flag, and the sibling `.wdp` reference are
   retained for deferred loading.
@@ -180,7 +181,6 @@ real-data corpus under `plugins/geospatial-las/tests/corpus/`.
   consume chunks without accumulating the cloud.
 - Chunk-continuity and attribute-preservation tests against the spool round
   trip.
-- Extra Bytes descriptor-name normalization.
 
 See [streaming and tiling](../../docs/roadmap/streaming-and-tiling.md).
 

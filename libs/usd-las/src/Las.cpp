@@ -1158,9 +1158,13 @@ bool AppendPointData(const LasHeader& header,
         data.extraByteNames.reserve(header.extraBytes.size());
         data.extraBytes.clear();
         data.extraBytes.resize(header.extraBytes.size());
+        std::vector<std::string> extraByteNames;
+        extraByteNames.reserve(header.extraBytes.size());
         for (const auto& descriptor : header.extraBytes) {
-            data.extraByteNames.push_back(descriptor.name);
+            extraByteNames.push_back(descriptor.name);
         }
+        data.extraByteNames =
+            usdpointcloud::NormalizeExtraByteNames(extraByteNames);
         for (auto& values : data.extraBytes) {
             values.reserve(pointCount);
         }
@@ -1319,11 +1323,14 @@ bool BuildPointCloudMetadata(const LasHeader& header,
         chunk.attributes.push_back({"waveformZt", usdpointcloud::PointAttributeType::Float32});
         chunk.attributes.push_back({"waveformDataExternal", usdpointcloud::PointAttributeType::UInt8});
     }
+    std::vector<std::string> extraByteNames;
+    extraByteNames.reserve(header.extraBytes.size());
     for (const auto& extra : header.extraBytes) {
-        if (!extra.name.empty()) {
-            chunk.attributes.push_back(
-                {extra.name, usdpointcloud::PointAttributeType::Float64});
-        }
+        extraByteNames.push_back(extra.name);
+    }
+    for (const auto& name : usdpointcloud::NormalizeExtraByteNames(extraByteNames)) {
+        chunk.attributes.push_back(
+            {name, usdpointcloud::PointAttributeType::Float64});
     }
     return chunk.IsValid();
 }
