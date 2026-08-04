@@ -191,7 +191,8 @@ void TestFileFormatIntegration() {
               pxr::SdfPath("/PointCloud.geo:classification")) == nullptr);
 
     const auto tiledPayloadDirectory =
-        std::filesystem::temp_directory_path() / "usd_geo_las_tiled_payloads";
+        std::filesystem::temp_directory_path() / "usd_geo_las_tiled_payloads" /
+        "tiles";
     std::filesystem::remove_all(tiledPayloadDirectory);
     const pxr::SdfLayer::FileFormatArguments tiledArguments = {
         {"payloadDirectory", tiledPayloadDirectory.string()},

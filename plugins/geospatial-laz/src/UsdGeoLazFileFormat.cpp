@@ -189,10 +189,7 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
             payloadDirectory = std::filesystem::path(sourcePath).parent_path() /
                                payloadDirectory;
         }
-        const auto rootLayerPath =
-            (payloadDirectory.parent_path() /
-             (payloadDirectory.filename().string() + ".usda"))
-            .string();
+        const auto rootLayerPath = resolvedPath;
         SelectedPointStream selected(std::move(stream), request.attributes);
         usdgeo::PointCloudPayloadOptions payloadOptions{
             payloadDirectory.string(), rootLayerPath,
