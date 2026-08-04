@@ -161,11 +161,10 @@ ost build
 ost test
 ```
 
-`ost plugin test` currently skips its L3 and L4 checks because the bundle
-manifest declares no OST fixtures, even though
-`tests/fixtures/conformance.las` and the corpus under `tests/corpus/` exist.
-Wiring them up is tracked in
-[implementation status](../../docs/roadmap/implementation-status.md).
+The bundle manifest declares `tests/fixtures/conformance.las` as its smoke
+fixture. `ost plugin test --up-to 4` therefore exercises discovery, `usdcat`
+read, and Python stage open instead of skipping L3 and L4. Additional generated
+and corpus inputs remain under `tests/fixtures/` and `tests/corpus/`.
 
 ## Source layout
 

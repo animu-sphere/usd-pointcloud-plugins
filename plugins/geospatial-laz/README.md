@@ -143,9 +143,10 @@ This bundle's CMake includes `../geospatial-las/cmake/OpenStrataPlugin.cmake`
 rather than carrying its own copy, so the `geospatial-las` directory must be
 present in the tree to configure it.
 
-`ost plugin test` currently skips its L3 and L4 checks because the manifest
-declares no OST fixtures, even though `tests/fixtures/conformance.laz` and the
-corpus under `tests/corpus/` exist.
+The bundle manifest declares `tests/fixtures/conformance.laz` as its smoke
+fixture. `ost plugin test --up-to 4` therefore exercises discovery, `usdcat`
+read, and Python stage open instead of skipping L3 and L4. Additional generated
+and corpus inputs remain under `tests/fixtures/` and `tests/corpus/`.
 
 ## Source layout
 

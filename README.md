@@ -46,16 +46,15 @@ does not provide their compressed record decoders.
 | GPS time (formats 1, 3, 6-10) | Authored |
 | NIR, scan angle, user data, point source ID, classification flags, scanner channel, scan direction, edge of flight line | Authored |
 | Waveform packet metadata and external `.wdp` reference (LAS formats 4, 5, 9, 10) | Authored |
-| Extra Bytes point attributes | Scalar types 1-10 authored; vector types rejected |
+| Extra Bytes point attributes | Types 1-30 authored as scalar/vector USD attributes |
 
-Scalar Extra Bytes are authored as `geo:<descriptor name>` (`double[]`) with
-the descriptor scale and offset applied. The current limits are: vector Extra
-Bytes are unsupported, non-finite values are rejected, 64-bit integer values
-must be exactly representable as `double`, and a descriptor name must already
-be a valid USD identifier — a name such as `temperature (C)` currently fails
-the file rather than being normalized. Name normalization is a planned
-contract; see
-[streaming and tiling §12](docs/roadmap/streaming-and-tiling.md).
+Extra Bytes are authored as `geo:<normalized descriptor name>` with the
+descriptor scale and offset applied. Scalar types 1-10 become `double[]`,
+vector types 11-20 become `double2[]`, and vector types 21-30 become
+`double3[]`. Non-finite values and integer values that are not exactly
+representable as `double` are rejected. Names are normalized deterministically
+to ASCII USD identifiers; original names remain in header metadata. See the
+[capability matrix](docs/reference/CAPABILITY_MATRIX.md).
 
 The complete matrix, including VLR, CRS, and authored USD attributes, is in
 the [capability matrix](docs/reference/CAPABILITY_MATRIX.md).
@@ -126,9 +125,10 @@ def "Survey" (
 ```
 
 The supported compact profiles are `off`, `preview`, `balanced`, and
-`quality`. `tile=true` is recognized but rejected: spatial tiling is not
-connected to the plugin read path yet. Registration details are in
-[INSTALL.md](docs/guides/INSTALL.md); the argument surface is in the
+`quality`. `tile=true` connects the LAS/LAZ stream to spill-backed,
+payload-backed spatial tiling. `tileSize`, `tileMemoryLimit`, and
+`payloadDirectory` control the tiled output. Registration details are in
+[INSTALL.md](docs/guides/INSTALL.md); the full argument surface is in the
 [file-format argument contract](docs/architecture/FILE_FORMAT_ARGUMENTS.md).
 
 ### Previewing without installing
@@ -212,32 +212,29 @@ LAS/LAZ FileFormat read path:
 
 - compact non-spatial LOD profiles (`lod=preview|balanced|quality`):
   implemented
-- spatial `tile` argument: not yet connected
-- bounded-memory payload generation during file open: not yet implemented
+- spatial `tile` argument: implemented
+- bounded-memory payload generation during file open: implemented
 
-Bringing the two together is the next major capability; the plan is in
-[streaming and tiling](docs/roadmap/streaming-and-tiling.md).
+The read path consumes bounded pull-stream chunks, spools points by
+source-coordinate tile, and authors one payload-backed level per tile. The
+remaining measurements are real-world RSS and payload working set; the
+implementation details are in [streaming and tiling](docs/roadmap/streaming-and-tiling.md).
 
 ## Known Limitations
 
-- The whole point cloud is loaded into memory before the layer is authored.
-  LAZ decodes in 65,536-point chunks and the readers accept a memory budget,
-  but the plugin still accumulates every point. Expect memory use proportional
-  to the point count, and plan accordingly for files above a few tens of
-  millions of points.
-- Payload-backed tiled authoring is available through the authoring API, but
-  direct LAS and LAZ FileFormat reads do not yet stream decoded chunks into
-  tile payloads.
+- Tiled reads use bounded chunk delivery and spill points to per-tile temporary
+  files. Peak RSS and payload working set for real-world datasets are not yet
+  published; generated-corpus measurement is available.
 - File-format arguments expose normalized attribute selection, chunked and
-  range-based reads, and compact `lod` profiles. Spatial tiling, bounds
-  filters, and classification filters are unavailable and are rejected with
-  typed diagnostics.
+  range-based reads, compact `lod` profiles, and spatial tiling. Bounds and
+  classification filters remain unavailable and are rejected with typed
+  diagnostics.
 - `metadataOnly` reads author the `/PointCloud` metadata namespace without
   decoding point records: source count, bounds, CRS, and available-attribute
   metadata, but no point positions.
-- Extra Bytes support covers scalar types 1-10 only. Vector types, non-finite
-  values, integers not exactly representable as `double`, and descriptor names
-  that are not valid USD identifiers are rejected.
+- Extra Bytes support covers types 1-30. Non-finite values and integers not
+  exactly representable as `double` are rejected; descriptor names are
+  normalized deterministically before USD authoring.
 - CRS comes from the WKT VLR only. GeoTIFF keys are parsed and retained but not
   interpreted, and EPSG codes are not inferred.
 - Point decoding assumes a little-endian host.
@@ -254,11 +251,12 @@ Latest release: **v0.1.0** — the shared geospatial and point-cloud contracts,
 the LAS and LAZ readers, and the OpenUSD FileFormat Plugin integration. See the
 [release record](docs/releases/v0.1.0.md).
 
-Current `main` carries unreleased work: LAS 1.4 attributes and waveform point
-formats, GeoTIFF key parsing, scalar Extra Bytes, chunked and range-based
-reads, normalized file-format arguments, the shared authoring entry point,
-`usdLod` authoring with compact LOD profiles, tiled and payload-backed
-authoring, metadata-only reads, and the module and bundle rename recorded in
+Current `main` carries the v0.2.0 release candidate work: LAS 1.4 attributes
+and waveform point formats, GeoTIFF key parsing, scalar and vector Extra Bytes,
+chunked and range-based reads, normalized file-format arguments, the shared
+authoring entry point, `usdLod` authoring with compact LOD profiles,
+stream-connected tiled and payload-backed authoring, metadata-only reads, and
+the module and bundle rename recorded in
 [MIGRATION.md](docs/compatibility/MIGRATION.md). See
 [CHANGELOG.md](CHANGELOG.md).
 
