@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -168,11 +169,20 @@ public:
               LasHeader& header,
               std::vector<usdgeo::Diagnostic>& diagnostics);
     bool ReadMetadata(LasHeader& header,
-                      std::vector<usdgeo::Diagnostic>& diagnostics);
+                      std::vector<usdgeo::Diagnostic>& diagnostics,
+                      std::size_t memoryBudgetBytes =
+                          (std::numeric_limits<std::size_t>::max)());
 
     LasReadFailure FailureKind() const noexcept;
 
 private:
+    friend class LasPointStream;
+
+    bool ReadPoints(const LasReadOptions& options,
+                    const LasPointChunkConsumer& consume,
+                    const LasHeader& header,
+                    std::string& error);
+
     std::string filename_;
     std::optional<std::uint64_t> failureByteOffset_;
     std::optional<std::uint64_t> failurePointIndex_;
@@ -204,6 +214,7 @@ private:
                    std::size_t effectiveChunkPointLimit);
 
     std::string filename_;
+    LasReader reader_;
     LasReadOptions options_;
     LasHeader header_;
     std::uint64_t nextPoint_ = 0;
