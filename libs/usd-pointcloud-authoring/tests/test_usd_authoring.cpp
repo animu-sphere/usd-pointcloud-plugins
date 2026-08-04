@@ -25,18 +25,44 @@ std::set<std::filesystem::path> ListPointSpoolDirectories() {
     std::set<std::filesystem::path> directories;
     std::error_code error;
     const auto temporaryDirectory = std::filesystem::temp_directory_path(error);
-    if (error) return directories;
+    Check(!error);
     for (const auto& entry : std::filesystem::directory_iterator(
              temporaryDirectory, error)) {
-        if (error) break;
+        Check(!error);
         const auto name = entry.path().filename().string();
-        if (entry.is_directory(error) &&
+        const auto isDirectory = entry.is_directory(error);
+        Check(!error);
+        if (isDirectory &&
             name.rfind("usdgeo_point_spool_", 0) == 0) {
             directories.insert(entry.path());
         }
         error.clear();
     }
+    Check(!error);
     return directories;
+}
+
+bool HasNewPointSpoolFile(
+    const std::set<std::filesystem::path>& existingDirectories) {
+    for (const auto& directory : ListPointSpoolDirectories()) {
+        if (existingDirectories.count(directory) != 0) continue;
+        std::error_code error;
+        for (const auto& entry : std::filesystem::directory_iterator(
+                 directory, error)) {
+            Check(!error);
+            const auto name = entry.path().filename().string();
+            const auto isRegularFile = entry.is_regular_file(error);
+            Check(!error);
+            if (isRegularFile &&
+                name.rfind("tile_", 0) == 0 &&
+                entry.path().extension() == ".bin") {
+                return true;
+            }
+            error.clear();
+        }
+        Check(!error);
+    }
+    return false;
 }
 
 class TestPointStream final : public usdpointcloud::PointStream {
@@ -68,8 +94,11 @@ private:
 
 class GeneratedPointStream final : public usdpointcloud::PointStream {
 public:
-    explicit GeneratedPointStream(std::size_t pointCount)
-        : pointCount_(pointCount) {}
+    GeneratedPointStream(
+        std::size_t pointCount,
+        std::set<std::filesystem::path> existingSpoolDirectories)
+        : pointCount_(pointCount),
+          existingSpoolDirectories_(std::move(existingSpoolDirectories)) {}
 
     usdpointcloud::PointStreamStatus ReadNext(
         usdpointcloud::PointChunk& chunk,
@@ -79,6 +108,8 @@ public:
         if (index_ == pointCount_) {
             return usdpointcloud::PointStreamStatus::End;
         }
+        sawSpoolFile_ = sawSpoolFile_ ||
+                        HasNewPointSpoolFile(existingSpoolDirectories_);
         const auto tileIndex = index_ % 32;
         const auto pointInTile = index_ / 32;
         data.positions = {{static_cast<double>(tileIndex * 128 + 1),
@@ -91,9 +122,13 @@ public:
         return usdpointcloud::PointStreamStatus::Chunk;
     }
 
+    bool SawSpoolFile() const noexcept { return sawSpoolFile_; }
+
 private:
     std::size_t pointCount_ = 0;
     std::size_t index_ = 0;
+    std::set<std::filesystem::path> existingSpoolDirectories_;
+    bool sawSpoolFile_ = false;
 };
 
 class FailingPointStream final : public usdpointcloud::PointStream {
@@ -606,8 +641,8 @@ void TestGeneratedStreamTiledPayloadAuthoring() {
     usdgeo::GeoReference reference;
     reference.epsgCode = 26910;
 
-    GeneratedPointStream stream(131072);
     const auto spoolDirectoriesBefore = ListPointSpoolDirectories();
+    GeneratedPointStream stream(131072, spoolDirectoriesBefore);
     const auto payloadDirectory =
         std::filesystem::temp_directory_path() / "usd_geo_generated_payloads";
     const auto rootLayerPath = payloadDirectory / "PointCloud.usda";
@@ -623,6 +658,7 @@ void TestGeneratedStreamTiledPayloadAuthoring() {
         payloadDirectory / "Tile_L0_p31_p0_p0_LOD0.usdc"));
     Check(layer->GetPrimAtPath(pxr::SdfPath(
               "/PointCloud/Tiles/Tile_L0_p31_p0_p0")) != nullptr);
+    Check(stream.SawSpoolFile());
     Check(ListPointSpoolDirectories() == spoolDirectoriesBefore);
     std::filesystem::remove_all(payloadDirectory);
 }
