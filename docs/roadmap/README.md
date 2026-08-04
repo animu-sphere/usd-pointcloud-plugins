@@ -25,10 +25,10 @@ support, in [capability matrix](../reference/CAPABILITY_MATRIX.md).
 
 ## Immediate direction
 
-The next major capability is **bounded-memory streaming into spatially tiled,
-payload-backed `usdLod` assets**. Readers already decode in chunks, but the
-plugins still accumulate the complete cloud before authoring, so peak memory
-is proportional to the point count.
+The current major capability is **bounded-memory streaming into spatially
+tiled, payload-backed `usdLod` assets**. Tiled reads now spool by source tile
+and reconstruct one tile at a time; large-corpus measurement and benchmarks
+remain open.
 
 The full plan — the `PointStream` interface, the spill-backed fixed-grid
 tiling design, spool and payload contracts, the file-format argument surface,
@@ -49,7 +49,7 @@ and authoring contracts from point clouds.
 | 2 | Direct LAS loading and `UsdGeomPoints` | Complete | Point formats 0-10, LAS 1.4 attributes, waveform metadata, GeoTIFF keys, and scalar and vector Extra Bytes all land on `main` |
 | 3 | LAZ, attribute selection, and USDC caching | In progress | LAZ chunk decoding and normalized attribute selection shipped; the USDC cache is not started |
 | 4a | Shared tile and LOD contracts and `usdLod` authoring | Complete | `usdLod` authoring, compact LOD profiles, deterministic sampling, per-tile roots, and payload-backed tile assets are available through the authoring library |
-| 4b | Bounded-memory streaming and spatial tiling through the plugins | Not started | `PointStream`, `usdPointCloudTiling`, spill-backed routing, and the `tile` argument; see [streaming and tiling](streaming-and-tiling.md) |
+| 4b | Bounded-memory streaming and spatial tiling through the plugins | In progress | `PointStream`, spill-backed routing, payload authoring, and the `tile` argument are connected; measurement and benchmarks remain |
 | 4c | COPC | Not started | Reuses the phase 4b streaming and tiling infrastructure |
 | 5 | PLY and delimited text point clouds (XYZ, PTS, CSV) | Not started | Needs the generic attribute model and file-format arguments |
 | 6 | E57 and multi-scan point clouds | Not started | Extends the point-cloud contracts to several scans per file |
@@ -69,13 +69,13 @@ maps onto the phases above.
 | W3 | Point formats 4, 5, 9, 10 and the waveform contract | 2 | Complete |
 | W4 | Chunked and range-based reader API, memory budget, filtering | 3 | Reader API and memory budget complete; bounds and classification filters open |
 | W5 | Shared tile and LOD contracts, deterministic sampling, OpenUSD 26.08 `usdLod` authoring | 4a | Complete |
-| W6 | `PointStream`, spill-backed spatial tiling, payload generation during file open, spatial tile arguments | 4b | Not started |
+| W6 | `PointStream`, spill-backed spatial tiling, payload generation during file open, spatial tile arguments | 4b | In progress |
 | W7 | USDC cache, COPC, PLY, delimited text, E57, terrain rasters, remote byte-range sources | 3-7 | Not started |
 
 W1 through W5 stabilized the shared point schema, the streaming reader API, and
-the public LOD representation. W6 is the first workstream that changes how much
-memory a read costs rather than what a read produces, and it is the
-prerequisite for W7's COPC work.
+the public LOD representation. W6 now changes how much memory a tiled read
+costs rather than what it produces, and it is the prerequisite for W7's COPC
+work.
 
 ## Documents
 

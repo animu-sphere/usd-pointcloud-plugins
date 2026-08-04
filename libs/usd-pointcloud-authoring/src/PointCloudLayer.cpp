@@ -697,6 +697,17 @@ bool AuthorPointCloudTiledAssetWithPayloads(
     const std::string& primPath,
     const std::vector<PointCloudTileAsset>& tiles,
     const PointCloudPayloadOptions& options) {
+    std::vector<std::filesystem::path> generatedPayloads;
+    return AuthorPointCloudTiledAssetWithPayloads(
+        stage, primPath, tiles, options, generatedPayloads);
+}
+
+bool AuthorPointCloudTiledAssetWithPayloads(
+    const pxr::UsdStageRefPtr& stage,
+    const std::string& primPath,
+    const std::vector<PointCloudTileAsset>& tiles,
+    const PointCloudPayloadOptions& options,
+    std::vector<std::filesystem::path>& generatedPayloads) {
     if (!stage || !IsValidPrimPath(primPath) || tiles.empty() ||
         options.directory.empty() || options.rootLayerPath.empty()) {
         return false;
@@ -779,6 +790,8 @@ bool AuthorPointCloudTiledAssetWithPayloads(
         }
         defineHeuristic = false;
     }
+    generatedPayloads.insert(generatedPayloads.end(), payloadPaths.begin(),
+                             payloadPaths.end());
     return true;
 }
 

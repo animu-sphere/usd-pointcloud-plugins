@@ -165,8 +165,8 @@ real-data corpus under `plugins/geospatial-las/tests/corpus/`.
 ## Known limitations
 
 - LAS 1.0 and 1.1 are rejected.
-- Extra Bytes: scalar types 1-10 only. Vector types, non-finite values, and
-  64-bit integers not exactly representable as `double` are rejected.
+- Extra Bytes types 1-30 are supported, including vectors. Non-finite values
+  and 64-bit integers not exactly representable as `double` are rejected.
   Descriptor names are normalized to deterministic ASCII USD identifiers by
   replacing invalid characters with `_`, prefixing leading digits, and adding
   numeric suffixes to collisions.

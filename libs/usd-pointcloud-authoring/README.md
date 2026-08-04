@@ -177,24 +177,18 @@ ctest --test-dir build/cy2026-windows-x86_64-py313-usd -C Release `
 - Sampling is fixed-stride, inherited from `usdPointCloudCore`.
 - Payload working-set behavior is unmeasured: the library emits payloads, but
   no claim is made that a non-selected LOD child's payload stays unloaded.
-- Tiled and payload-backed authoring is **not reachable from a LAS or LAZ
-  file-format argument**. It is exercised by this module's tests and the
-  lower-level API only.
-- The whole asset must be in memory before authoring; there is no incremental
-  or streaming authoring entry point.
+- `AuthorPointCloudTiledAssetFromStream` consumes a pull stream, spools points
+  by source tile, and reconstructs one tile at a time before payload authoring.
+  Large-corpus RSS measurement remains open.
 - Only the `Z` source / `Y` stage up-axis pair is supported.
 
 ## Planned work
 
-- An authoring entry point that accepts tiles incrementally, so payload assets
-  can be written as a `PointStream` is consumed rather than after the whole
-  cloud is materialized.
-- Atomic commit of the root layer, so a failure cannot leave a valid-looking
-  partial root asset.
-- Payload working-set measurement across the supported scene and render
-  delegates.
+- Large-corpus RSS and payload working-set measurement across the supported
+  scene and render delegates.
+- Streaming benchmarks with documented commands and datasets.
 
-All three are specified in
+These items are specified in
 [streaming and tiling](../../docs/roadmap/streaming-and-tiling.md).
 
 ## Contracts

@@ -253,10 +253,16 @@ bool AuthorPointCloudTiledAssetFromStream(
     const auto spoolDirectory = MakeSpoolDirectory(diagnostics);
     if (spoolDirectory.empty()) return false;
     std::map<std::string, TileSpool> spools;
+    std::vector<std::filesystem::path> generatedPayloads;
     const auto cleanup = [&]() {
         for (auto& entry : spools) entry.second.writer.reset();
         std::vector<Diagnostic> cleanupDiagnostics;
         usdpointcloud::RemoveSpoolDirectory(spoolDirectory, cleanupDiagnostics);
+        std::error_code cleanupError;
+        for (const auto& payloadPath : generatedPayloads) {
+            std::filesystem::remove(payloadPath, cleanupError);
+            cleanupError.clear();
+        }
     };
 
     usdpointcloud::SpoolSchema schema;
@@ -350,8 +356,17 @@ bool AuthorPointCloudTiledAssetFromStream(
         }
     }
 
-    std::vector<PointCloudTileAsset> tiles;
-    tiles.reserve(spools.size());
+    const auto stage = PointCloudLayer::CreateStage();
+    if (!stage || !pxr::UsdGeomSetStageUpAxis(
+                      stage, pxr::TfToken(reference.stageUpAxis)) ||
+        !pxr::UsdGeomSetStageMetersPerUnit(stage, 1.0)) {
+        AddError(diagnostics, DiagnosticCode::DecodeFailure,
+                 "unable to create tiled point-cloud stage");
+        cleanup();
+        return false;
+    }
+
+    std::size_t tileCount = 0;
     for (const auto& entry : spools) {
         usdpointcloud::TileSpoolReader reader;
         usdpointcloud::PointTileId tileId;
@@ -411,23 +426,20 @@ bool AuthorPointCloudTiledAssetFromStream(
             return false;
         }
         tile.levels.push_back(std::move(asset));
-        tiles.push_back(std::move(tile));
+        std::vector<PointCloudTileAsset> singleTile;
+        singleTile.push_back(std::move(tile));
+        if (!AuthorPointCloudTiledAssetWithPayloads(
+                stage, primPath, singleTile, options, generatedPayloads)) {
+            AddError(diagnostics, DiagnosticCode::DecodeFailure,
+                     "unable to author tiled point-cloud payloads");
+            cleanup();
+            return false;
+        }
+        ++tileCount;
     }
-    if (tiles.empty()) {
+    if (tileCount == 0) {
         AddError(diagnostics, DiagnosticCode::DecodeFailure,
                  "point stream did not produce any points");
-        cleanup();
-        return false;
-    }
-
-    const auto stage = PointCloudLayer::CreateStage();
-    if (!stage || !pxr::UsdGeomSetStageUpAxis(
-                      stage, pxr::TfToken(reference.stageUpAxis)) ||
-        !pxr::UsdGeomSetStageMetersPerUnit(stage, 1.0) ||
-        !AuthorPointCloudTiledAssetWithPayloads(
-            stage, primPath, tiles, options)) {
-        AddError(diagnostics, DiagnosticCode::DecodeFailure,
-                 "unable to author tiled point-cloud payloads");
         cleanup();
         return false;
     }
@@ -436,6 +448,7 @@ bool AuthorPointCloudTiledAssetFromStream(
                                              cleanupDiagnostics)) {
         diagnostics.insert(diagnostics.end(), cleanupDiagnostics.begin(),
                            cleanupDiagnostics.end());
+        cleanup();
         return false;
     }
     layer->TransferContent(stage->GetRootLayer());
