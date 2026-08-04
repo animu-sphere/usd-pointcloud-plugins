@@ -33,7 +33,7 @@ ordered plan is in [README.md](README.md).
 - [x] Document the typed diagnostics contract and its migration
 - [x] Document LGPL-compliant binary distribution and OpenUSD compatibility
 
-## Unreleased on `main`
+## Shipped in `v0.2.0` (2026-08-05)
 
 ### Readers and decoding
 
@@ -84,9 +84,38 @@ ordered plan is in [README.md](README.md).
 - [x] Add a `README.md` for every module under `libs/` and `plugins/`
 - [x] Record the rename in [migration](../compatibility/MIGRATION.md)
 
+## Release track status
+
+### `v0.2.x` — existing implementation stabilization
+
+The `v0.2.x` line stabilizes the LAS and LAZ implementation released in
+`v0.2.0`. It does not add a new point-cloud format.
+
+- [ ] Publish real-dataset processing-time, peak-RSS, spool, and payload
+      working-set measurements
+- [ ] Complete long-running, cancellation, failure, and interruption cleanup
+      validation for tiled reads
+- [ ] Close release documentation gaps for compatibility, installation,
+      licensing, and large-data operation
+- [ ] Add regression coverage for each stabilization fix
+
+### `v0.3.0` — COPC read support
+
+COPC is the next format milestone after the `v0.2.x` stabilization work. The
+initial scope is local, read-only support using the existing point, streaming,
+tiling, diagnostics, and `usdLod` contracts.
+
+- [ ] Add a format-specific COPC reader and thin FileFormat Plugin adapter
+- [ ] Validate COPC information and hierarchy metadata
+- [ ] Read required hierarchy nodes and point-data byte ranges selectively
+- [ ] Map native hierarchy and resolution metadata to the shared tile/LOD model
+- [ ] Verify LAS, LAZ, and COPC equivalence on equivalent fixtures
+- [ ] Defer COPC writing, HTTP range sources, network caching, and new public
+      USD schemas
+
 ## Open
 
-### Next: bounded-memory streaming and spatial tiling
+### Current: bounded-memory streaming and spatial tiling stabilization
 
 The plan is [streaming and tiling](streaming-and-tiling.md).
 
@@ -95,10 +124,14 @@ The plan is [streaming and tiling](streaming-and-tiling.md).
 - [x] Spool schema, thresholds, cleanup, and deterministic iteration order
 - [x] Bounded-memory tests and generated large-corpus spill coverage
 - [x] Generated-corpus streaming benchmark and documented measurement command
+- [ ] Real-dataset RSS, spool, and payload working-set measurements
+- [ ] Failure and interruption cleanup validation across tiled reads
 
 ### Other open work
 
 - [ ] Payload working-set measurement across scene and render delegates
+- [ ] COPC implementation after the `v0.2.x` stabilization gate; see the
+      `v0.3.0` release track above
 - [ ] Deterministic USDC cache generation and lookup
 - [x] Extra Bytes descriptor-name normalization contract
 - [x] Vector Extra Bytes types
