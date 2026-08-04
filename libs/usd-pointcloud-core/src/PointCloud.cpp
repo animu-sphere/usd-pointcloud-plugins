@@ -1,7 +1,6 @@
 #include "usdpointcloud/PointCloud.h"
 
 #include <algorithm>
-#include <cctype>
 #include <limits>
 #include <set>
 
@@ -43,18 +42,28 @@ bool HasPointCountOrIsEmpty(const std::vector<T>& values,
     return values.empty() || values.size() == pointCount;
 }
 
+bool IsAsciiAlphaNumeric(unsigned char character) {
+    return (character >= 'A' && character <= 'Z') ||
+           (character >= 'a' && character <= 'z') ||
+           (character >= '0' && character <= '9');
+}
+
+bool IsAsciiDigit(unsigned char character) {
+    return character >= '0' && character <= '9';
+}
+
 std::string NormalizeExtraByteName(const std::string& name) {
     std::string result;
     result.reserve(name.size());
     for (const unsigned char character : name) {
-        result += std::isalnum(character) || character == '_'
+        result += IsAsciiAlphaNumeric(character) || character == '_'
                       ? static_cast<char>(character)
                       : '_';
     }
     if (result.empty()) {
         return "extra";
     }
-    if (std::isdigit(static_cast<unsigned char>(result.front()))) {
+    if (IsAsciiDigit(static_cast<unsigned char>(result.front()))) {
         result.insert(result.begin(), '_');
     }
     return result;

@@ -75,6 +75,9 @@ void TestExtraByteNameNormalization() {
     Check(names == std::vector<std::string>{
                        "air_temperature", "_2nd_return", "intensity_2",
                        "air_temperature_2", "extra", "air_temperature_3"});
+    Check(usdpointcloud::NormalizeExtraByteNames(
+              {std::string("\xC3\xA9") + "levation"}) ==
+          std::vector<std::string>{"__levation"});
 
     usdpointcloud::PointData data;
     data.positions = {{0.0, 0.0, 0.0}};
@@ -84,11 +87,13 @@ void TestExtraByteNameNormalization() {
     bounds.Expand(data.positions.front());
     const auto chunk = usdpointcloud::MakePointChunk(data, bounds);
     Check(chunk.IsValid());
-    Check(chunk.attributes == std::vector<usdpointcloud::PointAttribute>{
-                                  {"air_temperature",
-                                   usdpointcloud::PointAttributeType::Float64},
-                                  {"intensity_2",
-                                   usdpointcloud::PointAttributeType::Float64}});
+    Check(chunk.attributes.size() == 2 &&
+          chunk.attributes[0].name == "air_temperature" &&
+          chunk.attributes[0].type ==
+              usdpointcloud::PointAttributeType::Float64 &&
+          chunk.attributes[1].name == "intensity_2" &&
+          chunk.attributes[1].type ==
+              usdpointcloud::PointAttributeType::Float64);
 }
 
 void TestReadOptions() {
