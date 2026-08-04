@@ -82,6 +82,9 @@ struct PointCloudAsset {
 PointChunk MakePointChunk(const PointData& data,
                          const usdgeo::SpatialBounds& bounds);
 
+std::vector<std::string> NormalizeExtraByteNames(
+    const std::vector<std::string>& names);
+
 struct PointRange {
     std::uint64_t firstPoint = 0;
     std::uint64_t pointCount = 0;

@@ -98,7 +98,7 @@ The plan is [streaming and tiling](streaming-and-tiling.md).
 
 - [ ] Payload working-set measurement across scene and render delegates
 - [ ] Deterministic USDC cache generation and lookup
-- [ ] Extra Bytes descriptor-name normalization contract
+- [x] Extra Bytes descriptor-name normalization contract
 - [ ] Vector Extra Bytes types
 - [ ] Bounds and classification filter arguments
 - [ ] EPSG inference and conflicting-CRS detection
