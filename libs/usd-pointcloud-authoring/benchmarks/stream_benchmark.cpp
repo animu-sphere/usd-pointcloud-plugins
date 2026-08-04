@@ -5,6 +5,10 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <psapi.h>
+#elif defined(__linux__)
+#include <unistd.h>
+#elif defined(__APPLE__)
+#include <mach/mach.h>
 #else
 #include <sys/resource.h>
 #endif
@@ -16,6 +20,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
+#include <fstream>
 #include <limits>
 #include <string>
 #include <thread>
@@ -93,6 +98,21 @@ std::uint64_t ResidentBytes() {
         return 0;
     }
     return static_cast<std::uint64_t>(counters.WorkingSetSize);
+#elif defined(__linux__)
+    std::ifstream statm("/proc/self/statm");
+    std::uint64_t totalPages = 0;
+    std::uint64_t residentPages = 0;
+    const auto pageSize = sysconf(_SC_PAGESIZE);
+    if (pageSize <= 0 || !(statm >> totalPages >> residentPages)) return 0;
+    return residentPages * static_cast<std::uint64_t>(pageSize);
+#elif defined(__APPLE__)
+    mach_task_basic_info info{};
+    mach_msg_type_number_t count = MACH_TASK_BASIC_INFO_COUNT;
+    if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO,
+                  reinterpret_cast<task_info_t>(&info), &count) != KERN_SUCCESS) {
+        return 0;
+    }
+    return static_cast<std::uint64_t>(info.resident_size);
 #else
     struct rusage usage {};
     if (getrusage(RUSAGE_SELF, &usage) != 0) return 0;
@@ -144,7 +164,7 @@ std::uint64_t DirectoryBytes(const std::filesystem::path& directory) {
     return bytes;
 }
 
-std::uint64_t NewSpoolBytes(
+std::uint64_t NewSpoolFileBytes(
     const std::unordered_set<std::filesystem::path>& existingDirectories) {
     std::uint64_t bytes = 0;
     for (const auto& directory : ExistingSpoolDirectories()) {
@@ -153,6 +173,22 @@ std::uint64_t NewSpoolBytes(
         }
     }
     return bytes;
+}
+
+bool CountPayloads(const std::filesystem::path& directory,
+                   std::uint64_t& count) {
+    count = 0;
+    std::error_code error;
+    for (const auto& entry : std::filesystem::directory_iterator(
+             directory, error)) {
+        if (error) return false;
+        if (entry.is_regular_file(error) &&
+            entry.path().extension() == ".usdc") {
+            ++count;
+        }
+        if (error) return false;
+    }
+    return true;
 }
 
 std::uint64_t DirectoryBytesRecursive(const std::filesystem::path& directory) {
@@ -257,16 +293,16 @@ int main(int argc, char** argv) {
     const auto existingSpoolDirectories = ExistingSpoolDirectories();
     std::atomic<bool> sampling{true};
     std::atomic<std::uint64_t> peakResident{ResidentBytes()};
-    std::atomic<std::uint64_t> peakSpoolBytes{0};
+    std::atomic<std::uint64_t> peakSpoolFileBytes{0};
     const auto sample = [&]() {
         while (sampling.load(std::memory_order_relaxed)) {
             peakResident.store(
                 std::max(peakResident.load(std::memory_order_relaxed),
                          ResidentBytes()),
                 std::memory_order_relaxed);
-            peakSpoolBytes.store(
-                std::max(peakSpoolBytes.load(std::memory_order_relaxed),
-                         NewSpoolBytes(existingSpoolDirectories)),
+            peakSpoolFileBytes.store(
+                std::max(peakSpoolFileBytes.load(std::memory_order_relaxed),
+                         NewSpoolFileBytes(existingSpoolDirectories)),
                 std::memory_order_relaxed);
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
@@ -288,13 +324,17 @@ int main(int argc, char** argv) {
     GeneratedPointStream stream(options.pointCount, options.chunkPointCount,
                                 options.tileSize);
     std::vector<usdgeo::Diagnostic> diagnostics;
-    const auto succeeded = usdgeo::AuthorPointCloudTiledAssetFromStream(
+    const auto authored = usdgeo::AuthorPointCloudTiledAssetFromStream(
         layer.operator->(), "/PointCloud", stream, reference,
         {options.tileSize, 0},
         {outputDirectory.string(), rootLayerPath.string(),
          options.memoryLimitBytes},
         diagnostics);
-    if (succeeded) layer->Export(rootLayerPath.string());
+    const auto exported = authored && layer->Export(rootLayerPath.string());
+    std::uint64_t tileCount = 0;
+    const auto countedPayloads = exported &&
+                                 CountPayloads(outputDirectory, tileCount);
+    const auto succeeded = authored && exported && countedPayloads;
     const auto elapsed = std::chrono::duration<double>(
                              std::chrono::steady_clock::now() - start)
                              .count();
@@ -304,9 +344,9 @@ int main(int argc, char** argv) {
     peakResident.store(
         std::max(peakResident.load(std::memory_order_relaxed), ResidentBytes()),
         std::memory_order_relaxed);
-    peakSpoolBytes.store(
-        std::max(peakSpoolBytes.load(std::memory_order_relaxed),
-                 NewSpoolBytes(existingSpoolDirectories)),
+    peakSpoolFileBytes.store(
+        std::max(peakSpoolFileBytes.load(std::memory_order_relaxed),
+                 NewSpoolFileBytes(existingSpoolDirectories)),
         std::memory_order_relaxed);
 
     const auto outputBytes = DirectoryBytesRecursive(outputDirectory);
@@ -315,8 +355,7 @@ int main(int argc, char** argv) {
     std::cout << "points=" << options.pointCount
               << " chunk_points=" << options.chunkPointCount
               << " tile_size=" << options.tileSize
-              << " tile_count="
-              << (options.pointCount + kPointsPerTile - 1) / kPointsPerTile
+              << " tile_count=" << tileCount
               << " memory_limit_bytes=" << options.memoryLimitBytes
               << " elapsed_seconds=" << elapsed
               << " baseline_rss_bytes=" << baselineResident
@@ -325,7 +364,7 @@ int main(int argc, char** argv) {
               << (peakResident.load() > baselineResident
                       ? peakResident.load() - baselineResident
                       : 0)
-              << " peak_spool_bytes=" << peakSpoolBytes.load()
+              << " peak_spool_file_bytes=" << peakSpoolFileBytes.load()
               << " payload_bytes=" << payloadBytes
               << " output_bytes=" << outputBytes
               << " process_write_bytes="

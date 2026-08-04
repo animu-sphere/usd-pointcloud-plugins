@@ -194,9 +194,12 @@ ctest --test-dir build/cy2026-windows-x86_64-py313-usd -C Release `
     --memory-limit 1048576
   ```
 
-  The benchmark reports elapsed time, RSS delta, tile count, peak spool bytes,
-  payload bytes, and process write bytes for a generated corpus. The process
-  write counter is Windows-specific; it is reported as zero on other platforms.
+  The benchmark reports elapsed time, RSS delta, the generated `.usdc` payload
+  count as tile count, sampled peak spool file bytes, payload bytes, and process
+  write bytes for a generated corpus. This benchmark authors one payload level
+  per tile. The process write counter is Windows-specific; it is reported as
+  zero on other platforms. Windows RSS uses the working set; Linux and macOS
+  use the current resident set when the platform API is available.
 - Only the `Z` source / `Y` stage up-axis pair is supported.
 
 ## Planned work
