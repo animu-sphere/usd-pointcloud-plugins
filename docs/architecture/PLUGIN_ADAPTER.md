@@ -67,9 +67,9 @@ construction, CRS or bounds conversion, stage metrics, or layer transfer.
 
 `chunkPointLimit`, `memoryBudgetBytes`, and `range` are now reachable through
 the normalized argument request. `isCancelled` remains host-supplied and is
-not an asset argument. The whole point cloud is still accumulated for the
-current `UsdGeomPoints` authoring path, so this migration makes bounded reader
-delivery available without claiming bounded final-layer memory.
+not an asset argument. Non-tiled reads still accumulate data for the current
+`UsdGeomPoints` authoring path; tiled reads use `PointStream`, spool by tile,
+and reconstruct one tile at a time before payload authoring.
 
 The static adapters consume `SdfLayer::GetFileFormatArguments()`, which is the
 argument map OpenUSD stores after layer lookup. Callers that construct a layer
@@ -142,7 +142,7 @@ call, and the projection of typed diagnostics onto its stable `LASxxx` /
   `ReadPointCloud`) so the plugin body reduces to the target contract above.
   This is cosmetic relative to steps 1-5: the duplication is already gone, and
   what remains is collapsing the per-plugin call sequence into one call.
-7. [ ] Route a `PointStream` through spatial tiling and payload authoring when
+7. [x] Route a `PointStream` through spatial tiling and payload authoring when
   the [streaming and tiling](../roadmap/streaming-and-tiling.md) work lands.
   The plugin body does not grow: tiles arrive through the same result and are
   handed to the same authoring entry point.

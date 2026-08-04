@@ -17,9 +17,9 @@ source-and-stage-coordinate binary spool. Records are written in append order,
 the footer commits the point count, and readers use the fixed record layout to
 reject missing or truncated footers. Attribute values are serialized using the
 scalar types declared by the schema. The writer buffers records up to its
-configured byte threshold before flushing; callers own the working directory
-and can remove it with `RemoveSpoolDirectory`.
+configured byte threshold before flushing; streaming callers may combine
+multiple writers under a total working-set budget. Callers own the working
+directory and can remove it with `RemoveSpoolDirectory`.
 
-Tile routing, bounded-memory buffering, tile manifests, and payload authoring
-remain separate follow-up contracts described in
+Tile manifests remain a separate follow-up contract described in
 `docs/roadmap/streaming-and-tiling.md`.

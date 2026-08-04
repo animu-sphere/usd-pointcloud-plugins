@@ -168,7 +168,7 @@ reported separately, because they differ.
 | Deterministic fixed-stride sampling | Supported | Supported |
 | Spatial tiling into per-tile `usdLod` roots | Supported | Supported |
 | Payload-backed tile assets (one USDC payload per tile/LOD) | Supported | Supported |
-| Bounded-memory generation during file open | Not implemented | Spool buffers bounded; large-corpus measurement not implemented |
+| Bounded-memory generation during file open | Implemented for tiled reads; measurement pending | Spool buffers and one-tile reconstruction are bounded; large-corpus measurement not implemented |
 | LOD file-format arguments | n/a | `lod=off\|preview\|balanced\|quality` |
 | Spatial tile file-format arguments | n/a | `tile=true`, `tileSize`, `tileMemoryLimit`, `payloadDirectory` |
 
@@ -177,8 +177,8 @@ The other profiles author a single non-tiled `usdLod` root with fixed-stride
 levels and a screen-size heuristic.
 
 Direct LAS and LAZ FileFormat reads now stream decoded chunks into tile
-payloads. Payload working-set behavior is still not fully measured, and the
-large-corpus and failure-injection work remains planned in
+spools and author one payload tile at a time. Payload working-set behavior is
+still not fully measured, and large-corpus benchmark coverage remains planned in
 [streaming and tiling](../roadmap/streaming-and-tiling.md).
 
 LOD is authored with the OpenUSD 26.08 `usdLod` schemas and nothing else. The project will not publish a repository-specific LOD schema, a
@@ -188,10 +188,8 @@ in the [tile and LOD contract](../architecture/LOD.md).
 
 ## Known Limitations
 
-- The whole point cloud is materialized in memory before authoring. LAZ
-  decodes in 65,536-point chunks and the readers honour a memory budget, but
-  the plugin still accumulates every point, so peak memory is proportional to
-  the point count rather than to any configured limit.
+- Tiled reads spool points and reconstruct one tile at a time, but large-corpus
+  RSS measurement and payload working-set measurement are not yet published.
 - Extra Bytes support covers types 1-30. Non-finite values and integers not
   exactly representable as `double` are rejected. Descriptor names are
   normalized before USD authoring.

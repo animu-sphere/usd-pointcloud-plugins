@@ -311,7 +311,7 @@ bool TileSpoolWriter::Flush(std::vector<usdgeo::Diagnostic>& diagnostics) {
         }
         ++impl_->pointCount;
     }
-    impl_->points.clear();
+    std::vector<SpoolPoint>().swap(impl_->points);
     impl_->buffered = 0;
     if (!impl_->stream.flush()) {
         Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,

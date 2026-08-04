@@ -265,7 +265,7 @@ fixtures into the manifests is open work tracked in
 | --- | --- | --- |
 | v0.1.0 | shared geospatial and point-cloud contracts, LAS and LAZ readers, FileFormat Plugin integration | released 2026-08-01 |
 | unreleased | typed diagnostics end to end, LAS 1.4 attributes and waveform formats, GeoTIFF key parsing, scalar and vector Extra Bytes, chunked and range-based reads, file-format arguments, shared authoring entry point, `usdLod` authoring, compact LOD profiles, tiled and payload-backed authoring, metadata-only reads, and the module rename | on `main` |
-| next | bounded-memory streaming: `PointStream`, `usdPointCloudTiling`, spill-backed tile routing, payload generation during file open, spatial tile arguments | not started; planned in [streaming and tiling](../roadmap/streaming-and-tiling.md) |
+| next | bounded-memory streaming: `PointStream`, `usdPointCloudTiling`, spill-backed tile routing, payload generation during file open, spatial tile arguments | in progress; large-corpus measurement and benchmarks remain in [streaming and tiling](../roadmap/streaming-and-tiling.md) |
 
 Current work and acceptance gaps are tracked in
 [roadmap/implementation-status.md](../roadmap/implementation-status.md).

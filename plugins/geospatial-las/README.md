@@ -200,14 +200,11 @@ bundle carries no LGPL-2.1 obligation — unlike
 
 ## Known limitations
 
-- The whole point cloud is accumulated in memory before the layer is authored.
-  The reader delivers bounded chunks and honours a memory budget, but peak
-  memory is still proportional to the point count.
-- Spatial tiled payload generation is available through `tile` arguments; large
-  corpus memory measurement remains open.
-- Extra Bytes: scalar types 1-10 only. Vector types, non-finite values,
-  integers not exactly representable as `double`, and descriptor names that are
-  not already valid USD identifiers are rejected.
+- Tiled reads spool points and reconstruct one tile at a time before payload
+  authoring; large-corpus memory measurement remains open.
+- Extra Bytes types 1-30 are supported, including vectors. Non-finite values
+  and integers not exactly representable as `double` are rejected, and
+  descriptor names are normalized to deterministic USD-safe names.
 - CRS comes from the WKT VLR only. GeoTIFF keys are retained but not
   interpreted; EPSG is not inferred and conflicting CRS is not detected.
 - Waveform sample data is not fetched; packet metadata and the `.wdp` reference

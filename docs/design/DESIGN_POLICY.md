@@ -613,9 +613,9 @@ external waveform data references.
 Chunk iterator, range decode, memory budget, cancellation, attribute
 selection, bounds filter, and deterministic sampling.
 
-The reader-side contract exists; it is not reachable through the plugins.
-Moving both plugins onto it, and exposing the options as file-format
-arguments, completes this workstream. See the
+The reader-side contract is reachable through both plugins for chunking,
+ranges, attribute selection, LOD profiles, and spatial tiling. Bounds and
+classification filters remain to be exposed as file-format arguments. See the
 [plugin adapter contract](../architecture/PLUGIN_ADAPTER.md).
 
 ### W5: Tile and LOD

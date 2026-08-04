@@ -11,6 +11,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -150,5 +151,12 @@ bool AuthorPointCloudTiledAssetWithPayloads(
     const std::string& primPath,
     const std::vector<PointCloudTileAsset>& tiles,
     const PointCloudPayloadOptions& options);
+
+bool AuthorPointCloudTiledAssetWithPayloads(
+    const pxr::UsdStageRefPtr& stage,
+    const std::string& primPath,
+    const std::vector<PointCloudTileAsset>& tiles,
+    const PointCloudPayloadOptions& options,
+    std::vector<std::filesystem::path>& generatedPayloads);
 
 } // namespace usdgeo

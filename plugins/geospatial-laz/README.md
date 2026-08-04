@@ -188,14 +188,14 @@ and carries none of this.
 
 - Compressed waveform formats 4, 5, 9, and 10 are rejected.
 - Decoding is sequential; a point range does not skip decode work.
-- The whole point cloud is accumulated in memory before the layer is authored.
-- Spatial tiled payload generation is available through `tile` arguments; large
-  corpus memory measurement remains open.
+- Tiled reads spool points and reconstruct one tile at a time before payload
+  authoring; large-corpus memory measurement remains open.
 - A decode failure inside a chunk is reported as `LAZ003` even when its cause
   is a LAS record condition, because record interpretation is delegated to the
   LAS reader.
-- Extra Bytes: scalar types 1-10 only, with the same rejections as
-  `geospatial-las`.
+- Extra Bytes types 1-30 are supported, including vectors. Non-finite values
+  and integers not exactly representable as `double` are rejected, and
+  descriptor names are normalized to deterministic USD-safe names.
 - CRS comes from the WKT VLR only.
 - Bounds and classification filters are unavailable.
 - Decoding assumes a little-endian host.

@@ -4,18 +4,20 @@ This is the plan for the next major capability: consuming large point clouds
 without accumulating the complete cloud in memory, and turning the result into
 payload-backed `usdLod` tile assets.
 
-Status: **in progress**. The `usdPointCloudCore` `PointStream` contract is now
-defined; the format-specific readers and bounded-memory pipeline remain targets.
-What `main` implements today is in
+Status: **in progress**. The `PointStream` contract, LAS and LAZ connections,
+spill-backed routing, and one-tile-at-a-time payload authoring are implemented.
+Large-corpus memory measurement and benchmark coverage remain open. What `main`
+implements today is in
 [implementation status](implementation-status.md) and
 [capability matrix](../reference/CAPABILITY_MATRIX.md).
 
 ## 1. Problem statement
 
-Chunked decoding already reduces decoder buffer size, but it does not bound
-total memory use: `LasReader` and `LazReader` deliver bounded chunks and the
-plugin accumulates every delivered point before authoring. Peak memory is
-therefore proportional to the point count, not to any configured budget.
+Chunked decoding reduces decoder buffer size. The tiled path additionally
+spools points by source-coordinate tile and reconstructs one tile at a time
+before writing its payload, so it does not retain the complete point cloud in
+the authoring stage. Peak-memory measurement against large real-world inputs is
+still outstanding.
 
 The target pipeline must:
 
