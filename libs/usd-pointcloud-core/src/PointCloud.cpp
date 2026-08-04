@@ -201,9 +201,15 @@ PointChunk MakePointChunk(const PointData& data,
     const auto extraByteNames = NormalizeExtraByteNames(data.extraByteNames);
     for (std::size_t index = 0; index < data.extraBytes.size(); ++index) {
         if (!data.extraBytes[index].empty() && index < extraByteNames.size()) {
-            const auto componentCount = data.extraByteComponentCounts.empty()
-                                            ? std::uint8_t{1}
-                                            : data.extraByteComponentCounts[index];
+            const auto componentCount =
+                data.extraByteComponentCounts.empty()
+                    ? std::uint8_t{1}
+                    : index < data.extraByteComponentCounts.size()
+                          ? data.extraByteComponentCounts[index]
+                          : std::uint8_t{0};
+            if (componentCount < 1 || componentCount > 3) {
+                continue;
+            }
             const auto type = componentCount == 1 ? PointAttributeType::Float64
                               : componentCount == 2 ? PointAttributeType::Float64Vec2
                                                     : PointAttributeType::Float64Vec3;

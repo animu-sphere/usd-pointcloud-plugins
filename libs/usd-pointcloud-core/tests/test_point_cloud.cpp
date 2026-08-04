@@ -103,8 +103,14 @@ void TestExtraByteNameNormalization() {
           vectorChunk.attributes.front().type ==
               usdpointcloud::PointAttributeType::Float64Vec3);
 
-    data.extraByteComponentCounts = {2, 3};
+    data.extraByteNames = {"normal", "incomplete"};
+    data.extraBytes = {{1.0, 2.0}, {3.0}};
+    data.extraByteComponentCounts = {2};
     Check(!data.IsValid());
+    const auto invalidChunk = usdpointcloud::MakePointChunk(data, bounds);
+    Check(invalidChunk.attributes.size() == 1 &&
+          invalidChunk.attributes.front().type ==
+              usdpointcloud::PointAttributeType::Float64Vec2);
 }
 
 void TestReadOptions() {
