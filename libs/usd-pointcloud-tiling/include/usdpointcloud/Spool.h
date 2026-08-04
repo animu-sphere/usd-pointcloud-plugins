@@ -4,6 +4,7 @@
 #include "usdpointcloud/PointCloud.h"
 #include "usdpointcloud/Lod.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -35,7 +36,9 @@ using SpoolAttributeValue = std::variant<
     std::uint32_t,
     std::uint64_t,
     float,
-    double>;
+    double,
+    std::array<double, 2>,
+    std::array<double, 3>>;
 
 struct SpoolPoint {
     usdgeo::Vec3d sourcePosition;

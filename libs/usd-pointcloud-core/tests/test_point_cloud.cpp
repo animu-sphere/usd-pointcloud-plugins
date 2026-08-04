@@ -94,6 +94,17 @@ void TestExtraByteNameNormalization() {
           chunk.attributes[1].name == "intensity_2" &&
           chunk.attributes[1].type ==
               usdpointcloud::PointAttributeType::Float64);
+
+    data.extraByteNames = {"normal"};
+    data.extraByteComponentCounts = {3};
+    data.extraBytes = {{1.0, 2.0, 3.0}};
+    const auto vectorChunk = usdpointcloud::MakePointChunk(data, bounds);
+    Check(data.IsValid() && vectorChunk.attributes.size() == 1 &&
+          vectorChunk.attributes.front().type ==
+              usdpointcloud::PointAttributeType::Float64Vec3);
+
+    data.extraByteComponentCounts = {2, 3};
+    Check(!data.IsValid());
 }
 
 void TestReadOptions() {

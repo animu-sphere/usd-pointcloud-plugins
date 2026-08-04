@@ -111,6 +111,16 @@ void TestHeaderAndPoint() {
     Check(usdlas::DecodePoint(header, record, point, error));
     Check(point.extraBytes.size() == 1 && point.extraBytes.front() == 101.23);
 
+    header.extraBytes.front().dataType = 19;
+    header.extraBytes.front().scale = {0.5, 0.25, 0.0};
+    header.extraBytes.front().offset = {1.0, 2.0, 0.0};
+    header.pointRecordLength = 42;
+    record.resize(42, 0);
+    Write(record, 34, 2.0F);
+    Write(record, 38, 4.0F);
+    Check(usdlas::DecodePoint(header, record, point, error));
+    Check(point.extraBytes == std::vector<double>{2.0, 3.0});
+
     header.extraBytes.front().dataType = 7;
     header.pointRecordLength = 42;
     record.resize(42, 0);
@@ -164,6 +174,20 @@ void TestPointCloudAssetHelpers() {
     Check(asset.chunk.attributes.back().name == "air_temperature" &&
           asset.chunk.attributes.back().type ==
               usdpointcloud::PointAttributeType::Float64);
+
+        header.extraBytes.front().dataType = 19;
+        header.extraBytes.front().name = "normal";
+        header.pointRecordLength = 28;
+        point.extraBytes = {1.0, 2.0};
+        data = {};
+        Check(usdlas::AppendPointData(header, {point}, "sample.las", data, error));
+        Check(data.extraByteNames == std::vector<std::string>{"normal"} &&
+            data.extraByteComponentCounts == std::vector<std::uint8_t>{2} &&
+            data.extraBytes == std::vector<std::vector<double>>{{1.0, 2.0}});
+        Check(usdlas::BuildPointCloudMetadata(
+          header, metadataChunk, metadataReference, metadataBounds, error));
+        Check(metadataChunk.attributes.back().type ==
+            usdpointcloud::PointAttributeType::Float64Vec2);
 }
 
 void TestValidation() {

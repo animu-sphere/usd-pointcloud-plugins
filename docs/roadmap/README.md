@@ -46,7 +46,7 @@ and authoring contracts from point clouds.
 | --- | --- | --- | --- |
 | 0 | Technical validation of the FileFormat Plugin and dependencies | In progress | PoC, adapter split, and precision path are done; large-data timing and memory measurements are outstanding |
 | 1 | `usdGeoCore`, `usdPointCloudAuthoring`, and point-cloud contracts | In progress | Shipped in v0.1.0 except `usdGeoCache` |
-| 2 | Direct LAS loading and `UsdGeomPoints` | Complete | Point formats 0-10, LAS 1.4 attributes, waveform metadata, GeoTIFF keys, and scalar Extra Bytes all land on `main` |
+| 2 | Direct LAS loading and `UsdGeomPoints` | Complete | Point formats 0-10, LAS 1.4 attributes, waveform metadata, GeoTIFF keys, and scalar and vector Extra Bytes all land on `main` |
 | 3 | LAZ, attribute selection, and USDC caching | In progress | LAZ chunk decoding and normalized attribute selection shipped; the USDC cache is not started |
 | 4a | Shared tile and LOD contracts and `usdLod` authoring | Complete | `usdLod` authoring, compact LOD profiles, deterministic sampling, per-tile roots, and payload-backed tile assets are available through the authoring library |
 | 4b | Bounded-memory streaming and spatial tiling through the plugins | Not started | `PointStream`, `usdPointCloudTiling`, spill-backed routing, and the `tile` argument; see [streaming and tiling](streaming-and-tiling.md) |
@@ -65,7 +65,7 @@ maps onto the phases above.
 | Workstream | Scope | Phases | Status |
 | --- | --- | --- | --- |
 | W1 | Public specification alignment, typed diagnostics, endian-safe decoding | 0, 1 | Complete |
-| W2 | LAS attribute coverage, GeoTIFF CRS, Extra Bytes | 2 | Complete for scalar Extra Bytes; vector types and name normalization open |
+| W2 | LAS attribute coverage, GeoTIFF CRS, Extra Bytes | 2 | Complete for scalar and vector Extra Bytes, including name normalization |
 | W3 | Point formats 4, 5, 9, 10 and the waveform contract | 2 | Complete |
 | W4 | Chunked and range-based reader API, memory budget, filtering | 3 | Reader API and memory budget complete; bounds and classification filters open |
 | W5 | Shared tile and LOD contracts, deterministic sampling, OpenUSD 26.08 `usdLod` authoring | 4a | Complete |

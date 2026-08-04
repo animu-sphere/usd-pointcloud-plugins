@@ -84,6 +84,29 @@ std::set<std::string> ReservedPointAttributeNames() {
 
 bool PointData::IsValid() const noexcept {
     const auto pointCount = positions.size();
+    const auto hasValidExtraByteValues = [&](std::size_t index,
+                                             const auto& values) {
+        const auto componentCount = extraByteComponentCounts.empty()
+                                        ? std::uint8_t{1}
+                                        : extraByteComponentCounts[index];
+        return componentCount >= 1 && componentCount <= 3 &&
+               (values.empty() ||
+                (pointCount <= (std::numeric_limits<std::size_t>::max)() /
+                                   componentCount &&
+                 values.size() == pointCount * componentCount));
+    };
+    const bool extraByteComponentCountsValid =
+        extraByteComponentCounts.empty() ||
+        extraByteComponentCounts.size() == extraBytes.size();
+    bool extraByteValuesValid = extraByteComponentCountsValid;
+    if (extraByteComponentCountsValid) {
+        for (std::size_t index = 0; index < extraBytes.size(); ++index) {
+            if (!hasValidExtraByteValues(index, extraBytes[index])) {
+                extraByteValuesValid = false;
+                break;
+            }
+        }
+    }
     return HasPointCountOrIsEmpty(intensity, pointCount) &&
            HasPointCountOrIsEmpty(returnNumber, pointCount) &&
            HasPointCountOrIsEmpty(numberOfReturns, pointCount) &&
@@ -109,10 +132,8 @@ bool PointData::IsValid() const noexcept {
            HasPointCountOrIsEmpty(waveformZt, pointCount) &&
            HasPointCountOrIsEmpty(waveformDataExternal, pointCount) &&
            extraByteNames.size() == extraBytes.size() &&
-           std::all_of(extraBytes.begin(), extraBytes.end(),
-                       [&](const auto& values) {
-                           return values.empty() || values.size() == pointCount;
-                       }) &&
+           extraByteComponentCountsValid &&
+           extraByteValuesValid &&
            (returnNumber.empty() == numberOfReturns.empty()) &&
            (red.empty() == green.empty()) && (red.empty() == blue.empty()) &&
            (waveformDescriptorIndex.empty() == waveformDataOffset.empty()) &&
@@ -180,8 +201,13 @@ PointChunk MakePointChunk(const PointData& data,
     const auto extraByteNames = NormalizeExtraByteNames(data.extraByteNames);
     for (std::size_t index = 0; index < data.extraBytes.size(); ++index) {
         if (!data.extraBytes[index].empty() && index < extraByteNames.size()) {
-            chunk.attributes.push_back(
-                {extraByteNames[index], PointAttributeType::Float64});
+            const auto componentCount = data.extraByteComponentCounts.empty()
+                                            ? std::uint8_t{1}
+                                            : data.extraByteComponentCounts[index];
+            const auto type = componentCount == 1 ? PointAttributeType::Float64
+                              : componentCount == 2 ? PointAttributeType::Float64Vec2
+                                                    : PointAttributeType::Float64Vec3;
+            chunk.attributes.push_back({extraByteNames[index], type});
         }
     }
     return chunk;

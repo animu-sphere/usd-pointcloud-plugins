@@ -78,6 +78,10 @@ bool WriteAttribute(std::ofstream& stream,
         return WriteAttribute<float>(stream, value);
     case PointAttributeType::Float64:
         return WriteAttribute<double>(stream, value);
+    case PointAttributeType::Float64Vec2:
+        return WriteAttribute<std::array<double, 2>>(stream, value);
+    case PointAttributeType::Float64Vec3:
+        return WriteAttribute<std::array<double, 3>>(stream, value);
     }
     return false;
 }
@@ -134,6 +138,18 @@ bool ReadAttribute(std::ifstream& stream,
         value = item;
         return true;
     }
+    case PointAttributeType::Float64Vec2: {
+        std::array<double, 2> item{};
+        if (!Read(stream, item)) return false;
+        value = item;
+        return true;
+    }
+    case PointAttributeType::Float64Vec3: {
+        std::array<double, 3> item{};
+        if (!Read(stream, item)) return false;
+        value = item;
+        return true;
+    }
     }
     return false;
 }
@@ -148,6 +164,8 @@ std::size_t AttributeSize(PointAttributeType type) {
     case PointAttributeType::UInt64: return sizeof(std::uint64_t);
     case PointAttributeType::Float32: return sizeof(float);
     case PointAttributeType::Float64: return sizeof(double);
+    case PointAttributeType::Float64Vec2: return sizeof(std::array<double, 2>);
+    case PointAttributeType::Float64Vec3: return sizeof(std::array<double, 3>);
     }
     return 0;
 }

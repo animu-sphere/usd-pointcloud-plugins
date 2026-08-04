@@ -62,19 +62,23 @@ void TestSpoolRoundTrip() {
     usdpointcloud::SpoolSchema schema;
     schema.attributes.push_back({"count", usdpointcloud::PointAttributeType::UInt64});
     schema.attributes.push_back({"density", usdpointcloud::PointAttributeType::Float32});
+    schema.attributes.push_back({"normal", usdpointcloud::PointAttributeType::Float64Vec2});
     std::vector<usdgeo::Diagnostic> diagnostics;
     usdpointcloud::TileSpoolWriter writer;
     Check(writer.Open(path, tile, schema, 1, diagnostics));
     Check(writer.Append({{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0},
-                         {std::uint64_t{0xFFFFFFFFFFFFFFFF}, 7.5F}}, diagnostics));
+                         {std::uint64_t{0xFFFFFFFFFFFFFFFF}, 7.5F,
+                          std::array<double, 2>{1.0, 2.0}}}, diagnostics));
     Check(writer.BufferedBytes() == 0);
     Check(writer.Append({{-1.0, -2.0, 0.0}, {-4.0, -5.0, 0.0},
-                         {std::uint64_t{42}, -2.5F}}, diagnostics));
+                         {std::uint64_t{42}, -2.5F,
+                          std::array<double, 2>{3.0, 4.0}}}, diagnostics));
     double markerCoordinate = 0.0;
     const char footerBytes[] = "USDGEND1";
     std::memcpy(&markerCoordinate, footerBytes, sizeof(markerCoordinate));
     Check(writer.Append({{markerCoordinate, 8.0, 9.0}, {10.0, 11.0, 12.0},
-                         {std::uint64_t{7}, 1.0F}}, diagnostics));
+                         {std::uint64_t{7}, 1.0F,
+                          std::array<double, 2>{5.0, 6.0}}}, diagnostics));
     Check(writer.Close(diagnostics));
 
     {
@@ -87,7 +91,9 @@ void TestSpoolRoundTrip() {
           Check(reader.ReadNext(point, diagnostics) &&
               std::get<std::uint64_t>(point.attributes[0]) ==
                 std::uint64_t{0xFFFFFFFFFFFFFFFF} &&
-              std::get<float>(point.attributes[1]) == 7.5F);
+                            std::get<float>(point.attributes[1]) == 7.5F &&
+                            std::get<std::array<double, 2>>(point.attributes[2]) ==
+                                    std::array<double, 2>{1.0, 2.0});
           Check(reader.ReadNext(point, diagnostics) &&
               std::get<std::uint64_t>(point.attributes[0]) == 42 &&
               std::get<float>(point.attributes[1]) == -2.5F);
