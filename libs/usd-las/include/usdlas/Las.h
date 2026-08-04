@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -177,6 +178,45 @@ private:
     std::optional<std::uint64_t> failurePointIndex_;
     LasReadFailure failureKind_ = LasReadFailure::None;
 };
+
+class LasPointStream final : public usdpointcloud::PointStream {
+public:
+    ~LasPointStream() override;
+
+    usdpointcloud::PointStreamStatus ReadNext(
+        usdpointcloud::PointChunk& chunk,
+        usdpointcloud::PointData& data,
+        usdgeo::Diagnostic& diagnostic) override;
+
+    const LasHeader& Header() const noexcept;
+    LasReadFailure FailureKind() const noexcept;
+
+private:
+    friend std::unique_ptr<LasPointStream> OpenLasPointStream(
+        const std::string&,
+        const LasReadOptions&,
+        LasHeader&,
+        std::vector<usdgeo::Diagnostic>&);
+
+    LasPointStream(std::string filename,
+                   LasReadOptions options,
+                   LasHeader header,
+                   std::size_t effectiveChunkPointLimit);
+
+    std::string filename_;
+    LasReadOptions options_;
+    LasHeader header_;
+    std::uint64_t nextPoint_ = 0;
+    std::uint64_t endPoint_ = 0;
+    std::size_t effectiveChunkPointLimit_ = 0;
+    LasReadFailure failureKind_ = LasReadFailure::None;
+};
+
+std::unique_ptr<LasPointStream> OpenLasPointStream(
+    const std::string& filename,
+    const LasReadOptions& options,
+    LasHeader& header,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
 
 bool InspectHeader(const std::vector<std::uint8_t>& bytes,
                    LasHeader& header,

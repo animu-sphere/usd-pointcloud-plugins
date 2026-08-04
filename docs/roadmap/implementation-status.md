@@ -45,6 +45,7 @@ ordered plan is in [README.md](README.md).
 - [x] Remaining LAS 1.4 point attributes, including NIR
 - [x] Waveform contract and LAS point formats 4, 5, 9, and 10
 - [x] Chunked and range-based reader API
+- [x] LAS pull-based `PointStream` factory and bounded chunk delivery
 - [x] Metadata-only LAS and LAZ reads
 
 ### Plugin adapters

@@ -300,6 +300,53 @@ void TestRangeReader() {
     Check(std::remove(filename.string().c_str()) == 0);
 }
 
+void TestPointStream() {
+    const auto filename =
+        std::filesystem::temp_directory_path() / "usd-geo-plugins-stream.las";
+    auto bytes = MakeHeader(2, 0);
+    Write(bytes, 107, std::uint32_t{5});
+    for (int index = 0; index < 5; ++index) {
+        std::vector<std::uint8_t> record(20, 0);
+        Write(record, 0, static_cast<std::int32_t>(index + 1));
+        Write(record, 4, static_cast<std::int32_t>(index + 2));
+        Write(record, 8, static_cast<std::int32_t>(index + 3));
+        bytes.insert(bytes.end(), record.begin(), record.end());
+    }
+    {
+        std::ofstream output(filename, std::ios::binary);
+        output.write(reinterpret_cast<const char*>(bytes.data()),
+                     static_cast<std::streamsize>(bytes.size()));
+    }
+
+    usdlas::LasReadOptions options;
+    options.chunkPointLimit = 2;
+    options.memoryBudgetBytes = 2 * (sizeof(usdlas::LasPoint) + 40);
+    usdlas::LasHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    auto stream = usdlas::OpenLasPointStream(filename.string(), options, header,
+                                             diagnostics);
+    Check(stream != nullptr && diagnostics.empty() && header.pointCount == 5);
+
+    std::size_t totalPoints = 0;
+    std::size_t chunkCount = 0;
+    usdpointcloud::PointChunk chunk;
+    usdpointcloud::PointData data;
+    usdgeo::Diagnostic diagnostic;
+    while (stream->ReadNext(chunk, data, diagnostic) ==
+           usdpointcloud::PointStreamStatus::Chunk) {
+        ++chunkCount;
+        totalPoints += data.positions.size();
+        Check(chunk.pointCount == data.positions.size());
+        Check(data.positions.front().x ==
+              1000.01 + static_cast<double>(totalPoints - data.positions.size()) *
+                             0.01);
+    }
+    Check(chunkCount == 3 && totalPoints == 5);
+    Check(stream->ReadNext(chunk, data, diagnostic) ==
+          usdpointcloud::PointStreamStatus::End);
+    Check(std::remove(filename.string().c_str()) == 0);
+}
+
 void TestReaderFailureKinds() {
     const auto filename =
         std::filesystem::temp_directory_path() / "usd-geo-plugins-evlr-test.las";
@@ -481,6 +528,7 @@ int main() {
     TestPointCloudAssetHelpers();
     TestValidation();
     TestRangeReader();
+    TestPointStream();
     TestReaderFailureKinds();
     TestWaveformPointFormats();
     TestVariableLengthRecords();
