@@ -39,6 +39,157 @@ void AddDiagnostic(const std::string& error,
 
 namespace usdlaz {
 
+LazPointStream::LazPointStream(std::unique_ptr<LazDecoder> decoder,
+                               LazReadOptions options,
+                               usdlas::LasHeader header,
+                               std::size_t maximumPoints)
+    : decoder_(std::move(decoder)),
+      options_(std::move(options)),
+      header_(std::move(header)),
+      endPoint_(options_.range.pointCount == 0
+                    ? header_.pointCount
+                    : options_.range.firstPoint + options_.range.pointCount),
+      maximumPoints_(maximumPoints) {}
+
+LazPointStream::~LazPointStream() = default;
+
+usdpointcloud::PointStreamStatus LazPointStream::ReadNext(
+    usdpointcloud::PointChunk& chunk,
+    usdpointcloud::PointData& data,
+    usdgeo::Diagnostic& diagnostic) {
+    chunk = {};
+    data = {};
+    diagnostic = {};
+    if (ended_) return usdpointcloud::PointStreamStatus::End;
+
+    while (!complete_) {
+        if (options_.isCancelled && options_.isCancelled()) {
+            diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                          usdgeo::Severity::Error, "LAZ read cancelled",
+                          std::nullopt, pointsRead_};
+            ended_ = true;
+            return usdpointcloud::PointStreamStatus::Error;
+        }
+        std::vector<usdlas::LasPoint> points;
+        std::vector<usdgeo::Diagnostic> chunkDiagnostics;
+        if (!decoder_->ReadChunk(maximumPoints_, points, complete_,
+                                 chunkDiagnostics)) {
+            diagnostic = chunkDiagnostics.empty()
+                             ? usdgeo::Diagnostic{
+                                   usdgeo::DiagnosticCode::DecodeFailure,
+                                   usdgeo::Severity::Error,
+                                   "LAZ decoder failed", std::nullopt,
+                                   pointsRead_}
+                             : chunkDiagnostics.front();
+            ended_ = true;
+            return usdpointcloud::PointStreamStatus::Error;
+        }
+        if (points.empty() && !complete_) {
+            diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                          usdgeo::Severity::Error,
+                          "LAZ decoder returned an empty incomplete chunk",
+                          std::nullopt, pointsRead_};
+            ended_ = true;
+            return usdpointcloud::PointStreamStatus::Error;
+        }
+        if (points.size() > maximumPoints_ ||
+            points.size() > header_.pointCount - pointsRead_) {
+            diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                          usdgeo::Severity::Error,
+                          "LAZ decoder returned too many points", std::nullopt,
+                          pointsRead_};
+            ended_ = true;
+            return usdpointcloud::PointStreamStatus::Error;
+        }
+        const auto chunkStart = pointsRead_;
+        pointsRead_ += points.size();
+        const auto selectedStart =
+            (std::max)(chunkStart, options_.range.firstPoint);
+        const auto selectedEnd = (std::min)(pointsRead_, endPoint_);
+        if (selectedStart >= selectedEnd) continue;
+        const auto first = static_cast<std::size_t>(selectedStart - chunkStart);
+        const auto last = static_cast<std::size_t>(selectedEnd - chunkStart);
+        points.erase(points.begin(), points.begin() + first);
+        points.erase(points.begin() + (last - first), points.end());
+        usdpointcloud::PointData pointData;
+        std::string error;
+        if (!usdlas::AppendPointData(header_, points, {}, pointData, error)) {
+            diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                          usdgeo::Severity::Error, error, std::nullopt,
+                          selectedStart};
+            ended_ = true;
+            return usdpointcloud::PointStreamStatus::Error;
+        }
+        usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+        for (const auto& position : pointData.positions) bounds.Expand(position);
+        chunk = usdpointcloud::MakePointChunk(pointData, bounds);
+        if (!chunk.IsValid() || chunk.pointCount == 0) {
+            diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                          usdgeo::Severity::Error,
+                          "LAZ stream produced an invalid point chunk",
+                          std::nullopt, selectedStart};
+            ended_ = true;
+            return usdpointcloud::PointStreamStatus::Error;
+        }
+        selectedPointsRead_ += chunk.pointCount;
+        data = std::move(pointData);
+        return usdpointcloud::PointStreamStatus::Chunk;
+    }
+
+    if (pointsRead_ != header_.pointCount ||
+        selectedPointsRead_ != endPoint_ - options_.range.firstPoint) {
+        diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                      usdgeo::Severity::Error,
+                      "LAZ decoder point count does not match the header",
+                      std::nullopt, pointsRead_};
+        ended_ = true;
+        return usdpointcloud::PointStreamStatus::Error;
+    }
+    ended_ = true;
+    return usdpointcloud::PointStreamStatus::End;
+}
+
+const usdlas::LasHeader& LazPointStream::Header() const noexcept {
+    return header_;
+}
+
+std::unique_ptr<LazPointStream> OpenLazPointStream(
+    const std::string& filename,
+    const LazReadOptions& options,
+    usdlas::LasHeader& header,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    header = {};
+    if (!options.IsValid()) {
+        AddDiagnostic("LAZ read options are invalid", diagnostics);
+        return nullptr;
+    }
+    auto decoder = CreateFileDecoder(filename, diagnostics);
+    if (!decoder || !decoder->ReadHeader(header, diagnostics)) return nullptr;
+    if (options.range.firstPoint > header.pointCount ||
+        (options.range.pointCount != 0 &&
+         options.range.pointCount > header.pointCount - options.range.firstPoint)) {
+        AddDiagnostic("LAZ point range is outside the header", diagnostics);
+        return nullptr;
+    }
+    const auto maximumSize = (std::numeric_limits<std::size_t>::max)();
+    if (header.pointRecordLength >
+        (maximumSize - sizeof(usdlas::LasPoint)) / 2) {
+        AddDiagnostic("LAZ point record size is invalid", diagnostics);
+        return nullptr;
+    }
+    const auto bytesPerPoint = sizeof(usdlas::LasPoint) +
+                               static_cast<std::size_t>(header.pointRecordLength) * 2;
+    const auto maximumPoints = (std::min)(options.chunkPointLimit,
+                                          options.memoryBudgetBytes / bytesPerPoint);
+    if (maximumPoints == 0) {
+        AddDiagnostic("LAZ memory budget is too small for one point", diagnostics);
+        return nullptr;
+    }
+    return std::unique_ptr<LazPointStream>(new LazPointStream(
+        std::move(decoder), options, header, maximumPoints));
+}
+
 bool LazDecoder::ReadHeader(usdlas::LasHeader& header,
                             std::vector<usdgeo::Diagnostic>& diagnostics) {
     diagnostics.clear();

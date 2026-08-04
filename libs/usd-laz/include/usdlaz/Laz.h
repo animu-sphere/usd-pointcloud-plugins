@@ -66,4 +66,44 @@ private:
     std::unique_ptr<LazDecoder> decoder_;
 };
 
+class LazPointStream final : public usdpointcloud::PointStream {
+public:
+    ~LazPointStream() override;
+
+    usdpointcloud::PointStreamStatus ReadNext(
+        usdpointcloud::PointChunk& chunk,
+        usdpointcloud::PointData& data,
+        usdgeo::Diagnostic& diagnostic) override;
+
+    const usdlas::LasHeader& Header() const noexcept;
+
+private:
+    friend std::unique_ptr<LazPointStream> OpenLazPointStream(
+        const std::string&,
+        const LazReadOptions&,
+        usdlas::LasHeader&,
+        std::vector<usdgeo::Diagnostic>&);
+
+    LazPointStream(std::unique_ptr<LazDecoder> decoder,
+                   LazReadOptions options,
+                   usdlas::LasHeader header,
+                   std::size_t maximumPoints);
+
+    std::unique_ptr<LazDecoder> decoder_;
+    LazReadOptions options_;
+    usdlas::LasHeader header_;
+    std::uint64_t pointsRead_ = 0;
+    std::uint64_t selectedPointsRead_ = 0;
+    std::uint64_t endPoint_ = 0;
+    std::size_t maximumPoints_ = 0;
+    bool complete_ = false;
+    bool ended_ = false;
+};
+
+std::unique_ptr<LazPointStream> OpenLazPointStream(
+    const std::string& filename,
+    const LazReadOptions& options,
+    usdlas::LasHeader& header,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
+
 } // namespace usdlaz

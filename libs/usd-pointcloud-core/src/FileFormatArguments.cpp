@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <charconv>
 #include <cctype>
+#include <cmath>
+#include <cstdlib>
 #include <limits>
 #include <set>
 #include <string>
@@ -50,10 +52,18 @@ bool ParseUnsigned(std::string_view value,
     return true;
 }
 
+bool ParsePositiveDouble(std::string_view value, double& result) {
+    std::string text(value);
+    char* end = nullptr;
+    result = std::strtod(text.c_str(), &end);
+    return end != text.c_str() && *end == '\0' && std::isfinite(result) &&
+           result > 0.0;
+}
+
 bool IsUnsupportedArgument(const std::string& key) {
     static const std::set<std::string> keys = {
         "lodLevels", "lodPointCounts", "lodRatios",
-        "lodThresholds", "tile", "tileDepth", "tilePointLimit",
+        "lodThresholds", "tileDepth", "tilePointLimit",
         "sampling", "classification", "bounds", "originMode", "upAxis"};
     return keys.find(key) != keys.end();
 }
@@ -177,6 +187,35 @@ bool NormalizeFileFormatArguments(
                               "invalid lod profile: " + value, diagnostics);
                 return false;
             }
+        } else if (key == "tile") {
+            if (value == "true") {
+                request.tiled = true;
+            } else if (value == "false") {
+                request.tiled = false;
+            } else {
+                AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                              "invalid tile value: " + value, diagnostics);
+                return false;
+            }
+        } else if (key == "tileSize") {
+            if (!ParsePositiveDouble(value, request.tileSize)) {
+                AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                              "invalid tileSize: " + value, diagnostics);
+                return false;
+            }
+            request.tiled = true;
+        } else if (key == "tileMemoryLimit") {
+            if (!ParseUnsigned(value, parsed, error) ||
+                parsed == 0 || parsed > (std::numeric_limits<std::size_t>::max)()) {
+                AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                              "invalid tileMemoryLimit: " + value, diagnostics);
+                return false;
+            }
+            request.tileMemoryLimitBytes = static_cast<std::size_t>(parsed);
+            request.tiled = true;
+        } else if (key == "payloadDirectory") {
+            request.payloadDirectory = value;
+            request.tiled = true;
         } else if (key == "chunkPointLimit") {
             if (!ParseUnsigned(value, parsed, error) ||
                 parsed > (std::numeric_limits<std::size_t>::max)()) {
@@ -245,6 +284,18 @@ bool NormalizeFileFormatArguments(
                       diagnostics);
         return false;
     }
+    if (request.tiled && (request.tileSize <= 0.0 ||
+                          request.payloadDirectory.empty())) {
+        AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                      "tiled reads require tileSize and payloadDirectory",
+                      diagnostics);
+        return false;
+    }
+    if (request.tiled && request.lodProfile != LodProfile::Off) {
+        AddDiagnostic(usdgeo::DiagnosticCode::ConflictingFormatArguments,
+                      "tile cannot be combined with lod", diagnostics);
+        return false;
+    }
     if (attributesSpecified) {
         selectedAttributes.insert("xyz");
         request.attributes.assign(selectedAttributes.begin(),
@@ -276,6 +327,15 @@ bool NormalizeFileFormatArguments(
                                         ? "balanced"
                                         : "quality";
         normalized.emplace_back("lod", profile);
+    }
+    if (request.tiled) {
+        normalized.emplace_back("tile", "true");
+        normalized.emplace_back("tileSize", std::to_string(request.tileSize));
+        if (request.tileMemoryLimitBytes != 64 * 1024 * 1024) {
+            normalized.emplace_back("tileMemoryLimit",
+                                    std::to_string(request.tileMemoryLimitBytes));
+        }
+        normalized.emplace_back("payloadDirectory", request.payloadDirectory);
     }
     if (attributesSpecified) {
         normalized.emplace_back("attributes", Join(selectedAttributes));

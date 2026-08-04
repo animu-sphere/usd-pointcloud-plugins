@@ -209,6 +209,25 @@ void TestFileFormatArgumentNormalization() {
     Check(request.lodProfile == usdpointcloud::LodProfile::Off &&
           request.normalizedArguments.empty());
 
+        arguments = {{"payloadDirectory", "tiles"},
+                 {"tile", "true"},
+                 {"tileMemoryLimit", "1024"},
+                 {"tileSize", "2"}};
+        Check(usdpointcloud::NormalizeFileFormatArguments(
+          arguments, request, diagnostics));
+        Check(request.tiled && request.tileSize == 2.0 &&
+            request.tileMemoryLimitBytes == 1024 &&
+            request.payloadDirectory == "tiles");
+        Check(request.normalizedArguments ==
+                "tile=true&tileSize=2.000000&tileMemoryLimit=1024&payloadDirectory=tiles");
+
+        arguments = {{"lod", "preview"}, {"payloadDirectory", "tiles"},
+                 {"tileSize", "2"}};
+        Check(!usdpointcloud::NormalizeFileFormatArguments(
+          arguments, request, diagnostics));
+        Check(diagnostics.front().code ==
+            usdgeo::DiagnosticCode::ConflictingFormatArguments);
+
     arguments = {{"chunkPointLimit", "065536"},
                  {"memoryBudgetBytes", "67108864"},
                  {"rangePointCount", "0"}};

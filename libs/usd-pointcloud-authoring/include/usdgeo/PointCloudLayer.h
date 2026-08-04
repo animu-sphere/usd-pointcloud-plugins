@@ -3,11 +3,14 @@
 #include "usdgeo/GeoReference.h"
 #include "usdpointcloud/PointCloud.h"
 #include "usdpointcloud/Lod.h"
+#include "usdpointcloud/Spool.h"
+#include "usdpointcloud/Tiling.h"
 
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/sdf/layer.h>
 
 #include <cstdint>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -120,7 +123,17 @@ struct PointCloudSourceMetadata {
 struct PointCloudPayloadOptions {
     std::string directory;
     std::string rootLayerPath;
+    std::size_t tileMemoryLimitBytes = 64 * 1024 * 1024;
 };
+
+bool AuthorPointCloudTiledAssetFromStream(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    usdpointcloud::PointStream& stream,
+    const GeoReference& reference,
+    const usdpointcloud::TileGridConfig& tileConfig,
+    const PointCloudPayloadOptions& options,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
 
 bool AuthorPointCloudTiledAsset(
     const pxr::UsdStageRefPtr& stage,

@@ -3,6 +3,7 @@
 #include "usdgeo/Diagnostic.h"
 #include "usdpointcloud/PointCloud.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -21,6 +22,10 @@ enum class LodProfile {
 struct PointReadRequest {
     PointReadOptions readOptions;
     LodProfile lodProfile = LodProfile::Off;
+    bool tiled = false;
+    double tileSize = 0.0;
+    std::size_t tileMemoryLimitBytes = 64 * 1024 * 1024;
+    std::string payloadDirectory;
     std::vector<std::string> attributes;
     std::map<std::string, std::string> canonicalArguments;
     std::string normalizedArguments;

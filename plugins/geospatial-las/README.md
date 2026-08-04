@@ -58,14 +58,17 @@ canonical map that participates in layer identity.
 | `memoryBudgetBytes` | positive integer | Caps the reader's point and record buffers |
 | `rangeFirstPoint` | unsigned index | First source point to author |
 | `rangePointCount` | unsigned count; `0` means all remaining | Number of source points to author |
+| `tile` | `true` | Routes the pull stream into source-coordinate tile payloads |
+| `tileSize` | positive source units | Fixed-grid tile width and depth |
+| `tileMemoryLimit` | positive bytes | Per-tile spool buffer limit |
+| `payloadDirectory` | path | Directory for generated USDC payloads |
 
 ```bash
 usdcat "sample.las:SDF_FORMAT_ARGS:lod=balanced&attributes=xyz,rgb"
 ```
 
 Recognized but **rejected** with `LAS017`, because their shared contracts are
-not implemented: `tile`, `tileSize`, `tileMemoryLimit`, `payloadDirectory`,
-`lodLevels`, `lodPointCounts`, `lodRatios`, `lodThresholds`, `sampling`,
+not implemented: `lodLevels`, `lodPointCounts`, `lodRatios`, `lodThresholds`, `sampling`,
 `classification`, `bounds`, `originMode`, `upAxis`. An unknown key is rejected
 rather than ignored, so a typo is distinguishable from a default.
 
@@ -108,10 +111,10 @@ USDA so an imported layer stays inspectable with `usdcat`.
 | --- | --- |
 | LAS reader (`usdLas`) | Point formats 0-10, waveform metadata, scalar Extra Bytes, chunked and range reads, metadata-only reads |
 | Authoring library (`usdPointCloudAuthoring`) | `usdLod` roots, spatial tiled roots, payload-backed tile assets |
-| Reachable from a direct `.las` read | Everything above **except** spatial tiling and payload generation |
-| Lower-level API only | Spatial tiled and payload-backed authoring — no file-format argument reaches it |
+| Reachable from a direct `.las` read | Everything above, including spatial tiling and payload generation |
+| Lower-level API only | Advanced bounded-memory measurement and failure-injection coverage |
 
-Closing that last gap is
+Remaining streaming work is tracked in
 [streaming and tiling](../../docs/roadmap/streaming-and-tiling.md).
 
 ## Plugin discovery and installation
@@ -200,7 +203,8 @@ bundle carries no LGPL-2.1 obligation — unlike
 - The whole point cloud is accumulated in memory before the layer is authored.
   The reader delivers bounded chunks and honours a memory budget, but peak
   memory is still proportional to the point count.
-- Spatial tiling and payload generation are not reachable from a read.
+- Spatial tiled payload generation is available through `tile` arguments; large
+  corpus memory measurement remains open.
 - Extra Bytes: scalar types 1-10 only. Vector types, non-finite values,
   integers not exactly representable as `double`, and descriptor names that are
   not already valid USD identifiers are rejected.

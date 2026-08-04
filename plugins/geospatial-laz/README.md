@@ -61,6 +61,10 @@ layer-identity participation.
 | `memoryBudgetBytes` | positive integer | Caps the decoder's point and record buffers |
 | `rangeFirstPoint` | unsigned index | First source point to author |
 | `rangePointCount` | unsigned count; `0` means all remaining | Number of source points to author |
+| `tile` | `true` | Routes the pull stream into source-coordinate tile payloads |
+| `tileSize` | positive source units | Fixed-grid tile width and depth |
+| `tileMemoryLimit` | positive bytes | Per-tile spool buffer limit |
+| `payloadDirectory` | path | Directory for generated USDC payloads |
 
 ```bash
 usdcat "sample.laz:SDF_FORMAT_ARGS:lod=preview"
@@ -71,8 +75,7 @@ seeking, so `rangeFirstPoint` avoids *delivering* unselected points but still
 *decodes* every chunk that precedes the range. The argument controls output,
 not work.
 
-Recognized but **rejected** with `LAZ008`: `tile`, `tileSize`,
-`tileMemoryLimit`, `payloadDirectory`, `lodLevels`, `lodPointCounts`,
+Recognized but **rejected** with `LAZ008`: `lodLevels`, `lodPointCounts`,
 `lodRatios`, `lodThresholds`, `sampling`, `classification`, `bounds`,
 `originMode`, `upAxis`. Unknown keys are rejected rather than ignored. Full
 rules: [FILE_FORMAT_ARGUMENTS.md](../../docs/architecture/FILE_FORMAT_ARGUMENTS.md).
@@ -96,12 +99,11 @@ USDA.
 | --- | --- |
 | LAZ reader (`usdLaz`) | Compressed formats 0-3 and 6-8, chunked reads, metadata-only reads, sequential range reads |
 | Authoring library (`usdPointCloudAuthoring`) | `usdLod` roots, spatial tiled roots, payload-backed tile assets |
-| Reachable from a direct `.laz` read | Everything the reader supports, plus compact `lod` profiles — but **not** spatial tiling or payload generation |
-| Lower-level API only | Spatial tiled and payload-backed authoring |
+| Reachable from a direct `.laz` read | Everything the reader supports, plus compact `lod` profiles, spatial tiling, and payload generation |
+| Lower-level API only | Advanced bounded-memory measurement and failure-injection coverage |
 
-Closing that gap is
-[streaming and tiling](../../docs/roadmap/streaming-and-tiling.md), where LAZ
-follows LAS so codec issues are not mixed with tiling issues.
+Remaining streaming work is tracked in
+[streaming and tiling](../../docs/roadmap/streaming-and-tiling.md).
 
 ## Plugin discovery and installation
 
@@ -187,7 +189,8 @@ and carries none of this.
 - Compressed waveform formats 4, 5, 9, and 10 are rejected.
 - Decoding is sequential; a point range does not skip decode work.
 - The whole point cloud is accumulated in memory before the layer is authored.
-- Spatial tiling and payload generation are not reachable from a read.
+- Spatial tiled payload generation is available through `tile` arguments; large
+  corpus memory measurement remains open.
 - A decode failure inside a chunk is reported as `LAZ003` even when its cause
   is a LAS record condition, because record interpretation is delegated to the
   LAS reader.

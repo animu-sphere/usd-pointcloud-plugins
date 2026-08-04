@@ -166,21 +166,20 @@ reported separately, because they differ.
 | `UsdLodScreenSizeHeuristic` | Supported | Authored when `lod` is not `off` |
 | `UsdLodOverrideAPI` | Not authored | Not authored |
 | Deterministic fixed-stride sampling | Supported | Supported |
-| Spatial tiling into per-tile `usdLod` roots | Supported | Not connected |
-| Payload-backed tile assets (one USDC payload per tile/LOD) | Supported | Not connected |
-| Bounded-memory generation during file open | Not implemented | Not implemented |
+| Spatial tiling into per-tile `usdLod` roots | Supported | Supported |
+| Payload-backed tile assets (one USDC payload per tile/LOD) | Supported | Supported |
+| Bounded-memory generation during file open | Not implemented | Spool buffers bounded; large-corpus measurement not implemented |
 | LOD file-format arguments | n/a | `lod=off\|preview\|balanced\|quality` |
-| Spatial tile file-format arguments | n/a | Rejected with a typed diagnostic |
+| Spatial tile file-format arguments | n/a | `tile=true`, `tileSize`, `tileMemoryLimit`, `payloadDirectory` |
 
 With `lod=off` every read authors one `UsdGeomPoints` prim at `/PointCloud`.
 The other profiles author a single non-tiled `usdLod` root with fixed-stride
 levels and a screen-size heuristic.
 
-The precise statement of the gap: payload-backed tiled authoring is available
-through the authoring API, but direct LAS and LAZ FileFormat reads do not yet
-stream decoded chunks into tile payloads. Payload working-set behavior is not
-inferred from the authoring capability and remains unmeasured. Closing the gap
-is planned in [streaming and tiling](../roadmap/streaming-and-tiling.md).
+Direct LAS and LAZ FileFormat reads now stream decoded chunks into tile
+payloads. Payload working-set behavior is still not fully measured, and the
+large-corpus and failure-injection work remains planned in
+[streaming and tiling](../roadmap/streaming-and-tiling.md).
 
 LOD is authored with the OpenUSD 26.08 `usdLod` schemas and nothing else. The project will not publish a repository-specific LOD schema, a
 `lodLevel` primvar, or a variant-set convention, and LOD selection will remain

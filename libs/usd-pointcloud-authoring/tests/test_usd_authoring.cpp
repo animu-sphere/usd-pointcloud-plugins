@@ -19,6 +19,33 @@ void Check(bool condition) {
     }
 }
 
+class TestPointStream final : public usdpointcloud::PointStream {
+public:
+    explicit TestPointStream(
+        std::vector<std::pair<usdpointcloud::PointChunk,
+                              usdpointcloud::PointData>> chunks)
+        : chunks_(std::move(chunks)) {}
+
+    usdpointcloud::PointStreamStatus ReadNext(
+        usdpointcloud::PointChunk& chunk,
+        usdpointcloud::PointData& data,
+        usdgeo::Diagnostic& diagnostic) override {
+        diagnostic = {};
+        if (index_ == chunks_.size()) {
+            return usdpointcloud::PointStreamStatus::End;
+        }
+        chunk = chunks_[index_].first;
+        data = chunks_[index_].second;
+        ++index_;
+        return usdpointcloud::PointStreamStatus::Chunk;
+    }
+
+private:
+    std::vector<std::pair<usdpointcloud::PointChunk,
+                          usdpointcloud::PointData>> chunks_;
+    std::size_t index_ = 0;
+};
+
 void TestPointCloudRoundTrip() {
     const auto stage = usdgeo::PointCloudLayer::CreateStage();
     usdgeo::GeoReference reference;
@@ -440,6 +467,66 @@ void TestTiledLodPayloadAuthoring() {
     std::filesystem::remove_all(payloadDirectory);
 }
 
+void TestStreamTiledPayloadAuthoring() {
+    const auto layer = pxr::SdfLayer::CreateAnonymous("streamed.usda");
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+    reference.localOrigin = {0.0, 0.0, 0.0};
+
+    const auto makeChunk = [](const std::vector<usdgeo::Vec3d>& positions,
+                              const std::vector<std::uint16_t>& intensity,
+                              const std::vector<double>& temperatures) {
+        usdpointcloud::PointData data;
+        data.positions = positions;
+        data.intensity = intensity;
+        data.extraByteNames = {"temperature (C)"};
+        data.extraByteComponentCounts = {1};
+        data.extraBytes = {temperatures};
+        usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+        for (const auto& position : positions) bounds.Expand(position);
+        return std::make_pair(usdpointcloud::MakePointChunk(data, bounds),
+                              std::move(data));
+    };
+    TestPointStream stream({
+        makeChunk({{0.25, 0.0, 0.0}, {1.25, 0.0, 0.0}}, {10, 20},
+                  {12.5, 18.0}),
+        makeChunk({{-0.25, 0.0, 0.0}}, {30}, {7.0}),
+    });
+
+    const auto payloadDirectory =
+        std::filesystem::temp_directory_path() / "usd_geo_stream_payloads";
+    const auto rootLayerPath = payloadDirectory / "PointCloud.usda";
+    std::filesystem::remove_all(payloadDirectory);
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(usdgeo::AuthorPointCloudTiledAssetFromStream(
+        layer.operator->(), "/PointCloud", stream, reference, {1.0, 0},
+        {payloadDirectory.string(), rootLayerPath.string(), 1}, diagnostics));
+    Check(diagnostics.empty());
+    Check(layer->Export(rootLayerPath.string()));
+
+    const auto stage = pxr::UsdStage::Open(rootLayerPath.string());
+    Check(stage);
+    const auto points = pxr::UsdGeomPoints::Get(
+        stage, pxr::SdfPath(
+            "/PointCloud/Tiles/Tile_L0_p1_p0_p0/LOD0/Points"));
+    Check(points.GetPrim().IsValid());
+    pxr::VtIntArray authoredIntensity;
+    Check(points.GetPrim()
+              .GetAttribute(pxr::TfToken("geo:intensity"))
+              .Get(&authoredIntensity));
+    Check(authoredIntensity.size() == 1 && authoredIntensity[0] == 20);
+    pxr::VtArray<double> authoredTemperature;
+    Check(points.GetPrim()
+              .GetAttribute(pxr::TfToken("geo:temperature__C_"))
+              .Get(&authoredTemperature));
+    Check(authoredTemperature.size() == 1 && authoredTemperature[0] == 18.0);
+    Check(std::filesystem::exists(
+        payloadDirectory / "Tile_L0_n1_p0_p0_LOD0.usdc"));
+    Check(std::filesystem::exists(
+        payloadDirectory / "Tile_L0_p0_p0_p0_LOD0.usdc"));
+    std::filesystem::remove_all(payloadDirectory);
+}
+
 void TestInvalidExtraByteNameDoesNotAuthor() {
     const auto stage = usdgeo::PointCloudLayer::CreateStage();
     usdgeo::GeoReference reference;
@@ -475,5 +562,6 @@ int main() {
     TestInvalidExtraByteNameDoesNotAuthor();
     TestTiledLodAuthoringRejectsMismatchedThresholds();
     TestTiledLodPayloadAuthoring();
+    TestStreamTiledPayloadAuthoring();
     return 0;
 }

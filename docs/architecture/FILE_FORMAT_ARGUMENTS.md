@@ -5,11 +5,11 @@ LOD generation, and the [workspace contract](WORKSPACE.md)
 requires arguments to be normalized before any reader or cache lookup. This
 document defines that contract.
 
-Status: **partially implemented**. LAS and LAZ normalize chunk and point-range
-read options plus the `attributes` subset before the shared reader and
+Status: **partially implemented**. LAS and LAZ normalize chunk, point-range,
+attribute, and spatial tiled-payload options before the shared reader and
 authoring path. The compact `lod` profile is parsed and canonicalized, and
-single-root LOD authoring is available; filtering and spatial file-format
-arguments remain unavailable and are rejected with typed diagnostics.
+single-root LOD authoring is available; filtering remains unavailable and is
+rejected with typed diagnostics.
 
 ## Why Arguments Exist
 
@@ -79,16 +79,23 @@ because they do not change authored topology:
 | `rangePointCount` | Unsigned count; zero means all remaining points |
 | `attributes` | Comma-separated supported names; `xyz` is implicit |
 
+The tiled surface also exposes:
+
+| Argument | Normalized value |
+| --- | --- |
+| `tile` | `true` when tiling is enabled |
+| `tileSize` | Positive source-coordinate tile size |
+| `tileMemoryLimit` | Positive per-tile spool buffer limit in bytes |
+| `payloadDirectory` | Payload output directory |
+
 The `lod` profile is normalized as `off`, `preview`, `balanced`, or `quality`.
 `off` is the default and has the same canonical identity as an omitted
 argument. The other profiles author a single non-tiled `usdLod` root using
-versioned fixed-stride samples. Explicit level counts, spatial tiling, and
-the remaining topology-generation candidates are recognized as planned
-arguments and rejected until their shared contracts are implemented. The
-spatial set — `tile`, `tileSize`, `tileMemoryLimit`, `payloadDirectory` — is
-introduced by the [streaming and tiling](../roadmap/streaming-and-tiling.md)
-work; the authoring library can already produce the output those arguments
-would ask for, but no argument reaches it.
+versioned fixed-stride samples. Explicit level counts and the remaining
+topology-generation candidates are recognized as planned arguments and
+rejected until their shared contracts are implemented. The spatial set is
+implemented for LAS and LAZ and produces payload-backed tile roots; `tile` and
+`lod` are mutually exclusive.
 
 `NormalizeFileFormatArguments` also returns a canonical argument map. Static
 hosts must pass that map to `SdfLayer::FindOrOpen` or
