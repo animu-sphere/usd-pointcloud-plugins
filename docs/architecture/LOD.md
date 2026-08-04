@@ -460,7 +460,7 @@ lookup, preflight validation, and deferred generation all work from it.
 | 1 | `PointTileId`, `PointLodItem`, `PointLodHierarchy`, validation, typed diagnostics, deterministic sampling contracts, LOD cache-key inputs | Implemented |
 | 2 | `usdLod` dependency in `usdPointCloudAuthoring`, `UsdLodRootAPI` and `UsdLodScreenSizeHeuristic` authoring, reusable heuristic prims, `UsdLodOverrideAPI` tests, save-and-reopen tests | Implemented |
 | 3 | Remaining read orchestration out of the plugins, deterministic LOD items from the chunked readers, a single non-tiled LOD root, file-format arguments, LAS/LAZ equivalence | Implemented |
-| 4 | Deterministic spatial partitioning, tile hierarchy separated from LOD hierarchy, one LOD root per tile, payload or sublayer packaging, USDC cache generation, stage population and memory measurement | Authoring side implemented; bounded-memory partitioning during a read, the USDC cache, and the measurements are open — see [streaming and tiling](../roadmap/streaming-and-tiling.md) |
+| 4 | Deterministic spatial partitioning, tile hierarchy separated from LOD hierarchy, one LOD root per tile, payload or sublayer packaging, USDC cache generation, stage population and memory measurement | Authoring side and generated-corpus measurement implemented; real-dataset and payload working-set measurements remain open — see [streaming and tiling](../roadmap/streaming-and-tiling.md) |
 | 5 | COPC hierarchy nodes onto the shared tile contracts, reuse of source hierarchy and ranges, COPC resolutions onto LOD items, the same public `usdLod` representation, remote and partial-read policies | Not started |
 
 ## 13. Testing

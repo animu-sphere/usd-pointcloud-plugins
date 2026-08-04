@@ -94,7 +94,7 @@ The plan is [streaming and tiling](streaming-and-tiling.md).
 - [x] `usdPointCloudTiling`: fixed-grid tile keys, configuration, and source-coordinate tile router
 - [x] Spool schema, thresholds, cleanup, and deterministic iteration order
 - [x] Bounded-memory tests and generated large-corpus spill coverage
-- [ ] Streaming benchmarks and their documented commands and datasets
+- [x] Generated-corpus streaming benchmark and documented measurement command
 
 ### Other open work
 
@@ -126,8 +126,9 @@ selection is normalized before authoring; see the
 Compact `lod` profiles author a single non-tiled `usdLod` root through the
 shared authoring path for LAS and LAZ. Tiled LAS and LAZ reads now consume
 bounded pull-stream chunks, spool points by source-coordinate tile, and author
-one payload-backed level per tile. Large-corpus bounded-memory measurement and
-failure-injection coverage remain open.
+one payload-backed level per tile. Generated-corpus bounded-memory measurement
+is available through the explicit benchmark target; real-world RSS and payload
+working-set measurements remain open.
 
 The LAS conformance fixture and FileFormat Plugin integration gate passed
 before LAZ integration. The LAZ reader uses the same point-cloud authoring path

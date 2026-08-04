@@ -179,14 +179,34 @@ ctest --test-dir build/cy2026-windows-x86_64-py313-usd -C Release `
   no claim is made that a non-selected LOD child's payload stays unloaded.
 - `AuthorPointCloudTiledAssetFromStream` consumes a pull stream, spools points
   by source tile, and reconstructs one tile at a time before payload authoring.
-  Large-corpus RSS measurement remains open.
+- Large-corpus RSS measurement is available through the explicit
+  `usdPointCloudAuthoring_stream_benchmark` target. It is disabled by default;
+  configure with `-DUSDGEO_BUILD_BENCHMARKS=ON`, build the `cy2026` / `usd`
+  target, and run, for example:
+
+  ```powershell
+  cmake --preset cy2026-windows-x86_64-py313-usd `
+    -DUSDGEO_BUILD_BENCHMARKS=ON
+  ost build --target cy2026 --profile usd --config Release
+  Invoke-Expression (ost env cy2026 --profile usd --shell powershell | Out-String)
+  & .\build\cy2026-windows-x86_64-py313-usd\libs\usd-pointcloud-authoring\benchmarks\usdPointCloudAuthoring_stream_benchmark.exe `
+    --points 1000000 --chunk-points 65536 --tile-size 128 `
+    --memory-limit 1048576
+  ```
+
+  The benchmark reports elapsed time, RSS delta, the generated `.usdc` payload
+  count as tile count, sampled peak spool file bytes, payload bytes, and process
+  write bytes for a generated corpus. This benchmark authors one payload level
+  per tile. The process write counter is Windows-specific; it is reported as
+  zero on other platforms. Windows RSS uses the working set; Linux and macOS
+  use the current resident set when the platform API is available.
 - Only the `Z` source / `Y` stage up-axis pair is supported.
 
 ## Planned work
 
 - Large-corpus RSS and payload working-set measurement across the supported
   scene and render delegates.
-- Streaming benchmarks with documented commands and datasets.
+- Streaming benchmarks with documented commands and real datasets.
 
 These items are specified in
 [streaming and tiling](../../docs/roadmap/streaming-and-tiling.md).
