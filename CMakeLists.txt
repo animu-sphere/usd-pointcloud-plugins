@@ -19,6 +19,8 @@ option(USDGEO_BUILD_TESTS "Build usd-geo-plugins tests" ON)
 if(USDGEO_BUILD_TESTS)
     enable_testing()
 endif()
+option(USDGEO_BUILD_BENCHMARKS
+       "Build explicit OpenUSD streaming benchmark executables" OFF)
 
 set(_usdgeo_build_usd_default OFF)
 if(DEFINED pxr_ROOT OR DEFINED OpenUSD_ROOT)
