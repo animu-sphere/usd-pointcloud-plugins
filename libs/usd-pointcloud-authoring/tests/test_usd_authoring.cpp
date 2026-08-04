@@ -9,6 +9,7 @@
 
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <limits>
 
 namespace {
@@ -59,7 +60,10 @@ public:
         if (index_ == pointCount_) {
             return usdpointcloud::PointStreamStatus::End;
         }
-        data.positions = {{static_cast<double>(index_), 0.0, 0.0}};
+        const auto tileIndex = index_ % 32;
+        const auto pointInTile = index_ / 32;
+        data.positions = {{static_cast<double>(tileIndex * 128 + pointInTile),
+                   0.0, 0.0}};
         data.intensity = {static_cast<std::uint16_t>(index_)};
         usdgeo::SpatialBounds bounds;
         bounds.Expand(data.positions.front());
@@ -591,7 +595,7 @@ void TestGeneratedStreamTiledPayloadAuthoring() {
     std::vector<usdgeo::Diagnostic> diagnostics;
     Check(usdgeo::AuthorPointCloudTiledAssetFromStream(
         layer.operator->(), "/PointCloud", stream, reference, {128.0, 0},
-        {payloadDirectory.string(), rootLayerPath.string(), 1}, diagnostics));
+        {payloadDirectory.string(), rootLayerPath.string(), 1024}, diagnostics));
     Check(diagnostics.empty());
     Check(std::filesystem::exists(
         payloadDirectory / "Tile_L0_p0_p0_p0_LOD0.usdc"));
@@ -619,6 +623,45 @@ void TestStreamFailureDoesNotMutateLayer() {
     Check(!diagnostics.empty());
     Check(layer->GetPrimAtPath(pxr::SdfPath("/PointCloud")) == nullptr);
     Check(!std::filesystem::exists(payloadDirectory));
+}
+
+void TestStreamPayloadFailureRollsBackGeneratedPayloads() {
+    const auto layer = pxr::SdfLayer::CreateAnonymous("payload_failure.usda");
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    const auto makeChunk = [](double x) {
+        usdpointcloud::PointData data;
+        data.positions = {{x, 0.0, 0.0}};
+        usdgeo::SpatialBounds bounds;
+        bounds.Expand(data.positions.front());
+        return std::make_pair(usdpointcloud::MakePointChunk(data, bounds),
+                              std::move(data));
+    };
+    TestPointStream stream({makeChunk(0.0), makeChunk(1.0)});
+    const auto payloadDirectory =
+        std::filesystem::temp_directory_path() / "usd_geo_payload_failure";
+    const auto firstPayload =
+        payloadDirectory / "Tile_L0_p0_p0_p0_LOD0.usdc";
+    const auto conflictingPayload =
+        payloadDirectory / "Tile_L0_p1_p0_p0_LOD0.usdc";
+    std::filesystem::remove_all(payloadDirectory);
+    std::filesystem::create_directories(payloadDirectory);
+    {
+        std::ofstream conflict(conflictingPayload, std::ios::binary);
+        conflict << "pre-existing payload";
+    }
+
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!usdgeo::AuthorPointCloudTiledAssetFromStream(
+        layer.operator->(), "/PointCloud", stream, reference, {1.0, 0},
+        {payloadDirectory.string(),
+         (payloadDirectory / "PointCloud.usda").string(), 1}, diagnostics));
+    Check(!diagnostics.empty());
+    Check(layer->GetPrimAtPath(pxr::SdfPath("/PointCloud")) == nullptr);
+    Check(!std::filesystem::exists(firstPayload));
+    Check(std::filesystem::exists(conflictingPayload));
+    std::filesystem::remove_all(payloadDirectory);
 }
 
 void TestInvalidExtraByteNameDoesNotAuthor() {
@@ -659,5 +702,6 @@ int main() {
     TestStreamTiledPayloadAuthoring();
     TestGeneratedStreamTiledPayloadAuthoring();
     TestStreamFailureDoesNotMutateLayer();
+    TestStreamPayloadFailureRollsBackGeneratedPayloads();
     return 0;
 }

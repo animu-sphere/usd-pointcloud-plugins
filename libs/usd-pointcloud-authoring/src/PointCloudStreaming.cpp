@@ -253,6 +253,7 @@ bool AuthorPointCloudTiledAssetFromStream(
     const auto spoolDirectory = MakeSpoolDirectory(diagnostics);
     if (spoolDirectory.empty()) return false;
     std::map<std::string, TileSpool> spools;
+    std::size_t bufferedBytes = 0;
     std::vector<std::filesystem::path> generatedPayloads;
     const auto cleanup = [&]() {
         for (auto& entry : spools) entry.second.writer.reset();
@@ -263,6 +264,13 @@ bool AuthorPointCloudTiledAssetFromStream(
             std::filesystem::remove(payloadPath, cleanupError);
             cleanupError.clear();
         }
+    };
+    const auto flushSpools = [&]() {
+        for (auto& entry : spools) {
+            if (!entry.second.writer->Flush(diagnostics)) return false;
+        }
+        bufferedBytes = 0;
+        return true;
     };
 
     usdpointcloud::SpoolSchema schema;
@@ -343,7 +351,19 @@ bool AuthorPointCloudTiledAssetFromStream(
                 }
                 point.attributes.push_back(*value);
             }
+            const auto bufferedBefore = found->second.writer->BufferedBytes();
             if (!found->second.writer->Append(point, diagnostics)) {
+                cleanup();
+                return false;
+            }
+            const auto bufferedAfter = found->second.writer->BufferedBytes();
+            if (bufferedAfter >= bufferedBefore) {
+                bufferedBytes += bufferedAfter - bufferedBefore;
+            } else {
+                bufferedBytes -= bufferedBefore - bufferedAfter;
+            }
+            if (bufferedBytes >= options.tileMemoryLimitBytes &&
+                !flushSpools()) {
                 cleanup();
                 return false;
             }

@@ -85,7 +85,7 @@ The tiled surface also exposes:
 | --- | --- |
 | `tile` | `true` when tiling is enabled |
 | `tileSize` | Positive source-coordinate tile size |
-| `tileMemoryLimit` | Positive per-tile spool buffer limit in bytes |
+| `tileMemoryLimit` | Positive total spool working-set limit in bytes |
 | `payloadDirectory` | Payload output directory |
 
 The `lod` profile is normalized as `off`, `preview`, `balanced`, or `quality`.
