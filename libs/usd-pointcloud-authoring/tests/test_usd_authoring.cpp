@@ -1,5 +1,6 @@
 #include "usdgeo/PointCloudLayer.h"
 
+#include <pxr/base/gf/vec3d.h>
 #include <pxr/usd/sdf/layer.h>
 #include <pxr/usd/usdGeom/points.h>
 #include <pxr/usd/usdGeom/metrics.h>
@@ -47,7 +48,8 @@ void TestPointCloudRoundTrip() {
         {"waveformXt", usdpointcloud::PointAttributeType::Float32},
         {"waveformYt", usdpointcloud::PointAttributeType::Float32},
         {"waveformZt", usdpointcloud::PointAttributeType::Float32},
-        {"waveformDataExternal", usdpointcloud::PointAttributeType::UInt8}};
+        {"waveformDataExternal", usdpointcloud::PointAttributeType::UInt8},
+        {"normal", usdpointcloud::PointAttributeType::Float64Vec3}};
     const std::vector<usdgeo::Vec3d> positions = {
         {1000.0, 2000.0, 3000.0}, {1002.0, 2003.0, 3004.0}};
     usdgeo::PointCloudLayer::Data data;
@@ -71,6 +73,9 @@ void TestPointCloudRoundTrip() {
     data.waveformZt = {3.0f, 6.0f};
     data.waveformDataExternal = {1, 0};
     data.waveformDataFile = "sample.wdp";
+    data.extraByteNames = {"normal"};
+    data.extraByteComponentCounts = {3};
+    data.extraBytes = {{1.0, 2.0, 3.0, 4.0, 5.0, 6.0}};
 
     Check(usdgeo::AuthorPointCloudAsset(
         stage, "/PointCloud", reference, chunk.bounds, chunk, data));
@@ -126,6 +131,11 @@ void TestPointCloudRoundTrip() {
               .GetAttribute(pxr::TfToken("geo:waveformDataFile"))
               .Get(&authoredWaveformDataFile));
         Check(authoredWaveformDataFile == "sample.wdp");
+        pxr::VtArray<pxr::GfVec3d> authoredNormals;
+        Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:normal"))
+                            .Get(&authoredNormals));
+        Check(authoredNormals.size() == 2 &&
+                    authoredNormals[1] == pxr::GfVec3d(4.0, 5.0, 6.0));
 
     int epsgCode = 0;
     Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:epsgCode")).Get(&epsgCode));

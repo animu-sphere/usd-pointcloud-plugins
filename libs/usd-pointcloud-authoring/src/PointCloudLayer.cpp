@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <set>
 
+#include <pxr/base/gf/vec2d.h>
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/base/gf/vec3d.h>
 #include <pxr/base/tf/stringUtils.h>
@@ -436,13 +437,43 @@ bool AuthorPointCloudAsset(
         if (!pxr::TfIsValidIdentifier(data.extraByteNames[index])) {
             return false;
         }
-        const auto attribute = points.GetPrim().CreateAttribute(
-            pxr::TfToken("geo:" + data.extraByteNames[index]),
-            pxr::SdfValueTypeNames->DoubleArray);
-        if (!attribute ||
-            !attribute.Set(pxr::VtArray<double>(data.extraBytes[index].begin(),
-                                                data.extraBytes[index].end()))) {
-            return false;
+        const auto componentCount = data.extraByteComponentCounts.empty()
+                                        ? std::uint8_t{1}
+                                        : data.extraByteComponentCounts[index];
+        const auto token = pxr::TfToken("geo:" + data.extraByteNames[index]);
+        if (componentCount == 1) {
+            const auto attribute = points.GetPrim().CreateAttribute(
+                token, pxr::SdfValueTypeNames->DoubleArray);
+            if (!attribute ||
+                !attribute.Set(pxr::VtArray<double>(data.extraBytes[index].begin(),
+                                                    data.extraBytes[index].end()))) {
+                return false;
+            }
+        } else if (componentCount == 2) {
+            pxr::VtArray<pxr::GfVec2d> values(data.extraBytes[index].size() / 2);
+            for (std::size_t valueIndex = 0; valueIndex < values.size(); ++valueIndex) {
+                values[valueIndex] = pxr::GfVec2d(
+                    data.extraBytes[index][valueIndex * 2],
+                    data.extraBytes[index][valueIndex * 2 + 1]);
+            }
+            const auto attribute = points.GetPrim().CreateAttribute(
+                token, pxr::SdfValueTypeNames->Double2Array);
+            if (!attribute || !attribute.Set(values)) {
+                return false;
+            }
+        } else {
+            pxr::VtArray<pxr::GfVec3d> values(data.extraBytes[index].size() / 3);
+            for (std::size_t valueIndex = 0; valueIndex < values.size(); ++valueIndex) {
+                values[valueIndex] = pxr::GfVec3d(
+                    data.extraBytes[index][valueIndex * 3],
+                    data.extraBytes[index][valueIndex * 3 + 1],
+                    data.extraBytes[index][valueIndex * 3 + 2]);
+            }
+            const auto attribute = points.GetPrim().CreateAttribute(
+                token, pxr::SdfValueTypeNames->Double3Array);
+            if (!attribute || !attribute.Set(values)) {
+                return false;
+            }
         }
     }
 

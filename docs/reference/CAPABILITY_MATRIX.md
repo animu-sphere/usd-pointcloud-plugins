@@ -83,14 +83,15 @@ Bytes VLR.
 | Waveform parameters | 4, 5, 9, 10 | Supported | `geo:waveformXt`, `geo:waveformYt`, `geo:waveformZt` (`float[]`) |
 | External waveform data flag | 4, 5, 9, 10 | Supported | `geo:waveformDataExternal` (`uchar[]`) |
 | External waveform data file | 4, 5, 9, 10 | Supported | `geo:waveformDataFile` (`string`) |
-| Extra Bytes | all | Scalar types 1-10 supported when exactly representable as `double` | `geo:<normalized descriptor name>` (`double[]`), with descriptor scale and offset applied |
+| Extra Bytes | all | Types 1-30 supported when integer values are exactly representable as `double` | `geo:<normalized descriptor name>` (`double[]`, `double2[]`, or `double3[]`), with per-component descriptor scale and offset applied |
 
 Positions are decoded as `double` in source coordinates using the header scale
 and offset, then translated by the local origin and converted to the stage up
-axis before being written as `float3`. Scalar Extra Bytes values are decoded
-from the appended point-record data and written after applying their
-descriptor scale and offset. Vector Extra Bytes types, non-finite values, and
-integer values that cannot be represented exactly as `double` are rejected.
+axis before being written as `float3`. Extra Bytes values are decoded from the
+appended point-record data and written after applying their per-component
+descriptor scale and offset. Types 1-10 are scalar, 11-20 are two-component,
+and 21-30 are three-component. Non-finite values and integer values that
+cannot be represented exactly as `double` are rejected.
 Descriptor names are normalized deterministically to ASCII USD identifiers:
 non-alphanumeric characters become `_`, a leading digit gains a leading `_`,
 an empty name becomes `extra`, and collisions with built-in or prior names gain
@@ -192,9 +193,9 @@ in the [tile and LOD contract](../architecture/LOD.md).
   decodes in 65,536-point chunks and the readers honour a memory budget, but
   the plugin still accumulates every point, so peak memory is proportional to
   the point count rather than to any configured limit.
-- Extra Bytes support covers scalar types 1-10. Vector types, non-finite
-  values, and integers not exactly representable as `double` are rejected.
-  Descriptor names are normalized before USD authoring.
+- Extra Bytes support covers types 1-30. Non-finite values and integers not
+  exactly representable as `double` are rejected. Descriptor names are
+  normalized before USD authoring.
 - File-format arguments currently expose normalized chunk and point-range
   read options, attribute selection, and compact LOD profiles. Spatial tiling,
   bounds, and classification filters remain unavailable. See the

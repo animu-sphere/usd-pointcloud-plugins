@@ -153,6 +153,9 @@ std::size_t MinimumRecordLength(std::uint8_t format) {
 }
 
 std::size_t ExtraByteScalarSize(std::uint8_t dataType) {
+    if (dataType >= 11 && dataType <= 30) {
+        dataType = (dataType - 1) % 10 + 1;
+    }
     switch (dataType) {
     case 1:
     case 2:
@@ -173,21 +176,36 @@ std::size_t ExtraByteScalarSize(std::uint8_t dataType) {
     }
 }
 
+std::uint8_t ExtraByteComponentCount(std::uint8_t dataType) {
+    if (dataType >= 1 && dataType <= 10) {
+        return 1;
+    }
+    if (dataType >= 11 && dataType <= 20) {
+        return 2;
+    }
+    if (dataType >= 21 && dataType <= 30) {
+        return 3;
+    }
+    return 0;
+}
+
 bool ValidateExtraBytesLayout(const usdlas::LasHeader& header,
                               std::string& error) {
     std::size_t extraBytesSize = 0;
     for (const auto& descriptor : header.extraBytes) {
         const auto scalarSize = ExtraByteScalarSize(descriptor.dataType);
-        if (scalarSize == 0) {
+        const auto componentCount =
+            ExtraByteComponentCount(descriptor.dataType);
+        if (scalarSize == 0 || componentCount == 0) {
             error = "unsupported LAS Extra Bytes data type";
             return false;
         }
         if (extraBytesSize > (std::numeric_limits<std::size_t>::max)() -
-                                 scalarSize) {
+                                 scalarSize * componentCount) {
             error = "LAS Extra Bytes layout is too large";
             return false;
         }
-        extraBytesSize += scalarSize;
+        extraBytesSize += scalarSize * componentCount;
     }
     const auto baseSize = MinimumRecordLength(header.pointFormat);
     if (baseSize > (std::numeric_limits<std::size_t>::max)() -
@@ -202,6 +220,9 @@ bool ValidateExtraBytesLayout(const usdlas::LasHeader& header,
 double ReadExtraByteScalar(const std::vector<std::uint8_t>& record,
                            std::size_t offset,
                            std::uint8_t dataType) {
+    if (dataType >= 11 && dataType <= 30) {
+        dataType = (dataType - 1) % 10 + 1;
+    }
     switch (dataType) {
     case 1:
         return ReadLittle<std::uint8_t>(record, offset);
@@ -993,38 +1014,54 @@ bool DecodePoint(const LasHeader& header,
     point.extraBytes.reserve(header.extraBytes.size());
     for (const auto& descriptor : header.extraBytes) {
         const auto scalarSize = ExtraByteScalarSize(descriptor.dataType);
-        if (scalarSize == 0) {
+        const auto componentCount =
+            ExtraByteComponentCount(descriptor.dataType);
+        if (scalarSize == 0 || componentCount == 0) {
             error = "unsupported LAS Extra Bytes data type";
             return false;
         }
-        if (!Has(record, extraBytesOffset, scalarSize)) {
+        if (!Has(record, extraBytesOffset, scalarSize * componentCount)) {
             error = "LAS point record Extra Bytes are truncated";
             return false;
         }
-        if (descriptor.dataType == 7 &&
-            ReadLittle<std::uint64_t>(record, extraBytesOffset) >
-                (std::uint64_t{1} << 53)) {
-            error = "LAS Extra Bytes integer cannot be represented exactly as double";
-            return false;
-        }
-        if (descriptor.dataType == 8) {
-            const auto rawInteger =
-                ReadLittle<std::int64_t>(record, extraBytesOffset);
-            if (rawInteger > (std::int64_t{1} << 53) ||
-                rawInteger < -(std::int64_t{1} << 53)) {
+        const auto scalarDataType = descriptor.dataType >= 11
+                                        ? (descriptor.dataType - 1) % 10 + 1
+                                        : descriptor.dataType;
+        for (std::uint8_t component = 0; component < componentCount;
+             ++component) {
+            const auto componentOffset =
+                extraBytesOffset + scalarSize * component;
+            if (scalarDataType == 7 &&
+                ReadLittle<std::uint64_t>(record, componentOffset) >
+                    (std::uint64_t{1} << 53)) {
                 error = "LAS Extra Bytes integer cannot be represented exactly as double";
                 return false;
             }
+            if (scalarDataType == 8) {
+                const auto rawInteger =
+                    ReadLittle<std::int64_t>(record, componentOffset);
+                if (rawInteger > (std::int64_t{1} << 53) ||
+                    rawInteger < -(std::int64_t{1} << 53)) {
+                    error = "LAS Extra Bytes integer cannot be represented exactly as double";
+                    return false;
+                }
+            }
+            const auto raw = ReadExtraByteScalar(record, componentOffset,
+                                                  descriptor.dataType);
+            const auto scale = component == 0 ? descriptor.scale.x
+                               : component == 1 ? descriptor.scale.y
+                                                : descriptor.scale.z;
+            const auto offset = component == 0 ? descriptor.offset.x
+                                : component == 1 ? descriptor.offset.y
+                                                 : descriptor.offset.z;
+            const auto value = raw * scale + offset;
+            if (!std::isfinite(value)) {
+                error = "decoded LAS point contains a non-finite Extra Bytes value";
+                return false;
+            }
+            point.extraBytes.push_back(value);
         }
-        const auto raw = ReadExtraByteScalar(record, extraBytesOffset,
-                                              descriptor.dataType);
-        const auto value = raw * descriptor.scale.x + descriptor.offset.x;
-        if (!std::isfinite(value)) {
-            error = "decoded LAS point contains a non-finite Extra Bytes value";
-            return false;
-        }
-        point.extraBytes.push_back(value);
-        extraBytesOffset += scalarSize;
+        extraBytesOffset += scalarSize * componentCount;
     }
     if (!std::isfinite(point.sourcePosition.x) ||
         !std::isfinite(point.sourcePosition.y) ||
@@ -1156,12 +1193,16 @@ bool AppendPointData(const LasHeader& header,
         }
         data.extraByteNames.clear();
         data.extraByteNames.reserve(header.extraBytes.size());
+        data.extraByteComponentCounts.clear();
+        data.extraByteComponentCounts.reserve(header.extraBytes.size());
         data.extraBytes.clear();
         data.extraBytes.resize(header.extraBytes.size());
         std::vector<std::string> extraByteNames;
         extraByteNames.reserve(header.extraBytes.size());
         for (const auto& descriptor : header.extraBytes) {
             extraByteNames.push_back(descriptor.name);
+            data.extraByteComponentCounts.push_back(
+                ExtraByteComponentCount(descriptor.dataType));
         }
         data.extraByteNames =
             usdpointcloud::NormalizeExtraByteNames(extraByteNames);
@@ -1212,12 +1253,22 @@ bool AppendPointData(const LasHeader& header,
                 data.waveformDataFile = waveformPath.string();
             }
         }
-        if (point.extraBytes.size() != data.extraBytes.size()) {
+        std::size_t extraByteValueCount = 0;
+        for (const auto componentCount : data.extraByteComponentCounts) {
+            extraByteValueCount += componentCount;
+        }
+        if (point.extraBytes.size() != extraByteValueCount) {
             error = "LAS point Extra Bytes do not match the header";
             return false;
         }
+        std::size_t pointExtraByteIndex = 0;
         for (std::size_t index = 0; index < data.extraBytes.size(); ++index) {
-            data.extraBytes[index].push_back(point.extraBytes[index]);
+            const auto componentCount = data.extraByteComponentCounts[index];
+            data.extraBytes[index].insert(
+                data.extraBytes[index].end(),
+                point.extraBytes.begin() + pointExtraByteIndex,
+                point.extraBytes.begin() + pointExtraByteIndex + componentCount);
+            pointExtraByteIndex += componentCount;
         }
     }
 
@@ -1328,9 +1379,22 @@ bool BuildPointCloudMetadata(const LasHeader& header,
     for (const auto& extra : header.extraBytes) {
         extraByteNames.push_back(extra.name);
     }
-    for (const auto& name : usdpointcloud::NormalizeExtraByteNames(extraByteNames)) {
+    const auto normalizedExtraByteNames =
+        usdpointcloud::NormalizeExtraByteNames(extraByteNames);
+    for (std::size_t index = 0; index < extraByteNames.size(); ++index) {
+        const auto componentCount =
+            ExtraByteComponentCount(header.extraBytes[index].dataType);
+        if (componentCount == 0) {
+            error = "unsupported LAS Extra Bytes data type";
+            return false;
+        }
+        const auto type = componentCount == 1
+                              ? usdpointcloud::PointAttributeType::Float64
+                          : componentCount == 2
+                              ? usdpointcloud::PointAttributeType::Float64Vec2
+                              : usdpointcloud::PointAttributeType::Float64Vec3;
         chunk.attributes.push_back(
-            {name, usdpointcloud::PointAttributeType::Float64});
+            {normalizedExtraByteNames[index], type});
     }
     return chunk.IsValid();
 }

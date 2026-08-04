@@ -19,7 +19,9 @@ enum class PointAttributeType {
     UInt32,
     UInt64,
     Float32,
-    Float64
+    Float64,
+    Float64Vec2,
+    Float64Vec3
 };
 
 struct PointAttribute {
@@ -65,6 +67,7 @@ struct PointData {
     std::vector<std::uint8_t> waveformDataExternal;
     std::string waveformDataFile;
     std::vector<std::string> extraByteNames;
+    std::vector<std::uint8_t> extraByteComponentCounts;
     std::vector<std::vector<double>> extraBytes;
 
     bool IsValid() const noexcept;

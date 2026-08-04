@@ -27,6 +27,23 @@ void SampleAttribute(const std::vector<T>& source,
     }
 }
 
+void SampleExtraByteAttribute(const std::vector<double>& source,
+                              std::uint8_t componentCount,
+                              const std::vector<std::size_t>& indices,
+                              std::vector<double>& sampled) {
+    sampled.clear();
+    if (source.empty()) {
+        return;
+    }
+
+    sampled.reserve(indices.size() * componentCount);
+    for (const auto index : indices) {
+        const auto firstComponent = index * componentCount;
+        sampled.insert(sampled.end(), source.begin() + firstComponent,
+                       source.begin() + firstComponent + componentCount);
+    }
+}
+
 } // namespace
 
 bool PointSamplingOptions::IsValid(
@@ -100,10 +117,14 @@ bool SamplePointData(const PointData& source,
                     sampled.waveformDataExternal);
     sampled.waveformDataFile = source.waveformDataFile;
     sampled.extraByteNames = source.extraByteNames;
+    sampled.extraByteComponentCounts = source.extraByteComponentCounts;
     sampled.extraBytes.resize(source.extraBytes.size());
     for (std::size_t index = 0; index < source.extraBytes.size(); ++index) {
-        SampleAttribute(source.extraBytes[index], indices,
-                        sampled.extraBytes[index]);
+        const auto componentCount = source.extraByteComponentCounts.empty()
+                                        ? std::uint8_t{1}
+                                        : source.extraByteComponentCounts[index];
+        SampleExtraByteAttribute(source.extraBytes[index], componentCount,
+                                 indices, sampled.extraBytes[index]);
     }
     return true;
 }
