@@ -58,6 +58,7 @@ struct CopcNode {
     std::uint64_t hierarchyPageSize = 0;
     bool hasPointData = false;
     bool hasHierarchyPage = false;
+    bool hasEmptyNode = false;
     std::vector<usdgeo::TileId> children;
 
     bool IsValid() const noexcept;

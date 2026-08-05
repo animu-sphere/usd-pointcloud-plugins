@@ -158,6 +158,23 @@ void TestMetadataAndHierarchy() {
             hierarchy.nodes[2].bounds.minimum.x == 1000.5 &&
             hierarchy.nodes[2].bounds.maximum.x == 1001.5);
 
+          auto reorderedEntries = entries;
+          std::swap(reorderedEntries[0], reorderedEntries[1]);
+          usdcopc::CopcHierarchy reorderedHierarchy;
+          Check(reader.BuildHierarchy(header, reorderedEntries,
+                            reorderedHierarchy, diagnostics));
+          Check(reorderedHierarchy.IsValid() &&
+              reorderedHierarchy.nodes.size() == 3);
+
+          auto entriesWithEmptyNode = entries;
+          entriesWithEmptyNode.push_back({1, 0, 0, 0, 0, 0, 0});
+          usdcopc::CopcHierarchy hierarchyWithEmptyNode;
+          Check(reader.BuildHierarchy(header, entriesWithEmptyNode,
+                            hierarchyWithEmptyNode, diagnostics));
+          Check(hierarchyWithEmptyNode.IsValid() &&
+              hierarchyWithEmptyNode.nodes.size() == 4 &&
+              hierarchyWithEmptyNode.nodes.back().hasEmptyNode);
+
     std::vector<std::uint8_t> pointData;
     Check(reader.ReadPointData(header, entries[2], pointData, diagnostics));
     Check(diagnostics.empty() && pointData.size() == 30);

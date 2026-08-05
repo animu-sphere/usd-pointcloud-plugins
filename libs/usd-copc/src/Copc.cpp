@@ -227,8 +227,11 @@ bool CopcHeader::IsValid() const noexcept {
 }
 
 bool CopcNode::IsValid() const noexcept {
+    const auto nodeKindCount = static_cast<int>(hasPointData) +
+                               static_cast<int>(hasHierarchyPage) +
+                               static_cast<int>(hasEmptyNode);
     if (!tile.IsValid() || !bounds.IsValid() || !std::isfinite(spacing) ||
-        spacing <= 0.0 || hasPointData == hasHierarchyPage) {
+        spacing <= 0.0 || nodeKindCount != 1) {
         return false;
     }
     if (hasPointData &&
@@ -257,10 +260,15 @@ bool CopcHierarchy::IsValid() const noexcept {
         nodes.empty()) {
         return false;
     }
+    const usdgeo::TileId root{0, 0, 0, 0};
+    bool hasRoot = false;
     for (std::size_t index = 0; index < nodes.size(); ++index) {
         const auto& node = nodes[index];
         if (!node.IsValid() || !ContainsBounds(bounds, node.bounds)) {
             return false;
+        }
+        if (SameTile(node.tile, root)) {
+            hasRoot = true;
         }
         for (std::size_t previous = 0; previous < index; ++previous) {
             if (SameTile(node.tile, nodes[previous].tile)) {
@@ -268,8 +276,7 @@ bool CopcHierarchy::IsValid() const noexcept {
             }
         }
     }
-    return nodes.front().tile.level == 0 && nodes.front().tile.x == 0 &&
-           nodes.front().tile.y == 0 && nodes.front().tile.z == 0;
+    return hasRoot;
 }
 
 CopcReader::CopcReader(std::string filename)
@@ -508,10 +515,7 @@ bool CopcReader::BuildHierarchy(
             node.hierarchyPageOffset = entry.offset;
             node.hierarchyPageSize = static_cast<std::uint64_t>(entry.byteSize);
         } else {
-            AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
-                          "COPC hierarchy model cannot represent an empty node");
-            hierarchy = {};
-            return false;
+            node.hasEmptyNode = true;
         }
 
         const auto key = node.tile.ToString();
