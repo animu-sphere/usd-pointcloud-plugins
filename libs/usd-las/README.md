@@ -180,8 +180,9 @@ real-data corpus under `plugins/pointcloud-las/tests/corpus/`.
 - The callback-based `Read` API still delivers into a caller-accumulated
   `PointData`; use `OpenLasPointStream` when the caller must not accumulate the
   complete cloud.
-- `Las.cpp` is a single translation unit; the header/metadata/decode/CRS/Extra
-  Bytes/waveform split described in the design policy has not happened yet.
+- The implementation is split into format/header, metadata, point decoding,
+  PointData conversion, reader, and streaming translation units. Their public
+  API remains declared in `Las.h`.
 
 ## Remaining streaming work
 
