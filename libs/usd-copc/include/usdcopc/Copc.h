@@ -1,6 +1,8 @@
 #pragma once
 
 #include "usdgeo/Diagnostic.h"
+#include "usdgeo/SpatialBounds.h"
+#include "usdgeo/TileId.h"
 #include "usdlas/Las.h"
 
 #include <cstdint>
@@ -45,6 +47,31 @@ struct CopcHeader {
     bool IsValid() const noexcept;
 };
 
+struct CopcNode {
+    usdgeo::TileId tile;
+    usdgeo::SpatialBounds bounds;
+    double spacing = 0.0;
+    std::uint64_t pointCount = 0;
+    std::uint64_t pointDataOffset = 0;
+    std::uint64_t pointDataSize = 0;
+    std::uint64_t hierarchyPageOffset = 0;
+    std::uint64_t hierarchyPageSize = 0;
+    bool hasPointData = false;
+    bool hasHierarchyPage = false;
+    bool hasEmptyNode = false;
+    std::vector<usdgeo::TileId> children;
+
+    bool IsValid() const noexcept;
+};
+
+struct CopcHierarchy {
+    usdgeo::SpatialBounds bounds;
+    double spacing = 0.0;
+    std::vector<CopcNode> nodes;
+
+    bool IsValid() const noexcept;
+};
+
 enum class CopcReadFailure {
     None,
     FileOpen,
@@ -63,6 +90,10 @@ public:
     bool ReadHierarchy(const CopcHeader& header,
                        std::vector<CopcHierarchyEntry>& entries,
                        std::vector<usdgeo::Diagnostic>& diagnostics);
+    bool BuildHierarchy(const CopcHeader& header,
+                        const std::vector<CopcHierarchyEntry>& entries,
+                        CopcHierarchy& hierarchy,
+                        std::vector<usdgeo::Diagnostic>& diagnostics) const;
     bool ReadPointData(const CopcHeader& header,
                        const CopcHierarchyEntry& entry,
                        std::vector<std::uint8_t>& bytes,

@@ -145,6 +145,36 @@ void TestMetadataAndHierarchy() {
     Check(entries[1].IsHierarchyPage() && entries[1].byteSize == 32);
     Check(entries[2].IsPointData() && entries[2].level == 2);
 
+        usdcopc::CopcHierarchy hierarchy;
+        Check(reader.BuildHierarchy(header, entries, hierarchy, diagnostics));
+        Check(diagnostics.empty() && hierarchy.IsValid() &&
+            hierarchy.nodes.size() == 3);
+        Check(hierarchy.nodes[0].tile.ToString() == "L0/0/0/0" &&
+            hierarchy.nodes[0].bounds.minimum.x == 998.5 &&
+            hierarchy.nodes[0].bounds.maximum.x == 1002.5 &&
+            hierarchy.nodes[0].children.size() == 1);
+        Check(hierarchy.nodes[2].tile.ToString() == "L2/2/0/0" &&
+            hierarchy.nodes[2].spacing == 0.125 &&
+            hierarchy.nodes[2].bounds.minimum.x == 1000.5 &&
+            hierarchy.nodes[2].bounds.maximum.x == 1001.5);
+
+          auto reorderedEntries = entries;
+          std::swap(reorderedEntries[0], reorderedEntries[1]);
+          usdcopc::CopcHierarchy reorderedHierarchy;
+          Check(reader.BuildHierarchy(header, reorderedEntries,
+                            reorderedHierarchy, diagnostics));
+          Check(reorderedHierarchy.IsValid() &&
+              reorderedHierarchy.nodes.size() == 3);
+
+          auto entriesWithEmptyNode = entries;
+          entriesWithEmptyNode.push_back({1, 0, 0, 0, 0, 0, 0});
+          usdcopc::CopcHierarchy hierarchyWithEmptyNode;
+          Check(reader.BuildHierarchy(header, entriesWithEmptyNode,
+                            hierarchyWithEmptyNode, diagnostics));
+          Check(hierarchyWithEmptyNode.IsValid() &&
+              hierarchyWithEmptyNode.nodes.size() == 4 &&
+              hierarchyWithEmptyNode.nodes.back().hasEmptyNode);
+
     std::vector<std::uint8_t> pointData;
     Check(reader.ReadPointData(header, entries[2], pointData, diagnostics));
     Check(diagnostics.empty() && pointData.size() == 30);
@@ -224,6 +254,23 @@ void TestRejectsNonZeroReservedInfo() {
     std::filesystem::remove(path);
 }
 
+void TestRejectsInvalidNodeCoordinates() {
+    auto bytes = MakeFixture();
+    constexpr std::size_t childCoordinateOffset = 711;
+    Write(bytes, childCoordinateOffset, std::int32_t{-1});
+    const auto path = WriteFixture(bytes, "usd_copc_invalid_node_test.copc");
+    usdcopc::CopcReader reader(path.string());
+    usdcopc::CopcHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(reader.ReadMetadata(header, diagnostics));
+    std::vector<usdcopc::CopcHierarchyEntry> entries;
+    Check(reader.ReadHierarchy(header, entries, diagnostics));
+    usdcopc::CopcHierarchy hierarchy;
+    Check(!reader.BuildHierarchy(header, entries, hierarchy, diagnostics));
+    Check(!diagnostics.empty());
+    std::filesystem::remove(path);
+}
+
 } // namespace
 
 int main() {
@@ -233,5 +280,6 @@ int main() {
     TestRejectsUnsupportedPointFormat();
     TestRejectsMissingHierarchyVlr();
     TestRejectsNonZeroReservedInfo();
+    TestRejectsInvalidNodeCoordinates();
     return 0;
 }
