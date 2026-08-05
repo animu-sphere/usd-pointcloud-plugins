@@ -38,8 +38,8 @@ usdPointCloudCore_unit
 usdLas_unit
 usdLaz_unit
 usdPointCloudAuthoring_unit
-geospatialLas_integration
-geospatialLaz_integration
+pointcloudLas_integration
+pointcloudLaz_integration
 ```
 
 The two `*_integration` tests load the built plugin through OpenUSD and check
@@ -51,20 +51,20 @@ tests cover the libraries; only `usdPointCloudAuthoring_unit` needs OpenUSD.
 Each bundle is independently buildable and verifiable:
 
 ```powershell
-ost plugin build .\plugins\geospatial-las
-ost plugin build .\plugins\geospatial-laz
-ost plugin doctor .\plugins\geospatial-las
-ost plugin test .\plugins\geospatial-las --up-to 4
-ost plugin test .\plugins\geospatial-laz --up-to 4
-ost plugin package .\plugins\geospatial-las
+ost plugin build .\plugins\pointcloud-las
+ost plugin build .\plugins\pointcloud-laz
+ost plugin doctor .\plugins\pointcloud-las
+ost plugin test .\plugins\pointcloud-las --up-to 4
+ost plugin test .\plugins\pointcloud-laz --up-to 4
+ost plugin package .\plugins\pointcloud-las
 ```
 
 `ost plugin build` produces the shared library under the bundle's `lib/` and
 configures its `plugInfo.json`:
 
 ```text
-plugins/geospatial-las/lib/libUsdGeoLasFileFormat.dll
-plugins/geospatial-las/plugin/resources/geospatial-las/plugInfo.json
+plugins/pointcloud-las/lib/libUsdGeoLasFileFormat.dll
+plugins/pointcloud-las/plugin/resources/pointcloud-las/plugInfo.json
 ```
 
 A per-bundle `ost plugin build` does not define `USDGEO_BUILD_TESTS`, so the
@@ -107,9 +107,9 @@ cmake --preset cy2026-windows-x86_64-py313-usd
 
 ```powershell
 ost plugin view `
-  .\plugins\geospatial-las `
+  .\plugins\pointcloud-las `
   C:\path\to\sample.las `
-  --with .\plugins\geospatial-laz
+  --with .\plugins\pointcloud-laz
 ```
 
 `--with` makes one session discover both bundles. File-format arguments use
@@ -117,9 +117,9 @@ the standard USD suffix:
 
 ```powershell
 ost plugin view `
-  .\plugins\geospatial-las `
+  .\plugins\pointcloud-las `
   'C:\path\to\sample.las:SDF_FORMAT_ARGS:lod=balanced' `
-  --with .\plugins\geospatial-laz
+  --with .\plugins\pointcloud-laz
 ```
 
 The supported compact profiles are `off`, `preview`, `balanced`, and

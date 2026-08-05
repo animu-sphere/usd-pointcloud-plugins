@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(geospatialLas
+project(pointcloudLas
     VERSION 0.1.0
     DESCRIPTION "OpenUSD FileFormat Plugin for LAS point clouds"
     LANGUAGES CXX)
@@ -61,33 +61,33 @@ openstrata_link_openusd(
     COMPONENTS arch tf gf vt sdf usd)
 
 if(USDGEO_BUILD_TESTS)
-    add_executable(geospatialLas_tests tests/test_geospatial_las.cpp)
-    target_compile_features(geospatialLas_tests PRIVATE cxx_std_17)
-    target_include_directories(geospatialLas_tests PRIVATE ${PXR_INCLUDE_DIRS})
-    target_compile_definitions(geospatialLas_tests PRIVATE
+    add_executable(pointcloudLas_tests tests/test_pointcloud_las.cpp)
+    target_compile_features(pointcloudLas_tests PRIVATE cxx_std_17)
+    target_include_directories(pointcloudLas_tests PRIVATE ${PXR_INCLUDE_DIRS})
+    target_compile_definitions(pointcloudLas_tests PRIVATE
         USDGEOLAS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
-    add_dependencies(geospatialLas_tests ${PLUGIN_NAME})
+    add_dependencies(pointcloudLas_tests ${PLUGIN_NAME})
     if(MSVC)
-        target_compile_definitions(geospatialLas_tests PRIVATE NOMINMAX)
-        target_compile_options(geospatialLas_tests PRIVATE /utf-8)
+        target_compile_definitions(pointcloudLas_tests PRIVATE NOMINMAX)
+        target_compile_options(pointcloudLas_tests PRIVATE /utf-8)
     endif()
     openstrata_link_openusd(
-        TARGET geospatialLas_tests
+        TARGET pointcloudLas_tests
         COMPONENTS arch tf gf vt sdf usd usdGeom)
-    set_target_properties(geospatialLas_tests PROPERTIES
+    set_target_properties(pointcloudLas_tests PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
-    add_test(NAME geospatialLas_integration COMMAND geospatialLas_tests)
+    add_test(NAME pointcloudLas_integration COMMAND pointcloudLas_tests)
 endif()
 
 openstrata_configure_plugin(
     TARGET ${PLUGIN_NAME}
-    PLUG_INFO_INPUT "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/geospatial-las/plugInfo.json.in"
-    PLUG_INFO_OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/geospatial-las/plugInfo.json")
+    PLUG_INFO_INPUT "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/pointcloud-las/plugInfo.json.in"
+    PLUG_INFO_OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/pointcloud-las/plugInfo.json")
 
 openstrata_install_plugin_bundle(
     TARGET ${PLUGIN_NAME}
-    RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/geospatial-las/plugInfo.json"
-    RESOURCE_DESTINATION "plugin/resources/geospatial-las"
+    RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/pointcloud-las/plugInfo.json"
+    RESOURCE_DESTINATION "plugin/resources/pointcloud-las"
     MANIFESTS
         "${CMAKE_CURRENT_SOURCE_DIR}/openstrata.plugin.yaml"
         "${CMAKE_CURRENT_SOURCE_DIR}/openstrata.scaffold.yaml")

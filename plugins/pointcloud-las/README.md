@@ -1,4 +1,4 @@
-# geospatial-las
+# pointcloud-las
 
 ## Purpose
 
@@ -8,7 +8,7 @@ authors through the shared `usdPointCloudAuthoring` library, and projects typed
 diagnostics onto its stable `LASxxx` codes. It owns no decoding and no
 authoring of its own.
 
-OpenStrata bundle `geospatial-las`, CMake target and shared library
+OpenStrata bundle `pointcloud-las`, CMake target and shared library
 `UsdGeoLasFileFormat`, registered `plugInfo.json` type `UsdGeoLasFileFormat`,
 format id `las`.
 
@@ -21,7 +21,7 @@ format id `las`.
 
 | Extension | Claimed | Notes |
 | --- | --- | --- |
-| `.las` | Yes, as the primary file format for `las` | Uncompressed LAS only; `.laz` belongs to [geospatial-laz](../geospatial-laz/README.md) |
+| `.las` | Yes, as the primary file format for `las` | Uncompressed LAS only; `.laz` belongs to [pointcloud-laz](../pointcloud-laz/README.md) |
 
 ## Supported source versions and point formats
 
@@ -121,7 +121,7 @@ Remaining streaming work is tracked in
 
 ```text
 lib/UsdGeoLasFileFormat.dll        # or .so / .dylib
-plugin/resources/geospatial-las/plugInfo.json
+plugin/resources/pointcloud-las/plugInfo.json
 openstrata.plugin.yaml
 ```
 
@@ -130,7 +130,7 @@ trailing slash makes OpenUSD search subdirectories and register both bundles at
 once:
 
 ```powershell
-$env:PXR_PLUGINPATH_NAME = "C:\path\to\geospatial-las\plugin\resources\"
+$env:PXR_PLUGINPATH_NAME = "C:\path\to\pointcloud-las\plugin\resources\"
 ```
 
 Full instructions: [INSTALL.md](../../docs/guides/INSTALL.md).
@@ -138,20 +138,20 @@ Full instructions: [INSTALL.md](../../docs/guides/INSTALL.md).
 ## Build and test
 
 ```powershell
-ost plugin build .\plugins\geospatial-las
-ost plugin doctor .\plugins\geospatial-las
-ost plugin test .\plugins\geospatial-las --up-to 4
-ost plugin package .\plugins\geospatial-las
+ost plugin build .\plugins\pointcloud-las
+ost plugin doctor .\plugins\pointcloud-las
+ost plugin test .\plugins\pointcloud-las --up-to 4
+ost plugin package .\plugins\pointcloud-las
 ```
 
 Preview a file without installing anything:
 
 ```powershell
-ost plugin view .\plugins\geospatial-las C:\path\to\sample.las `
-  --with .\plugins\geospatial-laz
+ost plugin view .\plugins\pointcloud-las C:\path\to\sample.las `
+  --with .\plugins\pointcloud-laz
 ```
 
-The CTest integration test `geospatialLas_integration` is built only by the
+The CTest integration test `pointcloudLas_integration` is built only by the
 workspace build, because a per-bundle `ost plugin build` does not define
 `USDGEO_BUILD_TESTS`:
 
@@ -172,13 +172,13 @@ and corpus inputs remain under `tests/fixtures/` and `tests/corpus/`.
 src/UsdGeoLasFileFormat.cpp              thin SdfFileFormat entry point
 include/usdgeolas/UsdGeoLasFileFormat.h  class and format tokens
 include/usdgeolas/UsdGeoLasDiagnostics.h the bundle's stable LASxxx codes
-plugin/resources/geospatial-las/         plugInfo.json and its .in template
+plugin/resources/pointcloud-las/         plugInfo.json and its .in template
 cmake/OpenStrataPlugin.cmake             shared OST plugin CMake helpers
 tests/                                   integration coverage, fixtures, corpus
 docs/DIAGNOSTICS.md                      the LASxxx code table
 ```
 
-`cmake/OpenStrataPlugin.cmake` is shared: the `geospatial-laz` bundle includes
+`cmake/OpenStrataPlugin.cmake` is shared: the `pointcloud-laz` bundle includes
 it from here rather than carrying a copy.
 
 ## Runtime dependencies
@@ -193,7 +193,7 @@ it from here rather than carrying a copy.
 
 Apache-2.0, like the project. Because no laz-perf code is linked in, this
 bundle carries no LGPL-2.1 obligation — unlike
-[geospatial-laz](../geospatial-laz/README.md). See
+[pointcloud-laz](../pointcloud-laz/README.md). See
 [LICENSE](../../LICENSE), [NOTICE](../../NOTICE), and
 [DISTRIBUTION.md](../../docs/guides/DISTRIBUTION.md).
 

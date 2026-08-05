@@ -91,7 +91,7 @@ std::vector<std::uint8_t> MakeFixture() {
 
 void TestFileFormatIntegration() {
     const auto plugInfo = std::filesystem::path(USDGEOLAS_SOURCE_DIR) /
-                          "plugin" / "resources" / "geospatial-las" /
+                          "plugin" / "resources" / "pointcloud-las" /
                           "plugInfo.json";
     const auto plugins = pxr::PlugRegistry::GetInstance().RegisterPlugins(
         plugInfo.string());

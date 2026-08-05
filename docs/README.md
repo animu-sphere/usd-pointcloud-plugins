@@ -54,8 +54,8 @@ Component-specific usage stays with the component:
 
 | Component | Kind | Documentation |
 | --- | --- | --- |
-| `geospatial-las` | plugin bundle | [plugin README](../plugins/geospatial-las/README.md) |
-| `geospatial-laz` | plugin bundle | [plugin README](../plugins/geospatial-laz/README.md) |
+| `pointcloud-las` | plugin bundle | [plugin README](../plugins/pointcloud-las/README.md) |
+| `pointcloud-laz` | plugin bundle | [plugin README](../plugins/pointcloud-laz/README.md) |
 | `usdGeoCore` | library | [library README](../libs/usd-geo-core/README.md) |
 | `usdPointCloudCore` | library | [library README](../libs/usd-pointcloud-core/README.md) |
 | `usdPointCloudAuthoring` | library | [library README](../libs/usd-pointcloud-authoring/README.md) |
@@ -63,5 +63,5 @@ Component-specific usage stays with the component:
 | `usdLaz` | library | [library README](../libs/usd-laz/README.md) |
 
 Per-bundle diagnostic code tables live with their bundle:
-[geospatial-las](../plugins/geospatial-las/docs/DIAGNOSTICS.md),
-[geospatial-laz](../plugins/geospatial-laz/docs/DIAGNOSTICS.md).
+[pointcloud-las](../plugins/pointcloud-las/docs/DIAGNOSTICS.md),
+[pointcloud-laz](../plugins/pointcloud-laz/docs/DIAGNOSTICS.md).

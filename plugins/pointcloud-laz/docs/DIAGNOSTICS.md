@@ -1,4 +1,4 @@
-# geospatial-laz diagnostics
+# pointcloud-laz diagnostics
 
 Every import-time diagnostic has a stable `LAZxxx` code. The code is a
 machine-readable prefix; the remainder of the message is human-readable.

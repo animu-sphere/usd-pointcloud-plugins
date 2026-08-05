@@ -54,7 +54,7 @@ usdGeoCore
   |-- usdPointCloudCore -- usdLas -- usdLaz
   `-- usdPointCloudAuthoring
              |
-   geospatial-las / geospatial-laz plugin bundles
+  pointcloud-las / pointcloud-laz plugin bundles
 ```
 
 `usdLas` and `usdPointCloudCore` both depend on `usdGeoCore`. `usdLaz` delegates
@@ -567,8 +567,8 @@ libs/
   usd-pointcloud-authoring/
   usd-pointcloud-tiling/        (reserved)
 plugins/
-  geospatial-las/
-  geospatial-laz/
+  pointcloud-las/
+  pointcloud-laz/
 docs/
   architecture/
   reference/
@@ -671,7 +671,7 @@ The following are managed as public issues:
 25. Add E57 scan reading
 26. Add GeoTIFF and DEM elevation reading
 27. Add COG overview and range-based raster access
-28. Move `geospatial-las` onto `usdlas::LasReader` and delete its inline read
+28. Move `pointcloud-las` onto `usdlas::LasReader` and delete its inline read
     orchestration
 29. Add `usdgeo::AuthorPointCloudAsset` as the single authoring entry point for
     both plugins

@@ -154,10 +154,10 @@ missing.
 ## Runtime and licensing
 
 `laz-perf 2.0.0` is **LGPL-2.1** and is compiled into this static library,
-which is then linked into the `geospatial-laz` plugin shared library. Any
+which is then linked into the `pointcloud-laz` plugin shared library. Any
 binary containing `usdLaz` therefore carries LGPL-2.1 obligations, including
 the requirement to let a recipient relink against a modified laz-perf. The
-`geospatial-las` bundle contains no laz-perf code.
+`pointcloud-las` bundle contains no laz-perf code.
 
 Read [DISTRIBUTION.md](../../docs/guides/DISTRIBUTION.md) before shipping a
 binary built from this module. Changing the vendored revision requires updating

@@ -52,7 +52,7 @@ ordered plan is in [README.md](README.md).
 ### Plugin adapters
 
 - [x] Record the plugin adapter and file-format argument contracts
-- [x] Move `geospatial-las` onto `usdlas::LasReader`
+- [x] Move `pointcloud-las` onto `usdlas::LasReader`
 - [x] Add the preliminary `usdgeo::AuthorPointCloudAsset` authoring API
 - [x] Move the shared authoring tail into `usdgeo::AuthorPointCloudAsset`
 - [x] Normalize file-format arguments and pass read options through the plugins
@@ -75,8 +75,8 @@ ordered plan is in [README.md](README.md).
 
 - [x] Rename `usd-geo-usd` to `usd-pointcloud-authoring`
       (`usdGeoUsd` to `usdPointCloudAuthoring`)
-- [x] Rename `plugins/geo-las` and `plugins/geo-laz` to
-      `plugins/geospatial-las` and `plugins/geospatial-laz`, including CMake targets, shared library
+- [x] Rename `plugins/geospatial-las` and `plugins/geospatial-laz` to
+      `plugins/pointcloud-las` and `plugins/pointcloud-laz`, including bundle metadata, resource paths, and CI paths
       names, `plugInfo.json` type names, and CI paths
 - [x] Reorganize `docs/` by responsibility and add the documentation index
 - [x] Promote the library architecture into a binding

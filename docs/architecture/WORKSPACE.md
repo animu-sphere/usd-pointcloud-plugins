@@ -6,8 +6,8 @@ change invariants. A structural change that contradicts this document must
 change this document first.
 
 Status: `usdGeoCore`, `usdPointCloudCore`, `usdLas`, `usdLaz`, and
-`usdPointCloudAuthoring` are implemented, as are the `geospatial-las` and
-`geospatial-laz` bundles. Future module identities are reserved here.
+`usdPointCloudAuthoring` are implemented, as are the `pointcloud-las` and
+`pointcloud-laz` bundles. Future module identities are reserved here.
 
 ## 1. Components
 
@@ -18,8 +18,8 @@ Status: `usdGeoCore`, `usdPointCloudCore`, `usdLas`, `usdLaz`, and
 | `usdLas` | `libs/usd-las` | plain CMake/OpenStrata static library | implemented | LAS parsing and decoding: 1.2-1.4 headers, VLR/EVLR, point formats 0-10, waveform packet metadata, GeoTIFF key records, scalar and vector Extra Bytes, metadata-only reads, and chunked and range-based reads behind `LasReader`. |
 | `usdLaz` | `libs/usd-laz` | plain CMake/OpenStrata static library | implemented | LAZ decompression through the vendored laz-perf codec, converted into the shared LAS and point-cloud contracts, with metadata-only reads, chunked reads, and stable diagnostics for unsupported compressed formats. Owns the vendored laz-perf subset. |
 | `usdPointCloudAuthoring` | `libs/usd-pointcloud-authoring` | plain CMake/OpenStrata static library | implemented | Shared OpenUSD authoring: `UsdGeomPoints` and geospatial metadata authoring, point-attribute authoring, `usdLod` hierarchy authoring, tiled point-cloud authoring, payload-backed tile assets, root layer generation, and stage/layer validation. Renamed from `usdPointCloudAuthoring` after v0.1.0. |
-| `geospatial-las` | `plugins/geospatial-las` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | OpenUSD `SdfFileFormat` adapter for `.las`: plugin registration, argument normalization, `LasReader` construction, and authoring through the shared library. Owns its `LASxxx` diagnostic codes. |
-| `geospatial-laz` | `plugins/geospatial-laz` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | The same adapter shape for `.laz`, using `LazReader` and the laz-perf codec integration. Owns its `LAZxxx` diagnostic codes. |
+| `pointcloud-las` | `plugins/pointcloud-las` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | OpenUSD `SdfFileFormat` adapter for `.las`: plugin registration, argument normalization, `LasReader` construction, and authoring through the shared library. Owns its `LASxxx` diagnostic codes. |
+| `pointcloud-laz` | `plugins/pointcloud-laz` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | The same adapter shape for `.laz`, using `LazReader` and the laz-perf codec integration. Owns its `LAZxxx` diagnostic codes. |
 | `usdPointCloudTiling` | `libs/usd-pointcloud-tiling` | plain library | implemented (initial contracts) | Format-independent spatial partitioning and bounded-memory tile preparation: fixed-grid tile keys and source-coordinate bucketing are implemented; tile buffering and spill-to-disk, tile manifests, fixed-stride LOD sampling, deterministic tile and level ordering, and cleanup of incomplete temporary output remain. See the [streaming and tiling plan](../roadmap/streaming-and-tiling.md). |
 | `usdGeoCache` | `libs/usd-geo-cache` | plain library | reserved, not implemented | Stable cache keys, USDC tile layout, cache lookup and invalidation. |
 | `usdCopc`, `usdPly`, `usdAsciiPoints`, `usdE57` | `libs/` | plain libraries | reserved, not implemented | Additional point-cloud readers targeting the same shared contracts. `usdCopc` is a candidate, not a commitment; the alternative is an isolated COPC module inside `usdLaz`. |
@@ -51,16 +51,16 @@ usdLaz                 -> usdLas, usdPointCloudCore
 usdLaz                 -> laz-perf (private, vendored codec implementation)
 usdPointCloudAuthoring -> usdGeoCore, usdPointCloudCore
 usdPointCloudAuthoring -> OpenUSD (usdGeom, usdLod)
-geospatial-las         -> usdLas, usdPointCloudAuthoring, OpenUSD
-geospatial-laz         -> usdLaz, usdPointCloudAuthoring, OpenUSD
+pointcloud-las         -> usdLas, usdPointCloudAuthoring, OpenUSD
+pointcloud-laz         -> usdLaz, usdPointCloudAuthoring, OpenUSD
 ```
 
 Reserved future directions:
 
 ```text
 usdPointCloudTiling    -> usdGeoCore, usdPointCloudCore
-geospatial-las         -> usdPointCloudTiling
-geospatial-laz         -> usdPointCloudTiling
+pointcloud-las         -> usdPointCloudTiling
+pointcloud-laz         -> usdPointCloudTiling
 any format reader      -> usdGeoCore, usdPointCloudCore
 any format bundle      -> usdPointCloudAuthoring
 ```
@@ -102,17 +102,17 @@ is removed in v0.3.0; see [MIGRATION.md](../compatibility/MIGRATION.md).
 ## 3. Source boundaries
 
 ```text
-plugins/geospatial-las/src/UsdGeoLasFileFormat.cpp
+plugins/pointcloud-las/src/UsdGeoLasFileFormat.cpp
     thin SdfFileFormat integration: argument normalization, reader call,
     authoring call, diagnostic projection
 
-plugins/geospatial-las/include/usdgeolas/UsdGeoLasDiagnostics.h
+plugins/pointcloud-las/include/usdgeolas/UsdGeoLasDiagnostics.h
     the bundle's stable LASxxx codes
 
-plugins/geospatial-laz/src/UsdGeoLazFileFormat.cpp
+plugins/pointcloud-laz/src/UsdGeoLazFileFormat.cpp
     the same integration for .laz
 
-plugins/geospatial-laz/include/usdgeolaz/UsdGeoLazDiagnostics.h
+plugins/pointcloud-laz/include/usdgeolaz/UsdGeoLazDiagnostics.h
     the bundle's stable LAZxxx codes
 
 libs/usd-las/
@@ -182,8 +182,8 @@ coordinates. See [ADR 0001](../adr/0001-coordinate-model.md).
 Per-bundle artifacts use OpenStrata's target-qualified convention:
 
 ```text
-geospatial-las-<version>-<target>.tar.zst
-geospatial-laz-<version>-<target>.tar.zst
+pointcloud-las-<version>-<target>.tar.zst
+pointcloud-laz-<version>-<target>.tar.zst
 ```
 
 The installed shared libraries are `UsdGeoLasFileFormat` and
@@ -251,10 +251,10 @@ The required local gate is:
 ost configure
 ost build
 ost test
-ost plugin build plugins/geospatial-las
-ost plugin build plugins/geospatial-laz
-ost plugin test plugins/geospatial-las --up-to 4
-ost plugin test plugins/geospatial-laz --up-to 4
+ost plugin build plugins/pointcloud-las
+ost plugin build plugins/pointcloud-laz
+ost plugin test plugins/pointcloud-las --up-to 4
+ost plugin test plugins/pointcloud-laz --up-to 4
 ```
 
 Neither bundle declares OST test fixtures yet, so the L3 `usdcat.read` and L4

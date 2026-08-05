@@ -200,7 +200,7 @@ ctest --test-dir build/cy2026-windows-x86_64-py313-usd -C Release `
 
   ```powershell
   & .\build\cy2026-windows-x86_64-py313-usd\libs\usd-pointcloud-authoring\benchmarks\usdPointCloudAuthoring_stream_benchmark.exe `
-    --input .\plugins\geospatial-las\tests\fixtures\conformance.las `
+    --input .\plugins\pointcloud-las\tests\fixtures\conformance.las `
     --chunk-points 65536 --tile-size 128 --memory-limit 1048576
   ```
 

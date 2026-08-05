@@ -12,27 +12,27 @@ confirms the interpretation before the first public binary release.
 | Component | License | Distributed as |
 | --- | --- | --- |
 | Project code (`libs/`, `plugins/`) | Apache-2.0 | Source and binaries |
-| `laz-perf 2.0.0` | LGPL-2.1 | Vendored source, compiled into `geospatial-laz` |
+| `laz-perf 2.0.0` | LGPL-2.1 | Vendored source, compiled into `pointcloud-laz` |
 | OpenUSD | Apache-2.0 (per distribution) | Not vendored; runtime dependency |
 | Test corpus | Per-dataset terms | Not shipped in plugin bundles |
 
-`geospatial-las` contains no laz-perf code. Only `geospatial-laz` is affected by LGPL-2.1.
+`pointcloud-las` contains no laz-perf code. Only `pointcloud-laz` is affected by LGPL-2.1.
 
 ## Link Model
 
 The build compiles the upstream sources under `third_party/laz-perf/cpp/lazperf`
 directly into the static library `usdLaz`, which is then linked into the
-`geospatial-laz` plugin shared library.
+`pointcloud-laz` plugin shared library.
 
 ```text
 third_party/laz-perf/cpp/lazperf/*.cpp
   -> usdLaz (STATIC)
-    -> geospatial-laz plugin (SHARED)
+    -> pointcloud-laz plugin (SHARED)
 ```
 
 Consequences:
 
-- The shipped `geospatial-laz` binary is a combined work that contains LGPL-2.1 object
+- The shipped `pointcloud-laz` binary is a combined work that contains LGPL-2.1 object
   code, so LGPL-2.1 section 6 applies to its distribution.
 - laz-perf headers are not exposed through the public `usdLaz` include path,
   and no laz-perf type appears in a public API.
@@ -46,7 +46,7 @@ files, described in `VENDORING.md`, and reflected in
 
 ## Compliance Requirements
 
-Every distribution that includes `geospatial-laz` binaries provides:
+Every distribution that includes `pointcloud-laz` binaries provides:
 
 1. The complete LGPL-2.1 text (`third_party/laz-perf/COPYING`).
 2. `LICENSE` and `NOTICE` for the project code.
@@ -56,16 +56,16 @@ Every distribution that includes `geospatial-laz` binaries provides:
    covered by LGPL-2.1.
 5. The complete corresponding source for laz-perf, matching the exact version
    built.
-6. A means for the recipient to relink `geospatial-laz` against a modified laz-perf.
+6. A means for the recipient to relink `pointcloud-laz` against a modified laz-perf.
 
 Requirement 6 is what static linking adds. It is satisfied by publishing, in
 the same release, the complete source archive of this repository together with
 build instructions that reproduce the shipped binary, so a recipient can
-rebuild `geospatial-laz` with their own laz-perf. Shipping the intermediate object
+rebuild `pointcloud-laz` with their own laz-perf. Shipping the intermediate object
 files or the static `usdLaz` archive is the fallback if a build from source
 ever stops being reproducible.
 
-Switching `geospatial-laz` to link laz-perf as a separate shared library would move
+Switching `pointcloud-laz` to link laz-perf as a separate shared library would move
 the obligation from section 6(a) to the simpler shared-library case. That
 change is a candidate but is not in effect today, and this document must be
 updated before any statement to the contrary is published.
@@ -76,7 +76,7 @@ A published release contains, per platform:
 
 | Artifact | Purpose |
 | --- | --- |
-| Plugin product bundle | `geospatial-las` and `geospatial-laz` libraries and `plugInfo.json` |
+| Plugin product bundle | `pointcloud-las` and `pointcloud-laz` libraries and `plugInfo.json` |
 | `*.manifest.json` | Bundle manifest emitted by `ost plugin package` |
 | `*.sbom.spdx.json` | SBOM for the packaged bundle |
 | Source archive | Corresponding source for the tag, including laz-perf |
@@ -99,6 +99,6 @@ assets is outstanding work and blocks the first public binary release.
 - [ ] `THIRD_PARTY_NOTICES.md` matches the vendored laz-perf commit.
 - [ ] `VENDORING.md` matches the vendored tree, including any modification.
 - [ ] LGPL-2.1 text is present in the assets.
-- [ ] The source archive builds `geospatial-laz` on every published platform.
+- [ ] The source archive builds `pointcloud-laz` on every published platform.
 - [ ] Checksums verify.
 - [ ] A qualified reviewer has confirmed the licensing statement.

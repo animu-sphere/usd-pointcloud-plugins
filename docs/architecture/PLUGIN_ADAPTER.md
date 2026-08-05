@@ -31,12 +31,12 @@ tests that run without an OpenUSD runtime.
 
 ## Current State
 
-`geospatial-las` now delegates file access and LAS decoding to `usdlas::LasReader`,
+`pointcloud-las` now delegates file access and LAS decoding to `usdlas::LasReader`,
 and both plugins normalize the supported file-format arguments before calling
 their shared readers and authoring path. Metadata-only reads use the same
 header/VLR contracts without decoding point records.
 
-| Concern | `geospatial-las` | `geospatial-laz` |
+| Concern | `pointcloud-las` | `pointcloud-laz` |
 | --- | --- | --- |
 | Source file access | In `usdlas::LasReader` | In `usdLaz` |
 | Header and VLR/EVLR reading | In `usdlas::LasReader` | In `usdLaz` |
@@ -55,7 +55,7 @@ It passes the validated point-cloud asset to the shared authoring entry point.
 
 `usdlas::LasReader` already provides exactly that orchestration behind
 `LasReadOptions`, a chunk consumer, and typed diagnostics. It is currently
-called from `geospatial-las` and its unit tests. `UsdGeoLasFileFormat::Read` now uses it
+called from `pointcloud-las` and its unit tests. `UsdGeoLasFileFormat::Read` now uses it
 the same way that `UsdGeoLazFileFormat::Read` uses `usdlaz::LazReader`.
 
 Both plugins now pass reader output through the shared `usdlas` point-data and
@@ -122,7 +122,7 @@ call, and the projection of typed diagnostics onto its stable `LASxxx` /
 
 ## Migration
 
-1. [x] Move `geospatial-las` onto `usdlas::LasReader`, deleting the plugin's file
+1. [x] Move `pointcloud-las` onto `usdlas::LasReader`, deleting the plugin's file
   access, metadata reading, truncation checks, and decode loop. The LAZ plugin
   already shows the shape.
 2. [x] Move the shared tail into the reader and authoring libraries:
