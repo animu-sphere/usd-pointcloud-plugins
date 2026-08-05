@@ -585,8 +585,9 @@ Every directory under `libs/` and `plugins/` carries a `README.md`; see the
 [module README contract](../contributing/MODULE_README_CONTRACT.md). The
 documentation index is [docs/README.md](../README.md).
 
-`Las.cpp` is split into internal modules as features are added. Directories are
-created when their first tested capability exists.
+The LAS implementation is split into internal modules by format inspection,
+metadata, point decoding, reader/streaming, and PointCloud conversion. New
+directories are created when their first tested capability exists.
 
 Later format libraries (`usd-copc`, `usd-ply`, `usd-ascii-points`, `usd-e57`,
 `usd-terrain-core`) and their plugin bundles follow the same shape. The full

@@ -5,7 +5,13 @@ project(usdLas
     DESCRIPTION "LAS metadata inspection and point-record decoding"
     LANGUAGES CXX)
 
-add_library(usdLas STATIC src/Las.cpp)
+add_library(usdLas STATIC
+    src/LasFormat.cpp
+    src/LasMetadata.cpp
+    src/LasPoint.cpp
+    src/LasPointCloud.cpp
+    src/LasReader.cpp
+    src/LasStream.cpp)
 add_library(usdlas::core ALIAS usdLas)
 set_target_properties(usdLas PROPERTIES
     EXPORT_NAME core
