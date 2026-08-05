@@ -117,6 +117,26 @@ const usdlas::LasVariableLengthRecord* FindCopcInfo(
     return nullptr;
 }
 
+bool HasCopcHierarchyVlr(
+    const std::vector<usdlas::LasVariableLengthRecord>& records) {
+    for (const auto& record : records) {
+        if (record.userId == "copc" && record.recordId == 1000) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool HasZeroRange(const std::vector<std::uint8_t>& bytes,
+                  std::size_t offset) {
+    for (std::size_t index = offset; index < bytes.size(); ++index) {
+        if (bytes[index] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 namespace usdcopc {
@@ -131,7 +151,7 @@ bool CopcInfo::IsValid() const noexcept {
 }
 
 bool CopcHierarchyEntry::IsValid() const noexcept {
-    return level >= 0 && pointCount >= -1 &&
+    return level >= 0 && pointCount >= -1 && byteSize >= 0 &&
            ((pointCount == 0 && offset == 0 && byteSize == 0) ||
             (pointCount != 0 && offset > 0 && byteSize > 0));
 }
@@ -146,7 +166,7 @@ bool CopcHierarchyEntry::IsPointData() const noexcept {
 
 bool CopcHeader::IsValid() const noexcept {
     return las.IsValid() && las.versionMajor == 1 && las.versionMinor == 4 &&
-           las.pointFormat >= 6 && las.pointFormat <= 10 && info.IsValid() &&
+           las.pointFormat >= 6 && las.pointFormat <= 8 && info.IsValid() &&
            fileSize > 0 &&
            info.rootHierarchySize % kHierarchyEntrySize == 0 &&
            IsFileRangeValid(fileSize, info.rootHierarchyOffset,
@@ -173,17 +193,19 @@ bool CopcReader::ReadMetadata(
         failureKind_ = CopcReadFailure::InvalidInfo;
         return false;
     }
-    if (header.las.pointFormat < 6 || header.las.pointFormat > 10) {
+    if (header.las.pointFormat < 6 || header.las.pointFormat > 8) {
         AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::UnsupportedPointFormat,
-                      "COPC requires LAS point format 6 through 10");
+                      "COPC requires LAS point format 6 through 8");
         failureKind_ = CopcReadFailure::InvalidInfo;
         return false;
     }
 
     const auto* infoRecord = FindCopcInfo(header.las.variableLengthRecords);
-    if (infoRecord == nullptr) {
+    if (infoRecord == nullptr || header.las.variableLengthRecords.empty() ||
+        &header.las.variableLengthRecords.front() != infoRecord ||
+        infoRecord->isExtended) {
         AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidSignature,
-                      "COPC info VLR is missing");
+                      "COPC info VLR must be the first standard VLR");
         failureKind_ = CopcReadFailure::MissingInfo;
         return false;
     }
@@ -191,6 +213,18 @@ bool CopcReader::ReadMetadata(
         AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::TruncatedRecord,
                       "COPC info VLR must contain 160 bytes");
         failureKind_ = CopcReadFailure::InvalidInfo;
+        return false;
+    }
+    if (!HasZeroRange(infoRecord->data, 72)) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                      "COPC info VLR reserved fields must be zero");
+        failureKind_ = CopcReadFailure::InvalidInfo;
+        return false;
+    }
+    if (!HasCopcHierarchyVlr(header.las.variableLengthRecords)) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidSignature,
+                      "COPC hierarchy VLR is missing");
+        failureKind_ = CopcReadFailure::MissingInfo;
         return false;
     }
 
@@ -266,9 +300,9 @@ bool CopcReader::ReadHierarchy(
             entry.x = ReadLittle<std::int32_t>(page, pageOffset + 4);
             entry.y = ReadLittle<std::int32_t>(page, pageOffset + 8);
             entry.z = ReadLittle<std::int32_t>(page, pageOffset + 12);
-            entry.pointCount = ReadLittle<std::int32_t>(page, pageOffset + 16);
-            entry.offset = ReadLittle<std::uint64_t>(page, pageOffset + 20);
-            entry.byteSize = ReadLittle<std::uint32_t>(page, pageOffset + 28);
+            entry.offset = ReadLittle<std::uint64_t>(page, pageOffset + 16);
+            entry.byteSize = ReadLittle<std::int32_t>(page, pageOffset + 24);
+            entry.pointCount = ReadLittle<std::int32_t>(page, pageOffset + 28);
 
             const auto entryFileOffset = offset + pageOffset;
             if (!entry.IsValid()) {
@@ -278,9 +312,9 @@ bool CopcReader::ReadHierarchy(
                 return false;
             }
             if (entry.IsHierarchyPage()) {
-                if (entry.byteSize % kHierarchyEntrySize != 0 ||
+                if (entry.byteSize % static_cast<std::int32_t>(kHierarchyEntrySize) != 0 ||
                     !IsFileRangeValid(header.fileSize, entry.offset,
-                                      entry.byteSize)) {
+                                      static_cast<std::uint64_t>(entry.byteSize))) {
                     AddDiagnostic(diagnostics,
                                   usdgeo::DiagnosticCode::InvalidOffset,
                                   "COPC child hierarchy page range is invalid",
@@ -288,14 +322,15 @@ bool CopcReader::ReadHierarchy(
                     return false;
                 }
                 entries.push_back(entry);
-                if (!readPage(entry.offset, entry.byteSize)) {
+                if (!readPage(entry.offset,
+                              static_cast<std::uint64_t>(entry.byteSize))) {
                     return false;
                 }
                 continue;
             }
             if (entry.IsPointData() &&
                 !IsFileRangeValid(header.fileSize, entry.offset,
-                                  entry.byteSize)) {
+                                  static_cast<std::uint64_t>(entry.byteSize))) {
                 AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidOffset,
                               "COPC point data range is invalid", entryFileOffset);
                 return false;

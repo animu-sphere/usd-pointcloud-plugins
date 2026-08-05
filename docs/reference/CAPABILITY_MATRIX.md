@@ -21,7 +21,7 @@ uses the same reader and authoring contracts for long-running generation.
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| LAS 1.4 COPC Info VLR validation | Foundation | Implemented in `usdCopc`; requires point formats 6-10 and a valid 160-byte Info VLR |
+| LAS 1.4 COPC Info VLR validation | Foundation | Implemented in `usdCopc`; requires point formats 6-8, a first-position 160-byte Info VLR, and a hierarchy VLR |
 | Local hierarchy page validation | Foundation | Root and child pages are read depth-first with range, alignment, and repeated-page checks |
 | COPC point-data decoding | Planned | LAZ point decoding and shared `PointStream` connection are not connected yet |
 | COPC FileFormat Plugin | Planned | No OpenUSD adapter is published yet |

@@ -30,7 +30,7 @@ struct CopcHierarchyEntry {
     std::int32_t z = 0;
     std::int32_t pointCount = 0;
     std::uint64_t offset = 0;
-    std::uint32_t byteSize = 0;
+    std::int32_t byteSize = 0;
 
     bool IsValid() const noexcept;
     bool IsHierarchyPage() const noexcept;

@@ -39,22 +39,23 @@ void WriteHierarchyEntry(std::vector<std::uint8_t>& bytes,
                          std::int32_t z,
                          std::int32_t pointCount,
                          std::uint64_t dataOffset,
-                         std::uint32_t byteSize) {
+                         std::int32_t byteSize) {
     Write(bytes, offset, level);
     Write(bytes, offset + 4, x);
     Write(bytes, offset + 8, y);
     Write(bytes, offset + 12, z);
-    Write(bytes, offset + 16, pointCount);
-    Write(bytes, offset + 20, dataOffset);
-    Write(bytes, offset + 28, byteSize);
+    Write(bytes, offset + 16, dataOffset);
+    Write(bytes, offset + 24, byteSize);
+    Write(bytes, offset + 28, pointCount);
 }
 
-std::vector<std::uint8_t> MakeFixture() {
+std::vector<std::uint8_t> MakeFixture(std::uint8_t pointFormat = 6) {
     constexpr std::size_t headerSize = 375;
     constexpr std::size_t vlrOffset = headerSize;
-    constexpr std::size_t rootOffset = vlrOffset + 54 + 160;
+    constexpr std::size_t hierarchyVlrOffset = vlrOffset + 54 + 160;
+    constexpr std::size_t rootOffset = hierarchyVlrOffset + 54;
     constexpr std::size_t childOffset = rootOffset + 64;
-    constexpr std::size_t pointDataOffset = childOffset + 32;
+    constexpr std::size_t pointDataOffset = rootOffset + 96;
     constexpr std::size_t fileSize = pointDataOffset + 60;
 
     std::vector<std::uint8_t> bytes(fileSize, 0);
@@ -63,9 +64,10 @@ std::vector<std::uint8_t> MakeFixture() {
     Write(bytes, 25, std::uint8_t{4});
     Write(bytes, 94, std::uint16_t{375});
     Write(bytes, 96, static_cast<std::uint32_t>(pointDataOffset));
-    Write(bytes, 100, std::uint32_t{1});
-    Write(bytes, 104, std::uint8_t{6});
-    Write(bytes, 105, std::uint16_t{30});
+        Write(bytes, 100, std::uint32_t{2});
+        Write(bytes, 104, pointFormat);
+        Write(bytes, 105,
+            static_cast<std::uint16_t>(pointFormat == 9 ? 59 : 30));
     Write(bytes, 107, std::uint32_t{2});
     Write(bytes, 131, 0.01);
     Write(bytes, 139, 0.01);
@@ -86,6 +88,12 @@ std::vector<std::uint8_t> MakeFixture() {
     Write(bytes, vlrOffset + 18, std::uint16_t{1});
     Write(bytes, vlrOffset + 20, std::uint16_t{160});
     std::memcpy(bytes.data() + vlrOffset + 22, "COPC info", 9);
+
+    Write(bytes, hierarchyVlrOffset, std::uint16_t{0});
+    std::memcpy(bytes.data() + hierarchyVlrOffset + 2, "copc", 4);
+    Write(bytes, hierarchyVlrOffset + 18, std::uint16_t{1000});
+    Write(bytes, hierarchyVlrOffset + 20, std::uint16_t{96});
+    std::memcpy(bytes.data() + hierarchyVlrOffset + 22, "hierarchy", 9);
 
     const auto infoOffset = vlrOffset + 54;
     Write(bytes, infoOffset, 1000.5);
@@ -141,8 +149,8 @@ void TestMetadataAndHierarchy() {
 
 void TestInvalidChildPage() {
     auto bytes = MakeFixture();
-    constexpr std::size_t rootOffset = 589;
-    Write(bytes, rootOffset + 32 + 28, std::uint32_t{31});
+    constexpr std::size_t rootOffset = 643;
+    Write(bytes, rootOffset + 32 + 24, std::int32_t{31});
     const auto path = WriteFixture(bytes, "usd_copc_invalid_test.copc");
     usdcopc::CopcReader reader(path.string());
     usdcopc::CopcHeader header;
@@ -154,10 +162,52 @@ void TestInvalidChildPage() {
     std::filesystem::remove(path);
 }
 
+void TestRejectsUnsupportedPointFormat() {
+    const auto path = WriteFixture(
+        MakeFixture(9), "usd_copc_unsupported_format.copc");
+    usdcopc::CopcReader reader(path.string());
+    usdcopc::CopcHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!reader.ReadMetadata(header, diagnostics));
+    Check(!diagnostics.empty() &&
+          diagnostics.front().code ==
+              usdgeo::DiagnosticCode::UnsupportedPointFormat);
+    std::filesystem::remove(path);
+}
+
+void TestRejectsMissingHierarchyVlr() {
+    auto bytes = MakeFixture();
+    Write(bytes, 100, std::uint32_t{1});
+    const auto path = WriteFixture(
+        bytes, "usd_copc_missing_hierarchy.copc");
+    usdcopc::CopcReader reader(path.string());
+    usdcopc::CopcHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!reader.ReadMetadata(header, diagnostics));
+    Check(!diagnostics.empty());
+    std::filesystem::remove(path);
+}
+
+void TestRejectsNonZeroReservedInfo() {
+    auto bytes = MakeFixture();
+    bytes[501] = 1;
+    const auto path = WriteFixture(
+        bytes, "usd_copc_invalid_reserved.copc");
+    usdcopc::CopcReader reader(path.string());
+    usdcopc::CopcHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!reader.ReadMetadata(header, diagnostics));
+    Check(!diagnostics.empty());
+    std::filesystem::remove(path);
+}
+
 } // namespace
 
 int main() {
     TestMetadataAndHierarchy();
     TestInvalidChildPage();
+    TestRejectsUnsupportedPointFormat();
+    TestRejectsMissingHierarchyVlr();
+    TestRejectsNonZeroReservedInfo();
     return 0;
 }

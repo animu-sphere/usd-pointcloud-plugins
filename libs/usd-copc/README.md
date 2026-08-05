@@ -1,8 +1,8 @@
 # usdCopc
 
 `usdCopc` is the OpenUSD-independent COPC reader foundation. It validates the
-LAS 1.4 metadata required by COPC, reads the COPC Info VLR, and walks local
-hierarchy pages into format-independent hierarchy entries.
+LAS 1.4 metadata required by COPC, reads the COPC Info and hierarchy VLRs, and
+walks local hierarchy pages into format-independent hierarchy entries.
 
 The module deliberately does not decode compressed point data, make network
 requests, write COPC, or depend on OpenUSD. Point decoding and a thin FileFormat
@@ -23,8 +23,9 @@ usdcopc/Copc.h
 
 `CopcReader::ReadMetadata` delegates LAS header, VLR, EVLR, and CRS parsing to
 `usdlas::LasReader::ReadMetadata`. It then requires LAS 1.4 point formats 6
-through 10 and a 160-byte `copc` Info VLR (record ID 1). The reader validates
-finite Info values, the root hierarchy range, page alignment, child-page
+through 8, a first-position 160-byte `copc` Info VLR (record ID 1), and a
+`copc` hierarchy VLR (record ID 1000). The reader validates finite Info values,
+reserved Info fields, the root hierarchy range, page alignment, child-page
 ranges, point-data ranges, and repeated hierarchy pages.
 
 ## Current boundary
