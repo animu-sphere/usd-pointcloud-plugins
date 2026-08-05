@@ -95,8 +95,8 @@ The `v0.2.x` line stabilizes the LAS and LAZ implementation released in
       working-set measurements
 - [ ] Complete long-running, cancellation, failure, and interruption cleanup
       validation for tiled reads
-- [ ] Add the explicit LAS/LAZ conversion tool as the production path for
-      tiled, payload-backed generation
+- [x] Add the explicit LAS/LAZ conversion tool as the production path for
+      tiled, payload-backed generation, including deterministic manifest output
 - [ ] Close release documentation gaps for compatibility, installation,
       licensing, and large-data operation
 - [ ] Add regression coverage for each stabilization fix
@@ -128,7 +128,7 @@ The plan is [streaming and tiling](streaming-and-tiling.md).
 - [x] Generated-corpus streaming benchmark and documented measurement command
 - [ ] Real-dataset RSS, spool, and payload working-set measurements
 - [ ] Failure and interruption cleanup validation across tiled reads
-- [ ] Explicit conversion tool with atomic publish and deterministic manifest
+- [x] Explicit conversion tool with atomic publish and deterministic manifest
       output
 
 ### Other open work
