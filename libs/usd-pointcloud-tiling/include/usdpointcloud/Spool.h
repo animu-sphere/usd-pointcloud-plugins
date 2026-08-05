@@ -80,6 +80,7 @@ public:
     bool ReadNext(SpoolPoint& point,
                   std::vector<usdgeo::Diagnostic>& diagnostics);
     bool IsComplete() const noexcept;
+    void Close() noexcept;
 
 private:
     class Impl;
