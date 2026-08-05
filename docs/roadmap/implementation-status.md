@@ -86,7 +86,7 @@ ordered plan is in [README.md](README.md).
 
 ## Release track status
 
-### `v0.2.x` — existing implementation stabilization
+### `v0.2.x` — existing implementation stabilization and conversion tooling
 
 The `v0.2.x` line stabilizes the LAS and LAZ implementation released in
 `v0.2.0`. It does not add a new point-cloud format.
@@ -95,6 +95,8 @@ The `v0.2.x` line stabilizes the LAS and LAZ implementation released in
       working-set measurements
 - [ ] Complete long-running, cancellation, failure, and interruption cleanup
       validation for tiled reads
+- [ ] Add the explicit LAS/LAZ conversion tool as the production path for
+      tiled, payload-backed generation
 - [ ] Close release documentation gaps for compatibility, installation,
       licensing, and large-data operation
 - [ ] Add regression coverage for each stabilization fix
@@ -126,6 +128,8 @@ The plan is [streaming and tiling](streaming-and-tiling.md).
 - [x] Generated-corpus streaming benchmark and documented measurement command
 - [ ] Real-dataset RSS, spool, and payload working-set measurements
 - [ ] Failure and interruption cleanup validation across tiled reads
+- [ ] Explicit conversion tool with atomic publish and deterministic manifest
+      output
 
 ### Other open work
 
@@ -141,8 +145,8 @@ The plan is [streaming and tiling](streaming-and-tiling.md).
       `usdcat.read` and `python.stage_open`
 - [ ] Stage licensing, notice, capability, compatibility, and installation
       documents into release assets
-- [ ] Decide whether the plugins should also become dynamic file formats
-      ([ADR 0003](../adr/0003-dynamic-file-format.md))
+- [ ] Reconsider dynamic FileFormat support after generated assets and cache
+      lookup are stable ([ADR 0003](../adr/0003-dynamic-file-format.md))
 
 ## Notes
 
@@ -151,19 +155,21 @@ source order and applies the same indices to every populated point attribute.
 Its algorithm, version, and target count are normalized cache-key inputs.
 
 Argument normalization makes the streaming reader's chunk, point-range, and
-tiled payload controls reachable through the plugin layer, and attribute
-selection is normalized before authoring; see the
+tiled payload controls reachable through the plugin layer and the conversion
+tool, and attribute selection is normalized before authoring; see the
 [plugin adapter contract](../architecture/PLUGIN_ADAPTER.md) and the
 [file-format argument contract](../architecture/FILE_FORMAT_ARGUMENTS.md).
 
 Compact `lod` profiles author a single non-tiled `usdLod` root through the
 shared authoring path for LAS and LAZ. Tiled LAS and LAZ reads now consume
 bounded pull-stream chunks, spool points by source-coordinate tile, and author
-one payload-backed level per tile. Generated-corpus bounded-memory measurement
-is available through the explicit benchmark target, and a Shizuoka LAS baseline
-is recorded in the [streaming and tiling roadmap](streaming-and-tiling.md). A
-broader real-world dataset matrix and payload working-set measurements remain
-open.
+one payload-backed level per tile. The production entry point for that
+long-running work is being moved to an explicit conversion tool; static
+FileFormat tiling remains for compatibility and small inputs. Generated-corpus
+bounded-memory measurement is available through the explicit benchmark target,
+and a Shizuoka LAS baseline is recorded in the [streaming and tiling roadmap](streaming-and-tiling.md).
+A broader real-world dataset matrix and payload working-set measurements
+remain open.
 
 The LAS conformance fixture and FileFormat Plugin integration gate passed
 before LAZ integration. The LAZ reader uses the same point-cloud authoring path

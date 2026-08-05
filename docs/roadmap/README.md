@@ -43,6 +43,14 @@ tiling design, spool and payload contracts, the file-format argument surface,
 the pull-request sequence, testing requirements, and the definition of done —
 is in [streaming and tiling](streaming-and-tiling.md).
 
+Production tiled generation now has an explicit operational boundary. The
+canonical path is a command-line conversion tool that consumes the shared LAS
+and LAZ readers and the shared payload authoring API, then publishes the root
+layer last after payload generation succeeds. Static FileFormat reads remain useful for
+preview, metadata inspection, and small inputs. Dynamic FileFormat support is
+deferred until generated assets and cache lookup are stable; it must not make
+raw LAS or LAZ decoding an implicit side effect of recomposition.
+
 COPC follows LAS and LAZ because it validates native spatial hierarchy and
 partial loading using the infrastructure completed for `v0.2.x`. E57 follows
 COPC and reuses the same streaming, tiling, diagnostics, and authoring
@@ -52,7 +60,7 @@ point clouds.
 
 ## Release tracks
 
-### `v0.2.x` — existing implementation stabilization
+### `v0.2.x` — existing implementation stabilization and conversion tooling
 
 The `v0.2.x` line does not introduce another point-cloud format. It stabilizes
 the LAS and LAZ implementation shipped in `v0.2.0`:
@@ -65,6 +73,8 @@ the LAS and LAZ implementation shipped in `v0.2.0`:
   tile/LOD contracts backward compatible;
 - complete compatibility, installation, licensing, and large-data usage
   documentation; and
+- add an explicit conversion tool for production tiled generation, with
+  deterministic output, atomic publish, cancellation, and cleanup; and
 - add regression coverage for every behavioral fix without widening the
   public format surface unnecessarily.
 
@@ -105,7 +115,7 @@ factored into a common implementation.
 | 2 | Direct LAS loading and `UsdGeomPoints` | Complete | Point formats 0-10, LAS 1.4 attributes, waveform metadata, GeoTIFF keys, and scalar and vector Extra Bytes all land on `main` |
 | 3 | LAZ, attribute selection, and USDC caching | In progress | LAZ chunk decoding and normalized attribute selection shipped; the USDC cache is not started |
 | 4a | Shared tile and LOD contracts and `usdLod` authoring | Complete | `usdLod` authoring, compact LOD profiles, deterministic sampling, per-tile roots, and payload-backed tile assets are available through the authoring library |
-| 4b | Bounded-memory streaming and spatial tiling through the plugins | Stabilization in `v0.2.x` | `PointStream`, spill-backed routing, payload authoring, and the `tile` argument are connected; real-dataset and payload working-set measurements plus operational hardening remain |
+| 4b | Bounded-memory streaming, spatial tiling, and explicit conversion tooling | Stabilization in `v0.2.x` | `PointStream`, spill-backed routing, payload authoring, and the `tile` argument are connected; the converter becomes the production path while the FileFormat path remains compatible |
 | 4c | COPC read support | Planned for `v0.3.0` | Local read-only support first; reuse the `v0.2.x` contracts and preserve the native hierarchy; no writer or remote range source initially |
 | 5 | PLY and delimited text point clouds (XYZ, PTS, CSV) | Not started | Needs the generic attribute model and file-format arguments |
 | 6 | E57 and multi-scan point clouds | Not started | Extends the point-cloud contracts to several scans per file |
@@ -122,14 +132,15 @@ maps onto the phases above.
 | W3 | Point formats 4, 5, 9, 10 and the waveform contract | 2 | Complete |
 | W4 | Chunked and range-based reader API, memory budget, filtering | 3 | Reader API and memory budget complete; bounds and classification filters open |
 | W5 | Shared tile and LOD contracts, deterministic sampling, OpenUSD 26.08 `usdLod` authoring | 4a | Complete |
-| W6 | `PointStream`, spill-backed spatial tiling, payload generation during file open, spatial tile arguments, and LAS/LAZ stabilization | 4b | `v0.2.x` stabilization in progress |
+| W6 | `PointStream`, spill-backed spatial tiling, explicit conversion tooling, spatial tile arguments, and LAS/LAZ stabilization | 4b | `v0.2.x` stabilization in progress |
 | W7 | COPC hierarchy, partial reads, and local COPC FileFormat integration | 4c | Planned for `v0.3.0` |
 | W8 | USDC cache, remote byte-range sources, PLY, delimited text, and E57 | 3-6 | Deferred until the `v0.3.0` COPC boundary is stable |
 
 W1 through W5 stabilized the shared point schema, the streaming reader API, and
 the public LOD representation. W6 now stabilizes how much memory a tiled read
-costs rather than what it produces. W6 is the entry gate for W7: COPC should
-consume these contracts, not create a parallel streaming or authoring path.
+costs and moves long-running generation into an explicit tool boundary. W6 is
+the entry gate for W7: COPC should consume these contracts, not create a
+parallel streaming or authoring path.
 
 ## Documents
 

@@ -6,6 +6,9 @@ payload-backed `usdLod` tile assets.
 
 Status: **in progress**. The `PointStream` contract, LAS and LAZ connections,
 spill-backed routing, and one-tile-at-a-time payload authoring are implemented.
+The production path for long-running tiled generation is now an explicit
+conversion tool; FileFormat-triggered generation remains a compatibility path
+and is not the target operational interface.
 Generated-corpus RSS measurement and an explicit benchmark target for
 generated, LAS, and LAZ inputs are implemented. A real-input baseline is
 recorded below; broader real-world measurements and payload working-set
@@ -175,6 +178,30 @@ after real data testing. Argument normalization, layer identity, and cache-key
 participation follow the existing
 [file-format argument contract](../architecture/FILE_FORMAT_ARGUMENTS.md).
 
+These arguments remain supported for static FileFormat reads, preview, and
+small inputs. Production generation should use the conversion tool so that
+progress, cancellation, retries, cleanup, and root-last publication are
+explicit process operations rather than side effects of layer open or
+recomposition.
+
+### Conversion tool contract
+
+The first tool surface reuses the same normalized options and authoring path:
+
+```text
+usd-pointcloud-convert <input> <output-root>
+    --tile-size <source units>
+    --memory-limit <bytes>
+    --payload-directory <directory>
+    --attributes <comma-separated names>
+```
+
+The tool owns temporary output, cancellation, failure cleanup, and final
+root-last publication. It must not duplicate LAS or LAZ decoding. Source and
+option fingerprinting, a manifest, and resume support are subsequent steps;
+they will record the normalized generation settings and output asset list
+without changing the reader contracts.
+
 ## 8. Out of scope for the first streaming release
 
 - adaptive octrees;
@@ -198,6 +225,8 @@ and documentation steps that precede them.
 | 4 | Connect LAS streaming to tiled payload authoring | LAS `PointStream`; source-coordinate tile routing; spool generation; tile payload output; root `usdLod` output; bounded-memory tests; cleanup and failure tests. LAS is first so tiling issues are not mixed with LAZ codec issues. |
 | 5 | Connect LAZ streaming to tiled payload authoring | LAZ `PointStream`; an output contract equivalent to LAS; codec-specific diagnostics; cross-format consistency tests. |
 | 6 | Enable spatial tiled reads through FileFormat arguments | Enable the spatial tile argument; define output and cache paths; connect profiles to tiling configuration; update plugin READMEs and root documentation; add integration tests with plugin discovery. |
+| 7 | Add explicit conversion tooling | Add a thin LAS/LAZ command-line entry point over the shared stream and authoring APIs; publish the root layer last; add cancellation, cleanup, and deterministic-output tests. |
+| 8 | Reconsider dynamic FileFormat composition | Evaluate cache lookup and authored-field recomposition only after generated assets, manifest identity, and operational recovery are stable. Raw source re-generation during recomposition remains out of scope. |
 
 ## 10. Testing requirements
 
