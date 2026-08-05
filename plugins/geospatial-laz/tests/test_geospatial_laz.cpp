@@ -25,7 +25,7 @@ void Check(bool condition) {
 
 std::filesystem::path MakeFixture() {
     const auto path = std::filesystem::temp_directory_path() /
-                      "usd_geo_plugins_conformance.laz";
+                      "usd_pointcloud_plugins_conformance.laz";
     lazperf::writer::named_file::config config;
     config.scale = {0.01, 0.01, 0.01};
     config.chunk_size = 2;
@@ -176,7 +176,7 @@ void TestMissingFileDiagnostic() {
     const auto uniqueSuffix =
         std::chrono::high_resolution_clock::now().time_since_epoch().count();
     const auto path = std::filesystem::temp_directory_path() /
-                      ("usd_geo_plugins_missing_" +
+                      ("usd_pointcloud_plugins_missing_" +
                        std::to_string(uniqueSuffix) + ".laz");
     const auto format = pxr::SdfFileFormat::FindByExtension("sample.laz");
     Check(format);

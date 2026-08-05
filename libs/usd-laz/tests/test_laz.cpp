@@ -247,7 +247,7 @@ void TestRangeMemoryBudgetAndCancellation() {
 
 void TestLazPerfFileDecoder() {
     const auto filename =
-        std::filesystem::temp_directory_path() / "usd-geo-plugins-test.laz";
+        std::filesystem::temp_directory_path() / "usd-pointcloud-plugins-test.laz";
     {
         lazperf::writer::named_file::config config;
         config.scale = {0.01, 0.01, 0.01};

@@ -1,10 +1,10 @@
-# OpenUSD Geospatial Geometry Plugins
+# OpenUSD Point Cloud Plugins
 
-[![ost source ci](https://github.com/animu-sphere/usd-geo-plugins/actions/workflows/ost-source-ci.yml/badge.svg?branch=main)](https://github.com/animu-sphere/usd-geo-plugins/actions/workflows/ost-source-ci.yml)
+[![ost source ci](https://github.com/animu-sphere/usd-pointcloud-plugins/actions/workflows/ost-source-ci.yml/badge.svg?branch=main)](https://github.com/animu-sphere/usd-pointcloud-plugins/actions/workflows/ost-source-ci.yml)
 
-OpenUSD FileFormat Plugins for LAS and LAZ point clouds, with shared
-geospatial metadata and point-cloud contracts for surveying and mapping
-workflows.
+OpenUSD FileFormat Plugins and libraries for point-cloud data, including LAS,
+LAZ, spatial tiling, payload-backed authoring, and shared point-cloud contracts
+for surveying, mapping, scanning, and 3D data-exchange workflows.
 
 **What it does**
 
@@ -59,8 +59,9 @@ to ASCII USD identifiers; original names remain in header metadata. See the
 The complete matrix, including VLR, CRS, and authored USD attributes, is in
 the [capability matrix](docs/reference/CAPABILITY_MATRIX.md).
 
-COPC, PLY, delimited text point files (XYZ, PTS, CSV), E57, GeoTIFF and DEM
-elevation, and COG are planned in that order; see
+COPC, PLY, delimited text point files (XYZ, PTS, CSV), and E57 are planned in
+that order; terrain, raster, and vector formats are future repository
+candidates. See
 [format support order](docs/roadmap/format-support-order.md).
 
 ## Quick Start

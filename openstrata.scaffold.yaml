@@ -6,4 +6,4 @@ generator:
   name: ost
   version: 0.20.0
 inputs:
-  name: usd-geo-plugins
+  name: usd-pointcloud-plugins

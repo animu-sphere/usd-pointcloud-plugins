@@ -1,5 +1,5 @@
 [project]
-name = "usd-geo-plugins"
+name = "usd-pointcloud-plugins"
 version = "0.1.0"
 
 [requires]

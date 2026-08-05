@@ -177,5 +177,5 @@ libraries directly. The complete before/after table and checklist are in
 - Tile/LOD streaming and a USDC cache are not included in this release.
 - OpenUSD is a required runtime dependency for the USD targets.
 
-[0.1.0]: https://github.com/animu-sphere/usd-geo-plugins/releases/tag/v0.1.0
-[0.2.0]: https://github.com/animu-sphere/usd-geo-plugins/releases/tag/v0.2.0
+[0.1.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.1.0
+[0.2.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.2.0

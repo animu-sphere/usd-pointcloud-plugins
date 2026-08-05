@@ -1,6 +1,6 @@
 # Workspace contract
 
-This is the binding structural contract for `usd-geo-plugins`. It fixes module
+This is the binding structural contract for `usd-pointcloud-plugins`. It fixes module
 identities, dependency directions, root responsibilities, artifact naming, and
 change invariants. A structural change that contradicts this document must
 change this document first.
@@ -23,8 +23,11 @@ Status: `usdGeoCore`, `usdPointCloudCore`, `usdLas`, `usdLaz`, and
 | `usdPointCloudTiling` | `libs/usd-pointcloud-tiling` | plain library | implemented (initial contracts) | Format-independent spatial partitioning and bounded-memory tile preparation: fixed-grid tile keys and source-coordinate bucketing are implemented; tile buffering and spill-to-disk, tile manifests, fixed-stride LOD sampling, deterministic tile and level ordering, and cleanup of incomplete temporary output remain. See the [streaming and tiling plan](../roadmap/streaming-and-tiling.md). |
 | `usdGeoCache` | `libs/usd-geo-cache` | plain library | reserved, not implemented | Stable cache keys, USDC tile layout, cache lookup and invalidation. |
 | `usdCopc`, `usdPly`, `usdAsciiPoints`, `usdE57` | `libs/` | plain libraries | reserved, not implemented | Additional point-cloud readers targeting the same shared contracts. `usdCopc` is a candidate, not a commitment; the alternative is an isolated COPC module inside `usdLaz`. |
-| `usdTerrainCore`, `usdVectorCore` | `libs/` | plain libraries | reserved, not implemented | Raster/terrain and vector-feature contracts. These are a later family of work: raster and terrain data require different storage and authoring contracts from point clouds. |
-| `geospatial-copc`, `geospatial-ply`, `geospatial-points-text`, `geospatial-e57`, `geospatial-geotiff`, `geospatial-geojson` | `plugins/` | plugin bundles | reserved, not implemented | Future FileFormat Plugin adapters, in the order fixed by [format support order](../roadmap/format-support-order.md). |
+| `geospatial-copc`, `geospatial-ply`, `geospatial-points-text`, `geospatial-e57` | `plugins/` | reserved, not implemented | Future point-cloud FileFormat Plugin adapters, in the order fixed by [format support order](../roadmap/format-support-order.md). |
+
+Terrain, raster, and vector contracts belong to future repository candidates:
+`usd-terrain-plugins` and `usd-vector-plugins`. They are not reserved modules
+or active roadmap phases in this repository.
 
 None of the `libs/` modules is a plugin: none has a `plugInfo.json`, none
 performs plugin registration, and only `usdPointCloudAuthoring` exposes OpenUSD

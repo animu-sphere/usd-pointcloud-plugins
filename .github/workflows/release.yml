@@ -234,8 +234,8 @@ jobs:
         run: |
           set -euo pipefail
           git archive --format=tar.gz \
-            --prefix="usd-geo-plugins-${VERSION}/" \
-            -o "dist-release/usd-geo-plugins-${VERSION}-src.tar.gz" "$TAG"
+            --prefix="usd-pointcloud-plugins-${VERSION}/" \
+            -o "dist-release/usd-pointcloud-plugins-${VERSION}-src.tar.gz" "$TAG"
           cd dist-release
           find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%P\n' | LC_ALL=C sort | xargs sha256sum > SHA256SUMS
           sha256sum -c SHA256SUMS
@@ -274,6 +274,6 @@ jobs:
             fi
           fi
           gh release create "$TAG" --draft \
-            --title "OpenUSD Geospatial Geometry Plugins $TAG" \
+            --title "$TAG" \
             --notes-file dist-release/RELEASE_NOTES.md \
             dist-release/*
