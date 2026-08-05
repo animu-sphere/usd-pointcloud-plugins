@@ -1,4 +1,4 @@
-# USD Geo Plugins documentation
+# USD Point Cloud Plugins documentation
 
 Documentation is organized by responsibility, following the same taxonomy as
 `usd-3dgs-plugins`, so current contracts, procedures, plans, and historical

@@ -101,7 +101,7 @@ void TestFileFormatIntegration() {
     Check(format);
 
     const auto path = std::filesystem::temp_directory_path() /
-                      "usd_geo_plugins_conformance.las";
+                      "usd_pointcloud_plugins_conformance.las";
     {
         const auto bytes = MakeFixture();
         std::ofstream output(path, std::ios::binary);
@@ -303,7 +303,7 @@ void TestMissingFileDiagnostic() {
     const auto uniqueSuffix =
         std::chrono::high_resolution_clock::now().time_since_epoch().count();
     const auto path = std::filesystem::temp_directory_path() /
-                      ("usd_geo_plugins_missing_" +
+                      ("usd_pointcloud_plugins_missing_" +
                        std::to_string(uniqueSuffix) + ".las");
     const auto format = pxr::SdfFileFormat::FindByExtension("sample.las");
     Check(format);

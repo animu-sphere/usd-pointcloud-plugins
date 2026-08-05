@@ -4,9 +4,9 @@ file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION"
      _usd_geo_version LIMIT_COUNT 1)
 string(STRIP "${_usd_geo_version}" _usd_geo_version)
 
-project(usd-geo-plugins
+project(usd-pointcloud-plugins
     VERSION ${_usd_geo_version}
-    DESCRIPTION "OpenUSD plugins for geospatial and surveying data"
+    DESCRIPTION "OpenUSD file format plugins and libraries for point cloud data"
     LANGUAGES CXX)
 
 if(NOT CMAKE_CXX_STANDARD)
@@ -15,7 +15,7 @@ endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(USDGEO_BUILD_TESTS "Build usd-geo-plugins tests" ON)
+option(USDGEO_BUILD_TESTS "Build usd-pointcloud-plugins tests" ON)
 if(USDGEO_BUILD_TESTS)
     enable_testing()
 endif()

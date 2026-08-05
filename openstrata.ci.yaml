@@ -1,4 +1,4 @@
-# OpenStrata CI support matrix for usd-geo-plugins.
+# OpenStrata CI support matrix for usd-pointcloud-plugins.
 #
 # This file is the CI contract. Regenerate .github/workflows/ost-*.yml with
 # `ost ci generate github` after changing it. Do not hand-edit CI semantics in

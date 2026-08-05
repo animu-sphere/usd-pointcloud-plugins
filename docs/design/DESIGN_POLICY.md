@@ -2,22 +2,27 @@
 
 Last updated: 2026-08-01
 
-This document is the standing development policy for `usd-geo-plugins`. The
+This document is the standing development policy for `usd-pointcloud-plugins`. The
 roadmap, format support order, and architecture documents refine it; they do
 not override it.
 
 ## 1. Purpose
 
-`usd-geo-plugins` provides OpenUSD FileFormat Plugins that bring geospatial,
-survey, and point-cloud data into OpenUSD workflows.
+`usd-pointcloud-plugins` provides OpenUSD FileFormat Plugins that bring point-
+cloud data into OpenUSD workflows for surveying, scanning, mapping, and 3D
+data exchange.
 
-LAS and LAZ are the initial targets. The intended coverage is wider: COPC, PLY,
-delimited text point formats (XYZ, PTS, CSV), E57, GeoTIFF and DEM elevation,
-COG, and vector formats. The shared contracts must therefore not depend on a
-single format or a single OpenUSD version, so that those formats, plus tiling,
-LOD, caching, and streaming, can be added later without rewriting the readers.
+LAS and LAZ are the initial targets. The intended point-cloud coverage is
+wider: COPC, PLY, delimited text point formats (XYZ, PTS, CSV), and E57. The
+shared contracts must therefore not depend on a single format or a single
+OpenUSD version, so that those formats, plus tiling, LOD, caching, and
+streaming, can be added later without rewriting the readers.
 The order and entry gates are in
 [format support order](../roadmap/format-support-order.md).
+
+Terrain, raster, and vector formats are outside this repository's active scope.
+Potential future repositories for those data models are recorded in the
+roadmap rather than treated as point-cloud release gates.
 
 The repository is not a one-shot conversion tool. The goal is a foundation
 where an OpenUSD application can reference, inspect, and progressively load
@@ -30,8 +35,8 @@ v0.1.0 is a complete first public release. The properties to preserve are:
 - Format parsing is separated from OpenUSD API usage.
 - LAS and LAZ share one point-cloud authoring path.
 - The core libraries and readers build and test without OpenUSD.
-- Geospatial, point-cloud, USD authoring, and plugin responsibilities have
-  clear boundaries.
+- Geospatial metadata, point-cloud, USD authoring, and plugin responsibilities
+  have clear boundaries.
 - License boundaries for test data, third-party code, and project code are
   recorded.
 - Implementation status and roadmap are documented.
@@ -224,9 +229,8 @@ additions:
   attribute availability belong in the shared point-cloud contracts so that
   LAS remains the single-scan case of the same model.
 
-Terrain rasters use the shared CRS, unit, and local-origin contracts through
-`usdTerrainCore`, so elevation and point clouds can be placed on one stage
-without a second coordinate model.
+Future terrain and raster repositories may reuse the geospatial metadata
+contracts once their own storage and authoring boundaries are established.
 
 ## 5. Tile and LOD Policy
 

@@ -1,4 +1,4 @@
-# usd-geo-plugins Roadmap
+# usd-pointcloud-plugins Roadmap
 
 This directory breaks the [design policy](../design/DESIGN_POLICY.md) into
 actionable milestones. The policy states the standing direction; this
@@ -46,8 +46,8 @@ is in [streaming and tiling](streaming-and-tiling.md).
 COPC follows LAS and LAZ because it validates native spatial hierarchy and
 partial loading using the infrastructure completed for `v0.2.x`. E57 follows
 COPC and reuses the same streaming, tiling, diagnostics, and authoring
-infrastructure. GeoTIFF, DEM, and COG remain a later family of work because
-raster and terrain data require different storage and authoring contracts from
+infrastructure. Terrain, raster, and vector formats are future repository
+candidates because they require different storage and authoring contracts from
 point clouds.
 
 ## Release tracks
@@ -109,9 +109,6 @@ factored into a common implementation.
 | 4c | COPC read support | Planned for `v0.3.0` | Local read-only support first; reuse the `v0.2.x` contracts and preserve the native hierarchy; no writer or remote range source initially |
 | 5 | PLY and delimited text point clouds (XYZ, PTS, CSV) | Not started | Needs the generic attribute model and file-format arguments |
 | 6 | E57 and multi-scan point clouds | Not started | Extends the point-cloud contracts to several scans per file |
-| 7 | GeoTIFF, DEM, and COG terrain | Not started | First non-point-cloud domain |
-| 8 | GeoJSON and FlatGeobuf vector data | Not started | |
-| 9 | GeoPackage, Shapefile, and additional interoperability formats | Deferred | |
 
 ## Workstreams
 
@@ -127,7 +124,7 @@ maps onto the phases above.
 | W5 | Shared tile and LOD contracts, deterministic sampling, OpenUSD 26.08 `usdLod` authoring | 4a | Complete |
 | W6 | `PointStream`, spill-backed spatial tiling, payload generation during file open, spatial tile arguments, and LAS/LAZ stabilization | 4b | `v0.2.x` stabilization in progress |
 | W7 | COPC hierarchy, partial reads, and local COPC FileFormat integration | 4c | Planned for `v0.3.0` |
-| W8 | USDC cache, remote byte-range sources, PLY, delimited text, E57, terrain rasters, and later formats | 3-7 | Deferred until the `v0.3.0` COPC boundary is stable |
+| W8 | USDC cache, remote byte-range sources, PLY, delimited text, and E57 | 3-6 | Deferred until the `v0.3.0` COPC boundary is stable |
 
 W1 through W5 stabilized the shared point schema, the streaming reader API, and
 the public LOD representation. W6 now stabilizes how much memory a tiled read
@@ -158,3 +155,8 @@ Related documents outside this directory:
 - [Coordinate model decision](../adr/0001-coordinate-model.md)
 - [LAZ codec decision](../adr/0002-laz-codec.md)
 - [Dynamic file format decision](../adr/0003-dynamic-file-format.md)
+
+## Future Repository Candidates
+
+- `usd-terrain-plugins`: GeoTIFF elevation, DEM, COG, heightmaps, and terrain meshes
+- `usd-vector-plugins`: GeoJSON, FlatGeobuf, GeoPackage, and Shapefile

@@ -4,6 +4,25 @@ Breaking changes to names, paths, and identifiers, and what to do about them.
 The project is pre-1.0, so cleanup is appropriate — but every migration is
 recorded here explicitly rather than left for a consumer to discover.
 
+## Unreleased: repository rename
+
+The GitHub repository was renamed from `animu-sphere/usd-geo-plugins` to
+`animu-sphere/usd-pointcloud-plugins`. This is a repository and documentation
+identity change only; it does not rename libraries, CMake targets, plugin
+bundles, USD attributes, diagnostics, or file-format arguments.
+
+Update local remotes and any external links:
+
+```powershell
+git remote set-url origin https://github.com/animu-sphere/usd-pointcloud-plugins.git
+```
+
+GitHub redirects the old repository URL after the rename, but badges, clone
+instructions, release URLs, and automation should use the new URL.
+
+The `geospatial-las` and `geospatial-laz` bundle names remain unchanged in
+this migration. Bundle renaming, if needed, is a separate compatibility event.
+
 ## Unreleased: module and bundle rename
 
 The point-cloud authoring library and both plugin bundles were renamed so that

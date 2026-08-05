@@ -227,7 +227,7 @@ void TestValidation() {
 
 void TestRangeReader() {
     const auto filename =
-        std::filesystem::temp_directory_path() / "usd-geo-plugins-test.las";
+        std::filesystem::temp_directory_path() / "usd-pointcloud-plugins-test.las";
     auto bytes = MakeHeader(2, 0);
     Write(bytes, 107, std::uint32_t{3});
     for (int index = 0; index < 3; ++index) {
@@ -302,7 +302,7 @@ void TestRangeReader() {
 
 void TestPointStream() {
     const auto filename =
-        std::filesystem::temp_directory_path() / "usd-geo-plugins-stream.las";
+        std::filesystem::temp_directory_path() / "usd-pointcloud-plugins-stream.las";
     auto bytes = MakeHeader(2, 3);
     Write(bytes, 107, std::uint32_t{5});
     for (int index = 0; index < 5; ++index) {
@@ -361,7 +361,7 @@ void TestPointStream() {
 
 void TestPointStreamDiagnostics() {
     const auto filename =
-        std::filesystem::temp_directory_path() / "usd-geo-plugins-invalid.las";
+        std::filesystem::temp_directory_path() / "usd-pointcloud-plugins-invalid.las";
     {
         std::ofstream output(filename, std::ios::binary);
         output.write("not LAS", 7);
@@ -378,7 +378,7 @@ void TestPointStreamDiagnostics() {
 
 void TestReaderFailureKinds() {
     const auto filename =
-        std::filesystem::temp_directory_path() / "usd-geo-plugins-evlr-test.las";
+        std::filesystem::temp_directory_path() / "usd-pointcloud-plugins-evlr-test.las";
     auto bytes = MakeHeader(4, 6);
     Write(bytes, 235, std::uint64_t{375});
     Write(bytes, 243, std::uint32_t{1});
