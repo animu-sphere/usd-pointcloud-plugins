@@ -204,6 +204,9 @@ publishes a deterministic `<root>.manifest` sidecar after payload generation
 and before the root layer; the sidecar records normalized generation settings
 and the relative output asset list. Source content fingerprinting and resume
 support remain subsequent steps and do not change the reader contracts.
+An internal transaction marker lets the next invocation remove incomplete
+temporary output after an interrupted process, while completed root and
+manifest pairs are left intact.
 
 ## 8. Out of scope for the first streaming release
 

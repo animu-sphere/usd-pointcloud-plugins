@@ -7,6 +7,13 @@ file(MAKE_DIRECTORY "${test_root}")
 set(output_root "${test_root}/PointCloud.usda")
 set(output_payloads "${test_root}/PointCloud_payloads")
 set(output_manifest "${output_root}.manifest")
+set(output_transaction "${output_root}.transaction")
+
+file(MAKE_DIRECTORY "${output_payloads}" "${output_transaction}")
+file(WRITE "${output_manifest}" "stale manifest")
+file(WRITE "${test_root}/PointCloud.tmp.usda" "stale root")
+file(WRITE "${output_manifest}.tmp" "stale temporary manifest")
+file(WRITE "${output_payloads}/stale.usdc" "stale payload")
 
 execute_process(
     COMMAND "${converter}" "${fixture}" "${output_root}"
@@ -23,9 +30,25 @@ if(NOT convert_error STREQUAL "")
     message(FATAL_ERROR "converter emitted diagnostics: ${convert_error}")
 endif()
 if(NOT EXISTS "${output_root}" OR NOT EXISTS "${output_payloads}" OR
-   NOT EXISTS "${output_manifest}")
+   NOT EXISTS "${output_manifest}" OR EXISTS "${output_transaction}")
     message(FATAL_ERROR "converter did not publish the expected output bundle")
 endif()
+
+file(READ "${output_manifest}" manifest_contents)
+foreach(expected_line
+        "format=usd-pointcloud-manifest-v1"
+        "input.file=conformance.las"
+        "argument.tile=true"
+        "argument.tileSize=1.000000"
+        "argument.tileMemoryLimit=1024"
+        "argument.attributes=intensity,xyz"
+        "output.payloadDirectory=PointCloud_payloads"
+        "payload.file=PointCloud_payloads/")
+    string(FIND "${manifest_contents}" "${expected_line}" expected_position)
+    if(expected_position EQUAL -1)
+        message(FATAL_ERROR "manifest is missing: ${expected_line}")
+    endif()
+endforeach()
 
 file(SHA256 "${output_manifest}" first_manifest_hash)
 

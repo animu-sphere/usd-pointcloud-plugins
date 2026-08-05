@@ -66,6 +66,81 @@ std::filesystem::path ManifestPath(
     return std::filesystem::path(outputPath.string() + ".manifest");
 }
 
+std::filesystem::path TransactionPath(
+    const std::filesystem::path& outputPath) {
+    return std::filesystem::path(outputPath.string() + ".transaction");
+}
+
+bool RecoverIncompleteTransaction(
+    const std::filesystem::path& outputPath,
+    const std::filesystem::path& manifestPath,
+    const std::filesystem::path& temporaryRootPath,
+    const std::filesystem::path& temporaryManifestPath,
+    const std::filesystem::path& payloadDirectory,
+    const std::filesystem::path& transactionPath,
+    std::string& errorMessage) {
+    std::error_code error;
+    const auto transactionExists =
+        std::filesystem::exists(transactionPath, error);
+    if (error) {
+        errorMessage = "unable to inspect conversion transaction: " +
+                       error.message();
+        return false;
+    }
+    if (!transactionExists) return true;
+
+    const auto outputExists = std::filesystem::exists(outputPath, error);
+    if (error) {
+        errorMessage = "unable to inspect incomplete conversion root: " +
+                       error.message();
+        return false;
+    }
+    const auto manifestExists = std::filesystem::exists(manifestPath, error);
+    if (error) {
+        errorMessage = "unable to inspect incomplete conversion: " +
+                       error.message();
+        return false;
+    }
+    if (outputExists && manifestExists) {
+        std::filesystem::remove_all(transactionPath, error);
+        if (error) {
+            errorMessage = "unable to remove completed conversion marker: " +
+                           error.message();
+            return false;
+        }
+        return true;
+    }
+    if (outputExists) {
+        errorMessage =
+            "conversion transaction has a root layer without a manifest";
+        return false;
+    }
+
+    const std::filesystem::path artifacts[] = {
+        manifestPath, temporaryRootPath, temporaryManifestPath};
+    for (const auto& artifact : artifacts) {
+        std::filesystem::remove(artifact, error);
+        if (error) {
+            errorMessage = "unable to remove incomplete conversion artifact: " +
+                           error.message();
+            return false;
+        }
+    }
+    std::filesystem::remove_all(payloadDirectory, error);
+    if (error) {
+        errorMessage = "unable to remove incomplete payload directory: " +
+                       error.message();
+        return false;
+    }
+    std::filesystem::remove_all(transactionPath, error);
+    if (error) {
+        errorMessage = "unable to remove conversion transaction marker: " +
+                       error.message();
+        return false;
+    }
+    return true;
+}
+
 std::string RelativeManifestPath(const std::filesystem::path& base,
                                  const std::filesystem::path& path) {
     return std::filesystem::relative(path, base).generic_string();
@@ -230,10 +305,25 @@ int main(int argc, char** argv) {
     payloadDirectory = std::filesystem::absolute(payloadDirectory);
     arguments["payloadDirectory"] = payloadDirectory.string();
 
+    const auto temporaryRootPath = outputPath.parent_path() /
+        (outputPath.stem().string() + ".tmp.usda");
+    const auto temporaryManifestPath =
+        std::filesystem::path(manifestPath.string() + ".tmp");
+    const auto transactionPath = TransactionPath(outputPath);
     std::error_code error;
+    std::string recoveryError;
+    if (!RecoverIncompleteTransaction(
+            outputPath, manifestPath, temporaryRootPath,
+            temporaryManifestPath, payloadDirectory, transactionPath,
+            recoveryError)) {
+        std::cerr << "Unable to recover incomplete conversion: "
+                  << recoveryError << "\n";
+        return 2;
+    }
     if (std::filesystem::exists(outputPath, error) || error ||
         std::filesystem::exists(manifestPath, error) || error ||
-        std::filesystem::exists(payloadDirectory, error) || error) {
+        std::filesystem::exists(payloadDirectory, error) || error ||
+        std::filesystem::exists(transactionPath, error) || error) {
         std::cerr << "Output or payload directory already exists\n";
         return 2;
     }
@@ -282,21 +372,29 @@ int main(int argc, char** argv) {
     }
 
     std::signal(SIGINT, HandleInterrupt);
-    const auto temporaryRootPath = outputPath.parent_path() /
-        (outputPath.stem().string() + ".tmp.usda");
-    const auto temporaryManifestPath =
-        std::filesystem::path(manifestPath.string() + ".tmp");
-    if (std::filesystem::exists(temporaryRootPath, error) || error ||
-        std::filesystem::exists(temporaryManifestPath, error) || error) {
-        std::cerr << "Temporary output already exists: "
-                  << temporaryRootPath.string() << "\n";
+    if (!std::filesystem::create_directory(transactionPath, error) || error) {
+        std::cerr << "Unable to create conversion transaction marker: "
+                  << error.message() << "\n";
         return 2;
     }
     auto layer = pxr::SdfLayer::CreateAnonymous("PointCloud.tmp.usda");
     if (!layer) {
         std::cerr << "Unable to create temporary root layer\n";
+        std::filesystem::remove_all(transactionPath, error);
         return 1;
     }
+
+    const auto cleanup = [&](bool removePublishedRoot = false) {
+        layer = nullptr;
+        if (removePublishedRoot) {
+            std::filesystem::remove(outputPath, error);
+        }
+        std::filesystem::remove(temporaryRootPath, error);
+        std::filesystem::remove(temporaryManifestPath, error);
+        std::filesystem::remove(manifestPath, error);
+        std::filesystem::remove_all(payloadDirectory, error);
+        std::filesystem::remove_all(transactionPath, error);
+    };
 
     const usdgeo::PointCloudPayloadOptions payloadOptions{
         payloadDirectory.string(), temporaryRootPath.string(),
@@ -309,17 +407,13 @@ int main(int argc, char** argv) {
             std::cerr << "Conversion cancelled\n";
         }
         PrintDiagnostics(diagnostics);
-        layer = nullptr;
-        std::filesystem::remove(temporaryRootPath, error);
-        std::filesystem::remove_all(payloadDirectory, error);
+        cleanup();
         return 1;
     }
     layer->SetIdentifier(temporaryRootPath.string());
     if (!layer->Save()) {
         std::cerr << "Unable to save generated root layer\n";
-        layer = nullptr;
-        std::filesystem::remove(temporaryRootPath, error);
-        std::filesystem::remove_all(payloadDirectory, error);
+        cleanup();
         return 1;
     }
     std::string manifestError;
@@ -327,18 +421,12 @@ int main(int argc, char** argv) {
                        payloadDirectory, request, manifestError)) {
         std::cerr << "Unable to write conversion manifest: " << manifestError
                   << "\n";
-        layer = nullptr;
-        std::filesystem::remove(temporaryRootPath, error);
-        std::filesystem::remove(temporaryManifestPath, error);
-        std::filesystem::remove_all(payloadDirectory, error);
+        cleanup();
         return 1;
     }
     if (interrupted != 0) {
         std::cerr << "Conversion cancelled\n";
-        layer = nullptr;
-        std::filesystem::remove(temporaryRootPath, error);
-        std::filesystem::remove(temporaryManifestPath, error);
-        std::filesystem::remove_all(payloadDirectory, error);
+        cleanup();
         return 1;
     }
     layer = nullptr;
@@ -346,20 +434,27 @@ int main(int argc, char** argv) {
     if (error) {
         std::cerr << "Unable to publish conversion manifest: "
                   << error.message() << "\n";
-        std::filesystem::remove(temporaryManifestPath, error);
-        std::filesystem::remove(temporaryRootPath, error);
-        std::filesystem::remove_all(payloadDirectory, error);
+        cleanup();
+        return 1;
+    }
+    if (interrupted != 0) {
+        std::cerr << "Conversion cancelled\n";
+        cleanup();
         return 1;
     }
     std::filesystem::rename(temporaryRootPath, outputPath, error);
     if (error) {
         std::cerr << "Unable to publish generated root layer: "
                   << error.message() << "\n";
-        std::filesystem::remove(temporaryRootPath, error);
-        std::filesystem::remove(manifestPath, error);
-        std::filesystem::remove_all(payloadDirectory, error);
+        cleanup();
         return 1;
     }
+    if (interrupted != 0) {
+        std::cerr << "Conversion cancelled\n";
+        cleanup(true);
+        return 1;
+    }
+    std::filesystem::remove_all(transactionPath, error);
 
     std::cout << "Generated " << outputPath.string() << "\n";
     std::cout << "Payloads: " << payloadDirectory.string() << "\n";
