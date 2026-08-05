@@ -268,12 +268,11 @@ See the [implementation status](docs/roadmap/implementation-status.md) and
 
 ## Status
 
-Latest release: **v0.2.1** — LAS/LAZ bounds and classification filters, EPSG
-inference with conflicting-CRS diagnostics, explicit tiled conversion with
-deterministic manifests, and interruption-safe payload cleanup. The v0.2.0
+Latest release: **v0.2.2** — corrected package and product version metadata;
+runtime behavior is unchanged from v0.2.1. The v0.2.0
 module and bundle rename is recorded in
 [MIGRATION.md](docs/compatibility/MIGRATION.md). See the
-[release record](docs/releases/v0.2.1.md) and [CHANGELOG.md](CHANGELOG.md).
+[release record](docs/releases/v0.2.2.md) and [CHANGELOG.md](CHANGELOG.md).
 
 Direction is fixed in the [design policy](docs/design/DESIGN_POLICY.md); the
 structure is fixed in the

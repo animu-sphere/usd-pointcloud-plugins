@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here.
 
+## [0.2.2] - 2026-08-06
+
+### Fixed
+
+- Corrected the OpenStrata workspace, plugin manifests, and plugin CMake
+  project versions so platform packages and product archives are named
+  `0.2.2`.
+- Added release metadata validation to the release workflow and documented the
+  version update and tag order.
+
+### Compatibility
+
+- No runtime, file-format, or public API behavior changed from v0.2.1.
+
 ## [0.2.1] - 2026-08-06
 
 ### Added
@@ -218,3 +232,5 @@ libraries directly. The complete before/after table and checklist are in
 
 [0.1.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.1.0
 [0.2.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.2.0
+[0.2.1]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.2.1
+[0.2.2]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.2.2

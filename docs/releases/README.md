@@ -9,6 +9,7 @@ Release records are history and are not rewritten after publication.
 | v0.1.0 | 2026-08-01 | [v0.1.0.md](v0.1.0.md) — shared point-cloud contracts, LAS and LAZ readers, and the OpenUSD FileFormat Plugin integration |
 | v0.2.0 | 2026-08-05 | [v0.2.0.md](v0.2.0.md) — LAS 1.4 and Extra Bytes coverage, LOD authoring, metadata-only reads, and bounded-memory tiled streaming |
 | v0.2.1 | 2026-08-06 | [v0.2.1.md](v0.2.1.md) — point filters, EPSG/CRS resolution, conversion manifests, and tiled cleanup validation |
+| v0.2.2 | 2026-08-06 | [v0.2.2.md](v0.2.2.md) — corrected package and product version metadata; no runtime behavior changes |
 
 Prepare the record in the release commit immediately before creating its tag.
 The tag pins the source commit and the record pins the release scope; runtime
@@ -72,5 +73,5 @@ The release workflow validates the tag against `VERSION` and checks out the
 tagged commit on every platform. Changes made after tagging are therefore not
 included in that release build.
 
-The v0.2.0 and v0.2.1 records are finalized for their tagged commits and are
-not rewritten after publication.
+The v0.2.0, v0.2.1, and v0.2.2 records are finalized for their tagged commits
+and are not rewritten after publication.
