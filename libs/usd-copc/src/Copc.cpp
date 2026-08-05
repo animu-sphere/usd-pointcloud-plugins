@@ -9,7 +9,9 @@
 #include <fstream>
 #include <functional>
 #include <limits>
+#include <map>
 #include <optional>
+#include <string>
 #include <type_traits>
 #include <unordered_set>
 #include <utility>
@@ -139,6 +141,55 @@ bool HasZeroRange(const std::vector<std::uint8_t>& bytes,
     return true;
 }
 
+bool ContainsBounds(const usdgeo::SpatialBounds& outer,
+                    const usdgeo::SpatialBounds& inner) noexcept {
+    return outer.minimum.x <= inner.minimum.x &&
+           outer.minimum.y <= inner.minimum.y &&
+           outer.minimum.z <= inner.minimum.z &&
+           outer.maximum.x >= inner.maximum.x &&
+           outer.maximum.y >= inner.maximum.y &&
+           outer.maximum.z >= inner.maximum.z;
+}
+
+bool BuildNodeBounds(const usdcopc::CopcHeader& header,
+                     const usdcopc::CopcHierarchyEntry& entry,
+                     usdgeo::SpatialBounds& bounds,
+                     double& spacing) {
+    if (entry.level < 0 || entry.level > 31 || entry.x < 0 || entry.y < 0 ||
+        entry.z < 0) {
+        return false;
+    }
+    const auto gridSize = std::int64_t{1} << entry.level;
+    if (entry.x >= gridSize || entry.y >= gridSize || entry.z >= gridSize) {
+        return false;
+    }
+
+    const auto side = std::ldexp(header.info.halfSize * 2.0, -entry.level);
+    spacing = std::ldexp(header.info.spacing, -entry.level);
+    if (!std::isfinite(side) || side <= 0.0 || !std::isfinite(spacing) ||
+        spacing <= 0.0) {
+        return false;
+    }
+
+    const auto rootMinimum = usdgeo::Vec3d{
+        header.info.centerX - header.info.halfSize,
+        header.info.centerY - header.info.halfSize,
+        header.info.centerZ - header.info.halfSize};
+    bounds.minimum = {
+        rootMinimum.x + static_cast<double>(entry.x) * side,
+        rootMinimum.y + static_cast<double>(entry.y) * side,
+        rootMinimum.z + static_cast<double>(entry.z) * side};
+    bounds.maximum = {bounds.minimum.x + side, bounds.minimum.y + side,
+                      bounds.minimum.z + side};
+    return bounds.IsValid();
+}
+
+bool SameTile(const usdgeo::TileId& left,
+              const usdgeo::TileId& right) noexcept {
+    return left.level == right.level && left.x == right.x &&
+           left.y == right.y && left.z == right.z;
+}
+
 } // namespace
 
 namespace usdcopc {
@@ -173,6 +224,52 @@ bool CopcHeader::IsValid() const noexcept {
            info.rootHierarchySize % kHierarchyEntrySize == 0 &&
            IsFileRangeValid(fileSize, info.rootHierarchyOffset,
                             info.rootHierarchySize);
+}
+
+bool CopcNode::IsValid() const noexcept {
+    if (!tile.IsValid() || !bounds.IsValid() || !std::isfinite(spacing) ||
+        spacing <= 0.0 || hasPointData == hasHierarchyPage) {
+        return false;
+    }
+    if (hasPointData &&
+        (pointCount == 0 || pointDataOffset == 0 || pointDataSize == 0)) {
+        return false;
+    }
+    if (hasHierarchyPage &&
+        (hierarchyPageOffset == 0 || hierarchyPageSize == 0)) {
+        return false;
+    }
+    for (std::size_t index = 0; index < children.size(); ++index) {
+        if (!children[index].IsValid()) {
+            return false;
+        }
+        for (std::size_t previous = 0; previous < index; ++previous) {
+            if (SameTile(children[index], children[previous])) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool CopcHierarchy::IsValid() const noexcept {
+    if (!bounds.IsValid() || !std::isfinite(spacing) || spacing <= 0.0 ||
+        nodes.empty()) {
+        return false;
+    }
+    for (std::size_t index = 0; index < nodes.size(); ++index) {
+        const auto& node = nodes[index];
+        if (!node.IsValid() || !ContainsBounds(bounds, node.bounds)) {
+            return false;
+        }
+        for (std::size_t previous = 0; previous < index; ++previous) {
+            if (SameTile(node.tile, nodes[previous].tile)) {
+                return false;
+            }
+        }
+    }
+    return nodes.front().tile.level == 0 && nodes.front().tile.x == 0 &&
+           nodes.front().tile.y == 0 && nodes.front().tile.z == 0;
 }
 
 CopcReader::CopcReader(std::string filename)
@@ -365,6 +462,85 @@ bool CopcReader::ReadHierarchy(
                       "COPC hierarchy point count does not match the LAS header count");
         failureKind_ = CopcReadFailure::Hierarchy;
         entries.clear();
+        return false;
+    }
+    return true;
+}
+
+bool CopcReader::BuildHierarchy(
+    const CopcHeader& header,
+    const std::vector<CopcHierarchyEntry>& entries,
+    CopcHierarchy& hierarchy,
+    std::vector<usdgeo::Diagnostic>& diagnostics) const {
+    hierarchy = {};
+    if (!header.IsValid() || entries.empty()) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                      "COPC hierarchy model requires a valid header and entries");
+        return false;
+    }
+
+    hierarchy.bounds = {{header.info.centerX - header.info.halfSize,
+                         header.info.centerY - header.info.halfSize,
+                         header.info.centerZ - header.info.halfSize},
+                        {header.info.centerX + header.info.halfSize,
+                         header.info.centerY + header.info.halfSize,
+                         header.info.centerZ + header.info.halfSize}};
+    hierarchy.spacing = header.info.spacing;
+    hierarchy.nodes.reserve(entries.size());
+
+    std::map<std::string, std::size_t> nodeIndices;
+    for (const auto& entry : entries) {
+        CopcNode node;
+        node.tile = {entry.level, entry.x, entry.y, entry.z};
+        if (!BuildNodeBounds(header, entry, node.bounds, node.spacing)) {
+            AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                          "COPC hierarchy node coordinates are invalid");
+            hierarchy = {};
+            return false;
+        }
+        if (entry.IsPointData()) {
+            node.hasPointData = true;
+            node.pointCount = static_cast<std::uint64_t>(entry.pointCount);
+            node.pointDataOffset = entry.offset;
+            node.pointDataSize = static_cast<std::uint64_t>(entry.byteSize);
+        } else if (entry.IsHierarchyPage()) {
+            node.hasHierarchyPage = true;
+            node.hierarchyPageOffset = entry.offset;
+            node.hierarchyPageSize = static_cast<std::uint64_t>(entry.byteSize);
+        } else {
+            AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                          "COPC hierarchy model cannot represent an empty node");
+            hierarchy = {};
+            return false;
+        }
+
+        const auto key = node.tile.ToString();
+        if (!nodeIndices.emplace(key, hierarchy.nodes.size()).second) {
+            AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                          "COPC hierarchy contains a duplicate node");
+            hierarchy = {};
+            return false;
+        }
+        hierarchy.nodes.push_back(std::move(node));
+    }
+
+    for (const auto& node : hierarchy.nodes) {
+        if (node.tile.level == 0) {
+            continue;
+        }
+        const usdgeo::TileId parent{
+            node.tile.level - 1, node.tile.x / 2, node.tile.y / 2,
+            node.tile.z / 2};
+        const auto parentIndex = nodeIndices.find(parent.ToString());
+        if (parentIndex != nodeIndices.end()) {
+            hierarchy.nodes[parentIndex->second].children.push_back(node.tile);
+        }
+    }
+
+    if (!hierarchy.IsValid()) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                      "COPC hierarchy model is invalid");
+        hierarchy = {};
         return false;
     }
     return true;
