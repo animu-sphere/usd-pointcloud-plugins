@@ -47,7 +47,7 @@ std::filesystem::path MakeFixture() {
 
 void TestFileFormatIntegration() {
     const auto plugInfo = std::filesystem::path(USDGEOLAZ_SOURCE_DIR) /
-                          "plugin" / "resources" / "geospatial-laz" /
+                          "plugin" / "resources" / "pointcloud-laz" /
                           "plugInfo.json";
     const auto plugins = pxr::PlugRegistry::GetInstance().RegisterPlugins(
         plugInfo.string());

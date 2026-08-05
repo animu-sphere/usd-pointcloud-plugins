@@ -32,8 +32,8 @@ with the host application. See the
 
 | Extension | Plugin | Current support |
 | --- | --- | --- |
-| `.las` | `geospatial-las` | LAS 1.2-1.4 headers, VLR/EVLR metadata, WKT CRS, GeoTIFF keys, point formats 0-10 |
-| `.laz` | `geospatial-laz` | Point formats 0-3 and 6-8 through the bundled `laz-perf` adapter |
+| `.las` | `pointcloud-las` | LAS 1.2-1.4 headers, VLR/EVLR metadata, WKT CRS, GeoTIFF keys, point formats 0-10 |
+| `.laz` | `pointcloud-laz` | Point formats 0-3 and 6-8 through the bundled `laz-perf` adapter |
 
 Point formats 4 and 5 require LAS 1.3 or newer; formats 6-10 require LAS 1.4.
 The LAZ adapter rejects waveform formats because the bundled `laz-perf` codec
@@ -81,8 +81,8 @@ ost test
 Build and verify a single bundle:
 
 ```powershell
-ost plugin build .\plugins\geospatial-las
-ost plugin test .\plugins\geospatial-las --up-to 4
+ost plugin build .\plugins\pointcloud-las
+ost plugin test .\plugins\pointcloud-las --up-to 4
 ```
 
 Build and test the libraries with plain CMake — without an OpenUSD runtime,
@@ -103,11 +103,11 @@ trailing slash makes OpenUSD search subdirectories, registering both bundles at
 once:
 
 ```powershell
-$env:PXR_PLUGINPATH_NAME = "C:\path\to\geospatial-las\plugin\resources\"
+$env:PXR_PLUGINPATH_NAME = "C:\path\to\pointcloud-las\plugin\resources\"
 ```
 
 ```bash
-export PXR_PLUGINPATH_NAME=/path/to/geospatial-las/plugin/resources/
+export PXR_PLUGINPATH_NAME=/path/to/pointcloud-las/plugin/resources/
 ```
 
 Then open a file with any OpenUSD tool, or reference it from a layer:
@@ -139,16 +139,16 @@ environment for a bundle, so a built bundle can be inspected in place:
 
 ```powershell
 ost plugin view `
-  .\plugins\geospatial-las `
+  .\plugins\pointcloud-las `
   C:\path\to\sample.las `
-  --with .\plugins\geospatial-laz
+  --with .\plugins\pointcloud-laz
 ```
 
 ```bash
 ost plugin view \
-  ./plugins/geospatial-las \
+  ./plugins/pointcloud-las \
   /path/to/sample.las \
-  --with ./plugins/geospatial-laz
+  --with ./plugins/pointcloud-laz
 ```
 
 `--with` makes one session discover both LAS and LAZ. Compact LOD profiles are
@@ -156,15 +156,15 @@ passed in the standard USD format-argument suffix:
 
 ```powershell
 ost plugin view `
-  .\plugins\geospatial-las `
+  .\plugins\pointcloud-las `
   'C:\path\to\sample.las:SDF_FORMAT_ARGS:lod=balanced' `
-  --with .\plugins\geospatial-laz
+  --with .\plugins\pointcloud-laz
 ```
 
 To run any other USD tool under the same composed environment:
 
 ```powershell
-ost plugin run .\plugins\geospatial-las -- usdcat --flatten sample.las -o sample.usda
+ost plugin run .\plugins\pointcloud-las -- usdcat --flatten sample.las -o sample.usda
 ```
 
 ### Authored result
@@ -262,7 +262,7 @@ structure is fixed in the
 
 ```text
 .las -> usdLas -----------\
-                           >-- usdPointCloudAuthoring -- geospatial-las/laz -> stage
+                           >-- usdPointCloudAuthoring -- pointcloud-las/laz -> stage
 .laz -> usdLaz -> usdLas -/
           ^
           usdGeoCore + usdPointCloudCore
@@ -284,8 +284,8 @@ libs/usd-pointcloud-core/       Point attribute, chunk, read-option, sampling, a
 libs/usd-pointcloud-authoring/  OpenUSD point-cloud, usdLod, and payload authoring
 libs/usd-las/                   LAS header, metadata, and point-record reader
 libs/usd-laz/                   LAZ chunk reader and laz-perf adapter
-plugins/geospatial-las/         LAS OpenUSD FileFormat Plugin
-plugins/geospatial-laz/         LAZ OpenUSD FileFormat Plugin
+plugins/pointcloud-las/         LAS OpenUSD FileFormat Plugin
+plugins/pointcloud-laz/         LAZ OpenUSD FileFormat Plugin
 docs/                           See docs/README.md for the documentation index
 ```
 
@@ -322,9 +322,9 @@ Start at the [documentation index](docs/README.md).
 
 Project code is licensed under the Apache License 2.0; see [LICENSE](LICENSE)
 and [NOTICE](NOTICE). The LAZ adapter incorporates `laz-perf 2.0.0`, which is
-distributed under LGPL-2.1, and the `geospatial-laz` plugin binary therefore
-contains LGPL-2.1 code. Redistributing `geospatial-laz` binaries carries the
+distributed under LGPL-2.1, and the `pointcloud-laz` plugin binary therefore
+contains LGPL-2.1 code. Redistributing `pointcloud-laz` binaries carries the
 obligations described in
 [binary distribution](docs/guides/DISTRIBUTION.md); see
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the applicable
-third-party terms. The `geospatial-las` plugin contains no laz-perf code.
+third-party terms. The `pointcloud-las` plugin contains no laz-perf code.

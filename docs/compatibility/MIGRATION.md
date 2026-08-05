@@ -20,8 +20,9 @@ git remote set-url origin https://github.com/animu-sphere/usd-pointcloud-plugins
 GitHub redirects the old repository URL after the rename, but badges, clone
 instructions, release URLs, and automation should use the new URL.
 
-The `geospatial-las` and `geospatial-laz` bundle names remain unchanged in
-this migration. Bundle renaming, if needed, is a separate compatibility event.
+The bundle rename is recorded below as a separate compatibility event. The
+repository rename itself does not alter libraries, CMake targets, USD
+attributes, diagnostics, or file-format arguments.
 
 ## Unreleased: module and bundle rename
 
@@ -33,8 +34,10 @@ authored output, diagnostic code, or file-format argument changed with it.
 
 ```text
 libs/usd-geo-usd    -> libs/usd-pointcloud-authoring
-plugins/geo-las     -> plugins/geospatial-las
-plugins/geo-laz     -> plugins/geospatial-laz
+plugins/geo-las          -> plugins/geospatial-las
+plugins/geo-laz          -> plugins/geospatial-laz
+plugins/geospatial-las   -> plugins/pointcloud-las
+plugins/geospatial-laz   -> plugins/pointcloud-laz
 ```
 
 ### Bundle and library identities
@@ -43,6 +46,8 @@ plugins/geo-laz     -> plugins/geospatial-laz
 | --- | --- |
 | bundle `geo-las` | bundle `geospatial-las` |
 | bundle `geo-laz` | bundle `geospatial-laz` |
+| bundle `geospatial-las` | bundle `pointcloud-las` |
+| bundle `geospatial-laz` | bundle `pointcloud-laz` |
 | library `usdGeoUsd` | library `usdPointCloudAuthoring` |
 | CMake package `usdGeoUsd` | CMake package `usdPointCloudAuthoring` |
 | CMake target `usdgeo::usd` | CMake target `usdpointcloud::authoring` |
@@ -54,10 +59,12 @@ plugins/geo-laz     -> plugins/geospatial-laz
 | `plugInfo.json` type `GeoLazFileFormat` | `plugInfo.json` type `UsdGeoLazFileFormat` |
 | resources `plugin/resources/geo-las/` | resources `plugin/resources/geospatial-las/` |
 | resources `plugin/resources/geo-laz/` | resources `plugin/resources/geospatial-laz/` |
+| resources `plugin/resources/geospatial-las/` | resources `plugin/resources/pointcloud-las/` |
+| resources `plugin/resources/geospatial-laz/` | resources `plugin/resources/pointcloud-laz/` |
 | headers `include/geolas/`, `include/geolaz/` | headers `include/usdgeolas/`, `include/usdgeolaz/` |
 | C++ `geolas::diagnostics`, `geolaz::diagnostics` | C++ `usdgeolas::diagnostics`, `usdgeolaz::diagnostics` |
 
-The external bundle name uses the explicit `geospatial` term while the internal
+The external bundle name uses the explicit `pointcloud` term while the internal
 C++ prefix stays `UsdGeo`, to avoid excessively long symbols. See
 [WORKSPACE.md §3](../architecture/WORKSPACE.md).
 
@@ -97,14 +104,14 @@ updated:
 # before
 $env:PXR_PLUGINPATH_NAME = "C:\path\to\geo-las\plugin\resources\"
 # after
-$env:PXR_PLUGINPATH_NAME = "C:\path\to\geospatial-las\plugin\resources\"
+$env:PXR_PLUGINPATH_NAME = "C:\path\to\pointcloud-las\plugin\resources\"
 ```
 
 ```bash
 # before
 export PXR_PLUGINPATH_NAME=/path/to/geo-las/plugin/resources/
 # after
-export PXR_PLUGINPATH_NAME=/path/to/geospatial-las/plugin/resources/
+export PXR_PLUGINPATH_NAME=/path/to/pointcloud-las/plugin/resources/
 ```
 
 Because the trailing-slash form makes OpenUSD search subdirectories, a path
@@ -117,13 +124,14 @@ that pointed at the parent `plugin/resources/` directory keeps working.
 ost plugin build .\plugins\geo-las
 ost plugin test .\plugins\geo-laz --up-to 4
 # after
-ost plugin build .\plugins\geospatial-las
-ost plugin test .\plugins\geospatial-laz --up-to 4
+ost plugin build .\plugins\pointcloud-las
+ost plugin test .\plugins\pointcloud-laz --up-to 4
 ```
 
 Packaged artifact names follow the bundle name, so
 `geo-las-<version>-<target>.tar.zst` becomes
-`geospatial-las-<version>-<target>.tar.zst`. Installed bundle names are treated
+`pointcloud-las-<version>-<target>.tar.zst` and
+`pointcloud-laz-<version>-<target>.tar.zst`. Installed bundle names are treated
 as a compatibility surface: a future rename gets the same treatment as this one.
 
 ### Checklist for a consumer

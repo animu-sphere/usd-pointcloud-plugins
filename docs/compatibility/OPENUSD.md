@@ -12,7 +12,7 @@ runtime:
   openusd: ">=26.08,<27.0"
 ```
 
-`geospatial-las` and `geospatial-laz` are `usd-fileformat` bundles and require the
+`pointcloud-las` and `pointcloud-laz` are `usd-fileformat` bundles and require the
 `usd-stage-read` capability.
 
 | Item | Value |

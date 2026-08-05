@@ -20,7 +20,7 @@ version 2.1 (LGPL-2.1). The complete license text is retained at
 components are described in `third_party/laz-perf/VENDORING.md`.
 
 The laz-perf sources are compiled into the static library `usdLaz`, which is
-linked into the `geospatial-laz` plugin binary. The `geospatial-las` plugin contains no
+linked into the `pointcloud-laz` plugin binary. The `pointcloud-las` plugin contains no
 laz-perf code.
 
 When distributing binaries that include the LAZ adapter, preserve this notice

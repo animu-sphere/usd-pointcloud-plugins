@@ -37,7 +37,7 @@ Validate the minimum path from an OpenUSD FileFormat Plugin to a LAS / LAZ reade
 - OpenUSD extension: 26.08 with the core feature set; plugin manifests declare
   `>=26.08,<27.0`
 - Build path: `ost configure`, `ost build`, and `ost test`
-- Current result: the core libraries, `geospatial-las`, and `geospatial-laz` build and test
+- Current result: the core libraries, `pointcloud-las`, and `pointcloud-laz` build and test
   on Windows x86_64, Linux x86_64, and macOS arm64 under the pinned runtime
 
 See [OpenUSD compatibility](../compatibility/OPENUSD.md) for the full

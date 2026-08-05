@@ -1,18 +1,17 @@
-#include "usdgeolaz/UsdGeoLazFileFormat.h"
-#include "usdgeolaz/UsdGeoLazDiagnostics.h"
+#include "usdgeolas/UsdGeoLasFileFormat.h"
+#include "usdgeolas/UsdGeoLasDiagnostics.h"
 
 #include "usdgeo/Diagnostic.h"
 #include "usdgeo/PointCloudLayer.h"
 #include "usdpointcloud/FileFormatArguments.h"
 #include "usdpointcloud/Sampling.h"
-#include "usdlaz/Laz.h"
+#include "usdlas/Las.h"
 
 #include <pxr/base/tf/diagnostic.h>
 #include <pxr/base/tf/registryManager.h>
-#include <cstddef>
+
 #include <cstdint>
 #include <filesystem>
-#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -37,6 +36,47 @@ std::string DiagnosticDetail(
         detail += " (point " + std::to_string(*diagnostic.pointIndex) + ")";
     }
     return detail;
+}
+
+const char* ReaderDiagnosticCode(
+    const std::vector<usdgeo::Diagnostic>& diagnostics,
+    usdlas::LasReadFailure failure) {
+    if (diagnostics.empty()) {
+        return usdgeolas::diagnostics::PointDecodeFailed;
+    }
+    switch (failure) {
+    case usdlas::LasReadFailure::FileOpen:
+        return usdgeolas::diagnostics::FileOpenFailed;
+    case usdlas::LasReadFailure::FileSize:
+        return usdgeolas::diagnostics::FileSizeUnavailable;
+    case usdlas::LasReadFailure::PointDataTruncated:
+        return usdgeolas::diagnostics::PointDataTruncated;
+    case usdlas::LasReadFailure::EvlrOffset:
+        return usdgeolas::diagnostics::EvlrOffsetInvalid;
+    case usdlas::LasReadFailure::Vlr:
+        return usdgeolas::diagnostics::VlrInvalid;
+    case usdlas::LasReadFailure::Evlr:
+        return usdgeolas::diagnostics::EvlrInvalid;
+    case usdlas::LasReadFailure::PointDataSeek:
+        return usdgeolas::diagnostics::PointDataSeekFailed;
+    case usdlas::LasReadFailure::PointDataRead:
+        return usdgeolas::diagnostics::PointReadFailed;
+    case usdlas::LasReadFailure::PointDecode:
+        return usdgeolas::diagnostics::PointDecodeFailed;
+    default:
+        break;
+    }
+
+    switch (diagnostics.front().code) {
+    case usdgeo::DiagnosticCode::NonFiniteCoordinate:
+    case usdgeo::DiagnosticCode::DecodeFailure:
+        return usdgeolas::diagnostics::PointDecodeFailed;
+    case usdgeo::DiagnosticCode::InvalidCrs:
+    case usdgeo::DiagnosticCode::UnsupportedExtraBytesType:
+        return usdgeolas::diagnostics::VlrInvalid;
+    default:
+        return usdgeolas::diagnostics::HeaderInvalid;
+    }
 }
 
 bool MakeReadRequest(const SdfLayer* layer,
@@ -82,27 +122,27 @@ private:
 
 } // namespace
 
-TF_DEFINE_PUBLIC_TOKENS(UsdGeoLazFileFormatTokens, USDGEOLAZ_FILE_FORMAT_TOKENS);
+TF_DEFINE_PUBLIC_TOKENS(UsdGeoLasFileFormatTokens, USDGEOLAS_FILE_FORMAT_TOKENS);
 
-UsdGeoLazFileFormat::UsdGeoLazFileFormat()
-    : SdfFileFormat(UsdGeoLazFileFormatTokens->Id,
-                    UsdGeoLazFileFormatTokens->Version,
-                    UsdGeoLazFileFormatTokens->Target,
-                    UsdGeoLazFileFormatTokens->Extension) {}
+UsdGeoLasFileFormat::UsdGeoLasFileFormat()
+    : SdfFileFormat(UsdGeoLasFileFormatTokens->Id,
+                    UsdGeoLasFileFormatTokens->Version,
+                    UsdGeoLasFileFormatTokens->Target,
+                    UsdGeoLasFileFormatTokens->Extension) {}
 
-UsdGeoLazFileFormat::~UsdGeoLazFileFormat() = default;
+UsdGeoLasFileFormat::~UsdGeoLasFileFormat() = default;
 
-bool UsdGeoLazFileFormat::CanRead(const std::string& file) const {
-    return SdfFileFormat::GetFileExtension(file) == "laz";
+bool UsdGeoLasFileFormat::CanRead(const std::string& file) const {
+    return SdfFileFormat::GetFileExtension(file) == "las";
 }
 
-bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
+bool UsdGeoLasFileFormat::Read(SdfLayer* layer,
                             const std::string& resolvedPath,
                             bool metadataOnly) const {
     if (!layer) {
-        TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
-                                  usdgeolaz::diagnostics::InvalidReadRequest,
-                                  "geospatial-laz requires a writable layer")
+        TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::Message(
+                                  usdgeolas::diagnostics::InvalidReadRequest,
+                                  "pointcloud-las requires a writable layer")
                                   .c_str());
         return false;
     }
@@ -112,9 +152,9 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
     std::vector<usdgeo::Diagnostic> diagnostics;
     if (!MakeReadRequest(layer, resolvedPath, sourcePath, request,
                          diagnostics)) {
-        TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
-                                  usdgeolaz::diagnostics::FormatArgumentInvalid,
-                                  "Invalid LAZ file-format arguments: " +
+        TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::Message(
+                                  usdgeolas::diagnostics::FormatArgumentInvalid,
+                                  "Invalid LAS file-format arguments: " +
                                       DiagnosticDetail(diagnostics,
                                                        "invalid arguments"))
                                   .c_str());
@@ -122,22 +162,13 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
     }
 
     if (metadataOnly) {
-        auto decoder = usdlaz::CreateFileDecoder(sourcePath, diagnostics);
-        if (!decoder) {
-            TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
-                                      usdgeolaz::diagnostics::FileOpenFailed,
-                                      "Unable to open LAZ file " + sourcePath +
-                                          ": " + DiagnosticDetail(
-                                              diagnostics, "decoder could not be created"))
-                                      .c_str());
-            return false;
-        }
-        usdlaz::LazReader reader(std::move(decoder));
         usdlas::LasHeader header;
+        usdlas::LasReader reader(sourcePath);
         if (!reader.ReadMetadata(header, diagnostics)) {
-            TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
-                                      usdgeolaz::diagnostics::DecodeFailed,
-                                      "Unable to inspect LAZ file " + resolvedPath +
+            TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::Message(
+                                      ReaderDiagnosticCode(diagnostics,
+                                                           reader.FailureKind()),
+                                      "Unable to inspect LAS file " + resolvedPath +
                                           ": " + DiagnosticDetail(
                                               diagnostics, "inspection failed"))
                                       .c_str());
@@ -156,7 +187,7 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
             !usdgeo::AuthorPointCloudMetadata(
                 layer, "/PointCloud", reference, bounds, chunk,
                 sourceMetadata)) {
-            TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::PointCloudAuthorFailed);
+            TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::PointCloudAuthorFailed);
             return false;
         }
         return true;
@@ -164,12 +195,13 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
 
     if (request.tiled) {
         usdlas::LasHeader header;
-        auto stream = usdlaz::OpenLazPointStream(
+        auto stream = usdlas::OpenLasPointStream(
             sourcePath, request.readOptions, header, diagnostics);
         if (!stream) {
-            TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
-                                      usdgeolaz::diagnostics::DecodeFailed,
-                                      "Unable to open LAZ point stream: " +
+            TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::Message(
+                                      ReaderDiagnosticCode(diagnostics,
+                                                           usdlas::LasReadFailure::Header),
+                                      "Unable to open LAS point stream: " +
                                           DiagnosticDetail(diagnostics,
                                                            "stream open failed"))
                                       .c_str());
@@ -181,7 +213,7 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
         std::string metadataError;
         if (!usdlas::BuildPointCloudMetadata(
                 header, metadataChunk, reference, bounds, metadataError)) {
-            TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::PointCloudAuthorFailed);
+            TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::BoundsTransformFailed);
             return false;
         }
         std::filesystem::path payloadDirectory(request.payloadDirectory);
@@ -197,41 +229,28 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
         if (!usdgeo::AuthorPointCloudTiledAssetFromStream(
                 layer, "/PointCloud", selected, reference,
                 {request.tileSize, 0}, payloadOptions, diagnostics)) {
-            TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::PointCloudAuthorFailed);
+            TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::PointCloudAuthorFailed);
             return false;
         }
         return true;
     }
 
-    auto decoder = usdlaz::CreateFileDecoder(sourcePath, diagnostics);
-    if (!decoder) {
-        TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
-                                  usdgeolaz::diagnostics::FileOpenFailed,
-                                  "Unable to open LAZ file " + sourcePath +
-                                      ": " +
-                                      DiagnosticDetail(diagnostics, "decoder could not be created"))
-                                  .c_str());
-        return false;
-    }
-
-    usdlaz::LazReader reader(std::move(decoder));
     usdlas::LasHeader header;
     usdpointcloud::PointData pointData;
-    const auto consumed = reader.Read(
-        request.readOptions,
-        [&](const usdlas::LasHeader& chunkHeader,
-            const std::vector<usdlas::LasPoint>& points,
-            std::string& error) {
-            return usdlas::AppendPointData(chunkHeader, points, sourcePath,
-                                           pointData, error);
-        },
-        header, diagnostics);
-    if (!consumed) {
-        TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
-                                  usdgeolaz::diagnostics::DecodeFailed,
-                                  "Unable to decode LAZ file " + resolvedPath +
+    usdlas::LasReader reader(sourcePath);
+    const auto consume = [&](const usdlas::LasHeader& chunkHeader,
+                             const std::vector<usdlas::LasPoint>& points,
+                             std::string& error) {
+        return usdlas::AppendPointData(chunkHeader, points, sourcePath,
+                                        pointData, error);
+    };
+    if (!reader.Read(request.readOptions, consume, header, diagnostics)) {
+        TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::Message(
+                                  ReaderDiagnosticCode(diagnostics,
+                                                       reader.FailureKind()),
+                                  "Unable to read LAS file " + resolvedPath +
                                       ": " +
-                                      DiagnosticDetail(diagnostics, "decode failed"))
+                                      DiagnosticDetail(diagnostics, "read failed"))
                                   .c_str());
         return false;
     }
@@ -239,9 +258,9 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
     std::string selectionError;
     if (!usdpointcloud::SelectPointDataAttributes(
             pointData, request.attributes, selectionError)) {
-        TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
-                                  usdgeolaz::diagnostics::FormatArgumentInvalid,
-                                  "Unable to select LAZ point attributes: " +
+        TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::Message(
+                                  usdgeolas::diagnostics::FormatArgumentInvalid,
+                                  "Unable to select LAS point attributes: " +
                                       selectionError)
                                   .c_str());
         return false;
@@ -250,11 +269,11 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
     usdpointcloud::PointCloudAsset asset;
     std::string assetError;
     if (!usdlas::BuildPointCloudAsset(
-            header, pointData, "LAZ CRS unavailable; inspect VLR metadata",
+            header, pointData, "LAS CRS unavailable; inspect VLR metadata",
             asset, assetError)) {
-        TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
-                                  usdgeolaz::diagnostics::BoundsTransformFailed,
-                                  "Unable to build LAZ point cloud asset: " +
+        TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::Message(
+                                  usdgeolas::diagnostics::BoundsTransformFailed,
+                                  "Unable to build LAS point cloud asset: " +
                                       assetError)
                                   .c_str());
         return false;
@@ -277,17 +296,17 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
                                                  authorFailure);
     }
     if (!authored) {
-        const char* code = usdgeolaz::diagnostics::PointCloudAuthorFailed;
+        const char* code = usdgeolas::diagnostics::PointCloudAuthorFailed;
         if (authorFailure == usdgeo::PointCloudAuthorFailure::InvalidLayer ||
             authorFailure == usdgeo::PointCloudAuthorFailure::StageCreation) {
-            code = usdgeolaz::diagnostics::UsdLayerCreateFailed;
+            code = usdgeolas::diagnostics::UsdLayerCreateFailed;
         } else if (authorFailure ==
                    usdgeo::PointCloudAuthorFailure::StageMetrics) {
-            code = usdgeolaz::diagnostics::StageMetricsFailed;
+            code = usdgeolas::diagnostics::StageMetricsFailed;
         }
-        TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
+        TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::Message(
                                   code,
-                                  "Unable to author LAZ point cloud to USD layer: " +
+                                  "Unable to author LAS point cloud to USD layer: " +
                                       resolvedPath)
                                   .c_str());
         return false;
@@ -295,7 +314,7 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
     return true;
 }
 
-bool UsdGeoLazFileFormat::WriteToString(const SdfLayer& layer,
+bool UsdGeoLasFileFormat::WriteToString(const SdfLayer& layer,
                                      std::string* str,
                                      const std::string& comment) const {
     const auto usda = SdfFileFormat::FindByExtension("usda");
@@ -304,7 +323,7 @@ bool UsdGeoLazFileFormat::WriteToString(const SdfLayer& layer,
 }
 
 TF_REGISTRY_FUNCTION(TfType) {
-    SDF_DEFINE_FILE_FORMAT(UsdGeoLazFileFormat, SdfFileFormat);
+    SDF_DEFINE_FILE_FORMAT(UsdGeoLasFileFormat, SdfFileFormat);
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE

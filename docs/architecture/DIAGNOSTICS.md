@@ -18,8 +18,8 @@ user-facing code prefixes and include available byte or point anchors in the
 ```
 
 Codes are owned per plugin and listed in
-[geospatial-las diagnostics](../../plugins/geospatial-las/docs/DIAGNOSTICS.md) and
-[geospatial-laz diagnostics](../../plugins/geospatial-laz/docs/DIAGNOSTICS.md). Every current
+[pointcloud-las diagnostics](../../plugins/pointcloud-las/docs/DIAGNOSTICS.md) and
+[pointcloud-laz diagnostics](../../plugins/pointcloud-laz/docs/DIAGNOSTICS.md). Every current
 code is fatal, because none of them leave a stage that can be opened.
 
 Remaining limitations of the current migration:

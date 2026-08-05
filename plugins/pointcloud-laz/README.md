@@ -1,4 +1,4 @@
-# geospatial-laz
+# pointcloud-laz
 
 ## Purpose
 
@@ -11,7 +11,7 @@ Because `usdLaz` decompresses records and then hands them to `usdLas` for
 interpretation, and both bundles author through one entry point, `.laz` and
 `.las` produce the same layer shape for equivalent data by construction.
 
-OpenStrata bundle `geospatial-laz`, CMake target and shared library
+OpenStrata bundle `pointcloud-laz`, CMake target and shared library
 `UsdGeoLazFileFormat`, registered `plugInfo.json` type `UsdGeoLazFileFormat`,
 format id `laz`.
 
@@ -24,7 +24,7 @@ format id `laz`.
 
 | Extension | Claimed | Notes |
 | --- | --- | --- |
-| `.laz` | Yes, as the primary file format for `laz` | Compressed only; uncompressed `.las` belongs to [geospatial-las](../geospatial-las/README.md) |
+| `.laz` | Yes, as the primary file format for `laz` | Compressed only; uncompressed `.las` belongs to [pointcloud-las](../pointcloud-las/README.md) |
 
 ## Supported source versions and point formats
 
@@ -43,14 +43,14 @@ point data record format byte before running the shared LAS header validation.
 | 6-8 | Supported |
 | 9, 10 | **Rejected** — same reason |
 
-Once decompressed, attribute coverage is identical to `geospatial-las`: RGB,
+Once decompressed, attribute coverage is identical to `pointcloud-las`: RGB,
 NIR, GPS time, classification flags, scanner channel, and scalar Extra Bytes
 types 1-10 are all authored. The authoritative matrix is
 [CAPABILITY_MATRIX.md](../../docs/reference/CAPABILITY_MATRIX.md).
 
 ## FileFormat arguments
 
-Identical to `geospatial-las`, with the same names, values, normalization, and
+Identical to `pointcloud-las`, with the same names, values, normalization, and
 layer-identity participation.
 
 | Argument | Values | Effect |
@@ -82,7 +82,7 @@ rules: [FILE_FORMAT_ARGUMENTS.md](../../docs/architecture/FILE_FORMAT_ARGUMENTS.
 
 ## Authored OpenUSD result
 
-The same layer shape `geospatial-las` produces: a Y-up stage at one metre per
+The same layer shape `pointcloud-las` produces: a Y-up stage at one metre per
 unit with `UsdGeomPoints` at `/PointCloud`, stage-local `float` positions
 relative to `geo:localOrigin`, and the `geo:*` metadata namespace. Keeping that
 equivalence is the invariant both bundles' integration tests enforce.
@@ -109,12 +109,12 @@ Remaining streaming work is tracked in
 
 ```text
 lib/UsdGeoLazFileFormat.dll        # or .so / .dylib
-plugin/resources/geospatial-laz/plugInfo.json
+plugin/resources/pointcloud-laz/plugInfo.json
 openstrata.plugin.yaml
 ```
 
 ```powershell
-$env:PXR_PLUGINPATH_NAME = "C:\path\to\geospatial-laz\plugin\resources\"
+$env:PXR_PLUGINPATH_NAME = "C:\path\to\pointcloud-laz\plugin\resources\"
 ```
 
 A trailing slash makes OpenUSD search subdirectories, so pointing at a parent
@@ -124,23 +124,23 @@ instructions: [INSTALL.md](../../docs/guides/INSTALL.md).
 ## Build and test
 
 ```powershell
-ost plugin build .\plugins\geospatial-laz
-ost plugin doctor .\plugins\geospatial-laz
-ost plugin test .\plugins\geospatial-laz --up-to 4
-ost plugin package .\plugins\geospatial-laz
+ost plugin build .\plugins\pointcloud-laz
+ost plugin doctor .\plugins\pointcloud-laz
+ost plugin test .\plugins\pointcloud-laz --up-to 4
+ost plugin package .\plugins\pointcloud-laz
 ```
 
 ```powershell
-ost plugin view .\plugins\geospatial-laz C:\path\to\sample.laz `
-  --with .\plugins\geospatial-las
+ost plugin view .\plugins\pointcloud-laz C:\path\to\sample.laz `
+  --with .\plugins\pointcloud-las
 ```
 
-The CTest integration test `geospatialLaz_integration` is built only by the
+The CTest integration test `pointcloudLaz_integration` is built only by the
 workspace build (`ost configure && ost build && ost test`), because a
 per-bundle `ost plugin build` does not define `USDGEO_BUILD_TESTS`.
 
-This bundle's CMake includes `../geospatial-las/cmake/OpenStrataPlugin.cmake`
-rather than carrying its own copy, so the `geospatial-las` directory must be
+This bundle's CMake includes `../pointcloud-las/cmake/OpenStrataPlugin.cmake`
+rather than carrying its own copy, so the `pointcloud-las` directory must be
 present in the tree to configure it.
 
 The bundle manifest declares `tests/fixtures/conformance.laz` as its smoke
@@ -154,7 +154,7 @@ and corpus inputs remain under `tests/fixtures/` and `tests/corpus/`.
 src/UsdGeoLazFileFormat.cpp              thin SdfFileFormat entry point
 include/usdgeolaz/UsdGeoLazFileFormat.h  class and format tokens
 include/usdgeolaz/UsdGeoLazDiagnostics.h the bundle's stable LAZxxx codes
-plugin/resources/geospatial-laz/         plugInfo.json and its .in template
+plugin/resources/pointcloud-laz/         plugInfo.json and its .in template
 tests/                                   integration coverage, fixtures, corpus
 docs/DIAGNOSTICS.md                      the LAZxxx code table
 ```
@@ -182,7 +182,7 @@ built, and a means for the recipient to relink against a modified laz-perf.
 
 The obligations, the link model, and the pre-publication checklist are in
 [DISTRIBUTION.md](../../docs/guides/DISTRIBUTION.md). Read it before shipping a
-binary. [geospatial-las](../geospatial-las/README.md) contains no laz-perf code
+binary. [pointcloud-las](../pointcloud-las/README.md) contains no laz-perf code
 and carries none of this.
 
 ## Known limitations

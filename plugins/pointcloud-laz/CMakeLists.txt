@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(geospatialLaz
+project(pointcloudLaz
     VERSION 0.1.0
     DESCRIPTION "OpenUSD FileFormat Plugin for LAZ point clouds"
     LANGUAGES CXX)
@@ -11,7 +11,7 @@ endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/../geospatial-las/cmake/OpenStrataPlugin.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../pointcloud-las/cmake/OpenStrataPlugin.cmake")
 openstrata_default_build_type()
 
 if(NOT TARGET usdgeo::core)
@@ -66,35 +66,35 @@ openstrata_link_openusd(
     COMPONENTS arch tf gf vt sdf usd)
 
 if(USDGEO_BUILD_TESTS)
-    add_executable(geospatialLaz_tests tests/test_geospatial_laz.cpp)
-    target_compile_features(geospatialLaz_tests PRIVATE cxx_std_17)
-    target_link_libraries(geospatialLaz_tests PRIVATE usdlaz::core)
-    target_include_directories(geospatialLaz_tests PRIVATE
+    add_executable(pointcloudLaz_tests tests/test_pointcloud_laz.cpp)
+    target_compile_features(pointcloudLaz_tests PRIVATE cxx_std_17)
+    target_link_libraries(pointcloudLaz_tests PRIVATE usdlaz::core)
+    target_include_directories(pointcloudLaz_tests PRIVATE
         ${PXR_INCLUDE_DIRS}
         "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/laz-perf/cpp")
-    target_compile_definitions(geospatialLaz_tests PRIVATE
+    target_compile_definitions(pointcloudLaz_tests PRIVATE
         USDGEOLAZ_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
-    add_dependencies(geospatialLaz_tests ${PLUGIN_NAME})
+    add_dependencies(pointcloudLaz_tests ${PLUGIN_NAME})
     if(MSVC)
-        target_compile_definitions(geospatialLaz_tests PRIVATE NOMINMAX)
-        target_compile_options(geospatialLaz_tests PRIVATE /utf-8)
+        target_compile_definitions(pointcloudLaz_tests PRIVATE NOMINMAX)
+        target_compile_options(pointcloudLaz_tests PRIVATE /utf-8)
     endif()
     openstrata_link_openusd(
-        TARGET geospatialLaz_tests
+        TARGET pointcloudLaz_tests
         COMPONENTS arch tf gf vt sdf usd usdGeom)
-    set_target_properties(geospatialLaz_tests PROPERTIES
+    set_target_properties(pointcloudLaz_tests PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
-    add_test(NAME geospatialLaz_integration COMMAND geospatialLaz_tests)
+    add_test(NAME pointcloudLaz_integration COMMAND pointcloudLaz_tests)
 endif()
 
 openstrata_configure_plugin(
     TARGET ${PLUGIN_NAME}
-    PLUG_INFO_INPUT "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/geospatial-laz/plugInfo.json.in"
-    PLUG_INFO_OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/geospatial-laz/plugInfo.json")
+    PLUG_INFO_INPUT "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/pointcloud-laz/plugInfo.json.in"
+    PLUG_INFO_OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/pointcloud-laz/plugInfo.json")
 
 openstrata_install_plugin_bundle(
     TARGET ${PLUGIN_NAME}
-    RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/geospatial-laz/plugInfo.json"
-    RESOURCE_DESTINATION "plugin/resources/geospatial-laz"
+    RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/pointcloud-laz/plugInfo.json"
+    RESOURCE_DESTINATION "plugin/resources/pointcloud-laz"
     MANIFESTS
         "${CMAKE_CURRENT_SOURCE_DIR}/openstrata.plugin.yaml")

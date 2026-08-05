@@ -159,8 +159,8 @@ ctest --test-dir build -C Release -R usdLas_unit --output-on-failure
 ```
 
 A deterministic conformance fixture lives with the plugin bundle at
-`plugins/geospatial-las/tests/fixtures/conformance.las`, alongside a committed
-real-data corpus under `plugins/geospatial-las/tests/corpus/`.
+`plugins/pointcloud-las/tests/fixtures/conformance.las`, alongside a committed
+real-data corpus under `plugins/pointcloud-las/tests/corpus/`.
 
 ## Known limitations
 

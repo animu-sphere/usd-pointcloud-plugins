@@ -1,4 +1,4 @@
-# geospatial-las diagnostics
+# pointcloud-las diagnostics
 
 Every import-time diagnostic has a stable `LASxxx` code. The code is a
 machine-readable prefix; the remainder of the message is human-readable.

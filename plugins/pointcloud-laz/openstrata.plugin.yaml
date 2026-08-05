@@ -1,16 +1,16 @@
 plugin:
-  name: geospatial-las
+  name: pointcloud-laz
   version: 0.1.0
   kind: usd-fileformat
 license: Apache-2.0
 runtime:
   openusd: ">=26.08,<27.0"
 provides:
-  - usd-fileformat:las
+  - usd-fileformat:laz
 requires:
   capabilities: [usd-stage-read]
 usd:
-  plug_info: plugin/resources/geospatial-las/plugInfo.json
+  plug_info: plugin/resources/pointcloud-laz/plugInfo.json
 tests:
   smoke:
-    - tests/fixtures/conformance.las
+    - tests/fixtures/conformance.laz

@@ -109,7 +109,7 @@ ctest --test-dir build -C Release -R usdGeoCore_unit --output-on-failure
 ```
 
 In the workspace flow, `ost build` and `ost test` cover it, and
-`ost plugin build plugins/geospatial-las` resolves and builds it before the
+`ost plugin build plugins/pointcloud-las` resolves and builds it before the
 bundle. See [BUILDING.md](../../docs/guides/BUILDING.md).
 
 ## Known limitations
