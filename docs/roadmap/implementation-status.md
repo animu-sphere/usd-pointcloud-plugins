@@ -86,9 +86,9 @@ ordered plan is in [README.md](README.md).
 
 ## Release track status
 
-### `v0.2.x` — existing implementation stabilization and conversion tooling
+### `v0.2.1` — implementation stabilization and conversion tooling
 
-The `v0.2.x` line stabilizes the LAS and LAZ implementation released in
+This patch release stabilizes the LAS and LAZ implementation released in
 `v0.2.0`. It does not add a new point-cloud format.
 
 - [x] Publish real-dataset processing-time, peak-RSS, spool, and payload output
@@ -105,7 +105,7 @@ The `v0.2.x` line stabilizes the LAS and LAZ implementation released in
 
 ### `v0.3.0` — COPC read support
 
-COPC is the next format milestone after the `v0.2.x` stabilization work. The
+COPC is the next format milestone after the `v0.2.1` stabilization work. The
 initial scope is local, read-only support using the existing point, streaming,
 tiling, diagnostics, and `usdLod` contracts.
 
@@ -117,11 +117,11 @@ tiling, diagnostics, and `usdLod` contracts.
 - [ ] Defer COPC writing, HTTP range sources, network caching, and new public
       USD schemas
 
-## Open
+## Follow-up Status
 
-### Current: bounded-memory streaming and spatial tiling stabilization
+### Completed: bounded-memory streaming and spatial tiling stabilization
 
-The plan is [streaming and tiling](streaming-and-tiling.md).
+The completed work is documented in [streaming and tiling](streaming-and-tiling.md).
 
 - [x] `PointStream` pull interface in `usdPointCloudCore`
 - [x] `usdPointCloudTiling`: fixed-grid tile keys, configuration, and source-coordinate tile router
@@ -136,24 +136,27 @@ The plan is [streaming and tiling](streaming-and-tiling.md).
 - [x] Explicit conversion tool with atomic publish and deterministic manifest
       output
 
-The current stabilization slice adds a reproducible LAS/LAZ measurement matrix
+The stabilization slice completed a reproducible LAS/LAZ measurement matrix
 using the checked-in 4,096-point thinned corpora, full-size Shizuoka LAS and
 derived-LAZ measurements, and regression coverage for recovery when a
 conversion transaction marker exists without its state file. Full-size
 interruption recovery is validated by force-terminating the converter after
 transaction state creation and retrying the same output workspace.
 
-### Other open work
+### Completed follow-up work
 
-- [ ] COPC implementation after the `v0.2.x` stabilization gate; see the
-      `v0.3.0` release track above
-- [ ] Deterministic USDC cache generation and lookup
 - [x] Extra Bytes descriptor-name normalization contract
 - [x] Vector Extra Bytes types
 - [x] Bounds and classification filter arguments for LAS and LAZ
 - [x] EPSG inference and conflicting-CRS detection
 - [x] Declare OST smoke fixtures in both bundle manifests and pass L3/L4
       `usdcat.read` and `python.stage_open`
+
+### Remaining open work
+
+- [ ] COPC implementation after the `v0.2.1` stabilization gate; see the
+      `v0.3.0` release track above
+- [ ] Deterministic USDC cache generation and lookup
 - [ ] Stage licensing, notice, capability, compatibility, and installation
       documents into release assets
 - [ ] Reconsider dynamic FileFormat support after generated assets and cache
@@ -175,13 +178,12 @@ and attribute selection is normalized before authoring; see the
 Compact `lod` profiles author a single non-tiled `usdLod` root through the
 shared authoring path for LAS and LAZ. Tiled LAS and LAZ reads now consume
 bounded pull-stream chunks, spool points by source-coordinate tile, and author
-one payload-backed level per tile. The production entry point for that
-long-running work is being moved to an explicit conversion tool; static
-FileFormat tiling remains for compatibility and small inputs. Generated-corpus
-bounded-memory measurement is available through the explicit benchmark target,
-and a Shizuoka LAS baseline is recorded in the [streaming and tiling roadmap](streaming-and-tiling.md).
-A broader real-world dataset matrix and payload working-set measurements
-remain open.
+one payload-backed level per tile. The explicit conversion tool is the
+production entry point for long-running generation; static FileFormat tiling
+remains available for compatibility, preview, and small inputs. Generated-
+corpus bounded-memory measurement, the Shizuoka LAS baseline, and payload
+working-set measurements are documented in the [streaming and tiling roadmap](streaming-and-tiling.md).
+A broader real-world dataset matrix remains open.
 
 The LAS conformance fixture and FileFormat Plugin integration gate passed
 before LAZ integration. The LAZ reader uses the same point-cloud authoring path

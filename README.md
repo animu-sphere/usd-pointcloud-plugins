@@ -236,18 +236,19 @@ The read path consumes bounded pull-stream chunks, spools points by
 source-coordinate tile, and authors one payload-backed level per tile. A
 Windows baseline against the supplied 14.6-million-point Shizuoka LAS input
 is recorded in [streaming and tiling](docs/roadmap/streaming-and-tiling.md);
-broader real-world RSS and payload working-set measurements remain open.
+payload working-set measurements are included, while broader real-world
+dataset coverage remains open.
 
 ## Known Limitations
 
 - Tiled reads use bounded chunk delivery and spill points to per-tile temporary
   files. A single Shizuoka LAS RSS/spool/payload baseline is published in the
   [streaming and tiling roadmap](docs/roadmap/streaming-and-tiling.md);
-  broader real-world coverage and payload working-set measurement remain open.
+  broader real-world dataset coverage remains open.
 - File-format arguments expose normalized attribute selection, chunked and
-  range-based reads, compact `lod` profiles, and spatial tiling. Bounds and
-  classification filters remain unavailable and are rejected with typed
-  diagnostics.
+  range-based reads, compact `lod` profiles, spatial tiling, bounds filters,
+  and classification filters. The two filters are evaluated in source
+  coordinates before stage-local transforms.
 - `metadataOnly` reads author the `/PointCloud` metadata namespace without
   decoding point records: source count, bounds, CRS, and available-attribute
   metadata, but no point positions.
@@ -257,8 +258,9 @@ broader real-world RSS and payload working-set measurements remain open.
 - CRS WKT is retained and EPSG is inferred from explicit WKT or GeoTIFF
   horizontal CRS keys. Conflicting definitions are rejected with a typed
   `ConflictingCrs` diagnostic.
-- A USDC cache is not implemented, and payload working-set behavior is
-  unmeasured.
+- A deterministic USDC cache is not implemented. Payload working-set
+  measurements are available for the checked-in real-data processing paths;
+  broader dataset coverage remains open.
 - Writing LAS or LAZ is out of scope; both plugins export as `usda`.
 
 See the [implementation status](docs/roadmap/implementation-status.md) and
@@ -266,12 +268,12 @@ See the [implementation status](docs/roadmap/implementation-status.md) and
 
 ## Status
 
-Latest release: **v0.2.0** — LAS 1.4 attributes and waveform point formats,
-GeoTIFF key parsing, scalar and vector Extra Bytes, chunked and range-based
-reads, normalized file-format arguments, shared `usdLod` authoring, and
-stream-connected tiled and payload-backed authoring. The module and bundle
-rename is recorded in [MIGRATION.md](docs/compatibility/MIGRATION.md). See the
-[release record](docs/releases/v0.2.0.md) and [CHANGELOG.md](CHANGELOG.md).
+Latest release: **v0.2.1** — LAS/LAZ bounds and classification filters, EPSG
+inference with conflicting-CRS diagnostics, explicit tiled conversion with
+deterministic manifests, and interruption-safe payload cleanup. The v0.2.0
+module and bundle rename is recorded in
+[MIGRATION.md](docs/compatibility/MIGRATION.md). See the
+[release record](docs/releases/v0.2.1.md) and [CHANGELOG.md](CHANGELOG.md).
 
 Direction is fixed in the [design policy](docs/design/DESIGN_POLICY.md); the
 structure is fixed in the
@@ -290,9 +292,11 @@ structure is fixed in the
 
 The repository separates format readers, shared validation, USD authoring, and
 plugin adapters so the core tests remain independent of an OpenUSD runtime.
-The reserved `usdPointCloudTiling` module will sit between the readers and the
-authoring library; readers never depend on tiling or OpenUSD, and tiling never
-depends on LAS or LAZ. The binding version of this is
+The `usdPointCloudTiling` module provides format-independent tile routing and
+spool contracts for the streaming authoring path. Readers remain independent
+of OpenUSD and the tiling library remains independent of LAS and LAZ; the
+plugin adapters connect those pieces through shared APIs. The binding version
+of this is
 [WORKSPACE.md](docs/architecture/WORKSPACE.md).
 
 ## Repository Layout

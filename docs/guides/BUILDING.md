@@ -92,8 +92,8 @@ usd-pointcloud-convert `
 
 The output root and payload directory must not already exist. The converter
 creates a temporary root layer and publishes it only after tiled authoring
-completes. Cancellation and resume behavior are still being expanded; use
-`--help` for the current option surface.
+completes. Cancellation cleanup and interrupted-transaction recovery are
+validated; use `--help` for the current option surface.
 
 ## Plain CMake path
 

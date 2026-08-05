@@ -10,13 +10,9 @@ Status vocabulary:
 - **Supported**: decoded, tested, and authored where an authoring path exists.
 - **Read only**: parsed and retained, but not converted into USD attributes.
 - **Rejected**: refused with a diagnostic instead of being read partially.
-- **Not connected**: implemented in a library and tested there, but no
-  file-format argument reaches it from a direct LAS or LAZ read.
-
-The last distinction matters: the authoring library has supported tiled,
-payload-backed output since before any argument could request it. A row that
-says "Not connected" is a statement about what opening a `.las` file does, not
-about what the repository contains.
+The tiled, payload-backed authoring path is connected to direct LAS and LAZ
+reads through the spatial file-format arguments. The explicit conversion tool
+uses the same reader and authoring contracts for long-running generation.
 
 ## LAS Versions
 
@@ -169,7 +165,7 @@ reported separately, because they differ.
 | Deterministic fixed-stride sampling | Supported | Supported |
 | Spatial tiling into per-tile `usdLod` roots | Supported | Supported |
 | Payload-backed tile assets (one USDC payload per tile/LOD) | Supported | Supported |
-| Bounded-memory generation during file open | Implemented for tiled reads; generated-corpus benchmark available | Spool buffers and one-tile reconstruction are bounded; generated-corpus RSS measurement is available |
+| Bounded-memory generation during file open | Implemented for tiled reads; generated-corpus benchmark available | Spool buffers and one-tile reconstruction are bounded; generated-corpus and checked-in real-data measurements are available |
 | LOD file-format arguments | n/a | `lod=off\|preview\|balanced\|quality` |
 | Spatial tile file-format arguments | n/a | `tile=true`, `tileSize`, `tileMemoryLimit`, `payloadDirectory` |
 
@@ -179,9 +175,10 @@ levels and a screen-size heuristic.
 
 Direct LAS and LAZ FileFormat reads now stream decoded chunks into tile
 spools and author one payload tile at a time. A Windows baseline against a
-14.6-million-point Shizuoka LAS input is documented in [streaming and
-tiling](../roadmap/streaming-and-tiling.md); broader real-world measurements
-and payload working-set behavior remain open.
+14.6-million-point Shizuoka LAS input, including payload working-set
+measurement, is documented in [streaming and
+tiling](../roadmap/streaming-and-tiling.md); broader real-world dataset
+coverage remains open.
 
 LOD is authored with the OpenUSD 26.08 `usdLod` schemas and nothing else. The project will not publish a repository-specific LOD schema, a
 `lodLevel` primvar, or a variant-set convention, and LOD selection will remain
@@ -191,8 +188,9 @@ in the [tile and LOD contract](../architecture/LOD.md).
 ## Known Limitations
 
 - Tiled reads spool points and reconstruct one tile at a time. Generated-corpus
-  RSS measurement is available through the explicit benchmark target; real-world
-  RSS and payload working-set measurements are not yet published.
+  and checked-in real-data RSS, spool, payload, and payload working-set
+  measurements are available through the documented benchmark paths; broader
+  real-world dataset coverage remains open.
 - Extra Bytes support covers types 1-30. Non-finite values and integers not
   exactly representable as `double` are rejected. Descriptor names are
   normalized before USD authoring.
@@ -211,8 +209,9 @@ in the [tile and LOD contract](../architecture/LOD.md).
 - Reader errors expose shared typed diagnostics and remain projected to stable
   `LASxxx` or `LAZxxx` plugin prefixes. See
   [diagnostics](../architecture/DIAGNOSTICS.md).
-- Tile planning is not yet exposed through LAS/LAZ file-format arguments, and
-  payload working-set measurement plus the USDC cache remain open. The shared
-  USD authoring library supports tiled and payload-backed LOD roots.
+- Advanced tile planning such as adaptive depth and point-budget splitting is
+  not exposed through LAS/LAZ file-format arguments. The current interface
+  provides fixed-grid `tileSize` and `tileMemoryLimit`; deterministic USDC
+  cache generation and lookup remain open.
 - Point decoding assumes a little-endian host.
 - Writing LAS or LAZ is out of scope; both plugins export as `usda`.

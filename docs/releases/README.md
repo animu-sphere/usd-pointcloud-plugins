@@ -8,10 +8,13 @@ Release records are history and are not rewritten after publication.
 | --- | --- | --- |
 | v0.1.0 | 2026-08-01 | [v0.1.0.md](v0.1.0.md) — shared point-cloud contracts, LAS and LAZ readers, and the OpenUSD FileFormat Plugin integration |
 | v0.2.0 | 2026-08-05 | [v0.2.0.md](v0.2.0.md) — LAS 1.4 and Extra Bytes coverage, LOD authoring, metadata-only reads, and bounded-memory tiled streaming |
+| v0.2.1 | 2026-08-06 | [v0.2.1.md](v0.2.1.md) — point filters, EPSG/CRS resolution, conversion manifests, and tiled cleanup validation |
 
-Create a record only once its tag exists: it pins the tagged commit, the
-consumed runtime digests, and the published artifact checksums, none of which
-are known before the release lane runs.
+Prepare the record in the release commit immediately before creating its tag.
+The tag pins the source commit and the record pins the release scope; runtime
+digests and published artifact checksums are appended to the generated release
+notes by the release workflow. Release records are not rewritten after
+publication.
 
 Unreleased work on `main` is tracked in the root
 [CHANGELOG.md](../../CHANGELOG.md) and, at task granularity, in
@@ -44,5 +47,5 @@ The workflow takes its runtime digests, `ost` version, and per-cell levels from
 `openstrata.ci.yaml` rather than restating them, so re-pinning a runtime moves
 the PR and release lanes together.
 
-The v0.2.0 record is finalized for the tagged commit and is not rewritten
-after publication.
+The v0.2.0 and v0.2.1 records are finalized for their tagged commits and are
+not rewritten after publication.

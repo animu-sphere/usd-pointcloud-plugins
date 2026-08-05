@@ -2,12 +2,44 @@
 
 All notable changes to this project are documented here.
 
-## Unreleased
+## [0.2.1] - 2026-08-06
 
 ### Added
 
+- Bounds and classification filters for LAS and LAZ reads, normalized into
+  canonical file-format arguments and applied in source coordinates.
 - EPSG inference from explicit WKT and GeoTIFF horizontal CRS keys, with typed
   conflict diagnostics when CRS definitions disagree.
+- An explicit LAS/LAZ conversion tool for tiled, payload-backed generation with
+  deterministic manifest output.
+- Real-dataset processing, RSS, spool, payload, and payload working-set
+  measurements for the documented LAS and LAZ paths.
+
+### Changed
+
+- The explicit conversion tool is now the production entry point for
+  long-running tiled generation; static FileFormat tiling remains available for
+  preview, compatibility, and small inputs.
+- Release and capability documentation now distinguishes implemented paths,
+  measured paths, and remaining limitations.
+
+### Fixed
+
+- Cleanup of tiled authoring after cancellation and failure, including spool
+  reader closure and payload-directory restrictions.
+- Recovery of interrupted conversion transactions, making tiled conversion
+  interruption-safe, and deterministic root and manifest publication.
+
+### Known limitations
+
+- Rendering is provided by the consuming OpenUSD application.
+- Tiling uses a fixed-grid `tileSize`; adaptive depth and point-budget tile
+  planning are not exposed through LAS/LAZ file-format arguments.
+- A deterministic USDC cache is not implemented, and broader real-world
+  dataset coverage remains open.
+- Waveform sample data is retained as packet metadata and external `.wdp`
+  references but is not fetched or interpreted.
+- Writing LAS or LAZ is out of scope; the plugins export `usda`.
 
 ## [0.2.0] - 2026-08-05
 
