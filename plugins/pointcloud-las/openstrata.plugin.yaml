@@ -1,6 +1,6 @@
 plugin:
   name: pointcloud-las
-  version: 0.1.0
+  version: 0.2.1
   kind: usd-fileformat
 license: Apache-2.0
 runtime:

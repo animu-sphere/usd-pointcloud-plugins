@@ -89,6 +89,7 @@ jobs:
             echo "Expected tag v${version}, got ${tag}" >&2
             exit 1
           fi
+          python tools/check_release_metadata.py
 
       - name: Bootstrap ost
         shell: bash
