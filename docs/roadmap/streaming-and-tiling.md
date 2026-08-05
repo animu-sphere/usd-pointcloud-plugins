@@ -309,6 +309,108 @@ This is a single LAS baseline for the tiled authoring path, not a payload
 working-set measurement across scene or render delegates. The benchmark removes
 its temporary output directory after reporting.
 
+The full source tile is not checked in, but it can be reverse-looked-up from
+the corpus provenance and downloaded into the build tree. The Virtual
+Shizuoka source is recorded in
+`plugins/pointcloud-las/tests/corpus/virtual-shizuoka-2019/PROVENANCE.md`:
+
+```powershell
+$sourceDir = '.\\build\\real-data-source'
+$archive = "$sourceDir\\08NF2330.zip"
+New-Item -ItemType Directory -Force $sourceDir | Out-Null
+Invoke-WebRequest `
+    'https://virtual-shizuoka.s3.ap-northeast-1.amazonaws.com/2019/LP/Ground/08/NF/23/08NF2330.zip' `
+    -OutFile $archive
+Expand-Archive $archive -DestinationPath $sourceDir -Force
+
+$envScript = ost env cy2026 --profile usd --shell powershell | Out-String
+Invoke-Expression $envScript
+& '.\\build\\cy2026-windows-x86_64-py313-usd\\libs\\usd-pointcloud-authoring\\benchmarks\\usdPointCloudAuthoring_stream_benchmark.exe' `
+    --input "$sourceDir\\08NF2330.las" --format las `
+    --chunk-points 65536 --tile-size 128 --memory-limit 1048576
+```
+
+The same lookup is available for the USGS 3DEP source LAZ in
+`plugins/pointcloud-las/tests/corpus/usgs-3dep-2020/PROVENANCE.md`. A local
+reproduction of the Shizuoka command on 2026-08-05 processed 14,574,030 points
+in 31.6717 seconds, produced 12 tiles, and reported 368,668,672 bytes of RSS
+delta, 1,078,481,220 peak spool bytes, 441,114,026 payload bytes, and
+1,519,604,759 process write bytes.
+
+The official Shizuoka LP resource provides LAS archives, not LAZ. For a
+same-source codec comparison, the LAS can be recompressed into a build-local
+LAZ with `laspy` and `lazrs`, without thinning or changing the point records.
+The derived LAZ is not an official provider artifact. The same benchmark run
+on that derived file processed 14,574,030 points in 35.5156 seconds, produced
+12 tiles, and reported 374,370,304 bytes of RSS delta. Peak spool, payload,
+root output, and process write bytes were respectively 1,078,481,220,
+441,114,026, 441,117,880, and 1,519,604,759.
+
+#### Payload working-set measurement through OST plugin view
+
+The pinned OpenUSD runtime exposes `Storm` as its Hydra renderer. The available
+scene and render paths can be measured consistently with the Windows
+process-tree sampler:
+
+```powershell
+python tools/measure_usd_working_set.py `
+    --bundle .\\plugins\\pointcloud-las `
+    --with-bundle .\\plugins\\pointcloud-laz `
+    --fixture C:\\path\\to\\shizuoka-full-PointCloud.usda `
+    --mode view --renderer Storm
+
+python tools/measure_usd_working_set.py `
+    --bundle .\\plugins\\pointcloud-las `
+    --with-bundle .\\plugins\\pointcloud-laz `
+    --fixture C:\\path\\to\\shizuoka-full-PointCloud.usda `
+    --mode record --renderer Storm `
+    --output C:\\path\\to\\shizuoka-full-payload-storm.png
+```
+
+The sampler launches `usdview.cmd` or `usdrecord.cmd` through `ost plugin run`
+and reports the peak working set of the complete runtime process tree. This
+includes the OpenUSD runtime and renderer process, which is the relevant
+working set for an actual plugin view or render session. For the full
+Shizuoka payload root generated with tile size 128, a local run on 2026-08-05
+reported:
+
+| Path | Peak tree working set | Peak child process | Total time | Renderer |
+| --- | ---: | ---: | ---: | --- |
+| `usdview` scene/view | 688,746,496 B | 668,323,840 B | 0.837116 s | Storm |
+| `usdrecord` headless render | 592,355,328 B | 572,211,200 B | not reported | HdStormRendererPlugin |
+
+The fixture contained 12 payloads totaling 204,694,049 bytes, with a 4,262-byte
+root layer. Both runs returned zero.
+
+#### Failure and interruption cleanup validation
+
+The authoring unit tests cover cancellation before and during spool reads,
+stream failure without layer mutation, and rollback when payload authoring
+fails. The converter integration test covers invalid attribute failure,
+stale transaction recovery, unsafe payload paths, and an orphan transaction
+without a state file.
+
+Process-level interruption is reproduced with the full Shizuoka source by
+`tools/usd-pointcloud-convert/test_interruption.ps1`. It waits for the
+transaction state file, force-terminates the converter, then retries the same
+output workspace and checks the published root, manifest, payloads, and
+removal of transaction and temporary artifacts:
+
+```powershell
+ost plugin run .\\plugins\\pointcloud-las `
+    --with .\\plugins\\pointcloud-laz -- `
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+    C:\\dev\\usd-pointcloud-plugins\\tools\\usd-pointcloud-convert\\test_interruption.ps1 `
+    -Converter C:\\dev\\usd-pointcloud-plugins\\build\\cy2026-windows-x86_64-py313-usd\\tools\\usd-pointcloud-convert\\usd-pointcloud-convert.exe `
+    -Fixture C:\\dev\\usd-pointcloud-plugins\\build\\real-data-source\\08NF2330.las `
+    -TestRoot C:\\dev\\usd-pointcloud-plugins\\build\\real-data-source\\interruption-test
+```
+
+The local run on 2026-08-05 reported `interrupted_exit=forced`,
+`recovered_exit=0`, and `payload_count=12`. This validates the process-level
+recovery boundary; graceful SIGINT cancellation remains covered by the
+authoring cancellation path and converter cleanup checks.
+
 #### Reproducible thinned-corpus measurements
 
 The checked-in thinned corpora provide a small, repeatable LAS/LAZ matrix for
@@ -327,7 +429,7 @@ Run the benchmark after `ost build` by activating the managed environment with
 `usdPointCloudAuthoring_stream_benchmark.exe` with the options above. These
 fixtures validate the measurement path and cross-format output equivalence;
 they do not replace the full-size real-dataset baseline or payload working-set
-measurements across scene and render delegates.
+measurement.
 
 ## 11. Definition of done
 

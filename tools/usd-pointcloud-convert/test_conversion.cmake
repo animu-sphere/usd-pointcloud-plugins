@@ -74,6 +74,28 @@ if(NOT first_manifest_hash STREQUAL repeat_manifest_hash)
     message(FATAL_ERROR "converter manifest is not deterministic")
 endif()
 
+set(failure_root "${test_root}-failure")
+set(failure_output "${failure_root}/PointCloud.usda")
+set(failure_payloads "${failure_root}/PointCloud_payloads")
+file(MAKE_DIRECTORY "${failure_root}")
+execute_process(
+    COMMAND "${converter}" "${fixture}" "${failure_output}"
+            --tile-size 1 --memory-limit 1024
+            --attributes xyz,missing_attribute
+    RESULT_VARIABLE failure_result
+    OUTPUT_VARIABLE failure_output_log
+    ERROR_VARIABLE failure_error_log)
+if(failure_result EQUAL 0 OR EXISTS "${failure_output}" OR
+   EXISTS "${failure_output}.manifest" OR
+   EXISTS "${failure_output}.transaction" OR
+   EXISTS "${failure_root}/PointCloud.tmp.usda" OR
+   EXISTS "${failure_output}.manifest.tmp" OR
+   EXISTS "${failure_payloads}")
+    message(FATAL_ERROR
+        "converter did not clean up after an authoring failure: "
+        "${failure_output_log}${failure_error_log}")
+endif()
+
 execute_process(
     COMMAND usdcat --flatten "${output_root}" -o "${test_root}/flattened.usda"
     RESULT_VARIABLE usdcat_result
@@ -137,5 +159,6 @@ endif()
 
 file(REMOVE_RECURSE "${test_root}")
 file(REMOVE_RECURSE "${repeat_root}")
+file(REMOVE_RECURSE "${failure_root}")
 file(REMOVE_RECURSE "${unsafe_root}")
 file(REMOVE_RECURSE "${orphan_root}")
