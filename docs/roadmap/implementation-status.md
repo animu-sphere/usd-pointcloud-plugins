@@ -151,7 +151,7 @@ transaction state creation and retrying the same output workspace.
 - [x] Extra Bytes descriptor-name normalization contract
 - [x] Vector Extra Bytes types
 - [x] Bounds and classification filter arguments for LAS and LAZ
-- [ ] EPSG inference and conflicting-CRS detection
+- [x] EPSG inference and conflicting-CRS detection
 - [x] Declare OST smoke fixtures in both bundle manifests and pass L3/L4
       `usdcat.read` and `python.stage_open`
 - [ ] Stage licensing, notice, capability, compatibility, and installation

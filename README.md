@@ -254,8 +254,9 @@ broader real-world RSS and payload working-set measurements remain open.
 - Extra Bytes support covers types 1-30. Non-finite values and integers not
   exactly representable as `double` are rejected; descriptor names are
   normalized deterministically before USD authoring.
-- CRS comes from the WKT VLR only. GeoTIFF keys are parsed and retained but not
-  interpreted, and EPSG codes are not inferred.
+- CRS WKT is retained and EPSG is inferred from explicit WKT or GeoTIFF
+  horizontal CRS keys. Conflicting definitions are rejected with a typed
+  `ConflictingCrs` diagnostic.
 - A USDC cache is not implemented, and payload working-set behavior is
   unmeasured.
 - Writing LAS or LAZ is out of scope; both plugins export as `usda`.

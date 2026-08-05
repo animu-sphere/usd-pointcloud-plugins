@@ -117,8 +117,9 @@ bundle. See [BUILDING.md](../../docs/guides/BUILDING.md).
 - Up-axis conversion supports the `Z` source / `Y` stage pair the LAS and LAZ
   readers need. Other pairs are not implemented.
 - No CRS transformation: a CRS is carried and reported, never reprojected.
-- EPSG codes are not inferred from WKT, and conflicting CRS records are not
-  detected.
+- The generic core does not infer EPSG codes or detect conflicting CRS records;
+  format-specific readers, such as `usdLas`, perform that resolution before
+  populating `GeoReference`.
 - `TileId` is an identity and a string form only. It carries no bounds, no
   grid configuration, and no ordering policy; those belong to the reserved
   `usdPointCloudTiling` module.

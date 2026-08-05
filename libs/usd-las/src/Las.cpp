@@ -86,6 +86,10 @@ usdgeo::DiagnosticCode CodeForError(const std::string& error) {
         error == "LAS GeoTIFF double parameters are truncated") {
         return usdgeo::DiagnosticCode::InvalidCrs;
     }
+    if (error == "LAS GeoTIFF CRS keys conflict" ||
+        error == "LAS CRS definitions conflict") {
+        return usdgeo::DiagnosticCode::ConflictingCrs;
+    }
     if (error == "LAS Extra Bytes VLR has an invalid length") {
         return usdgeo::DiagnosticCode::InvalidRecordLength;
     }
@@ -342,6 +346,200 @@ bool ParseGeoTiffRecords(
         }
     }
     metadata = std::move(parsed);
+    return true;
+}
+
+bool IsWktIdentifierCharacter(char character) {
+    return (character >= 'A' && character <= 'Z') ||
+           (character >= 'a' && character <= 'z') ||
+           (character >= '0' && character <= '9') || character == '_';
+}
+
+std::optional<int> ParseEpsgCodeInRange(const std::string& wkt,
+                                       std::size_t begin,
+                                       std::size_t end) {
+    for (std::size_t offset = begin; offset < end;) {
+        const auto marker = wkt.find("EPSG", offset);
+        if (marker == std::string::npos || marker >= end) {
+            break;
+        }
+        offset = marker + 4;
+        std::size_t separator = offset;
+        while (separator < end) {
+            const auto character = wkt[separator];
+            if (character != ' ' && character != '\t' && character != '\r' &&
+                character != '\n' && character != ':' && character != '"' &&
+                character != '[' && character != ']' && character != ',') {
+                break;
+            }
+            ++separator;
+        }
+        if (separator == offset || separator >= end ||
+            wkt[separator] < '0' || wkt[separator] > '9') {
+            continue;
+        }
+        long long value = 0;
+        while (separator < end && wkt[separator] >= '0' &&
+               wkt[separator] <= '9') {
+            value = value * 10 + (wkt[separator] - '0');
+            if (value > (std::numeric_limits<int>::max)()) {
+                value = 0;
+                break;
+            }
+            ++separator;
+        }
+        if (value != 0) {
+            return static_cast<int>(value);
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<std::size_t> FindWktBracketEnd(const std::string& wkt,
+                                             std::size_t openBracket) {
+    std::size_t depth = 0;
+    bool inString = false;
+    for (std::size_t index = openBracket; index < wkt.size(); ++index) {
+        const auto character = wkt[index];
+        if (inString) {
+            if (character == '"') {
+                if (index + 1 < wkt.size() && wkt[index + 1] == '"') {
+                    ++index;
+                } else {
+                    inString = false;
+                }
+            }
+            continue;
+        }
+        if (character == '"') {
+            inString = true;
+        } else if (character == '[') {
+            ++depth;
+        } else if (character == ']') {
+            if (depth == 0) {
+                return std::nullopt;
+            }
+            --depth;
+            if (depth == 0) {
+                return index;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<int> ExtractWktEpsgCode(const std::string& wkt) {
+    const auto rootOpenBracket = wkt.find('[');
+    if (rootOpenBracket == std::string::npos) {
+        return std::nullopt;
+    }
+    const auto rootEnd = FindWktBracketEnd(wkt, rootOpenBracket);
+    if (!rootEnd.has_value()) {
+        return std::nullopt;
+    }
+
+    std::size_t depth = 0;
+    bool inString = false;
+    for (std::size_t index = rootOpenBracket; index < rootEnd.value();
+         ++index) {
+        const auto character = wkt[index];
+        if (inString) {
+            if (character == '"') {
+                if (index + 1 < rootEnd.value() && wkt[index + 1] == '"') {
+                    ++index;
+                } else {
+                    inString = false;
+                }
+            }
+            continue;
+        }
+        if (character == '"') {
+            inString = true;
+            continue;
+        }
+        if (character == '[') {
+            ++depth;
+            continue;
+        }
+        if (character == ']') {
+            --depth;
+            continue;
+        }
+        if (depth != 1 ||
+            (index != 0 && IsWktIdentifierCharacter(wkt[index - 1]))) {
+            continue;
+        }
+
+        std::size_t tokenLength = 0;
+        if (wkt.compare(index, 9, "AUTHORITY") == 0) {
+            tokenLength = 9;
+        } else if (wkt.compare(index, 2, "ID") == 0) {
+            tokenLength = 2;
+        } else {
+            continue;
+        }
+        if (index + tokenLength < rootEnd.value() &&
+            IsWktIdentifierCharacter(wkt[index + tokenLength])) {
+            continue;
+        }
+        const auto openBracket = wkt.find('[', index + tokenLength);
+        if (openBracket == std::string::npos || openBracket >= rootEnd.value()) {
+            continue;
+        }
+        const auto tokenEnd = FindWktBracketEnd(wkt, openBracket);
+        if (!tokenEnd.has_value() || tokenEnd.value() > rootEnd.value()) {
+            continue;
+        }
+        const auto code = ParseEpsgCodeInRange(wkt, index, tokenEnd.value());
+        if (code.has_value()) {
+            return code;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<int> GeoTiffEpsgCode(
+    const usdlas::LasGeoTiffMetadata& metadata,
+    std::string& error) {
+    std::optional<int> projected;
+    std::optional<int> geographic;
+    for (const auto& key : metadata.keys) {
+        if (key.keyId != 2048 && key.keyId != 3072) {
+            continue;
+        }
+        if (key.tiffTagLocation != 0 || key.valueOffset == 0) {
+            continue;
+        }
+        auto& target = key.keyId == 3072 ? projected : geographic;
+        if (target.has_value() && target.value() != key.valueOffset) {
+            error = "LAS GeoTIFF CRS keys conflict";
+            return std::nullopt;
+        }
+        target = static_cast<int>(key.valueOffset);
+    }
+    return projected.has_value() ? projected : geographic;
+}
+
+bool ResolveEpsgCode(const std::string& wkt,
+                     const std::optional<usdlas::LasGeoTiffMetadata>& metadata,
+                     std::optional<int>& epsgCode,
+                     std::string& error) {
+    epsgCode = ExtractWktEpsgCode(wkt);
+    if (!metadata.has_value()) {
+        return true;
+    }
+    const auto geoTiffCode = GeoTiffEpsgCode(metadata.value(), error);
+    if (!error.empty()) {
+        return false;
+    }
+    if (epsgCode.has_value() && geoTiffCode.has_value() &&
+        epsgCode.value() != geoTiffCode.value()) {
+        error = "LAS CRS definitions conflict";
+        return false;
+    }
+    if (!epsgCode.has_value()) {
+        epsgCode = geoTiffCode;
+    }
     return true;
 }
 
@@ -1097,6 +1295,10 @@ bool ParseKnownMetadata(const std::vector<LasVariableLengthRecord>& records,
     if (!ParseGeoTiffRecords(records, header.geoTiffMetadata, error)) {
         return false;
     }
+    if (!ResolveEpsgCode(header.crsWkt, header.geoTiffMetadata,
+                         header.epsgCode, error)) {
+        return false;
+    }
     if (!ParseExtraBytesRecords(records, header.extraBytes, error)) {
         return false;
     }
@@ -1486,6 +1688,7 @@ bool BuildPointCloudAsset(const LasHeader& header,
     }
 
     asset = {};
+    asset.reference.epsgCode = header.epsgCode;
     asset.reference.wkt = header.crsWkt.empty() ? missingCrsMessage
                                                  : header.crsWkt;
     asset.reference.sourceUpAxis = "Z";
@@ -1518,6 +1721,7 @@ bool BuildPointCloudMetadata(const LasHeader& header,
         return false;
     }
     reference = {};
+    reference.epsgCode = header.epsgCode;
     reference.wkt = header.crsWkt.empty()
                         ? "LAS CRS unavailable; inspect VLR metadata"
                         : header.crsWkt;

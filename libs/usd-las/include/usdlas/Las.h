@@ -82,6 +82,7 @@ struct LasHeader {
     std::vector<LasVariableLengthRecord> variableLengthRecords;
     std::string crsWkt;
     std::optional<LasGeoTiffMetadata> geoTiffMetadata;
+    std::optional<int> epsgCode;
     std::vector<LasExtraBytesDescriptor> extraBytes;
 
     bool IsValid() const noexcept;

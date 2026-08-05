@@ -207,8 +207,9 @@ bundle carries no LGPL-2.1 obligation — unlike
 - Extra Bytes types 1-30 are supported, including vectors. Non-finite values
   and integers not exactly representable as `double` are rejected, and
   descriptor names are normalized to deterministic USD-safe names.
-- CRS comes from the WKT VLR only. GeoTIFF keys are retained but not
-  interpreted; EPSG is not inferred and conflicting CRS is not detected.
+- CRS WKT is retained and EPSG is inferred from explicit WKT or GeoTIFF
+  horizontal CRS keys. Conflicting definitions are rejected with a typed
+  `ConflictingCrs` diagnostic.
 - Waveform sample data is not fetched; packet metadata and the `.wdp` reference
   are retained for deferred loading.
 - Decoding assumes a little-endian host.

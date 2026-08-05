@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## Unreleased
+
+### Added
+
+- EPSG inference from explicit WKT and GeoTIFF horizontal CRS keys, with typed
+  conflict diagnostics when CRS definitions disagree.
+
 ## [0.2.0] - 2026-08-05
 
 ### Changed — breaking
