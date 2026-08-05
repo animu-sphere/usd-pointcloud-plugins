@@ -59,9 +59,9 @@ to ASCII USD identifiers; original names remain in header metadata. See the
 The complete matrix, including VLR, CRS, and authored USD attributes, is in
 the [capability matrix](docs/reference/CAPABILITY_MATRIX.md).
 
-COPC, PLY, delimited text point files (XYZ, PTS, CSV), and E57 are planned in
-that order; terrain, raster, and vector formats are future repository
-candidates. See
+COPC read support is in progress; PLY, delimited text point files (XYZ, PTS,
+CSV), and E57 follow in that order. Terrain, raster, and vector formats are
+future repository candidates. See
 [format support order](docs/roadmap/format-support-order.md).
 
 ## Quick Start

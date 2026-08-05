@@ -9,10 +9,22 @@ Status vocabulary:
 
 - **Supported**: decoded, tested, and authored where an authoring path exists.
 - **Read only**: parsed and retained, but not converted into USD attributes.
+- **Foundation**: an implementation slice is tested, but the complete format
+  read path is not available yet.
+- **Planned**: not implemented.
 - **Rejected**: refused with a diagnostic instead of being read partially.
 The tiled, payload-backed authoring path is connected to direct LAS and LAZ
 reads through the spatial file-format arguments. The explicit conversion tool
 uses the same reader and authoring contracts for long-running generation.
+
+## COPC
+
+| Capability | Status | Notes |
+| --- | --- | --- |
+| LAS 1.4 COPC Info VLR validation | Foundation | Implemented in `usdCopc`; requires point formats 6-10 and a valid 160-byte Info VLR |
+| Local hierarchy page validation | Foundation | Root and child pages are read depth-first with range, alignment, and repeated-page checks |
+| COPC point-data decoding | Planned | LAZ point decoding and shared `PointStream` connection are not connected yet |
+| COPC FileFormat Plugin | Planned | No OpenUSD adapter is published yet |
 
 ## LAS Versions
 

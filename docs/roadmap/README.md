@@ -133,14 +133,16 @@ maps onto the phases above.
 | W4 | Chunked and range-based reader API, memory budget, filtering | 3 | Reader API and memory budget complete; bounds and classification filters open |
 | W5 | Shared tile and LOD contracts, deterministic sampling, OpenUSD 26.08 `usdLod` authoring | 4a | Complete |
 | W6 | `PointStream`, spill-backed spatial tiling, explicit conversion tooling, spatial tile arguments, and LAS/LAZ stabilization | 4b | `v0.2.x` stabilization in progress |
-| W7 | COPC hierarchy, partial reads, and local COPC FileFormat integration | 4c | Planned for `v0.3.0` |
+| W7 | COPC hierarchy, partial reads, and local COPC FileFormat integration | 4c | Foundation in progress for `v0.3.0` |
 | W8 | USDC cache, remote byte-range sources, PLY, delimited text, and E57 | 3-6 | Deferred until the `v0.3.0` COPC boundary is stable |
 
 W1 through W5 stabilized the shared point schema, the streaming reader API, and
 the public LOD representation. W6 now stabilizes how much memory a tiled read
 costs and moves long-running generation into an explicit tool boundary. W6 is
 the entry gate for W7: COPC should consume these contracts, not create a
-parallel streaming or authoring path.
+parallel streaming or authoring path. The first W7 slice now validates local
+COPC metadata and hierarchy pages through `libs/usd-copc`; point-data decoding
+and FileFormat integration remain open.
 
 ## Documents
 

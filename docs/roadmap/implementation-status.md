@@ -109,6 +109,8 @@ COPC is the next format milestone after the `v0.2.1` stabilization work. The
 initial scope is local, read-only support using the existing point, streaming,
 tiling, diagnostics, and `usdLod` contracts.
 
+- [x] Add the OpenUSD-independent COPC metadata and hierarchy reader foundation
+      (LAS 1.4 COPC Info VLR and local hierarchy pages)
 - [ ] Add a format-specific COPC reader and thin FileFormat Plugin adapter
 - [ ] Validate COPC information and hierarchy metadata
 - [ ] Read required hierarchy nodes and point-data byte ranges selectively
