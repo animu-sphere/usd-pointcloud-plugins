@@ -469,7 +469,14 @@ void TestReaderFailureKinds() {
 void TestVariableLengthRecords() {
     auto bytes = MakeHeader(2, 0);
     constexpr std::size_t recordOffset = 227;
-    const std::string wkt = "WKT[\"EPSG:4978\"]";
+    const std::string wkt =
+        "PROJCS[\"WGS 84 / UTM zone 10 N\","
+        "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\","
+        "SPHEROID[\"WGS 84\",6378137,298.257223563,"
+        "AUTHORITY[\"EPSG\",\"7030\"]],"
+        "AUTHORITY[\"EPSG\",\"6326\"]],"
+        "AUTHORITY[\"EPSG\",\"4326\"]],"
+        "AUTHORITY[\"EPSG\",\"32610\"]]";
     bytes.resize(recordOffset + 54 + wkt.size() + 1);
     Write(bytes, 100, std::uint32_t{1});
     Write(bytes, 96, static_cast<std::uint32_t>(bytes.size()));
@@ -484,7 +491,21 @@ void TestVariableLengthRecords() {
     Check(header.variableLengthRecords.size() == 1);
     Check(header.variableLengthRecords.front().userId == "LASF_Projection");
     Check(header.crsWkt == wkt);
-    Check(header.epsgCode.has_value() && header.epsgCode.value() == 4978);
+    Check(header.epsgCode.has_value() && header.epsgCode.value() == 32610);
+
+    const std::string nestedOnlyWkt =
+        "PROJCS[\"Custom CRS\",GEOGCS[\"WGS 84\","
+        "AUTHORITY[\"EPSG\",\"4326\"]]]";
+    const std::vector<usdlas::LasVariableLengthRecord> nestedOnlyRecords = {
+        {"LASF_Projection", 2112, {},
+         std::vector<std::uint8_t>(nestedOnlyWkt.begin(), nestedOnlyWkt.end()),
+         false},
+    };
+    usdlas::LasHeader nestedOnlyHeader;
+    Check(usdlas::InspectHeader(MakeHeader(2, 0), nestedOnlyHeader, error));
+    Check(usdlas::ParseKnownMetadata(nestedOnlyRecords, nestedOnlyHeader,
+                                     error));
+    Check(!nestedOnlyHeader.epsgCode.has_value());
 
     auto evlrBytes = MakeHeader(4, 6);
     constexpr std::size_t evlrOffset = 375;
@@ -576,8 +597,11 @@ void TestVariableLengthRecords() {
 
         std::vector<usdlas::LasVariableLengthRecord> conflictingRecords = {
             {"LASF_Projection", 2112, {},
-             std::vector<std::uint8_t>{'W', 'K', 'T', ':', 'E', 'P', 'S', 'G',
-                                       ':', '4', '3', '2', '6'}, false},
+             std::vector<std::uint8_t>{
+                 'P', 'R', 'O', 'J', 'C', 'S', '[', '"', 'C', 'u', 's', 't',
+                 'o', 'm', '"', ',', 'A', 'U', 'T', 'H', 'O', 'R', 'I', 'T',
+                 'Y', '[', '"', 'E', 'P', 'S', 'G', '"', ',', '"', '4', '3',
+                 '2', '6', '"', ']', ']'}, false},
             {"LASF_Projection", 34735, {}, keyDirectory, false},
         };
         usdlas::LasHeader conflictingHeader;

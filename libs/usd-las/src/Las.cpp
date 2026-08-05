@@ -349,16 +349,23 @@ bool ParseGeoTiffRecords(
     return true;
 }
 
-std::optional<int> ExtractWktEpsgCode(const std::string& wkt) {
-    std::optional<int> code;
-    for (std::size_t offset = 0; offset < wkt.size();) {
+bool IsWktIdentifierCharacter(char character) {
+    return (character >= 'A' && character <= 'Z') ||
+           (character >= 'a' && character <= 'z') ||
+           (character >= '0' && character <= '9') || character == '_';
+}
+
+std::optional<int> ParseEpsgCodeInRange(const std::string& wkt,
+                                       std::size_t begin,
+                                       std::size_t end) {
+    for (std::size_t offset = begin; offset < end;) {
         const auto marker = wkt.find("EPSG", offset);
-        if (marker == std::string::npos) {
+        if (marker == std::string::npos || marker >= end) {
             break;
         }
         offset = marker + 4;
         std::size_t separator = offset;
-        while (separator < wkt.size()) {
+        while (separator < end) {
             const auto character = wkt[separator];
             if (character != ' ' && character != '\t' && character != '\r' &&
                 character != '\n' && character != ':' && character != '"' &&
@@ -367,12 +374,12 @@ std::optional<int> ExtractWktEpsgCode(const std::string& wkt) {
             }
             ++separator;
         }
-        if (separator == offset || separator == wkt.size() ||
+        if (separator == offset || separator >= end ||
             wkt[separator] < '0' || wkt[separator] > '9') {
             continue;
         }
         long long value = 0;
-        while (separator < wkt.size() && wkt[separator] >= '0' &&
+        while (separator < end && wkt[separator] >= '0' &&
                wkt[separator] <= '9') {
             value = value * 10 + (wkt[separator] - '0');
             if (value > (std::numeric_limits<int>::max)()) {
@@ -382,10 +389,113 @@ std::optional<int> ExtractWktEpsgCode(const std::string& wkt) {
             ++separator;
         }
         if (value != 0) {
-            code = static_cast<int>(value);
+            return static_cast<int>(value);
         }
     }
-    return code;
+    return std::nullopt;
+}
+
+std::optional<std::size_t> FindWktBracketEnd(const std::string& wkt,
+                                             std::size_t openBracket) {
+    std::size_t depth = 0;
+    bool inString = false;
+    for (std::size_t index = openBracket; index < wkt.size(); ++index) {
+        const auto character = wkt[index];
+        if (inString) {
+            if (character == '"') {
+                if (index + 1 < wkt.size() && wkt[index + 1] == '"') {
+                    ++index;
+                } else {
+                    inString = false;
+                }
+            }
+            continue;
+        }
+        if (character == '"') {
+            inString = true;
+        } else if (character == '[') {
+            ++depth;
+        } else if (character == ']') {
+            if (depth == 0) {
+                return std::nullopt;
+            }
+            --depth;
+            if (depth == 0) {
+                return index;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<int> ExtractWktEpsgCode(const std::string& wkt) {
+    const auto rootOpenBracket = wkt.find('[');
+    if (rootOpenBracket == std::string::npos) {
+        return std::nullopt;
+    }
+    const auto rootEnd = FindWktBracketEnd(wkt, rootOpenBracket);
+    if (!rootEnd.has_value()) {
+        return std::nullopt;
+    }
+
+    std::size_t depth = 0;
+    bool inString = false;
+    for (std::size_t index = rootOpenBracket; index < rootEnd.value();
+         ++index) {
+        const auto character = wkt[index];
+        if (inString) {
+            if (character == '"') {
+                if (index + 1 < rootEnd.value() && wkt[index + 1] == '"') {
+                    ++index;
+                } else {
+                    inString = false;
+                }
+            }
+            continue;
+        }
+        if (character == '"') {
+            inString = true;
+            continue;
+        }
+        if (character == '[') {
+            ++depth;
+            continue;
+        }
+        if (character == ']') {
+            --depth;
+            continue;
+        }
+        if (depth != 1 ||
+            (index != 0 && IsWktIdentifierCharacter(wkt[index - 1]))) {
+            continue;
+        }
+
+        std::size_t tokenLength = 0;
+        if (wkt.compare(index, 9, "AUTHORITY") == 0) {
+            tokenLength = 9;
+        } else if (wkt.compare(index, 2, "ID") == 0) {
+            tokenLength = 2;
+        } else {
+            continue;
+        }
+        if (index + tokenLength < rootEnd.value() &&
+            IsWktIdentifierCharacter(wkt[index + tokenLength])) {
+            continue;
+        }
+        const auto openBracket = wkt.find('[', index + tokenLength);
+        if (openBracket == std::string::npos || openBracket >= rootEnd.value()) {
+            continue;
+        }
+        const auto tokenEnd = FindWktBracketEnd(wkt, openBracket);
+        if (!tokenEnd.has_value() || tokenEnd.value() > rootEnd.value()) {
+            continue;
+        }
+        const auto code = ParseEpsgCodeInRange(wkt, index, tokenEnd.value());
+        if (code.has_value()) {
+            return code;
+        }
+    }
+    return std::nullopt;
 }
 
 std::optional<int> GeoTiffEpsgCode(
