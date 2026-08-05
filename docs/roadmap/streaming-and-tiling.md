@@ -7,8 +7,9 @@ payload-backed `usdLod` tile assets.
 Status: **in progress**. The `PointStream` contract, LAS and LAZ connections,
 spill-backed routing, and one-tile-at-a-time payload authoring are implemented.
 Generated-corpus RSS measurement and an explicit benchmark target for
-generated, LAS, and LAZ inputs are implemented. Representative real-world
-measurements and payload working-set measurement remain open. What `main`
+generated, LAS, and LAZ inputs are implemented. A real-input baseline is
+recorded below; broader real-world measurements and payload working-set
+measurement remain open. What `main`
 implements today is in
 [implementation status](implementation-status.md) and
 [capability matrix](../reference/CAPABILITY_MATRIX.md).
@@ -19,8 +20,8 @@ Chunked decoding reduces decoder buffer size. The tiled path additionally
 spools points by source-coordinate tile and reconstructs one tile at a time
 before writing its payload, so it does not retain the complete point cloud in
 the authoring stage. Generated, LAS, and LAZ inputs can be measured with the
-explicit benchmark target; representative peak-memory measurements against
-large real-world inputs are still outstanding.
+explicit benchmark target; a broader real-world dataset matrix is still
+outstanding.
 
 The target pipeline must:
 
@@ -251,6 +252,27 @@ time to first usable LOD asset
 
 Benchmarks may initially run outside required PR CI, but their commands and
 datasets must be documented.
+
+#### Real LAS baseline
+
+On Windows, the supplied Shizuoka dataset `08NF2330.las` was measured with
+`--chunk-points 65536`, `--tile-size 128`, and `--memory-limit 1048576`.
+The input contained 14,574,030 points and completed successfully:
+
+| Metric | Result |
+| --- | ---: |
+| Elapsed time | 32.4375 s |
+| Decode and author throughput | 449,296 points/s |
+| Tile count | 12 |
+| RSS delta | 351.16 MiB |
+| Sampled peak spool file bytes | 1.004 GiB |
+| Payload bytes | 420.68 MiB |
+| Root and payload output bytes | 420.68 MiB |
+| Process write bytes | 1.415 GiB |
+
+This is a single LAS baseline for the tiled authoring path, not a payload
+working-set measurement across scene or render delegates. The benchmark removes
+its temporary output directory after reporting.
 
 ## 11. Definition of done
 

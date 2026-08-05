@@ -210,13 +210,20 @@ ctest --test-dir build/cy2026-windows-x86_64-py313-usd -C Release `
   write counter is Windows-specific; it is reported as zero on other platforms.
   Windows RSS uses the working set; Linux and macOS use the current resident set
   when the platform API is available.
+  A Windows baseline using the supplied Shizuoka `08NF2330.las` dataset
+  processed 14,574,030 points in 32.4375 seconds at 449,296 points/s. It
+  produced 12 payloads with a 351.16 MiB RSS delta, 1.004 GiB sampled peak
+  spool size, 420.68 MiB of payload output, and 1.415 GiB of process writes.
+  The broader real-dataset matrix and payload working-set measurement remain
+  open; the full command and interpretation are recorded in the
+  [streaming and tiling roadmap](../../docs/roadmap/streaming-and-tiling.md).
 - Only the `Z` source / `Y` stage up-axis pair is supported.
 
 ## Planned work
 
-- Large-corpus RSS and payload working-set measurement across the supported
-  scene and render delegates.
-- Representative real-dataset RSS, spool, and payload measurements.
+- Payload working-set measurement across the supported scene and render
+  delegates.
+- Broader representative real-dataset RSS, spool, and payload measurements.
 
 These items are specified in
 [streaming and tiling](../../docs/roadmap/streaming-and-tiling.md).

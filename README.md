@@ -217,15 +217,17 @@ LAS/LAZ FileFormat read path:
 - bounded-memory payload generation during file open: implemented
 
 The read path consumes bounded pull-stream chunks, spools points by
-source-coordinate tile, and authors one payload-backed level per tile. The
-remaining measurements are real-world RSS and payload working set; the
-implementation details are in [streaming and tiling](docs/roadmap/streaming-and-tiling.md).
+source-coordinate tile, and authors one payload-backed level per tile. A
+Windows baseline against the supplied 14.6-million-point Shizuoka LAS input
+is recorded in [streaming and tiling](docs/roadmap/streaming-and-tiling.md);
+broader real-world RSS and payload working-set measurements remain open.
 
 ## Known Limitations
 
 - Tiled reads use bounded chunk delivery and spill points to per-tile temporary
-  files. Peak RSS and payload working set for real-world datasets are not yet
-  published; generated-corpus measurement is available.
+  files. A single Shizuoka LAS RSS/spool/payload baseline is published in the
+  [streaming and tiling roadmap](docs/roadmap/streaming-and-tiling.md);
+  broader real-world coverage and payload working-set measurement remain open.
 - File-format arguments expose normalized attribute selection, chunked and
   range-based reads, compact `lod` profiles, and spatial tiling. Bounds and
   classification filters remain unavailable and are rejected with typed
