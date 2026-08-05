@@ -575,6 +575,21 @@ void TestTiledLodPayloadAuthoring() {
     Check(points.GetPointsAttr().Get(&positions));
     Check(positions.size() == 1 && positions[0] == pxr::GfVec3f(0.0f));
     std::filesystem::remove_all(payloadDirectory);
+
+    const auto failedStage = usdgeo::PointCloudLayer::CreateStage();
+    const auto failedIdentifier = failedStage->GetRootLayer()->GetIdentifier();
+    std::filesystem::create_directories(payloadDirectory);
+    {
+        std::ofstream conflict(
+            payloadDirectory / "Tile_L0_p0_p0_p0_LOD0.usdc",
+            std::ios::binary);
+        conflict << "pre-existing payload";
+    }
+    Check(!usdgeo::AuthorPointCloudTiledAssetWithPayloads(
+        failedStage, "/PointCloud", {tile},
+        {payloadDirectory.string(), rootLayerPath.string()}));
+    Check(failedStage->GetRootLayer()->GetIdentifier() == failedIdentifier);
+    std::filesystem::remove_all(payloadDirectory);
 }
 
 void TestStreamTiledPayloadAuthoring() {
