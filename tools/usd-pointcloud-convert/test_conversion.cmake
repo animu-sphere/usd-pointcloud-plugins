@@ -109,6 +109,33 @@ if(unsafe_result EQUAL 0 OR NOT EXISTS "${unsafe_payloads}/must-survive.usdc" OR
         "${unsafe_output_log}${unsafe_error_log}")
 endif()
 
+set(orphan_root "${test_root}-orphan")
+set(orphan_output "${orphan_root}/PointCloud.usda")
+set(orphan_payloads "${orphan_root}/PointCloud_payloads")
+set(orphan_transaction "${orphan_output}.transaction")
+file(MAKE_DIRECTORY "${orphan_root}" "${orphan_payloads}" "${orphan_transaction}")
+file(WRITE "${orphan_output}.manifest" "stale manifest")
+file(WRITE "${orphan_root}/PointCloud.tmp.usda" "stale root")
+file(WRITE "${orphan_output}.manifest.tmp" "stale temporary manifest")
+file(WRITE "${orphan_payloads}/stale.usdc" "stale payload")
+
+execute_process(
+    COMMAND "${converter}" "${fixture}" "${orphan_output}"
+            --tile-size 1 --memory-limit 1024
+            --attributes xyz,intensity
+    RESULT_VARIABLE orphan_result
+    OUTPUT_VARIABLE orphan_output_log
+    ERROR_VARIABLE orphan_error_log)
+if(NOT orphan_result EQUAL 0 OR NOT EXISTS "${orphan_output}" OR
+   NOT EXISTS "${orphan_payloads}" OR NOT EXISTS "${orphan_output}.manifest" OR
+   EXISTS "${orphan_transaction}" OR EXISTS "${orphan_root}/PointCloud.tmp.usda" OR
+   EXISTS "${orphan_output}.manifest.tmp")
+    message(FATAL_ERROR
+        "converter did not recover a transaction without state: "
+        "${orphan_output_log}${orphan_error_log}")
+endif()
+
 file(REMOVE_RECURSE "${test_root}")
 file(REMOVE_RECURSE "${repeat_root}")
 file(REMOVE_RECURSE "${unsafe_root}")
+file(REMOVE_RECURSE "${orphan_root}")

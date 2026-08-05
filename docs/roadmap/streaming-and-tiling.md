@@ -309,6 +309,26 @@ This is a single LAS baseline for the tiled authoring path, not a payload
 working-set measurement across scene or render delegates. The benchmark removes
 its temporary output directory after reporting.
 
+#### Reproducible thinned-corpus measurements
+
+The checked-in thinned corpora provide a small, repeatable LAS/LAZ matrix for
+regression checks. These runs used `--chunk-points 65536`, `--tile-size 128`,
+and `--memory-limit 1048576` under the pinned `ost` `cy2026` / `usd` runtime:
+
+| Dataset | Format | Points | Elapsed (s) | RSS delta (bytes) | Peak spool (bytes) | Payload (bytes) | Output (bytes) | Process writes (bytes) |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| virtual-shizuoka-2019 | LAS | 4,096 | 0.139237 | 23,597,056 | 306,104 | 155,586 | 159,440 | 471,156 |
+| virtual-shizuoka-2019 | LAZ | 4,096 | 0.115338 | 27,959,296 | 306,104 | 155,586 | 159,440 | 471,156 |
+| usgs-3dep-2020 | LAS | 4,096 | 0.696362 | 26,419,200 | 321,104 | 227,220 | 249,986 | 605,192 |
+| usgs-3dep-2020 | LAZ | 4,096 | 0.289793 | 30,547,968 | 321,104 | 227,220 | 249,986 | 605,192 |
+
+Run the benchmark after `ost build` by activating the managed environment with
+`ost env cy2026 --profile usd --shell powershell`, then pass one corpus path to
+`usdPointCloudAuthoring_stream_benchmark.exe` with the options above. These
+fixtures validate the measurement path and cross-format output equivalence;
+they do not replace the full-size real-dataset baseline or payload working-set
+measurements across scene and render delegates.
+
 ## 11. Definition of done
 
 The first streaming phase is complete when:
