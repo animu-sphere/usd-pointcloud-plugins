@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 
@@ -175,29 +176,31 @@ def main():
     if options.interval_ms <= 0:
         raise SystemExit("--interval-ms must be positive")
     command = build_command(options)
-    process = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-    baseline_total, _, _ = sample_tree(process.pid)
-    peak_total = baseline_total
-    peak_single = 0
-    peak_count = 0
-    samples = 0
-    while process.poll() is None:
+    with tempfile.TemporaryFile() as output_file:
+        process = subprocess.Popen(
+            command,
+            stdout=output_file,
+            stderr=subprocess.STDOUT,
+        )
+        baseline_total, _, _ = sample_tree(process.pid)
+        peak_total = baseline_total
+        peak_single = 0
+        peak_count = 0
+        samples = 0
+        while process.poll() is None:
+            total, single, count = sample_tree(process.pid)
+            peak_total = max(peak_total, total)
+            peak_single = max(peak_single, single)
+            peak_count = max(peak_count, count)
+            samples += 1
+            time.sleep(options.interval_ms / 1000.0)
+        process.wait()
+        output_file.seek(0)
+        output = output_file.read().decode(errors="replace")
         total, single, count = sample_tree(process.pid)
         peak_total = max(peak_total, total)
         peak_single = max(peak_single, single)
         peak_count = max(peak_count, count)
-        samples += 1
-        time.sleep(options.interval_ms / 1000.0)
-    output = process.communicate()[0]
-    total, single, count = sample_tree(process.pid)
-    peak_total = max(peak_total, total)
-    peak_single = max(peak_single, single)
-    peak_count = max(peak_count, count)
     result = {
         "command": command,
         "mode": options.mode,

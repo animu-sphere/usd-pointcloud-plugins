@@ -19,7 +19,7 @@ $temporaryManifest = Join-Path $testRootPath 'PointCloud.usda.manifest.tmp'
 $manifest = Join-Path $testRootPath 'PointCloud.usda.manifest'
 $stdoutPath = Join-Path $testRootPath 'interrupted.stdout.log'
 $stderrPath = Join-Path $testRootPath 'interrupted.stderr.log'
-$arguments = @(
+$nativeArguments = @(
     $Fixture,
     $outputRoot,
     '--chunk-points', '65536',
@@ -27,6 +27,10 @@ $arguments = @(
     '--memory-limit', '1048576',
     '--attributes', 'xyz,intensity'
 )
+$startArguments = (
+    '"{0}" "{1}" --chunk-points 65536 --tile-size 128 ' +
+    '--memory-limit 1048576 --attributes xyz,intensity'
+) -f $Fixture, $outputRoot
 
 Remove-Item -Recurse -Force $testRootPath -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $testRootPath | Out-Null
@@ -41,7 +45,7 @@ $subscription = Register-ObjectEvent -InputObject $watcher `
     -EventName Created -SourceIdentifier $sourceIdentifier
 $process = $null
 try {
-    $process = Start-Process -FilePath $Converter -ArgumentList $arguments `
+    $process = Start-Process -FilePath $Converter -ArgumentList $startArguments `
         -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath `
         -PassThru -WindowStyle Hidden
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
@@ -60,6 +64,13 @@ try {
     Stop-Process -Id $process.Id -Force
     $process.WaitForExit()
 } finally {
+    if ($null -ne $process) {
+        $process.Refresh()
+        if (-not $process.HasExited) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            $process.WaitForExit()
+        }
+    }
     if ($null -ne $subscription) {
         Unregister-Event -SourceIdentifier $sourceIdentifier -ErrorAction SilentlyContinue
         Remove-Job -Name $sourceIdentifier -Force -ErrorAction SilentlyContinue
@@ -71,7 +82,7 @@ if (-not (Test-Path $transactionPath)) {
     throw 'forced interruption did not leave a transaction marker'
 }
 
-$retryOutput = & $Converter @arguments 2>&1
+$retryOutput = & $Converter @nativeArguments 2>&1
 $retryExitCode = $LASTEXITCODE
 if ($retryExitCode -ne 0) {
     throw "recovery conversion failed with exit code ${retryExitCode}: $retryOutput"
