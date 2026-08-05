@@ -1,4 +1,6 @@
 #include "usdgeo/PointCloudLayer.h"
+#include "usdlas/Las.h"
+#include "usdlaz/Laz.h"
 
 #include <pxr/usd/sdf/layer.h>
 
@@ -17,11 +19,13 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cctype>
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <fstream>
 #include <limits>
+#include <memory>
 #include <string>
 #include <thread>
 #include <unordered_set>
@@ -30,6 +34,8 @@
 namespace {
 
 struct BenchmarkOptions {
+    std::string inputPath;
+    std::string inputFormat;
     std::size_t pointCount = 1'000'000;
     std::size_t chunkPointCount = 65'536;
     double tileSize = 128.0;
@@ -66,14 +72,19 @@ bool ParseOptions(int argc, char** argv, BenchmarkOptions& options) {
         if (std::string(argv[index]) == "--help") {
             std::cout
                 << "Usage: usdPointCloudAuthoring_stream_benchmark"
-                   " [--points N] [--chunk-points N] [--tile-size N]"
+                   " [--input PATH] [--format las|laz] [--points N]"
+                   " [--chunk-points N] [--tile-size N]"
                    " [--memory-limit BYTES]\n";
             return false;
         }
         if (index + 1 >= argc) return false;
         const std::string argument(argv[index]);
         const std::string value(argv[++index]);
-        if (argument == "--points") {
+        if (argument == "--input") {
+            options.inputPath = value;
+        } else if (argument == "--format") {
+            options.inputFormat = value;
+        } else if (argument == "--points") {
             if (!ParseSize(value, options.pointCount)) return false;
         } else if (argument == "--chunk-points") {
             if (!ParseSize(value, options.chunkPointCount)) return false;
@@ -86,6 +97,20 @@ bool ParseOptions(int argc, char** argv, BenchmarkOptions& options) {
         }
     }
     return true;
+}
+
+std::string Lowercase(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(),
+                   [](unsigned char character) {
+                       return static_cast<char>(std::tolower(character));
+                   });
+    return value;
+}
+
+std::string InputFormat(const BenchmarkOptions& options) {
+    if (!options.inputFormat.empty()) return Lowercase(options.inputFormat);
+    const auto extension = std::filesystem::path(options.inputPath).extension();
+    return Lowercase(extension.string().substr(1));
 }
 
 std::uint64_t ResidentBytes() {
@@ -312,7 +337,7 @@ int main(int argc, char** argv) {
     std::thread sampler(sample);
 
     const auto start = std::chrono::steady_clock::now();
-    const auto layer = pxr::SdfLayer::CreateNew(rootLayerPath.string());
+    const auto layer = pxr::SdfLayer::CreateAnonymous("stream_benchmark.usda");
     if (!layer) {
         sampling.store(false, std::memory_order_relaxed);
         sampler.join();
@@ -320,12 +345,50 @@ int main(int argc, char** argv) {
         return 1;
     }
     usdgeo::GeoReference reference;
-    reference.epsgCode = 26910;
-    GeneratedPointStream stream(options.pointCount, options.chunkPointCount,
-                                options.tileSize);
+    std::unique_ptr<usdpointcloud::PointStream> stream;
+    std::uint64_t pointCount = options.pointCount;
+    if (options.inputPath.empty()) {
+        reference.epsgCode = 26910;
+        stream = std::make_unique<GeneratedPointStream>(
+            options.pointCount, options.chunkPointCount, options.tileSize);
+    } else {
+        const auto format = InputFormat(options);
+        usdpointcloud::PointReadOptions readOptions;
+        readOptions.chunkPointLimit = options.chunkPointCount;
+        readOptions.memoryBudgetBytes = options.memoryLimitBytes;
+        usdlas::LasHeader header;
+        std::vector<usdgeo::Diagnostic> openDiagnostics;
+        if (format == "las") {
+            stream = usdlas::OpenLasPointStream(
+                options.inputPath, readOptions, header, openDiagnostics);
+        } else if (format == "laz") {
+            stream = usdlaz::OpenLazPointStream(
+                options.inputPath, readOptions, header, openDiagnostics);
+        } else {
+            std::cerr << "unsupported input format: " << format << '\n';
+        }
+        usdpointcloud::PointChunk metadataChunk;
+        usdgeo::SpatialBounds metadataBounds;
+        std::string metadataError;
+        const auto metadataValid =
+            usdlas::BuildPointCloudMetadata(
+                header, metadataChunk, reference, metadataBounds,
+                metadataError);
+        if (!stream || !metadataValid) {
+            for (const auto& diagnostic : openDiagnostics) {
+                std::cerr << diagnostic.message << '\n';
+            }
+            if (!metadataError.empty()) std::cerr << metadataError << '\n';
+            sampling.store(false, std::memory_order_relaxed);
+            sampler.join();
+            std::filesystem::remove_all(outputDirectory, error);
+            return 1;
+        }
+        pointCount = header.pointCount;
+    }
     std::vector<usdgeo::Diagnostic> diagnostics;
     const auto authored = usdgeo::AuthorPointCloudTiledAssetFromStream(
-        layer.operator->(), "/PointCloud", stream, reference,
+        layer.operator->(), "/PointCloud", *stream, reference,
         {options.tileSize, 0},
         {outputDirectory.string(), rootLayerPath.string(),
          options.memoryLimitBytes},
@@ -352,7 +415,8 @@ int main(int argc, char** argv) {
     const auto outputBytes = DirectoryBytesRecursive(outputDirectory);
     const auto payloadBytes = PayloadBytes(outputDirectory);
     const auto writeBytesAfter = ProcessWriteBytes();
-    std::cout << "points=" << options.pointCount
+    std::cout << "input=" << (options.inputPath.empty() ? "generated" : options.inputPath)
+              << " points=" << pointCount
               << " chunk_points=" << options.chunkPointCount
               << " tile_size=" << options.tileSize
               << " tile_count=" << tileCount

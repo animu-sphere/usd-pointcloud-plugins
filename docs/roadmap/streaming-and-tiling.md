@@ -6,9 +6,10 @@ payload-backed `usdLod` tile assets.
 
 Status: **in progress**. The `PointStream` contract, LAS and LAZ connections,
 spill-backed routing, and one-tile-at-a-time payload authoring are implemented.
-Generated-corpus RSS measurement and an explicit benchmark target are
-implemented. Real-world datasets and payload working-set measurement remain
-open. What `main` implements today is in
+Generated-corpus RSS measurement and an explicit benchmark target for
+generated, LAS, and LAZ inputs are implemented. Representative real-world
+measurements and payload working-set measurement remain open. What `main`
+implements today is in
 [implementation status](implementation-status.md) and
 [capability matrix](../reference/CAPABILITY_MATRIX.md).
 
@@ -17,9 +18,9 @@ open. What `main` implements today is in
 Chunked decoding reduces decoder buffer size. The tiled path additionally
 spools points by source-coordinate tile and reconstructs one tile at a time
 before writing its payload, so it does not retain the complete point cloud in
-the authoring stage. A generated one-million-point corpus can be measured with
-the explicit benchmark target; peak-memory measurement against large
-real-world inputs is still outstanding.
+the authoring stage. Generated, LAS, and LAZ inputs can be measured with the
+explicit benchmark target; representative peak-memory measurements against
+large real-world inputs are still outstanding.
 
 The target pipeline must:
 

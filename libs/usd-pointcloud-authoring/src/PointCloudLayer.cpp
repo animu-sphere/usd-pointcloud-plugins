@@ -715,6 +715,11 @@ bool AuthorPointCloudTiledAssetWithPayloads(
 
     const std::filesystem::path payloadDirectory(options.directory);
     const std::filesystem::path rootLayerPath(options.rootLayerPath);
+    const auto rootLayer = stage->GetRootLayer();
+    if (!rootLayer) {
+        return false;
+    }
+    rootLayer->SetIdentifier(rootLayerPath.generic_string());
     std::error_code error;
     std::filesystem::create_directories(payloadDirectory, error);
     if (error) {

@@ -557,6 +557,7 @@ void TestTiledLodPayloadAuthoring() {
     Check(usdgeo::AuthorPointCloudTiledAssetWithPayloads(
         stage, "/PointCloud", {tile},
         {payloadDirectory.string(), rootLayerPath.string()}));
+    Check(stage->GetRootLayer()->GetIdentifier() == rootLayerPath.generic_string());
 
     const auto lodPrim = stage->GetPrimAtPath(pxr::SdfPath(
         "/PointCloud/Tiles/Tile_L0_p0_p0_p0/LOD0"));
