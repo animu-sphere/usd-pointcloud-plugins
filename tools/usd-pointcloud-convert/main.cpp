@@ -214,7 +214,7 @@ int main(int argc, char** argv) {
                   << temporaryRootPath.string() << "\n";
         return 2;
     }
-    auto layer = pxr::SdfLayer::CreateNew(temporaryRootPath.string());
+    auto layer = pxr::SdfLayer::CreateAnonymous("PointCloud.tmp.usda");
     if (!layer) {
         std::cerr << "Unable to create temporary root layer\n";
         return 1;
@@ -236,8 +236,16 @@ int main(int argc, char** argv) {
         std::filesystem::remove_all(payloadDirectory, error);
         return 1;
     }
+    layer->SetIdentifier(temporaryRootPath.string());
     if (!layer->Save()) {
         std::cerr << "Unable to save generated root layer\n";
+        layer = nullptr;
+        std::filesystem::remove(temporaryRootPath, error);
+        std::filesystem::remove_all(payloadDirectory, error);
+        return 1;
+    }
+    if (interrupted != 0) {
+        std::cerr << "Conversion cancelled\n";
         layer = nullptr;
         std::filesystem::remove(temporaryRootPath, error);
         std::filesystem::remove_all(payloadDirectory, error);

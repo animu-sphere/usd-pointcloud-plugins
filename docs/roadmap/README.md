@@ -45,8 +45,8 @@ is in [streaming and tiling](streaming-and-tiling.md).
 
 Production tiled generation now has an explicit operational boundary. The
 canonical path is a command-line conversion tool that consumes the shared LAS
-and LAZ readers and the shared payload authoring API, then publishes a root
-layer and payloads atomically. Static FileFormat reads remain useful for
+and LAZ readers and the shared payload authoring API, then publishes the root
+layer last after payload generation succeeds. Static FileFormat reads remain useful for
 preview, metadata inspection, and small inputs. Dynamic FileFormat support is
 deferred until generated assets and cache lookup are stable; it must not make
 raw LAS or LAZ decoding an implicit side effect of recomposition.
