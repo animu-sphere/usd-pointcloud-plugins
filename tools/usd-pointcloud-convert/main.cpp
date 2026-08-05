@@ -71,6 +71,80 @@ std::filesystem::path TransactionPath(
     return std::filesystem::path(outputPath.string() + ".transaction");
 }
 
+std::filesystem::path TransactionStatePath(
+    const std::filesystem::path& transactionPath) {
+    return transactionPath / "state";
+}
+
+bool WriteTransactionState(const std::filesystem::path& transactionPath,
+                           const std::filesystem::path& payloadDirectory,
+                           std::string& errorMessage) {
+    std::ofstream state(TransactionStatePath(transactionPath),
+                        std::ios::binary | std::ios::trunc);
+    if (!state) {
+        errorMessage = "unable to create conversion transaction state";
+        return false;
+    }
+    state << "payloadDirectory=" << payloadDirectory.generic_string() << "\n";
+    if (!state) {
+        errorMessage = "unable to write conversion transaction state";
+        return false;
+    }
+    return true;
+}
+
+bool ReadTransactionPayloadDirectory(
+    const std::filesystem::path& transactionPath,
+    const std::filesystem::path& defaultPayloadDirectory,
+    std::filesystem::path& payloadDirectory,
+    std::string& errorMessage) {
+    const auto statePath = TransactionStatePath(transactionPath);
+    std::error_code error;
+    const auto stateExists = std::filesystem::exists(statePath, error);
+    if (error) {
+        errorMessage = "unable to inspect conversion transaction state: " +
+                       error.message();
+        return false;
+    }
+    if (!stateExists) {
+        payloadDirectory = defaultPayloadDirectory;
+        return true;
+    }
+
+    std::ifstream state(statePath, std::ios::binary);
+    std::string line;
+    if (!state || !std::getline(state, line) ||
+        line.rfind("payloadDirectory=", 0) != 0) {
+        errorMessage = "invalid conversion transaction state";
+        return false;
+    }
+    if (!line.empty() && line.back() == '\r') {
+        line.pop_back();
+    }
+    payloadDirectory = std::filesystem::path(line.substr(17));
+    if (payloadDirectory.empty() || payloadDirectory.is_relative()) {
+        errorMessage = "conversion transaction state has an invalid payload directory";
+        return false;
+    }
+    return true;
+}
+
+bool IsPathWithinDirectory(const std::filesystem::path& path,
+                           const std::filesystem::path& directory) {
+    const auto relative = path.lexically_normal().lexically_relative(
+        directory.lexically_normal());
+    if (relative.empty() || relative == ".") return false;
+    for (const auto& component : relative) {
+        if (component == "..") return false;
+    }
+    return true;
+}
+
+bool IsSamePath(const std::filesystem::path& left,
+                const std::filesystem::path& right) {
+    return left.lexically_normal() == right.lexically_normal();
+}
+
 bool RecoverIncompleteTransaction(
     const std::filesystem::path& outputPath,
     const std::filesystem::path& manifestPath,
@@ -116,6 +190,20 @@ bool RecoverIncompleteTransaction(
         return false;
     }
 
+    std::filesystem::path recordedPayloadDirectory;
+    if (!ReadTransactionPayloadDirectory(
+            transactionPath, payloadDirectory, recordedPayloadDirectory,
+            errorMessage)) {
+        return false;
+    }
+    if (!IsSamePath(recordedPayloadDirectory, payloadDirectory) &&
+        !IsPathWithinDirectory(
+            recordedPayloadDirectory, outputPath.parent_path())) {
+        errorMessage =
+            "conversion transaction payload directory is outside the output workspace";
+        return false;
+    }
+
     const std::filesystem::path artifacts[] = {
         manifestPath, temporaryRootPath, temporaryManifestPath};
     for (const auto& artifact : artifacts) {
@@ -126,7 +214,7 @@ bool RecoverIncompleteTransaction(
             return false;
         }
     }
-    std::filesystem::remove_all(payloadDirectory, error);
+    std::filesystem::remove_all(recordedPayloadDirectory, error);
     if (error) {
         errorMessage = "unable to remove incomplete payload directory: " +
                        error.message();
@@ -375,6 +463,14 @@ int main(int argc, char** argv) {
     if (!std::filesystem::create_directory(transactionPath, error) || error) {
         std::cerr << "Unable to create conversion transaction marker: "
                   << error.message() << "\n";
+        return 2;
+    }
+    std::string transactionStateError;
+    if (!WriteTransactionState(
+            transactionPath, payloadDirectory, transactionStateError)) {
+        std::cerr << "Unable to create conversion transaction state: "
+                  << transactionStateError << "\n";
+        std::filesystem::remove_all(transactionPath, error);
         return 2;
     }
     auto layer = pxr::SdfLayer::CreateAnonymous("PointCloud.tmp.usda");

@@ -6,14 +6,17 @@ file(REMOVE_RECURSE "${test_root}")
 file(MAKE_DIRECTORY "${test_root}")
 set(output_root "${test_root}/PointCloud.usda")
 set(output_payloads "${test_root}/PointCloud_payloads")
+set(stale_payloads "${test_root}/StalePayloads")
 set(output_manifest "${output_root}.manifest")
 set(output_transaction "${output_root}.transaction")
 
-file(MAKE_DIRECTORY "${output_payloads}" "${output_transaction}")
+file(MAKE_DIRECTORY "${stale_payloads}" "${output_transaction}")
 file(WRITE "${output_manifest}" "stale manifest")
 file(WRITE "${test_root}/PointCloud.tmp.usda" "stale root")
 file(WRITE "${output_manifest}.tmp" "stale temporary manifest")
-file(WRITE "${output_payloads}/stale.usdc" "stale payload")
+file(WRITE "${stale_payloads}/stale.usdc" "stale payload")
+file(WRITE "${output_transaction}/state"
+    "payloadDirectory=${stale_payloads}\n")
 
 execute_process(
     COMMAND "${converter}" "${fixture}" "${output_root}"
@@ -30,7 +33,8 @@ if(NOT convert_error STREQUAL "")
     message(FATAL_ERROR "converter emitted diagnostics: ${convert_error}")
 endif()
 if(NOT EXISTS "${output_root}" OR NOT EXISTS "${output_payloads}" OR
-   NOT EXISTS "${output_manifest}" OR EXISTS "${output_transaction}")
+    NOT EXISTS "${output_manifest}" OR EXISTS "${output_transaction}" OR
+    EXISTS "${stale_payloads}")
     message(FATAL_ERROR "converter did not publish the expected output bundle")
 endif()
 
@@ -80,5 +84,31 @@ if(NOT usdcat_result EQUAL 0)
         "generated root could not be reopened: ${usdcat_output}${usdcat_error}")
 endif()
 
+set(unsafe_root "${test_root}-unsafe")
+set(unsafe_output "${unsafe_root}/PointCloud.usda")
+set(unsafe_payloads "${test_root}/ProtectedPayloads")
+set(unsafe_transaction "${unsafe_output}.transaction")
+file(MAKE_DIRECTORY "${unsafe_root}" "${unsafe_payloads}" "${unsafe_transaction}")
+file(WRITE "${unsafe_output}.manifest" "stale manifest")
+file(WRITE "${unsafe_root}/PointCloud.tmp.usda" "stale root")
+file(WRITE "${unsafe_payloads}/must-survive.usdc" "protected payload")
+file(WRITE "${unsafe_transaction}/state"
+    "payloadDirectory=${unsafe_payloads}\n")
+
+execute_process(
+    COMMAND "${converter}" "${fixture}" "${unsafe_output}"
+            --tile-size 1 --memory-limit 1024
+            --attributes xyz,intensity
+    RESULT_VARIABLE unsafe_result
+    OUTPUT_VARIABLE unsafe_output_log
+    ERROR_VARIABLE unsafe_error_log)
+if(unsafe_result EQUAL 0 OR NOT EXISTS "${unsafe_payloads}/must-survive.usdc" OR
+   NOT EXISTS "${unsafe_transaction}")
+    message(FATAL_ERROR
+        "converter removed or accepted an unsafe transaction payload path: "
+        "${unsafe_output_log}${unsafe_error_log}")
+endif()
+
 file(REMOVE_RECURSE "${test_root}")
 file(REMOVE_RECURSE "${repeat_root}")
+file(REMOVE_RECURSE "${unsafe_root}")
