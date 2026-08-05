@@ -177,9 +177,10 @@ The other profiles author a single non-tiled `usdLod` root with fixed-stride
 levels and a screen-size heuristic.
 
 Direct LAS and LAZ FileFormat reads now stream decoded chunks into tile
-spools and author one payload tile at a time. Payload working-set behavior and
-measurements against real-world datasets remain open; a generated-corpus
-benchmark is documented in [streaming and tiling](../roadmap/streaming-and-tiling.md).
+spools and author one payload tile at a time. A Windows baseline against a
+14.6-million-point Shizuoka LAS input is documented in [streaming and
+tiling](../roadmap/streaming-and-tiling.md); broader real-world measurements
+and payload working-set behavior remain open.
 
 LOD is authored with the OpenUSD 26.08 `usdLod` schemas and nothing else. The project will not publish a repository-specific LOD schema, a
 `lodLevel` primvar, or a variant-set convention, and LOD selection will remain
