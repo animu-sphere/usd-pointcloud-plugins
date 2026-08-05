@@ -1,5 +1,7 @@
 #include "usdcopc/Copc.h"
 
+#include "usdlaz/Laz.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -344,6 +346,53 @@ bool CopcReader::ReadHierarchy(
                   header.info.rootHierarchySize)) {
         failureKind_ = CopcReadFailure::Hierarchy;
         entries.clear();
+        return false;
+    }
+    return true;
+}
+
+bool CopcReader::ReadPointData(
+    const CopcHeader& header,
+    const CopcHierarchyEntry& entry,
+    std::vector<std::uint8_t>& bytes,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    failureKind_ = CopcReadFailure::None;
+    bytes.clear();
+    if (!header.IsValid()) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidOffset,
+                      "COPC header is not valid");
+        failureKind_ = CopcReadFailure::Hierarchy;
+        return false;
+    }
+    if (!entry.IsValid() || !entry.IsPointData()) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                      "COPC entry does not identify point data");
+        failureKind_ = CopcReadFailure::Hierarchy;
+        return false;
+    }
+    if (!ReadFileRange(filename_, header.fileSize, entry.offset,
+                       static_cast<std::uint64_t>(entry.byteSize), bytes,
+                       diagnostics)) {
+        failureKind_ = CopcReadFailure::Hierarchy;
+        return false;
+    }
+    return true;
+}
+
+bool CopcReader::ReadPoints(
+    const CopcHeader& header,
+    const CopcHierarchyEntry& entry,
+    std::vector<usdlas::LasPoint>& points,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    std::vector<std::uint8_t> bytes;
+    if (!ReadPointData(header, entry, bytes, diagnostics)) {
+        points.clear();
+        return false;
+    }
+    if (!usdlaz::DecodeLazChunk(header.las, bytes,
+                                static_cast<std::uint64_t>(entry.pointCount),
+                                points, diagnostics)) {
+        failureKind_ = CopcReadFailure::Hierarchy;
         return false;
     }
     return true;

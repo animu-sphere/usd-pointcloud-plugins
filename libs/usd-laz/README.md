@@ -16,6 +16,7 @@ CMake package `usdLaz`, target `usdlaz::core`, C++ namespace `usdlaz`.
 - Header inspection: the compression bit of the point data record format byte
   is cleared before the shared LAS validation runs.
 - Decoding of the compressed point-record formats the bundled codec supports.
+- Decoding an independently supplied LAZ chunk byte range for COPC readers.
 - Chunked reads honouring `PointReadOptions`, and range-based reads to the
   extent a sequential codec allows.
 - Metadata-only reads through `LazReader::ReadMetadata`.
@@ -41,7 +42,7 @@ usdlaz/Laz.h
 
 | Group | Entry points |
 | --- | --- |
-| Codec seam | `LazDecoder` (`ReadHeader`, `ReadChunk`), `CreateFileDecoder` |
+| Codec seam | `LazDecoder` (`ReadHeader`, `ReadChunk`), `CreateFileDecoder`, `DecodeLazChunk` |
 | Orchestration | `LazReader::Read`, `LazReader::ReadMetadata` |
 | Aliases | `LazReadOptions` = `usdpointcloud::PointReadOptions`, `LazPointChunkConsumer`, `LazPointChunkErrorConsumer` |
 

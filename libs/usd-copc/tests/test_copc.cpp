@@ -1,4 +1,5 @@
 #include "usdcopc/Copc.h"
+#include "usdlaz/Laz.h"
 
 #include <algorithm>
 #include <array>
@@ -143,6 +144,14 @@ void TestMetadataAndHierarchy() {
     Check(entries[0].IsPointData() && entries[0].pointCount == 1);
     Check(entries[1].IsHierarchyPage() && entries[1].byteSize == 32);
     Check(entries[2].IsPointData() && entries[2].level == 2);
+
+    std::vector<std::uint8_t> pointData;
+    Check(reader.ReadPointData(header, entries[2], pointData, diagnostics));
+    Check(diagnostics.empty() && pointData.size() == 30);
+
+    std::vector<usdlas::LasPoint> points;
+    Check(!reader.ReadPoints(header, entries[2], points, diagnostics));
+    Check(points.empty() && !diagnostics.empty());
 
     std::filesystem::remove(path);
 }
