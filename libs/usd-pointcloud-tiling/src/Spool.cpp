@@ -344,6 +344,13 @@ TileSpoolReader::TileSpoolReader() = default;
 
 TileSpoolReader::~TileSpoolReader() = default;
 
+void TileSpoolReader::Close() noexcept {
+    if (impl_) {
+        impl_->stream.close();
+        impl_.reset();
+    }
+}
+
 bool TileSpoolReader::Open(const std::filesystem::path& path,
                            PointTileId& tile,
                            SpoolSchema& schema,

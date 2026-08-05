@@ -691,6 +691,72 @@ void TestGeneratedStreamTiledPayloadAuthoring() {
     std::filesystem::remove_all(payloadDirectory);
 }
 
+void TestStreamCancellationCleansSpools() {
+    const auto layer = pxr::SdfLayer::CreateAnonymous("cancelled_stream.usda");
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    usdpointcloud::PointData data;
+    data.positions = {{0.25, 0.0, 0.0}, {0.75, 0.0, 0.0}};
+    usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+    for (const auto& position : data.positions) bounds.Expand(position);
+    TestPointStream stream({{
+        usdpointcloud::MakePointChunk(data, bounds), data}});
+
+    const auto payloadDirectory =
+        std::filesystem::temp_directory_path() / "usd_geo_cancelled_payloads";
+    std::filesystem::remove_all(payloadDirectory);
+    const auto spoolDirectoriesBefore = ListPointSpoolDirectories();
+    int cancellationChecks = 0;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    const usdgeo::PointCloudPayloadOptions options{
+        payloadDirectory.string(),
+        (payloadDirectory / "PointCloud.usda").string(),
+        1,
+        [&cancellationChecks]() { return ++cancellationChecks >= 3; }};
+
+    Check(!usdgeo::AuthorPointCloudTiledAssetFromStream(
+        layer.operator->(), "/PointCloud", stream, reference, {1.0, 0},
+        options, diagnostics));
+    Check(!diagnostics.empty());
+    Check(ListPointSpoolDirectories() == spoolDirectoriesBefore);
+    Check(!std::filesystem::exists(payloadDirectory));
+}
+
+void TestStreamCancellationDuringSpoolReadCleansSpools() {
+    const auto layer = pxr::SdfLayer::CreateAnonymous(
+        "cancelled_spool_read.usda");
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    usdpointcloud::PointData data;
+    data.positions = {{0.25, 0.0, 0.0}};
+    usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+    bounds.Expand(data.positions.front());
+    TestPointStream stream({{
+        usdpointcloud::MakePointChunk(data, bounds), data}});
+
+    const auto payloadDirectory =
+        std::filesystem::temp_directory_path() /
+        "usd_geo_cancelled_spool_read_payloads";
+    std::filesystem::remove_all(payloadDirectory);
+    const auto spoolDirectoriesBefore = ListPointSpoolDirectories();
+    int cancellationChecks = 0;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    const usdgeo::PointCloudPayloadOptions options{
+        payloadDirectory.string(),
+        (payloadDirectory / "PointCloud.usda").string(),
+        1,
+        [&cancellationChecks]() { return ++cancellationChecks >= 6; }};
+
+    Check(!usdgeo::AuthorPointCloudTiledAssetFromStream(
+        layer.operator->(), "/PointCloud", stream, reference, {1.0, 0},
+        options, diagnostics));
+    Check(!diagnostics.empty());
+    Check(ListPointSpoolDirectories() == spoolDirectoriesBefore);
+    Check(!std::filesystem::exists(payloadDirectory));
+}
+
 void TestStreamFailureDoesNotMutateLayer() {
     const auto layer = pxr::SdfLayer::CreateAnonymous("failed_stream.usda");
     usdgeo::GeoReference reference;
@@ -786,6 +852,8 @@ int main() {
     TestTiledLodPayloadAuthoring();
     TestStreamTiledPayloadAuthoring();
     TestGeneratedStreamTiledPayloadAuthoring();
+    TestStreamCancellationCleansSpools();
+    TestStreamCancellationDuringSpoolReadCleansSpools();
     TestStreamFailureDoesNotMutateLayer();
     TestStreamPayloadFailureRollsBackGeneratedPayloads();
     return 0;

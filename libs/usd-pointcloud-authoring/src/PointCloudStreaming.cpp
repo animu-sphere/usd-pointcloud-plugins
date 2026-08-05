@@ -265,6 +265,9 @@ bool AuthorPointCloudTiledAssetFromStream(
             cleanupError.clear();
         }
     };
+    const auto isCancelled = [&]() {
+        return options.isCancelled && options.isCancelled();
+    };
     const auto flushSpools = [&]() {
         for (auto& entry : spools) {
             if (!entry.second.writer->Flush(diagnostics)) return false;
@@ -277,6 +280,12 @@ bool AuthorPointCloudTiledAssetFromStream(
     std::string waveformDataFile;
     usdpointcloud::FixedGridTileRouter router(tileConfig);
     for (;;) {
+        if (isCancelled()) {
+            AddError(diagnostics, DiagnosticCode::DecodeFailure,
+                     "point-cloud authoring cancelled");
+            cleanup();
+            return false;
+        }
         usdpointcloud::PointChunk chunk;
         usdpointcloud::PointData data;
         Diagnostic diagnostic;
@@ -315,6 +324,12 @@ bool AuthorPointCloudTiledAssetFromStream(
         if (waveformDataFile.empty()) waveformDataFile = data.waveformDataFile;
 
         for (std::size_t index = 0; index < data.positions.size(); ++index) {
+            if (isCancelled()) {
+                AddError(diagnostics, DiagnosticCode::DecodeFailure,
+                         "point-cloud authoring cancelled");
+                cleanup();
+                return false;
+            }
             const auto tileId = router.GetTileId(data.positions[index]);
             const auto key = tileId.ToString();
             auto found = spools.find(key);
@@ -370,6 +385,12 @@ bool AuthorPointCloudTiledAssetFromStream(
         }
     }
     for (auto& entry : spools) {
+        if (isCancelled()) {
+            AddError(diagnostics, DiagnosticCode::DecodeFailure,
+                     "point-cloud authoring cancelled");
+            cleanup();
+            return false;
+        }
         if (!entry.second.writer->Close(diagnostics)) {
             cleanup();
             return false;
@@ -388,26 +409,40 @@ bool AuthorPointCloudTiledAssetFromStream(
 
     std::size_t tileCount = 0;
     for (const auto& entry : spools) {
+        if (isCancelled()) {
+            AddError(diagnostics, DiagnosticCode::DecodeFailure,
+                     "point-cloud authoring cancelled");
+            cleanup();
+            return false;
+        }
         usdpointcloud::TileSpoolReader reader;
+        const auto failTile = [&]() {
+            reader.Close();
+            cleanup();
+            return false;
+        };
         usdpointcloud::PointTileId tileId;
         usdpointcloud::SpoolSchema tileSchema;
         if (!reader.Open(entry.second.path, tileId, tileSchema, diagnostics) ||
             !SameSchema(schema, tileSchema)) {
             AddError(diagnostics, DiagnosticCode::DecodeFailure,
                      "unable to reopen point tile spool");
-            cleanup();
-            return false;
+            return failTile();
         }
         usdpointcloud::PointData data;
         if (!PrepareData(tileSchema, data)) {
             AddError(diagnostics, DiagnosticCode::DecodeFailure,
                      "unsupported point tile spool schema");
-            cleanup();
-            return false;
+            return failTile();
         }
         SpatialBounds bounds = SpatialBounds::Empty();
         usdpointcloud::SpoolPoint point;
         while (reader.ReadNext(point, diagnostics)) {
+            if (isCancelled()) {
+                AddError(diagnostics, DiagnosticCode::DecodeFailure,
+                         "point-cloud authoring cancelled");
+                return failTile();
+            }
             bounds.Expand(point.sourcePosition);
             data.positions.push_back(point.sourcePosition);
             const auto pointIndex = data.positions.size() - 1;
@@ -416,16 +451,14 @@ bool AuthorPointCloudTiledAssetFromStream(
                                      point.attributes[index], pointIndex)) {
                     AddError(diagnostics, DiagnosticCode::DecodeFailure,
                              "unable to reconstruct point tile attributes");
-                    cleanup();
-                    return false;
+                    return failTile();
                 }
             }
         }
         if (!reader.IsComplete() || data.positions.empty()) {
             AddError(diagnostics, DiagnosticCode::DecodeFailure,
                      "point tile spool is incomplete or empty");
-            cleanup();
-            return false;
+            return failTile();
         }
         data.waveformDataFile = waveformDataFile;
         PointCloudTileAsset tile;
@@ -442,8 +475,7 @@ bool AuthorPointCloudTiledAssetFromStream(
         if (!asset.IsValid()) {
             AddError(diagnostics, DiagnosticCode::DecodeFailure,
                      "reconstructed point tile is invalid");
-            cleanup();
-            return false;
+            return failTile();
         }
         tile.levels.push_back(std::move(asset));
         std::vector<PointCloudTileAsset> singleTile;
@@ -452,8 +484,12 @@ bool AuthorPointCloudTiledAssetFromStream(
                 stage, primPath, singleTile, options, generatedPayloads)) {
             AddError(diagnostics, DiagnosticCode::DecodeFailure,
                      "unable to author tiled point-cloud payloads");
-            cleanup();
-            return false;
+            return failTile();
+        }
+        if (isCancelled()) {
+            AddError(diagnostics, DiagnosticCode::DecodeFailure,
+                     "point-cloud authoring cancelled");
+            return failTile();
         }
         ++tileCount;
     }

@@ -42,8 +42,10 @@ are still planned; see
 `usdlas::OpenLasPointStream` and `usdlaz::OpenLazPointStream` implement the pull
 contract. Both plugins pass normalized `chunkPointLimit`, `memoryBudgetBytes`,
 and `range` values to their readers. Tiled reads route stream chunks through
-the shared spool and payload authoring path. `isCancelled` remains a
-host-supplied callback and is not a file-format argument. See the
+the shared spool and payload authoring path. The same host-supplied
+`isCancelled` callback is checked at stream, spool, and payload processing
+boundaries; cancellation removes generated spool and payload files before the
+authoring call returns. It is not a file-format argument. See the
 [plugin adapter contract](PLUGIN_ADAPTER.md) and the
 [file-format argument contract](FILE_FORMAT_ARGUMENTS.md).
 
