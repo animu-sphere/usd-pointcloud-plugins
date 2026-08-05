@@ -200,7 +200,9 @@ and carries none of this.
 - Extra Bytes types 1-30 are supported, including vectors. Non-finite values
   and integers not exactly representable as `double` are rejected, and
   descriptor names are normalized to deterministic USD-safe names.
-- CRS comes from the WKT VLR only.
+- CRS WKT is retained and EPSG is inferred from explicit WKT or GeoTIFF
+  horizontal CRS keys. Conflicting definitions are rejected with a typed
+  `ConflictingCrs` diagnostic.
 - Decoding assumes a little-endian host.
 - Writing LAZ is out of scope.
 

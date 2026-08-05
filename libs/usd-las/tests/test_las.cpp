@@ -142,6 +142,7 @@ void TestPointCloudAssetHelpers() {
     usdlas::LasHeader header;
     std::string error;
     Check(usdlas::InspectHeader(bytes, header, error));
+    header.epsgCode = 6677;
     header.extraBytes.push_back({9, 0, "air temperature", {}, {}, {},
                                  {0.01, 0.0, 0.0}, {100.0, 0.0, 0.0}, {}});
     header.pointRecordLength = 24;
@@ -164,11 +165,15 @@ void TestPointCloudAssetHelpers() {
         Check(metadataChunk.attributes.back().name == "air_temperature" &&
             metadataChunk.attributes.back().type ==
               usdpointcloud::PointAttributeType::Float64);
+        Check(metadataReference.epsgCode.has_value() &&
+            metadataReference.epsgCode.value() == 6677);
 
     usdpointcloud::PointCloudAsset asset;
     Check(usdlas::BuildPointCloudAsset(
         header, data, "LAS CRS unavailable", asset, error));
     Check(asset.IsValid());
+        Check(asset.reference.epsgCode.has_value() &&
+            asset.reference.epsgCode.value() == 6677);
     Check(asset.reference.stageUpAxis == "Y");
     Check(asset.chunk.pointCount == 1);
     Check(asset.chunk.attributes.back().name == "air_temperature" &&
@@ -479,6 +484,7 @@ void TestVariableLengthRecords() {
     Check(header.variableLengthRecords.size() == 1);
     Check(header.variableLengthRecords.front().userId == "LASF_Projection");
     Check(header.crsWkt == wkt);
+    Check(header.epsgCode.has_value() && header.epsgCode.value() == 4978);
 
     auto evlrBytes = MakeHeader(4, 6);
     constexpr std::size_t evlrOffset = 375;
@@ -560,12 +566,30 @@ void TestVariableLengthRecords() {
         Check(header.geoTiffMetadata->doubleParameters.size() == 2 &&
             header.geoTiffMetadata->doubleParameters[1] == 1000.0 &&
             header.geoTiffMetadata->asciiParameters == "WGS 84|UTM zone 10 N|");
+        Check(header.epsgCode.has_value() && header.epsgCode.value() == 32610);
         Check(header.extraBytes.size() == 1 &&
             header.extraBytes.front().dataType == 9 &&
             header.extraBytes.front().name == "temperature" &&
             header.extraBytes.front().scale.x == 0.01 &&
             header.extraBytes.front().offset.x == 100.0 &&
             header.extraBytes.front().description == "scaled temperature");
+
+        std::vector<usdlas::LasVariableLengthRecord> conflictingRecords = {
+            {"LASF_Projection", 2112, {},
+             std::vector<std::uint8_t>{'W', 'K', 'T', ':', 'E', 'P', 'S', 'G',
+                                       ':', '4', '3', '2', '6'}, false},
+            {"LASF_Projection", 34735, {}, keyDirectory, false},
+        };
+        usdlas::LasHeader conflictingHeader;
+        Check(!usdlas::ParseKnownMetadata(conflictingRecords, conflictingHeader,
+                                          error));
+        Check(error == "LAS CRS definitions conflict");
+        std::vector<usdgeo::Diagnostic> conflictDiagnostics;
+        Check(!usdlas::ParseKnownMetadata(conflictingRecords, conflictingHeader,
+                                          conflictDiagnostics));
+        Check(conflictDiagnostics.size() == 1 &&
+              conflictDiagnostics.front().code ==
+                  usdgeo::DiagnosticCode::ConflictingCrs);
 }
 
 } // namespace

@@ -173,8 +173,9 @@ real-data corpus under `plugins/pointcloud-las/tests/corpus/`.
 - Waveform sample data is not fetched or interpreted. Packet offsets, sizes,
   parameters, the external-data flag, and the sibling `.wdp` reference are
   retained for deferred loading.
-- GeoTIFF keys are parsed and retained but not interpreted into a CRS; EPSG is
-  not inferred and conflicting CRS records are not detected.
+- GeoTIFF horizontal CRS keys are interpreted for EPSG inference. Explicit WKT
+  and GeoTIFF codes must agree; conflicting definitions are rejected with a
+  `ConflictingCrs` diagnostic.
 - Decoding assumes a little-endian host.
 - The callback-based `Read` API still delivers into a caller-accumulated
   `PointData`; use `OpenLasPointStream` when the caller must not accumulate the

@@ -86,6 +86,10 @@ usdgeo::DiagnosticCode CodeForError(const std::string& error) {
         error == "LAS GeoTIFF double parameters are truncated") {
         return usdgeo::DiagnosticCode::InvalidCrs;
     }
+    if (error == "LAS GeoTIFF CRS keys conflict" ||
+        error == "LAS CRS definitions conflict") {
+        return usdgeo::DiagnosticCode::ConflictingCrs;
+    }
     if (error == "LAS Extra Bytes VLR has an invalid length") {
         return usdgeo::DiagnosticCode::InvalidRecordLength;
     }
@@ -342,6 +346,90 @@ bool ParseGeoTiffRecords(
         }
     }
     metadata = std::move(parsed);
+    return true;
+}
+
+std::optional<int> ExtractWktEpsgCode(const std::string& wkt) {
+    std::optional<int> code;
+    for (std::size_t offset = 0; offset < wkt.size();) {
+        const auto marker = wkt.find("EPSG", offset);
+        if (marker == std::string::npos) {
+            break;
+        }
+        offset = marker + 4;
+        std::size_t separator = offset;
+        while (separator < wkt.size()) {
+            const auto character = wkt[separator];
+            if (character != ' ' && character != '\t' && character != '\r' &&
+                character != '\n' && character != ':' && character != '"' &&
+                character != '[' && character != ']' && character != ',') {
+                break;
+            }
+            ++separator;
+        }
+        if (separator == offset || separator == wkt.size() ||
+            wkt[separator] < '0' || wkt[separator] > '9') {
+            continue;
+        }
+        long long value = 0;
+        while (separator < wkt.size() && wkt[separator] >= '0' &&
+               wkt[separator] <= '9') {
+            value = value * 10 + (wkt[separator] - '0');
+            if (value > (std::numeric_limits<int>::max)()) {
+                value = 0;
+                break;
+            }
+            ++separator;
+        }
+        if (value != 0) {
+            code = static_cast<int>(value);
+        }
+    }
+    return code;
+}
+
+std::optional<int> GeoTiffEpsgCode(
+    const usdlas::LasGeoTiffMetadata& metadata,
+    std::string& error) {
+    std::optional<int> projected;
+    std::optional<int> geographic;
+    for (const auto& key : metadata.keys) {
+        if (key.keyId != 2048 && key.keyId != 3072) {
+            continue;
+        }
+        if (key.tiffTagLocation != 0 || key.valueOffset == 0) {
+            continue;
+        }
+        auto& target = key.keyId == 3072 ? projected : geographic;
+        if (target.has_value() && target.value() != key.valueOffset) {
+            error = "LAS GeoTIFF CRS keys conflict";
+            return std::nullopt;
+        }
+        target = static_cast<int>(key.valueOffset);
+    }
+    return projected.has_value() ? projected : geographic;
+}
+
+bool ResolveEpsgCode(const std::string& wkt,
+                     const std::optional<usdlas::LasGeoTiffMetadata>& metadata,
+                     std::optional<int>& epsgCode,
+                     std::string& error) {
+    epsgCode = ExtractWktEpsgCode(wkt);
+    if (!metadata.has_value()) {
+        return true;
+    }
+    const auto geoTiffCode = GeoTiffEpsgCode(metadata.value(), error);
+    if (!error.empty()) {
+        return false;
+    }
+    if (epsgCode.has_value() && geoTiffCode.has_value() &&
+        epsgCode.value() != geoTiffCode.value()) {
+        error = "LAS CRS definitions conflict";
+        return false;
+    }
+    if (!epsgCode.has_value()) {
+        epsgCode = geoTiffCode;
+    }
     return true;
 }
 
@@ -1097,6 +1185,10 @@ bool ParseKnownMetadata(const std::vector<LasVariableLengthRecord>& records,
     if (!ParseGeoTiffRecords(records, header.geoTiffMetadata, error)) {
         return false;
     }
+    if (!ResolveEpsgCode(header.crsWkt, header.geoTiffMetadata,
+                         header.epsgCode, error)) {
+        return false;
+    }
     if (!ParseExtraBytesRecords(records, header.extraBytes, error)) {
         return false;
     }
@@ -1486,6 +1578,7 @@ bool BuildPointCloudAsset(const LasHeader& header,
     }
 
     asset = {};
+    asset.reference.epsgCode = header.epsgCode;
     asset.reference.wkt = header.crsWkt.empty() ? missingCrsMessage
                                                  : header.crsWkt;
     asset.reference.sourceUpAxis = "Z";
@@ -1518,6 +1611,7 @@ bool BuildPointCloudMetadata(const LasHeader& header,
         return false;
     }
     reference = {};
+    reference.epsgCode = header.epsgCode;
     reference.wkt = header.crsWkt.empty()
                         ? "LAS CRS unavailable; inspect VLR metadata"
                         : header.crsWkt;

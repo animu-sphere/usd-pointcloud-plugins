@@ -114,13 +114,14 @@ metadata.
 | Source | Status |
 | --- | --- |
 | WKT VLR / EVLR | Supported |
-| GeoTIFF `KeyDirectoryTag` | Parsed | Structured key directory is retained on the LAS header |
+| GeoTIFF `KeyDirectoryTag` | Supported | Structured key directory is retained and horizontal EPSG keys are resolved |
 | `GeoDoubleParamsTag` / `GeoAsciiParamsTag` | Parsed | Structured parameter arrays and text are retained on the LAS header |
-| EPSG inference | Not implemented |
-| Conflicting CRS detection | Not implemented |
+| EPSG inference | Supported | Explicit WKT EPSG or GeoTIFF `ProjectedCSTypeGeoKey` / `GeographicTypeGeoKey` is authored as `geo:epsgCode` |
+| Conflicting CRS detection | Supported | Conflicting WKT and GeoTIFF codes, or duplicate same-kind GeoTIFF codes, are rejected with `ConflictingCrs` |
 
 When no WKT record is present, the plugins author a placeholder string in
-`geo:wkt` stating that the CRS is unavailable, and `geo:epsgCode` is `0`.
+`geo:wkt` stating that the CRS is unavailable. `geo:epsgCode` is populated from
+GeoTIFF keys when available and is `0` when no EPSG code can be resolved.
 `geo:projJson` is currently always empty.
 
 ## Authored USD
