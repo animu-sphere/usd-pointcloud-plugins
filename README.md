@@ -85,6 +85,20 @@ ost plugin build .\plugins\pointcloud-las
 ost plugin test .\plugins\pointcloud-las --up-to 4
 ```
 
+Generate a tiled, payload-backed asset explicitly for production processing:
+
+```powershell
+usd-pointcloud-convert `
+  C:\path\to\sample.las `
+  C:\path\to\output\PointCloud.usda `
+  --tile-size 128 `
+  --memory-limit 1048576
+```
+
+The converter is the operational path for long-running tiled generation. It
+publishes the root layer after generation completes; static FileFormat tiled
+reads remain available for preview and small inputs.
+
 Build and test the libraries with plain CMake — without an OpenUSD runtime,
 this covers `usdGeoCore`, `usdPointCloudCore`, `usdLas`, and `usdLaz`:
 

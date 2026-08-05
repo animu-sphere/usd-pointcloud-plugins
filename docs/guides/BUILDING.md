@@ -76,6 +76,25 @@ reports the L3 `usdcat.read` and L4 `python.stage_open` checks as skipped. That
 gap is tracked in
 [implementation status](../roadmap/implementation-status.md).
 
+## Explicit tiled conversion
+
+The production path for long-running tiled generation is the workspace
+converter. It reuses the LAS/LAZ readers and shared payload authoring path:
+
+```powershell
+usd-pointcloud-convert `
+  C:\path\to\sample.las `
+  C:\path\to\output\PointCloud.usda `
+  --tile-size 128 `
+  --memory-limit 1048576 `
+  --attributes xyz,intensity,classification
+```
+
+The output root and payload directory must not already exist. The converter
+creates a temporary root layer and publishes it only after tiled authoring
+completes. Cancellation and resume behavior are still being expanded; use
+`--help` for the current option surface.
+
 ## Plain CMake path
 
 The libraries build and test without `ost` and, for everything except the
