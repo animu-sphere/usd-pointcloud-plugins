@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <filesystem>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -125,6 +126,7 @@ struct PointCloudPayloadOptions {
     std::string directory;
     std::string rootLayerPath;
     std::size_t tileMemoryLimitBytes = 64 * 1024 * 1024;
+    std::function<bool()> isCancelled;
 };
 
 bool AuthorPointCloudTiledAssetFromStream(

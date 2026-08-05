@@ -494,7 +494,7 @@ int main(int argc, char** argv) {
 
     const usdgeo::PointCloudPayloadOptions payloadOptions{
         payloadDirectory.string(), temporaryRootPath.string(),
-        request.tileMemoryLimitBytes};
+        request.tileMemoryLimitBytes, request.readOptions.isCancelled};
     const auto authored = usdgeo::AuthorPointCloudTiledAssetFromStream(
         layer.operator->(), "/PointCloud", *stream, reference,
         {request.tileSize, 0}, payloadOptions, diagnostics);
