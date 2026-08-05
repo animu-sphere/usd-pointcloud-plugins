@@ -4,6 +4,7 @@
 #include "usdpointcloud/Sampling.h"
 
 #include <cstdlib>
+#include <cmath>
 #include <limits>
 #include <map>
 #include <string>
@@ -124,6 +125,14 @@ void TestReadOptions() {
     options.range = {};
     options.memoryBudgetBytes = 0;
     Check(!options.IsValid());
+
+    options.memoryBudgetBytes = 64 * 1024 * 1024;
+    options.bounds = usdgeo::SpatialBounds::Empty();
+    Check(!options.IsValid());
+    options.bounds = usdgeo::SpatialBounds{
+        {std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0},
+        {1.0, 1.0, 1.0}};
+    Check(!options.IsValid());
 }
 
 void TestPointStreamContract() {
@@ -192,6 +201,34 @@ void TestFileFormatArgumentNormalization() {
               {"chunkPointLimit", "2"},
               {"rangeFirstPoint", "4"},
               {"rangePointCount", "3"}});
+
+    arguments = {{"bounds", "0, 1, -2, 10, 11, 12"},
+                 {"classification", "5, 2, 5"}};
+    Check(usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics));
+    Check(request.readOptions.bounds &&
+          request.readOptions.bounds->minimum.y == 1.0 &&
+          request.readOptions.bounds->maximum.z == 12.0 &&
+          request.readOptions.classifications ==
+              std::vector<std::uint8_t>{2, 5});
+    Check(request.normalizedArguments ==
+          "bounds=0.000000,1.000000,-2.000000,10.000000,11.000000,12.000000&classification=2,5");
+
+    arguments = {{"bounds", "0,1,2,1,0,3"}};
+    Check(!usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics));
+    Check(diagnostics.front().code ==
+          usdgeo::DiagnosticCode::InvalidFormatArgument);
+    arguments = {{"bounds", "0,1,2,3,4,5,6"}};
+    Check(!usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics));
+    Check(diagnostics.front().code ==
+          usdgeo::DiagnosticCode::InvalidFormatArgument);
+    arguments = {{"classification", "256"}};
+    Check(!usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics));
+    Check(diagnostics.front().code ==
+          usdgeo::DiagnosticCode::InvalidFormatArgument);
 
     arguments = {{"lod", " balanced "}};
     Check(usdpointcloud::NormalizeFileFormatArguments(

@@ -61,6 +61,8 @@ layer-identity participation.
 | `memoryBudgetBytes` | positive integer | Caps the decoder's point and record buffers |
 | `rangeFirstPoint` | unsigned index | First source point to author |
 | `rangePointCount` | unsigned count; `0` means all remaining | Number of source points to author |
+| `bounds` | `minX,minY,minZ,maxX,maxY,maxZ` | Inclusive source-coordinate bounds filter |
+| `classification` | comma-separated values `0`-`255` | Keeps only matching LAS classifications; values are sorted and deduplicated |
 | `tile` | `true` | Routes the pull stream into source-coordinate tile payloads |
 | `tileSize` | positive source units | Fixed-grid tile width and depth |
 | `tileMemoryLimit` | positive bytes | Per-tile spool buffer limit |
@@ -76,9 +78,10 @@ seeking, so `rangeFirstPoint` avoids *delivering* unselected points but still
 not work.
 
 Recognized but **rejected** with `LAZ008`: `lodLevels`, `lodPointCounts`,
-`lodRatios`, `lodThresholds`, `sampling`, `classification`, `bounds`,
-`originMode`, `upAxis`. Unknown keys are rejected rather than ignored. Full
-rules: [FILE_FORMAT_ARGUMENTS.md](../../docs/architecture/FILE_FORMAT_ARGUMENTS.md).
+`lodRatios`, `lodThresholds`, `sampling`, `originMode`, `upAxis`. Unknown keys
+are rejected rather than ignored. Filters apply to source coordinates and do
+not change metadata-only reads. Full rules:
+[FILE_FORMAT_ARGUMENTS.md](../../docs/architecture/FILE_FORMAT_ARGUMENTS.md).
 
 ## Authored OpenUSD result
 
@@ -198,7 +201,6 @@ and carries none of this.
   and integers not exactly representable as `double` are rejected, and
   descriptor names are normalized to deterministic USD-safe names.
 - CRS comes from the WKT VLR only.
-- Bounds and classification filters are unavailable.
 - Decoding assumes a little-endian host.
 - Writing LAZ is out of scope.
 

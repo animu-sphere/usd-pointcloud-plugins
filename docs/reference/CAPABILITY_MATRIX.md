@@ -195,9 +195,9 @@ in the [tile and LOD contract](../architecture/LOD.md).
 - Extra Bytes support covers types 1-30. Non-finite values and integers not
   exactly representable as `double` are rejected. Descriptor names are
   normalized before USD authoring.
-- File-format arguments currently expose normalized chunk and point-range
-  read options, attribute selection, and compact LOD profiles. Spatial tiling,
-  bounds, and classification filters remain unavailable. See the
+- File-format arguments expose normalized chunk and point-range read options,
+  attribute selection, compact LOD profiles, spatial tiling, bounds, and
+  classification filters. See the
   [file-format argument contract](../architecture/FILE_FORMAT_ARGUMENTS.md) and
   the [plugin adapter contract](../architecture/PLUGIN_ADAPTER.md).
 - `metadataOnly` reads author source metadata without decoding point records;

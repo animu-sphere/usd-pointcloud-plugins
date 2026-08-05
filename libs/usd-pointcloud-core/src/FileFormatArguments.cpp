@@ -1,6 +1,7 @@
 #include "usdpointcloud/FileFormatArguments.h"
 
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <cctype>
 #include <cmath>
@@ -60,11 +61,68 @@ bool ParsePositiveDouble(std::string_view value, double& result) {
            result > 0.0;
 }
 
+bool ParseFiniteDouble(std::string_view value, double& result) {
+    std::string text(value);
+    char* end = nullptr;
+    result = std::strtod(text.c_str(), &end);
+    return end != text.c_str() && *end == '\0' && std::isfinite(result);
+}
+
+bool ParseBounds(std::string_view value,
+                 usdgeo::SpatialBounds& bounds) {
+    std::array<double, 6> coordinates{};
+    std::size_t start = 0;
+    bool consumedAll = false;
+    for (std::size_t index = 0; index < coordinates.size(); ++index) {
+        const auto end = value.find(',', start);
+        const auto component = Trim(value.substr(
+            start, end == std::string_view::npos ? value.size() - start
+                                                   : end - start));
+        if (component.empty() || !ParseFiniteDouble(component, coordinates[index])) {
+            return false;
+        }
+        if (end == std::string_view::npos) {
+            if (index + 1 != coordinates.size()) return false;
+            consumedAll = true;
+            break;
+        }
+        start = end + 1;
+    }
+    if (!consumedAll) return false;
+    bounds = {{coordinates[0], coordinates[1], coordinates[2]},
+              {coordinates[3], coordinates[4], coordinates[5]}};
+    return bounds.IsValid();
+}
+
+bool ParseClassifications(std::string_view value,
+                          std::vector<std::uint8_t>& classifications) {
+    classifications.clear();
+    std::set<std::uint8_t> unique;
+    std::size_t start = 0;
+    while (start <= value.size()) {
+        const auto end = value.find(',', start);
+        const auto component = Trim(value.substr(
+            start, end == std::string_view::npos ? value.size() - start
+                                                   : end - start));
+        std::uint64_t parsed = 0;
+        std::string error;
+        if (component.empty() || !ParseUnsigned(component, parsed, error) ||
+            parsed > std::numeric_limits<std::uint8_t>::max()) {
+            return false;
+        }
+        unique.insert(static_cast<std::uint8_t>(parsed));
+        if (end == std::string_view::npos) break;
+        start = end + 1;
+    }
+    classifications.assign(unique.begin(), unique.end());
+    return !classifications.empty();
+}
+
 bool IsUnsupportedArgument(const std::string& key) {
     static const std::set<std::string> keys = {
         "lodLevels", "lodPointCounts", "lodRatios",
         "lodThresholds", "tileDepth", "tilePointLimit",
-        "sampling", "classification", "bounds", "originMode", "upAxis"};
+        "sampling", "originMode", "upAxis"};
     return keys.find(key) != keys.end();
 }
 
@@ -246,6 +304,21 @@ bool NormalizeFileFormatArguments(
                 return false;
             }
             request.readOptions.range.pointCount = parsed;
+        } else if (key == "bounds") {
+            usdgeo::SpatialBounds bounds;
+            if (!ParseBounds(value, bounds)) {
+                AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                              "invalid bounds: " + value, diagnostics);
+                return false;
+            }
+            request.readOptions.bounds = bounds;
+        } else if (key == "classification") {
+            if (!ParseClassifications(value, request.readOptions.classifications)) {
+                AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                              "invalid classification filter: " + value,
+                              diagnostics);
+                return false;
+            }
         } else if (key == "attributes") {
             attributesSpecified = true;
             std::size_t start = 0;
@@ -319,6 +392,24 @@ bool NormalizeFileFormatArguments(
     if (request.readOptions.range.pointCount != 0) {
         normalized.emplace_back("rangePointCount",
                                 std::to_string(request.readOptions.range.pointCount));
+    }
+    if (request.readOptions.bounds) {
+        const auto& bounds = *request.readOptions.bounds;
+        normalized.emplace_back(
+            "bounds", std::to_string(bounds.minimum.x) + "," +
+                           std::to_string(bounds.minimum.y) + "," +
+                           std::to_string(bounds.minimum.z) + "," +
+                           std::to_string(bounds.maximum.x) + "," +
+                           std::to_string(bounds.maximum.y) + "," +
+                           std::to_string(bounds.maximum.z));
+    }
+    if (!request.readOptions.classifications.empty()) {
+        std::string value;
+        for (const auto classification : request.readOptions.classifications) {
+            if (!value.empty()) value += ',';
+            value += std::to_string(classification);
+        }
+        normalized.emplace_back("classification", value);
     }
     if (request.lodProfile != LodProfile::Off) {
         const char* profile = request.lodProfile == LodProfile::Preview

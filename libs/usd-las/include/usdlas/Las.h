@@ -118,6 +118,9 @@ using LasPointChunkConsumer =
 using LasPointChunkErrorConsumer = std::function<bool(
     const LasHeader&, const std::vector<LasPoint>&, std::string&)>;
 
+bool MatchesReadOptions(const LasPoint& point,
+                        const LasReadOptions& options) noexcept;
+
 bool AppendPointData(const LasHeader& header,
                      const std::vector<LasPoint>& points,
                      const std::string& sourceFilename,

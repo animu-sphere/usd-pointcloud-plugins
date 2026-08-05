@@ -58,6 +58,8 @@ canonical map that participates in layer identity.
 | `memoryBudgetBytes` | positive integer | Caps the reader's point and record buffers |
 | `rangeFirstPoint` | unsigned index | First source point to author |
 | `rangePointCount` | unsigned count; `0` means all remaining | Number of source points to author |
+| `bounds` | `minX,minY,minZ,maxX,maxY,maxZ` | Inclusive source-coordinate bounds filter |
+| `classification` | comma-separated values `0`-`255` | Keeps only matching LAS classifications; values are sorted and deduplicated |
 | `tile` | `true` | Routes the pull stream into source-coordinate tile payloads |
 | `tileSize` | positive source units | Fixed-grid tile width and depth |
 | `tileMemoryLimit` | positive bytes | Per-tile spool buffer limit |
@@ -69,8 +71,9 @@ usdcat "sample.las:SDF_FORMAT_ARGS:lod=balanced&attributes=xyz,rgb"
 
 Recognized but **rejected** with `LAS017`, because their shared contracts are
 not implemented: `lodLevels`, `lodPointCounts`, `lodRatios`, `lodThresholds`, `sampling`,
-`classification`, `bounds`, `originMode`, `upAxis`. An unknown key is rejected
-rather than ignored, so a typo is distinguishable from a default.
+`originMode`, `upAxis`. An unknown key is rejected rather than ignored, so a
+typo is distinguishable from a default. Filters apply to source coordinates and
+do not change metadata-only reads.
 
 A static `SdfFileFormat::Read` runs after layer lookup and cannot repair a
 non-canonical identifier, so a host constructing a layer directly must
@@ -208,7 +211,6 @@ bundle carries no LGPL-2.1 obligation — unlike
   interpreted; EPSG is not inferred and conflicting CRS is not detected.
 - Waveform sample data is not fetched; packet metadata and the `.wdp` reference
   are retained for deferred loading.
-- Bounds and classification filters are unavailable.
 - Decoding assumes a little-endian host.
 - Writing LAS is out of scope.
 

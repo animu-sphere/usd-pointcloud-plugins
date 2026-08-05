@@ -5,11 +5,10 @@ LOD generation, and the [workspace contract](WORKSPACE.md)
 requires arguments to be normalized before any reader or cache lookup. This
 document defines that contract.
 
-Status: **partially implemented**. LAS and LAZ normalize chunk, point-range,
-attribute, and spatial tiled-payload options before the shared reader and
-authoring path. The compact `lod` profile is parsed and canonicalized, and
-single-root LOD authoring is available; filtering remains unavailable and is
-rejected with typed diagnostics.
+Status: **implemented for LAS and LAZ**. LAS and LAZ normalize chunk,
+point-range, attribute, bounds, classification, and spatial tiled-payload
+options before the shared reader and authoring path. The compact `lod` profile
+is parsed and canonicalized, and single-root LOD authoring is available.
 
 ## Why Arguments Exist
 
@@ -64,9 +63,13 @@ The plugins do not invent a second argument syntax.
 attribute values. An argument in that column must never reuse a cached layer
 produced with a different value.
 
-The first implementation may ship only `lod` and `attributes`. Explicit numeric
-controls are added once the LOD contract stabilizes, so that the compact
-profile does not become an alias for a surface that later changes meaning.
+The current implementation also accepts the bounded reader controls and the
+two source-point filters. `bounds` is six comma-separated finite numbers in
+`minX,minY,minZ,maxX,maxY,maxZ` order, inclusive. `classification` is a
+comma-separated list of unsigned values from 0 through 255; values are
+deduplicated and sorted during normalization. Filters are evaluated in source
+coordinates before stage-local transforms. Metadata-only reads still describe
+the complete source and do not apply point delivery filters.
 
 The current pre-LOD surface also exposes the existing streaming reader controls
 because they do not change authored topology:

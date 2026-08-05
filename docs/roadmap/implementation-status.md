@@ -150,7 +150,7 @@ transaction state creation and retrying the same output workspace.
 - [ ] Deterministic USDC cache generation and lookup
 - [x] Extra Bytes descriptor-name normalization contract
 - [x] Vector Extra Bytes types
-- [ ] Bounds and classification filter arguments
+- [x] Bounds and classification filter arguments for LAS and LAZ
 - [ ] EPSG inference and conflicting-CRS detection
 - [x] Declare OST smoke fixtures in both bundle manifests and pass L3/L4
       `usdcat.read` and `python.stage_open`
@@ -167,7 +167,8 @@ Its algorithm, version, and target count are normalized cache-key inputs.
 
 Argument normalization makes the streaming reader's chunk, point-range, and
 tiled payload controls reachable through the plugin layer and the conversion
-tool, and attribute selection is normalized before authoring; see the
+tool. Bounds and classification filters are normalized at the plugin boundary,
+and attribute selection is normalized before authoring; see the
 [plugin adapter contract](../architecture/PLUGIN_ADAPTER.md) and the
 [file-format argument contract](../architecture/FILE_FORMAT_ARGUMENTS.md).
 

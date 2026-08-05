@@ -13,12 +13,17 @@ LAS and LAZ readers.
 - `range.firstPoint` selects the first source point. A zero
   `range.pointCount` selects all remaining points; a nonzero count must fit
   within the header point count.
+- `bounds`, when provided, keeps points whose source coordinates are inside
+  the inclusive `min`/`max` bounds on all three axes.
+- `classifications`, when non-empty, keeps only points whose LAS
+  classification value is in the set.
 - `isCancelled`, when provided, is checked before each chunk. A true result
   stops the read with a diagnostic.
 
-Consumers receive only points in the selected range, while readers still
-validate the complete source point count. A rejected chunk or malformed point
-stops the read.
+Consumers receive only points in the selected range and filters, while readers
+still validate the complete source point count. A chunk may become empty after
+filtering and is not delivered. A rejected chunk or malformed point stops the
+read.
 
 ## Source Access
 
@@ -41,7 +46,7 @@ are still planned; see
 `usdlas::LasReader` and `usdlaz::LazReader` implement the callback contract;
 `usdlas::OpenLasPointStream` and `usdlaz::OpenLazPointStream` implement the pull
 contract. Both plugins pass normalized `chunkPointLimit`, `memoryBudgetBytes`,
-and `range` values to their readers. Tiled reads route stream chunks through
+`range`, `bounds`, and `classifications` values to their readers. Tiled reads route stream chunks through
 the shared spool and payload authoring path. The same host-supplied
 `isCancelled` callback is checked at stream, spool, and payload processing
 boundaries; cancellation removes generated spool and payload files before the
