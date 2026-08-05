@@ -719,13 +719,33 @@ bool AuthorPointCloudTiledAssetWithPayloads(
     if (!rootLayer) {
         return false;
     }
+    std::vector<std::filesystem::path> payloadPaths;
     std::error_code error;
+    const auto payloadDirectoryExisted =
+        std::filesystem::exists(payloadDirectory, error);
+    if (error) {
+        return false;
+    }
     std::filesystem::create_directories(payloadDirectory, error);
     if (error) {
         return false;
     }
 
-    std::vector<std::filesystem::path> payloadPaths;
+    const auto cleanup = [&payloadPaths, &payloadDirectory,
+                          payloadDirectoryExisted]() {
+        std::error_code cleanupError;
+        for (const auto& payloadPath : payloadPaths) {
+            std::filesystem::remove(payloadPath, cleanupError);
+            cleanupError.clear();
+        }
+        if (!payloadDirectoryExisted) {
+            const auto empty = std::filesystem::is_empty(
+                payloadDirectory, cleanupError);
+            if (empty && !cleanupError) {
+                std::filesystem::remove(payloadDirectory, cleanupError);
+            }
+        }
+    };
     for (const auto& tile : tiles) {
         const auto tilePath = primPath + "/Tiles/" + TilePrimName(tile.tile.id);
         for (std::size_t index = 0; index < tile.levels.size(); ++index) {
@@ -733,18 +753,12 @@ bool AuthorPointCloudTiledAssetWithPayloads(
                 (tilePath.substr(tilePath.find_last_of('/') + 1) + "_LOD" +
                  std::to_string(index) + ".usdc");
             if (std::filesystem::exists(payloadPath)) {
+                cleanup();
                 return false;
             }
             payloadPaths.push_back(payloadPath);
         }
     }
-    const auto cleanup = [&payloadPaths]() {
-        std::error_code cleanupError;
-        for (const auto& payloadPath : payloadPaths) {
-            std::filesystem::remove(payloadPath, cleanupError);
-            cleanupError.clear();
-        }
-    };
 
     std::set<std::string> tileNames;
     std::vector<float> sharedThresholds;
@@ -754,12 +768,14 @@ bool AuthorPointCloudTiledAssetWithPayloads(
         if (!usdpointcloud::ValidatePointTile(tile.tile, diagnostics) ||
             tile.levels.size() != tile.tile.lod.items.size() ||
             !tileNames.insert(tile.tile.id.ToString()).second) {
+            cleanup();
             return false;
         }
         if (!thresholdsInitialized) {
             sharedThresholds = tile.tile.lod.screenSizeThresholds;
             thresholdsInitialized = true;
         } else if (tile.tile.lod.screenSizeThresholds != sharedThresholds) {
+            cleanup();
             return false;
         }
         for (std::size_t index = 0; index < tile.levels.size(); ++index) {
@@ -767,6 +783,7 @@ bool AuthorPointCloudTiledAssetWithPayloads(
             const auto& item = tile.tile.lod.items[index];
             if (!level.IsValid() || level.chunk.pointCount != item.pointCount ||
                 !SameBounds(level.bounds, item.bounds)) {
+                cleanup();
                 return false;
             }
         }
@@ -782,6 +799,7 @@ bool AuthorPointCloudTiledAssetWithPayloads(
             stage, pxr::SdfPath(primPath + "/LodHeuristics")) ||
         !pxr::UsdGeomScope::Define(
             stage, pxr::SdfPath(primPath + "/Tiles"))) {
+        cleanup();
         restoreRootLayerIdentifier();
         return false;
     }

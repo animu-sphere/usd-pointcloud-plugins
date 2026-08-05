@@ -590,6 +590,18 @@ void TestTiledLodPayloadAuthoring() {
         {payloadDirectory.string(), rootLayerPath.string()}));
     Check(failedStage->GetRootLayer()->GetIdentifier() == failedIdentifier);
     std::filesystem::remove_all(payloadDirectory);
+
+    const auto invalidPayloadDirectory =
+        std::filesystem::temp_directory_path() / "usd_geo_invalid_payloads";
+    const auto invalidRootLayerPath = invalidPayloadDirectory / "PointCloud.usda";
+    std::filesystem::remove_all(invalidPayloadDirectory);
+    auto invalidTile = tile;
+    invalidTile.tile.lod.items.clear();
+    const auto invalidStage = usdgeo::PointCloudLayer::CreateStage();
+    Check(!usdgeo::AuthorPointCloudTiledAssetWithPayloads(
+        invalidStage, "/PointCloud", {invalidTile},
+        {invalidPayloadDirectory.string(), invalidRootLayerPath.string()}));
+    Check(!std::filesystem::exists(invalidPayloadDirectory));
 }
 
 void TestStreamTiledPayloadAuthoring() {
