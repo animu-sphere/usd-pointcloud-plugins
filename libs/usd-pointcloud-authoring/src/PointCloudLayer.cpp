@@ -715,6 +715,10 @@ bool AuthorPointCloudTiledAssetWithPayloads(
 
     const std::filesystem::path payloadDirectory(options.directory);
     const std::filesystem::path rootLayerPath(options.rootLayerPath);
+    const auto rootLayer = stage->GetRootLayer();
+    if (!rootLayer) {
+        return false;
+    }
     std::error_code error;
     std::filesystem::create_directories(payloadDirectory, error);
     if (error) {
@@ -768,11 +772,17 @@ bool AuthorPointCloudTiledAssetWithPayloads(
         }
     }
 
+    const auto originalRootLayerIdentifier = rootLayer->GetIdentifier();
+    const auto restoreRootLayerIdentifier = [&]() {
+        rootLayer->SetIdentifier(originalRootLayerIdentifier);
+    };
+    rootLayer->SetIdentifier(rootLayerPath.generic_string());
     if (!pxr::UsdGeomXform::Define(stage, pxr::SdfPath(primPath)) ||
         !pxr::UsdGeomScope::Define(
             stage, pxr::SdfPath(primPath + "/LodHeuristics")) ||
         !pxr::UsdGeomScope::Define(
             stage, pxr::SdfPath(primPath + "/Tiles"))) {
+        restoreRootLayerIdentifier();
         return false;
     }
 
@@ -786,6 +796,7 @@ bool AuthorPointCloudTiledAssetWithPayloads(
                            tile.tile.lod, heuristicPath, defineHeuristic,
                            &payloadDirectory, &rootLayerPath)) {
             cleanup();
+            restoreRootLayerIdentifier();
             return false;
         }
         defineHeuristic = false;
