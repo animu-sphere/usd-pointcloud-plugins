@@ -193,6 +193,29 @@ void TestFileFormatArgumentNormalization() {
               {"rangeFirstPoint", "4"},
               {"rangePointCount", "3"}});
 
+    arguments = {{"bounds", "0, 1, -2, 10, 11, 12"},
+                 {"classification", "5, 2, 5"}};
+    Check(usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics));
+    Check(request.readOptions.bounds &&
+          request.readOptions.bounds->minimum.y == 1.0 &&
+          request.readOptions.bounds->maximum.z == 12.0 &&
+          request.readOptions.classifications ==
+              std::vector<std::uint8_t>{2, 5});
+    Check(request.normalizedArguments ==
+          "bounds=0.000000,1.000000,-2.000000,10.000000,11.000000,12.000000&classification=2,5");
+
+    arguments = {{"bounds", "0,1,2,1,0,3"}};
+    Check(!usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics));
+    Check(diagnostics.front().code ==
+          usdgeo::DiagnosticCode::InvalidFormatArgument);
+    arguments = {{"classification", "256"}};
+    Check(!usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics));
+    Check(diagnostics.front().code ==
+          usdgeo::DiagnosticCode::InvalidFormatArgument);
+
     arguments = {{"lod", " balanced "}};
     Check(usdpointcloud::NormalizeFileFormatArguments(
         arguments, request, diagnostics));

@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -99,6 +100,8 @@ struct PointReadOptions {
     std::size_t chunkPointLimit = 65536;
     std::size_t memoryBudgetBytes = 64 * 1024 * 1024;
     PointRange range;
+    std::optional<usdgeo::SpatialBounds> bounds;
+    std::vector<std::uint8_t> classifications;
     std::function<bool()> isCancelled;
 
     bool IsValid() const noexcept;

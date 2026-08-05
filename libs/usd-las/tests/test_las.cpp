@@ -235,6 +235,7 @@ void TestRangeReader() {
         Write(record, 0, static_cast<std::int32_t>(index + 1));
         Write(record, 4, static_cast<std::int32_t>(index + 2));
         Write(record, 8, static_cast<std::int32_t>(index + 3));
+        Write(record, 15, static_cast<std::uint8_t>(index == 0 ? 1 : 2));
         bytes.insert(bytes.end(), record.begin(), record.end());
     }
     {
@@ -260,6 +261,23 @@ void TestRangeReader() {
         },
         header, error));
     Check(points == 1);
+
+    options.range = {};
+    options.bounds = usdgeo::SpatialBounds{{1000.015, 1999.0, 3000.0},
+                                           {1000.035, 2001.0, 3001.0}};
+    options.classifications = {2};
+    points = 0;
+    Check(reader.Read(
+        options,
+        [&](const usdlas::LasHeader&, const std::vector<usdlas::LasPoint>& data) {
+            points += data.size();
+            Check(!data.empty());
+            Check(data.front().sourcePosition.x == 1000.02 ||
+                data.front().sourcePosition.x == 1000.03);
+            return true;
+        },
+        header, error));
+    Check(points == 2);
 
     std::vector<usdgeo::Diagnostic> callbackDiagnostics;
     Check(!reader.Read(

@@ -118,6 +118,36 @@ private:
     std::size_t offset_ = 0;
 };
 
+class FilterDecoder final : public usdlaz::LazDecoder {
+public:
+    bool ReadHeader(usdlas::LasHeader& header, std::string&) override {
+        header.pointCount = 3;
+        header.pointRecordLength = 20;
+        return true;
+    }
+
+    bool ReadChunk(std::size_t maximumPoints,
+                   std::vector<usdlas::LasPoint>& points,
+                   bool& complete,
+                   std::string&) override {
+        points.clear();
+        const auto count = (std::min)(maximumPoints, std::size_t{3} - offset_);
+        points.resize(count);
+        for (std::size_t index = 0; index < count; ++index) {
+            points[index].sourcePosition = {
+                static_cast<double>(offset_ + index), 0.0, 0.0};
+            points[index].classification =
+                static_cast<std::uint8_t>(offset_ + index + 1);
+        }
+        offset_ += count;
+        complete = offset_ == 3;
+        return true;
+    }
+
+private:
+    std::size_t offset_ = 0;
+};
+
 void TestChunkForwarding() {
     usdlaz::LazReader reader(std::make_unique<FakeDecoder>());
     usdlaz::LazReadOptions options;
@@ -137,6 +167,28 @@ void TestChunkForwarding() {
     Check(error.empty());
     Check(chunks == 2);
     Check(points == 3);
+}
+
+void TestFiltering() {
+    usdlaz::LazReader reader(std::make_unique<FilterDecoder>());
+    usdlaz::LazReadOptions options;
+    options.chunkPointLimit = 2;
+    options.bounds = usdgeo::SpatialBounds{{0.5, -1.0, -1.0},
+                                           {2.5, 1.0, 1.0}};
+    options.classifications = {2};
+    usdlas::LasHeader header;
+    std::string error;
+    std::size_t points = 0;
+    Check(reader.Read(
+        options,
+        [&](const usdlas::LasHeader&,
+            const std::vector<usdlas::LasPoint>& data) {
+            points += data.size();
+            Check(data.size() == 1 && data.front().classification == 2);
+            return true;
+        },
+        header, error));
+    Check(points == 1 && error.empty());
 }
 
 void TestCompleteFlagIsResetBeforeEachChunk() {
@@ -318,6 +370,7 @@ void TestLazPerfFileDecoder() {
 
 int main() {
     TestChunkForwarding();
+    TestFiltering();
     TestCompleteFlagIsResetBeforeEachChunk();
     TestFileDecoderReportsOpenFailure();
     TestTypedReaderPreservesDecoderDiagnostic();

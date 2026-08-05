@@ -111,6 +111,13 @@ usdpointcloud::PointStreamStatus LazPointStream::ReadNext(
         const auto last = static_cast<std::size_t>(selectedEnd - chunkStart);
         points.erase(points.begin(), points.begin() + first);
         points.erase(points.begin() + (last - first), points.end());
+        points.erase(
+            std::remove_if(points.begin(), points.end(),
+                           [&](const usdlas::LasPoint& point) {
+                               return !usdlas::MatchesReadOptions(point, options_);
+                           }),
+            points.end());
+        if (points.empty()) continue;
         usdpointcloud::PointData pointData;
         std::string error;
         if (!usdlas::AppendPointData(header_, points, {}, pointData, error)) {
@@ -131,13 +138,11 @@ usdpointcloud::PointStreamStatus LazPointStream::ReadNext(
             ended_ = true;
             return usdpointcloud::PointStreamStatus::Error;
         }
-        selectedPointsRead_ += chunk.pointCount;
         data = std::move(pointData);
         return usdpointcloud::PointStreamStatus::Chunk;
     }
 
-    if (pointsRead_ != header_.pointCount ||
-        selectedPointsRead_ != endPoint_ - options_.range.firstPoint) {
+    if (pointsRead_ != header_.pointCount) {
         diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
                       usdgeo::Severity::Error,
                       "LAZ decoder point count does not match the header",
@@ -276,7 +281,6 @@ bool LazReader::Read(
     }
 
     std::uint64_t pointsRead = 0;
-    std::uint64_t selectedPointsRead = 0;
     bool complete = false;
     while (!complete) {
         if (options.isCancelled && options.isCancelled()) {
@@ -315,15 +319,20 @@ bool LazReader::Read(
                                                         chunkStart);
             points.erase(points.begin(), points.begin() + first);
             points.erase(points.begin() + (last - first), points.end());
-            selectedPointsRead += points.size();
-            if (!consume(header, points)) {
+            points.erase(
+                std::remove_if(points.begin(), points.end(),
+                               [&](const usdlas::LasPoint& point) {
+                                   return !usdlas::MatchesReadOptions(point,
+                                                                       options);
+                               }),
+                points.end());
+            if (!points.empty() && !consume(header, points)) {
                 error = "LAZ chunk consumer rejected a chunk";
                 return false;
             }
         }
     }
-    if (pointsRead != header.pointCount ||
-        selectedPointsRead != rangeEnd - options.range.firstPoint) {
+    if (pointsRead != header.pointCount) {
         error = "LAZ decoder point count does not match the header";
         return false;
     }
@@ -379,7 +388,6 @@ bool LazReader::Read(
     }
 
     std::uint64_t pointsRead = 0;
-    std::uint64_t selectedPointsRead = 0;
     bool complete = false;
     while (!complete) {
         if (options.isCancelled && options.isCancelled()) {
@@ -424,16 +432,21 @@ bool LazReader::Read(
                                                         chunkStart);
             points.erase(points.begin(), points.begin() + first);
             points.erase(points.begin() + (last - first), points.end());
-            selectedPointsRead += points.size();
-            if (!consume(header, points)) {
+            points.erase(
+                std::remove_if(points.begin(), points.end(),
+                               [&](const usdlas::LasPoint& point) {
+                                   return !usdlas::MatchesReadOptions(point,
+                                                                       options);
+                               }),
+                points.end());
+            if (!points.empty() && !consume(header, points)) {
                 AddDiagnostic("LAZ chunk consumer rejected a chunk",
                               pointsRead, diagnostics);
                 return false;
             }
         }
     }
-    if (pointsRead != header.pointCount ||
-        selectedPointsRead != rangeEnd - options.range.firstPoint) {
+    if (pointsRead != header.pointCount) {
         AddDiagnostic("LAZ decoder point count does not match the header",
                       pointsRead, diagnostics);
         return false;

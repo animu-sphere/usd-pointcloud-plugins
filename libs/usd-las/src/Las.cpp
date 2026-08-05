@@ -455,6 +455,23 @@ bool ReadRecords(const std::vector<std::uint8_t>& bytes,
 
 namespace usdlas {
 
+bool MatchesReadOptions(const LasPoint& point,
+                        const LasReadOptions& options) noexcept {
+    if (options.bounds) {
+        const auto& bounds = *options.bounds;
+        const auto& position = point.sourcePosition;
+        if (position.x < bounds.minimum.x || position.x > bounds.maximum.x ||
+            position.y < bounds.minimum.y || position.y > bounds.maximum.y ||
+            position.z < bounds.minimum.z || position.z > bounds.maximum.z) {
+            return false;
+        }
+    }
+    return options.classifications.empty() ||
+           std::find(options.classifications.begin(),
+                     options.classifications.end(), point.classification) !=
+               options.classifications.end();
+}
+
 LasReader::LasReader(std::string filename) : filename_(std::move(filename)) {}
 
 LasReadFailure LasReader::FailureKind() const noexcept {
@@ -630,7 +647,6 @@ bool LasReader::ReadPoints(const LasReadOptions& options,
     }
 
     std::uint64_t pointsRead = options.range.firstPoint;
-    std::uint64_t selectedPointsRead = 0;
     while (pointsRead < rangeEnd) {
         if (options.isCancelled && options.isCancelled()) {
             failureKind_ = LasReadFailure::Other;
@@ -669,33 +685,19 @@ bool LasReader::ReadPoints(const LasReadOptions& options,
                 failurePointIndex_ = pointsRead + index;
                 return false;
             }
-            points.push_back(point);
+            if (MatchesReadOptions(point, options)) {
+                points.push_back(point);
+            }
         }
 
-        const auto chunkStart = pointsRead;
         pointsRead += count;
-        const auto selectedStart =
-            (std::max)(chunkStart, options.range.firstPoint);
-        const auto selectedEnd = (std::min)(pointsRead, rangeEnd);
-        if (selectedStart < selectedEnd) {
-            const auto first = static_cast<std::size_t>(selectedStart -
-                                                         chunkStart);
-            const auto last = static_cast<std::size_t>(selectedEnd -
-                                                        chunkStart);
-            points.erase(points.begin(), points.begin() + first);
-            points.erase(points.begin() + (last - first), points.end());
-            selectedPointsRead += points.size();
+        if (!points.empty()) {
             if (!consume(header, points)) {
                 failureKind_ = LasReadFailure::Other;
                 error = "LAS chunk consumer rejected a chunk";
                 return false;
             }
         }
-    }
-    if (selectedPointsRead != rangeEnd - options.range.firstPoint) {
-        failureKind_ = LasReadFailure::Other;
-        error = "LAS reader point count does not match the range";
-        return false;
     }
     return true;
 }
