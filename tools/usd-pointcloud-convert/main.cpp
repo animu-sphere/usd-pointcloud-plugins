@@ -8,6 +8,8 @@
 #include <csignal>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
+#include <algorithm>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -59,6 +61,77 @@ bool IsExtension(const std::filesystem::path& path, const char* extension) {
     return value == extension;
 }
 
+std::filesystem::path ManifestPath(
+    const std::filesystem::path& outputPath) {
+    return std::filesystem::path(outputPath.string() + ".manifest");
+}
+
+std::string RelativeManifestPath(const std::filesystem::path& base,
+                                 const std::filesystem::path& path) {
+    return std::filesystem::relative(path, base).generic_string();
+}
+
+bool WriteManifest(const std::filesystem::path& manifestPath,
+                   const std::filesystem::path& inputPath,
+                   const std::filesystem::path& outputPath,
+                   const std::filesystem::path& payloadDirectory,
+                   const usdpointcloud::PointReadRequest& request,
+                   std::string& errorMessage) {
+    std::error_code error;
+    const auto inputSize = std::filesystem::file_size(inputPath, error);
+    if (error) {
+        errorMessage = "unable to inspect input for manifest: " +
+                       error.message();
+        return false;
+    }
+
+    std::vector<std::string> payloads;
+    for (std::filesystem::recursive_directory_iterator iterator(
+             payloadDirectory, error), end;
+         iterator != end && !error; iterator.increment(error)) {
+        if (iterator->is_regular_file(error) && !error) {
+            payloads.push_back(RelativeManifestPath(
+                outputPath.parent_path(), iterator->path()));
+        }
+    }
+    if (error) {
+        errorMessage = "unable to enumerate payloads for manifest: " +
+                       error.message();
+        return false;
+    }
+    std::sort(payloads.begin(), payloads.end());
+
+    std::map<std::string, std::string> manifestArguments =
+        request.canonicalArguments;
+    manifestArguments["payloadDirectory"] = RelativeManifestPath(
+        outputPath.parent_path(), payloadDirectory);
+
+    std::ofstream output(manifestPath, std::ios::binary | std::ios::trunc);
+    if (!output) {
+        errorMessage = "unable to create manifest";
+        return false;
+    }
+    output << "format=usd-pointcloud-manifest-v1\n"
+           << "input.file=" << inputPath.filename().generic_string() << "\n"
+           << "input.sizeBytes=" << inputSize << "\n"
+           << "output.root=" << outputPath.filename().generic_string() << "\n"
+           << "output.payloadDirectory="
+           << RelativeManifestPath(outputPath.parent_path(), payloadDirectory)
+           << "\n";
+    for (const auto& [key, value] : manifestArguments) {
+        output << "argument." << key << "=" << value << "\n";
+    }
+    output << "payload.count=" << payloads.size() << "\n";
+    for (const auto& payload : payloads) {
+        output << "payload.file=" << payload << "\n";
+    }
+    if (!output) {
+        errorMessage = "unable to write manifest";
+        return false;
+    }
+    return true;
+}
+
 class SelectedPointStream final : public usdpointcloud::PointStream {
 public:
     SelectedPointStream(std::unique_ptr<usdpointcloud::PointStream> stream,
@@ -104,6 +177,7 @@ int main(int argc, char** argv) {
 
     const std::filesystem::path inputPath = std::filesystem::absolute(argv[1]);
     const std::filesystem::path outputPath = std::filesystem::absolute(argv[2]);
+    const auto manifestPath = ManifestPath(outputPath);
     if (!IsExtension(inputPath, ".las") && !IsExtension(inputPath, ".laz")) {
         std::cerr << "Input must have a .las or .laz extension\n";
         return 2;
@@ -158,6 +232,7 @@ int main(int argc, char** argv) {
 
     std::error_code error;
     if (std::filesystem::exists(outputPath, error) || error ||
+        std::filesystem::exists(manifestPath, error) || error ||
         std::filesystem::exists(payloadDirectory, error) || error) {
         std::cerr << "Output or payload directory already exists\n";
         return 2;
@@ -209,7 +284,10 @@ int main(int argc, char** argv) {
     std::signal(SIGINT, HandleInterrupt);
     const auto temporaryRootPath = outputPath.parent_path() /
         (outputPath.stem().string() + ".tmp.usda");
-    if (std::filesystem::exists(temporaryRootPath, error) || error) {
+    const auto temporaryManifestPath =
+        std::filesystem::path(manifestPath.string() + ".tmp");
+    if (std::filesystem::exists(temporaryRootPath, error) || error ||
+        std::filesystem::exists(temporaryManifestPath, error) || error) {
         std::cerr << "Temporary output already exists: "
                   << temporaryRootPath.string() << "\n";
         return 2;
@@ -244,19 +322,41 @@ int main(int argc, char** argv) {
         std::filesystem::remove_all(payloadDirectory, error);
         return 1;
     }
+    std::string manifestError;
+    if (!WriteManifest(temporaryManifestPath, inputPath, outputPath,
+                       payloadDirectory, request, manifestError)) {
+        std::cerr << "Unable to write conversion manifest: " << manifestError
+                  << "\n";
+        layer = nullptr;
+        std::filesystem::remove(temporaryRootPath, error);
+        std::filesystem::remove(temporaryManifestPath, error);
+        std::filesystem::remove_all(payloadDirectory, error);
+        return 1;
+    }
     if (interrupted != 0) {
         std::cerr << "Conversion cancelled\n";
         layer = nullptr;
         std::filesystem::remove(temporaryRootPath, error);
+        std::filesystem::remove(temporaryManifestPath, error);
         std::filesystem::remove_all(payloadDirectory, error);
         return 1;
     }
     layer = nullptr;
+    std::filesystem::rename(temporaryManifestPath, manifestPath, error);
+    if (error) {
+        std::cerr << "Unable to publish conversion manifest: "
+                  << error.message() << "\n";
+        std::filesystem::remove(temporaryManifestPath, error);
+        std::filesystem::remove(temporaryRootPath, error);
+        std::filesystem::remove_all(payloadDirectory, error);
+        return 1;
+    }
     std::filesystem::rename(temporaryRootPath, outputPath, error);
     if (error) {
         std::cerr << "Unable to publish generated root layer: "
                   << error.message() << "\n";
         std::filesystem::remove(temporaryRootPath, error);
+        std::filesystem::remove(manifestPath, error);
         std::filesystem::remove_all(payloadDirectory, error);
         return 1;
     }

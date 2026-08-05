@@ -96,8 +96,10 @@ usd-pointcloud-convert `
 ```
 
 The converter is the operational path for long-running tiled generation. It
-publishes the root layer after generation completes; static FileFormat tiled
-reads remain available for preview and small inputs.
+publishes the root layer and a deterministic `PointCloud.usda.manifest`
+sidecar after generation completes; static FileFormat tiled reads remain
+available for preview and small inputs. The sidecar records normalized
+generation arguments and relative payload asset paths.
 
 Build and test the libraries with plain CMake — without an OpenUSD runtime,
 this covers `usdGeoCore`, `usdPointCloudCore`, `usdLas`, and `usdLaz`:

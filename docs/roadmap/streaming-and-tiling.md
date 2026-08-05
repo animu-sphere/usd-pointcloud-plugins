@@ -8,7 +8,9 @@ Status: **in progress**. The `PointStream` contract, LAS and LAZ connections,
 spill-backed routing, and one-tile-at-a-time payload authoring are implemented.
 The production path for long-running tiled generation is now an explicit
 conversion tool; FileFormat-triggered generation remains a compatibility path
-and is not the target operational interface.
+and is not the target operational interface. The converter publishes a
+deterministic `<root>.manifest` sidecar containing normalized generation
+arguments and the relative payload asset list.
 Generated-corpus RSS measurement and an explicit benchmark target for
 generated, LAS, and LAZ inputs are implemented. A real-input baseline is
 recorded below; broader real-world measurements and payload working-set
@@ -197,10 +199,11 @@ usd-pointcloud-convert <input> <output-root>
 ```
 
 The tool owns temporary output, cancellation, failure cleanup, and final
-root-last publication. It must not duplicate LAS or LAZ decoding. Source and
-option fingerprinting, a manifest, and resume support are subsequent steps;
-they will record the normalized generation settings and output asset list
-without changing the reader contracts.
+root-last publication. It must not duplicate LAS or LAZ decoding. It also
+publishes a deterministic `<root>.manifest` sidecar after payload generation
+and before the root layer; the sidecar records normalized generation settings
+and the relative output asset list. Source content fingerprinting and resume
+support remain subsequent steps and do not change the reader contracts.
 
 ## 8. Out of scope for the first streaming release
 
