@@ -200,6 +200,20 @@ std::uint64_t NewSpoolFileBytes(
     return bytes;
 }
 
+std::uint64_t PayloadBytes(const std::filesystem::path& directory) {
+    std::uint64_t bytes = 0;
+    std::error_code error;
+    for (const auto& entry : std::filesystem::directory_iterator(
+             directory, error)) {
+        if (error) break;
+        if (entry.is_regular_file(error) && entry.path().extension() == ".usdc") {
+            bytes += entry.file_size(error);
+        }
+        error.clear();
+    }
+    return bytes;
+}
+
 bool CountPayloads(const std::filesystem::path& directory,
                    std::uint64_t& count) {
     count = 0;
@@ -280,20 +294,6 @@ private:
     double tileSize_;
     std::size_t index_ = 0;
 };
-
-std::uint64_t PayloadBytes(const std::filesystem::path& directory) {
-    std::uint64_t bytes = 0;
-    std::error_code error;
-    for (const auto& entry : std::filesystem::directory_iterator(
-             directory, error)) {
-        if (error) break;
-        if (entry.is_regular_file(error) && entry.path().extension() == ".usdc") {
-            bytes += entry.file_size(error);
-        }
-        error.clear();
-    }
-    return bytes;
-}
 
 } // namespace
 
@@ -411,7 +411,6 @@ int main(int argc, char** argv) {
         std::max(peakSpoolFileBytes.load(std::memory_order_relaxed),
                  NewSpoolFileBytes(existingSpoolDirectories)),
         std::memory_order_relaxed);
-
     const auto outputBytes = DirectoryBytesRecursive(outputDirectory);
     const auto payloadBytes = PayloadBytes(outputDirectory);
     const auto writeBytesAfter = ProcessWriteBytes();
