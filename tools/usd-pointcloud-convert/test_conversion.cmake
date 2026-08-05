@@ -6,14 +6,17 @@ file(REMOVE_RECURSE "${test_root}")
 file(MAKE_DIRECTORY "${test_root}")
 set(output_root "${test_root}/PointCloud.usda")
 set(output_payloads "${test_root}/PointCloud_payloads")
+set(stale_payloads "${test_root}/StalePayloads")
 set(output_manifest "${output_root}.manifest")
 set(output_transaction "${output_root}.transaction")
 
-file(MAKE_DIRECTORY "${output_payloads}" "${output_transaction}")
+file(MAKE_DIRECTORY "${stale_payloads}" "${output_transaction}")
 file(WRITE "${output_manifest}" "stale manifest")
 file(WRITE "${test_root}/PointCloud.tmp.usda" "stale root")
 file(WRITE "${output_manifest}.tmp" "stale temporary manifest")
-file(WRITE "${output_payloads}/stale.usdc" "stale payload")
+file(WRITE "${stale_payloads}/stale.usdc" "stale payload")
+file(WRITE "${output_transaction}/state"
+    "payloadDirectory=${stale_payloads}\n")
 
 execute_process(
     COMMAND "${converter}" "${fixture}" "${output_root}"
@@ -30,7 +33,8 @@ if(NOT convert_error STREQUAL "")
     message(FATAL_ERROR "converter emitted diagnostics: ${convert_error}")
 endif()
 if(NOT EXISTS "${output_root}" OR NOT EXISTS "${output_payloads}" OR
-   NOT EXISTS "${output_manifest}" OR EXISTS "${output_transaction}")
+    NOT EXISTS "${output_manifest}" OR EXISTS "${output_transaction}" OR
+    EXISTS "${stale_payloads}")
     message(FATAL_ERROR "converter did not publish the expected output bundle")
 endif()
 
