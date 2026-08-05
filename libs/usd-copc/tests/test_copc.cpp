@@ -171,6 +171,20 @@ void TestInvalidChildPage() {
     std::filesystem::remove(path);
 }
 
+void TestRejectsPointCountMismatch() {
+    auto bytes = MakeFixture();
+    Write(bytes, 247, std::uint64_t{3});
+    const auto path = WriteFixture(bytes, "usd_copc_point_count_mismatch.copc");
+    usdcopc::CopcReader reader(path.string());
+    usdcopc::CopcHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(reader.ReadMetadata(header, diagnostics));
+    std::vector<usdcopc::CopcHierarchyEntry> entries;
+    Check(!reader.ReadHierarchy(header, entries, diagnostics));
+    Check(!diagnostics.empty());
+    std::filesystem::remove(path);
+}
+
 void TestRejectsUnsupportedPointFormat() {
     const auto path = WriteFixture(
         MakeFixture(9), "usd_copc_unsupported_format.copc");
@@ -215,6 +229,7 @@ void TestRejectsNonZeroReservedInfo() {
 int main() {
     TestMetadataAndHierarchy();
     TestInvalidChildPage();
+    TestRejectsPointCountMismatch();
     TestRejectsUnsupportedPointFormat();
     TestRejectsMissingHierarchyVlr();
     TestRejectsNonZeroReservedInfo();

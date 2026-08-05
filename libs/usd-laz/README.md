@@ -42,7 +42,7 @@ usdlaz/Laz.h
 
 | Group | Entry points |
 | --- | --- |
-| Codec seam | `LazDecoder` (`ReadHeader`, `ReadChunk`), `CreateFileDecoder`, `DecodeLazChunk` |
+| Codec seam | `LazDecoder` (`ReadHeader`, `ReadChunk`), `CreateFileDecoder`, `DecodeLazChunk` and its bounded point-consumer overload |
 | Orchestration | `LazReader::Read`, `LazReader::ReadMetadata` |
 | Aliases | `LazReadOptions` = `usdpointcloud::PointReadOptions`, `LazPointChunkConsumer`, `LazPointChunkErrorConsumer` |
 

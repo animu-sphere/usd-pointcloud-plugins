@@ -5,9 +5,10 @@ identities, dependency directions, root responsibilities, artifact naming, and
 change invariants. A structural change that contradicts this document must
 change this document first.
 
-Status: `usdGeoCore`, `usdPointCloudCore`, `usdLas`, `usdLaz`, and
-`usdPointCloudAuthoring` are implemented, as are the `pointcloud-las` and
-`pointcloud-laz` bundles. Future module identities are reserved here.
+Status: `usdGeoCore`, `usdPointCloudCore`, `usdLas`, `usdLaz`, `usdCopc`, and
+`usdPointCloudAuthoring` are implemented, as are the `pointcloud-las`,
+`pointcloud-laz`, and `pointcloud-copc` bundles. Future module identities are
+reserved here.
 
 ## 1. Components
 
@@ -20,10 +21,12 @@ Status: `usdGeoCore`, `usdPointCloudCore`, `usdLas`, `usdLaz`, and
 | `usdPointCloudAuthoring` | `libs/usd-pointcloud-authoring` | plain CMake/OpenStrata static library | implemented | Shared OpenUSD authoring: `UsdGeomPoints` and geospatial metadata authoring, point-attribute authoring, `usdLod` hierarchy authoring, tiled point-cloud authoring, payload-backed tile assets, root layer generation, and stage/layer validation. Renamed from `usdPointCloudAuthoring` after v0.1.0. |
 | `pointcloud-las` | `plugins/pointcloud-las` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | OpenUSD `SdfFileFormat` adapter for `.las`: plugin registration, argument normalization, `LasReader` construction, and authoring through the shared library. Owns its `LASxxx` diagnostic codes. |
 | `pointcloud-laz` | `plugins/pointcloud-laz` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | The same adapter shape for `.laz`, using `LazReader` and the laz-perf codec integration. Owns its `LAZxxx` diagnostic codes. |
+| `usdCopc` | `libs/usd-copc` | plain library | foundation implemented | COPC Info and hierarchy validation plus local point-data range selection through the shared LAZ chunk decoder. |
+| `pointcloud-copc` | `plugins/pointcloud-copc` | OpenStrata plugin bundle (`usd-fileformat`) | foundation implemented | Local metadata-only and non-tiled COPC adapter. Source point ranges and tiled reads remain explicitly unsupported. |
 | `usdPointCloudTiling` | `libs/usd-pointcloud-tiling` | plain library | implemented (initial contracts) | Format-independent spatial partitioning and bounded-memory tile preparation: fixed-grid tile keys and source-coordinate bucketing are implemented; tile buffering and spill-to-disk, tile manifests, fixed-stride LOD sampling, deterministic tile and level ordering, and cleanup of incomplete temporary output remain. See the [streaming and tiling plan](../roadmap/streaming-and-tiling.md). |
 | `usdGeoCache` | `libs/usd-geo-cache` | plain library | reserved, not implemented | Stable cache keys, USDC tile layout, cache lookup and invalidation. |
-| `usdCopc`, `usdPly`, `usdAsciiPoints`, `usdE57` | `libs/` | plain libraries | reserved, not implemented | Additional point-cloud readers targeting the same shared contracts. `usdCopc` is a candidate, not a commitment; the alternative is an isolated COPC module inside `usdLaz`. |
-| `geospatial-copc`, `geospatial-ply`, `geospatial-points-text`, `geospatial-e57` | `plugins/` | reserved, not implemented | Future point-cloud FileFormat Plugin adapters, in the order fixed by [format support order](../roadmap/format-support-order.md). |
+| `usdPly`, `usdAsciiPoints`, `usdE57` | `libs/` | plain libraries | reserved, not implemented | Additional point-cloud readers targeting the same shared contracts. |
+| `geospatial-ply`, `geospatial-points-text`, `geospatial-e57` | `plugins/` | reserved, not implemented | Future point-cloud FileFormat Plugin adapters, in the order fixed by [format support order](../roadmap/format-support-order.md). |
 
 Terrain, raster, and vector contracts belong to future repository candidates:
 `usd-terrain-plugins` and `usd-vector-plugins`. They are not reserved modules
@@ -48,11 +51,13 @@ Allowed today:
 usdPointCloudCore      -> usdGeoCore
 usdLas                 -> usdGeoCore, usdPointCloudCore
 usdLaz                 -> usdLas, usdPointCloudCore
+usdCopc                -> usdLas, usdLaz, usdPointCloudCore
 usdLaz                 -> laz-perf (private, vendored codec implementation)
 usdPointCloudAuthoring -> usdGeoCore, usdPointCloudCore
 usdPointCloudAuthoring -> OpenUSD (usdGeom, usdLod)
 pointcloud-las         -> usdLas, usdPointCloudAuthoring, OpenUSD
 pointcloud-laz         -> usdLaz, usdPointCloudAuthoring, OpenUSD
+pointcloud-copc        -> usdCopc, usdPointCloudAuthoring, OpenUSD
 ```
 
 Reserved future directions:

@@ -70,6 +70,27 @@ openstrata_link_openusd(
     TARGET ${PLUGIN_NAME}
     COMPONENTS arch tf gf vt sdf usd)
 
+if(USDGEO_BUILD_TESTS)
+    add_executable(pointcloudCopc_tests tests/test_pointcloud_copc.cpp)
+    target_compile_features(pointcloudCopc_tests PRIVATE cxx_std_17)
+    target_compile_definitions(pointcloudCopc_tests PRIVATE
+        USDGEOCOPC_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+    target_include_directories(pointcloudCopc_tests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        ${PXR_INCLUDE_DIRS})
+    add_dependencies(pointcloudCopc_tests ${PLUGIN_NAME})
+    if(MSVC)
+        target_compile_definitions(pointcloudCopc_tests PRIVATE NOMINMAX)
+        target_compile_options(pointcloudCopc_tests PRIVATE /utf-8)
+    endif()
+    openstrata_link_openusd(
+        TARGET pointcloudCopc_tests
+        COMPONENTS arch tf gf vt sdf usd)
+    set_target_properties(pointcloudCopc_tests PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
+    add_test(NAME pointcloudCopc_integration COMMAND pointcloudCopc_tests)
+endif()
+
 openstrata_configure_plugin(
     TARGET ${PLUGIN_NAME}
     PLUG_INFO_INPUT "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/pointcloud-copc/plugInfo.json.in"

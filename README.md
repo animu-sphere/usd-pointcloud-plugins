@@ -3,7 +3,7 @@
 [![ost source ci](https://github.com/animu-sphere/usd-pointcloud-plugins/actions/workflows/ost-source-ci.yml/badge.svg?branch=main)](https://github.com/animu-sphere/usd-pointcloud-plugins/actions/workflows/ost-source-ci.yml)
 
 OpenUSD FileFormat Plugins and libraries for point-cloud data, including LAS,
-LAZ, spatial tiling, payload-backed authoring, and shared point-cloud contracts
+LAZ, local COPC reads, spatial tiling, payload-backed authoring, and shared point-cloud contracts
 for surveying, mapping, scanning, and 3D data-exchange workflows.
 
 **What it does**
@@ -34,6 +34,7 @@ with the host application. See the
 | --- | --- | --- |
 | `.las` | `pointcloud-las` | LAS 1.2-1.4 headers, VLR/EVLR metadata, WKT CRS, GeoTIFF keys, point formats 0-10 |
 | `.laz` | `pointcloud-laz` | Point formats 0-3 and 6-8 through the bundled `laz-perf` adapter |
+| `.copc` | `pointcloud-copc` | Local COPC metadata and non-tiled reads; source point ranges and tiled reads are currently rejected |
 
 Point formats 4 and 5 require LAS 1.3 or newer; formats 6-10 require LAS 1.4.
 The LAZ adapter rejects waveform formats because the bundled `laz-perf` codec
@@ -59,7 +60,7 @@ to ASCII USD identifiers; original names remain in header metadata. See the
 The complete matrix, including VLR, CRS, and authored USD attributes, is in
 the [capability matrix](docs/reference/CAPABILITY_MATRIX.md).
 
-COPC read support is in progress; PLY, delimited text point files (XYZ, PTS,
+COPC local read support is in progress; PLY, delimited text point files (XYZ, PTS,
 CSV), and E57 follow in that order. Terrain, raster, and vector formats are
 future repository candidates. See
 [format support order](docs/roadmap/format-support-order.md).

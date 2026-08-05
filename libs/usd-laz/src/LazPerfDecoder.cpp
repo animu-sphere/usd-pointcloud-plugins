@@ -286,12 +286,31 @@ bool DecodeLazChunk(const usdlas::LasHeader& header,
                     std::uint64_t pointCount,
                     std::vector<usdlas::LasPoint>& points,
                     std::vector<usdgeo::Diagnostic>& diagnostics) {
-    diagnostics.clear();
     points.clear();
+    const auto result = DecodeLazChunk(
+        header, bytes, pointCount,
+        [&](const usdlas::LasPoint& point, std::uint64_t) {
+            points.push_back(point);
+            return true;
+        },
+        diagnostics);
+    if (!result) {
+        points.clear();
+    }
+    return result;
+}
+
+bool DecodeLazChunk(const usdlas::LasHeader& header,
+                    const std::vector<std::uint8_t>& bytes,
+                    std::uint64_t pointCount,
+                    const LazPointConsumer& consume,
+                    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
     const auto basePointSize = BasePointSize(header.pointFormat);
     if (!header.IsValid() || basePointSize == 0 ||
         header.pointRecordLength < basePointSize || pointCount == 0 ||
-        pointCount > (std::numeric_limits<std::size_t>::max)()) {
+        pointCount > header.pointCount ||
+        !consume) {
         AddDiagnostic("invalid LAS header or LAZ chunk point count",
                       diagnostics);
         return false;
@@ -307,10 +326,8 @@ bool DecodeLazChunk(const usdlas::LasHeader& header,
             return false;
         }
 
-        const auto count = static_cast<std::size_t>(pointCount);
         std::vector<char> record(header.pointRecordLength);
-        points.reserve(count);
-        for (std::size_t index = 0; index < count; ++index) {
+        for (std::uint64_t index = 0; index < pointCount; ++index) {
             decoder->decompress(record.data());
             std::vector<std::uint8_t> encoded(
                 reinterpret_cast<std::uint8_t*>(record.data()),
@@ -318,13 +335,18 @@ bool DecodeLazChunk(const usdlas::LasHeader& header,
                     record.size());
             usdlas::LasPoint point;
             if (!usdlas::DecodePoint(header, encoded, point, diagnostics)) {
-                points.clear();
                 return false;
             }
-            points.push_back(std::move(point));
+            if (!consume(point, index)) {
+                diagnostics.push_back(
+                    {usdgeo::DiagnosticCode::DecodeFailure,
+                     usdgeo::Severity::Error,
+                     "LAZ chunk consumer rejected a point", std::nullopt,
+                     index});
+                return false;
+            }
         }
     } catch (const std::exception& exception) {
-        points.clear();
         AddDiagnostic(exception.what(), diagnostics);
         return false;
     }

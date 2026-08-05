@@ -36,10 +36,17 @@ std::unique_ptr<LazDecoder> CreateFileDecoder(
     const std::string& filename,
     std::vector<usdgeo::Diagnostic>& diagnostics);
 
+using LazPointConsumer = std::function<bool(const usdlas::LasPoint&,
+                                            std::uint64_t)>;
 bool DecodeLazChunk(const usdlas::LasHeader& header,
                     const std::vector<std::uint8_t>& bytes,
                     std::uint64_t pointCount,
                     std::vector<usdlas::LasPoint>& points,
+                    std::vector<usdgeo::Diagnostic>& diagnostics);
+bool DecodeLazChunk(const usdlas::LasHeader& header,
+                    const std::vector<std::uint8_t>& bytes,
+                    std::uint64_t pointCount,
+                    const LazPointConsumer& consume,
                     std::vector<usdgeo::Diagnostic>& diagnostics);
 
 using LazReadOptions = usdpointcloud::PointReadOptions;

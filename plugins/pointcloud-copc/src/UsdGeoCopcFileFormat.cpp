@@ -6,6 +6,7 @@
 #include "usdpointcloud/FileFormatArguments.h"
 #include "usdpointcloud/Sampling.h"
 #include "usdcopc/Copc.h"
+#include "usdlaz/Laz.h"
 
 #include <pxr/base/tf/diagnostic.h>
 #include <pxr/base/tf/registryManager.h>
@@ -112,6 +113,14 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
                                   .c_str());
         return false;
     }
+    if (request.readOptions.range.firstPoint != 0 ||
+        request.readOptions.range.pointCount != 0) {
+        TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(
+                                  usdgeocopc::diagnostics::FormatArgumentInvalid,
+                                  "COPC source point ranges are not supported because hierarchy order is spatial")
+                                  .c_str());
+        return false;
+    }
 
     usdcopc::CopcReader reader(resolvedPath);
     usdcopc::CopcHeader header;
@@ -136,8 +145,15 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
             {header.las.xOffset, header.las.yOffset, header.las.zOffset}};
         std::string metadataError;
         if (!usdlas::BuildPointCloudMetadata(
-                header.las, chunk, reference, bounds, metadataError) ||
-            !usdgeo::AuthorPointCloudMetadata(
+                header.las, chunk, reference, bounds, metadataError)) {
+            TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(
+                                      usdgeocopc::diagnostics::BoundsTransformFailed,
+                                      "Unable to build COPC metadata: " +
+                                          metadataError)
+                                      .c_str());
+            return false;
+        }
+        if (!usdgeo::AuthorPointCloudMetadata(
                 layer, "/PointCloud", reference, bounds, chunk,
                 sourceMetadata)) {
             TF_RUNTIME_ERROR("%s",
@@ -158,14 +174,60 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
         return false;
     }
 
+    const auto bytesPerPoint =
+        sizeof(usdlas::LasPoint) + header.las.pointRecordLength;
+    const auto budgetPointLimit =
+        request.readOptions.memoryBudgetBytes / bytesPerPoint;
+    const auto maximumPoints =
+        (std::min)(request.readOptions.chunkPointLimit, budgetPointLimit);
+    if (maximumPoints == 0) {
+        TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(
+                                  usdgeocopc::diagnostics::FormatArgumentInvalid,
+                                  "COPC memory budget is too small for one point")
+                                  .c_str());
+        return false;
+    }
+
     usdpointcloud::PointData pointData;
+    std::vector<usdlas::LasPoint> selected;
+    selected.reserve(maximumPoints);
+    std::string appendError;
+    const auto flush = [&]() {
+        if (selected.empty()) {
+            return true;
+        }
+        appendError.clear();
+        if (!usdlas::AppendPointData(header.las, selected, resolvedPath,
+                                     pointData, appendError)) {
+            selected.clear();
+            return false;
+        }
+        selected.clear();
+        return true;
+    };
     std::uint64_t pointIndex = 0;
     for (const auto& entry : hierarchy) {
         if (!entry.IsPointData()) {
             continue;
         }
-        std::vector<usdlas::LasPoint> points;
-        if (!reader.ReadPoints(header, entry, points, diagnostics)) {
+        std::vector<std::uint8_t> bytes;
+        if (!reader.ReadPointData(header, entry, bytes, diagnostics) ||
+            !usdlaz::DecodeLazChunk(
+                header.las, bytes,
+                static_cast<std::uint64_t>(entry.pointCount),
+                [&](const usdlas::LasPoint& point, std::uint64_t) {
+                    const auto selectedPoint =
+                        IsSelectedPoint(point, pointIndex, request.readOptions);
+                    ++pointIndex;
+                    if (selectedPoint) {
+                        selected.push_back(point);
+                        if (selected.size() == maximumPoints) {
+                            return flush();
+                        }
+                    }
+                    return true;
+                },
+                diagnostics)) {
             TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(
                                       usdgeocopc::diagnostics::DecodeFailed,
                                       "Unable to decode COPC point data: " +
@@ -174,24 +236,14 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
                                       .c_str());
             return false;
         }
-        std::vector<usdlas::LasPoint> selected;
-        selected.reserve(points.size());
-        for (const auto& point : points) {
-            if (IsSelectedPoint(point, pointIndex, request.readOptions)) {
-                selected.push_back(point);
-            }
-            ++pointIndex;
-        }
-        std::string appendError;
-        if (!usdlas::AppendPointData(header.las, selected, resolvedPath,
-                                     pointData, appendError)) {
-            TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(
-                                      usdgeocopc::diagnostics::DecodeFailed,
-                                      "Unable to construct COPC point data: " +
-                                          appendError)
-                                      .c_str());
-            return false;
-        }
+    }
+    if (!flush()) {
+        TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(
+                                  usdgeocopc::diagnostics::DecodeFailed,
+                                  "Unable to construct COPC point data: " +
+                                      appendError)
+                                  .c_str());
+        return false;
     }
 
     std::string selectionError;

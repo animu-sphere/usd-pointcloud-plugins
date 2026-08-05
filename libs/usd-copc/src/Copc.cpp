@@ -276,6 +276,7 @@ bool CopcReader::ReadHierarchy(
     }
 
     std::unordered_set<std::uint64_t> visitedPages;
+    std::uint64_t totalPointCount = 0;
     std::function<bool(std::uint64_t, std::uint64_t)> readPage;
     readPage = [&](std::uint64_t offset, std::uint64_t size) {
         if (size == 0 || size % kHierarchyEntrySize != 0 ||
@@ -337,6 +338,17 @@ bool CopcReader::ReadHierarchy(
                               "COPC point data range is invalid", entryFileOffset);
                 return false;
             }
+            if (entry.IsPointData()) {
+                const auto pointCount = static_cast<std::uint64_t>(entry.pointCount);
+                if (pointCount > header.las.pointCount - totalPointCount) {
+                    AddDiagnostic(
+                        diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                        "COPC hierarchy point count exceeds the LAS header count",
+                        entryFileOffset);
+                    return false;
+                }
+                totalPointCount += pointCount;
+            }
             entries.push_back(entry);
         }
         return true;
@@ -344,6 +356,13 @@ bool CopcReader::ReadHierarchy(
 
     if (!readPage(header.info.rootHierarchyOffset,
                   header.info.rootHierarchySize)) {
+        failureKind_ = CopcReadFailure::Hierarchy;
+        entries.clear();
+        return false;
+    }
+    if (totalPointCount != header.las.pointCount) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                      "COPC hierarchy point count does not match the LAS header count");
         failureKind_ = CopcReadFailure::Hierarchy;
         entries.clear();
         return false;

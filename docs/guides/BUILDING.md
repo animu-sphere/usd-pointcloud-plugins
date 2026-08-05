@@ -29,7 +29,7 @@ ost test
 
 `ost configure` writes the toolchain, environment, and CMake presets under
 `.strata/targets/<target>/` and refreshes `CMakeUserPresets.json`. `ost build`
-builds every library and both plugin bundles; `ost test` runs the full CTest
+builds every library and all plugin bundles; `ost test` runs the full CTest
 suite:
 
 ```text
@@ -40,6 +40,7 @@ usdLaz_unit
 usdPointCloudAuthoring_unit
 pointcloudLas_integration
 pointcloudLaz_integration
+pointcloudCopc_integration
 ```
 
 The two `*_integration` tests load the built plugin through OpenUSD and check
@@ -53,9 +54,11 @@ Each bundle is independently buildable and verifiable:
 ```powershell
 ost plugin build .\plugins\pointcloud-las
 ost plugin build .\plugins\pointcloud-laz
+ost plugin build .\plugins\pointcloud-copc
 ost plugin doctor .\plugins\pointcloud-las
 ost plugin test .\plugins\pointcloud-las --up-to 4
 ost plugin test .\plugins\pointcloud-laz --up-to 4
+ost plugin test .\plugins\pointcloud-copc --up-to 4
 ost plugin package .\plugins\pointcloud-las
 ```
 
@@ -71,7 +74,7 @@ A per-bundle `ost plugin build` does not define `USDGEO_BUILD_TESTS`, so the
 CTest integration targets are built only by the workspace `ost build`. Run both
 when changing a plugin.
 
-Neither bundle declares OST test fixtures yet, so `ost plugin test` currently
+The bundles do not all declare OST test fixtures yet, so `ost plugin test` currently
 reports the L3 `usdcat.read` and L4 `python.stage_open` checks as skipped. That
 gap is tracked in
 [implementation status](../roadmap/implementation-status.md).

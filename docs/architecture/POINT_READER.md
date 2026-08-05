@@ -54,6 +54,9 @@ authoring call returns. It is not a file-format argument. See the
 [plugin adapter contract](PLUGIN_ADAPTER.md) and the
 [file-format argument contract](FILE_FORMAT_ARGUMENTS.md).
 
+The initial COPC FileFormat adapter rejects `range` arguments because COPC
+hierarchy traversal is spatial and does not define LAS source-point order.
+
 ## Relationship to LOD
 
 `range` is the same selection concept the LOD contract calls
