@@ -10,11 +10,11 @@ Check [OPENUSD.md](../compatibility/OPENUSD.md) before reusing a binary:
 OpenUSD plugin binaries must match the target platform, compiler ABI, and
 OpenUSD build of the host application.
 
-The workspace ships two independent bundles: `pointcloud-las` for `.las` and
-`pointcloud-laz` for `.laz`. Neither depends on the other; install only what
-you need. `pointcloud-laz` contains LGPL-2.1 laz-perf code and
-`pointcloud-las` does not, so the two have different redistribution
-obligations.
+The workspace ships three independent bundles: `pointcloud-las` for `.las`,
+`pointcloud-laz` for `.laz`, and `pointcloud-copc` for local `.copc` reads.
+Neither depends on the other; install only what you need. `pointcloud-laz` and
+`pointcloud-copc` use the shared LGPL-2.1 laz-perf code while
+`pointcloud-las` does not.
 
 ## Bundle layout
 

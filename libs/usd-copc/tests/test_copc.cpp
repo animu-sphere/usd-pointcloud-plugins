@@ -1,4 +1,5 @@
 #include "usdcopc/Copc.h"
+#include "usdlaz/Laz.h"
 
 #include <algorithm>
 #include <array>
@@ -144,6 +145,14 @@ void TestMetadataAndHierarchy() {
     Check(entries[1].IsHierarchyPage() && entries[1].byteSize == 32);
     Check(entries[2].IsPointData() && entries[2].level == 2);
 
+    std::vector<std::uint8_t> pointData;
+    Check(reader.ReadPointData(header, entries[2], pointData, diagnostics));
+    Check(diagnostics.empty() && pointData.size() == 30);
+
+    std::vector<usdlas::LasPoint> points;
+    Check(!reader.ReadPoints(header, entries[2], points, diagnostics));
+    Check(points.empty() && !diagnostics.empty());
+
     std::filesystem::remove(path);
 }
 
@@ -152,6 +161,20 @@ void TestInvalidChildPage() {
     constexpr std::size_t rootOffset = 643;
     Write(bytes, rootOffset + 32 + 24, std::int32_t{31});
     const auto path = WriteFixture(bytes, "usd_copc_invalid_test.copc");
+    usdcopc::CopcReader reader(path.string());
+    usdcopc::CopcHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(reader.ReadMetadata(header, diagnostics));
+    std::vector<usdcopc::CopcHierarchyEntry> entries;
+    Check(!reader.ReadHierarchy(header, entries, diagnostics));
+    Check(!diagnostics.empty());
+    std::filesystem::remove(path);
+}
+
+void TestRejectsPointCountMismatch() {
+    auto bytes = MakeFixture();
+    Write(bytes, 247, std::uint64_t{3});
+    const auto path = WriteFixture(bytes, "usd_copc_point_count_mismatch.copc");
     usdcopc::CopcReader reader(path.string());
     usdcopc::CopcHeader header;
     std::vector<usdgeo::Diagnostic> diagnostics;
@@ -206,6 +229,7 @@ void TestRejectsNonZeroReservedInfo() {
 int main() {
     TestMetadataAndHierarchy();
     TestInvalidChildPage();
+    TestRejectsPointCountMismatch();
     TestRejectsUnsupportedPointFormat();
     TestRejectsMissingHierarchyVlr();
     TestRejectsNonZeroReservedInfo();

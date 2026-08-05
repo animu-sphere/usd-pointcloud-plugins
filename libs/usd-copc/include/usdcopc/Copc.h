@@ -63,6 +63,14 @@ public:
     bool ReadHierarchy(const CopcHeader& header,
                        std::vector<CopcHierarchyEntry>& entries,
                        std::vector<usdgeo::Diagnostic>& diagnostics);
+    bool ReadPointData(const CopcHeader& header,
+                       const CopcHierarchyEntry& entry,
+                       std::vector<std::uint8_t>& bytes,
+                       std::vector<usdgeo::Diagnostic>& diagnostics);
+    bool ReadPoints(const CopcHeader& header,
+                    const CopcHierarchyEntry& entry,
+                    std::vector<usdlas::LasPoint>& points,
+                    std::vector<usdgeo::Diagnostic>& diagnostics);
 
     CopcReadFailure FailureKind() const noexcept;
 

@@ -1,0 +1,23 @@
+{
+    "Plugins": [
+        {
+            "Type": "library",
+            "Name": "UsdGeoCopcFileFormat",
+            "Root": ".",
+            "LibraryPath": "../../../lib/@OPENSTRATA_PLUGIN_LIBRARY_FILENAME@",
+            "ResourcePath": ".",
+            "Info": {
+                "Types": {
+                    "UsdGeoCopcFileFormat": {
+                        "bases": ["SdfFileFormat"],
+                        "displayName": "COPC File Format",
+                        "extensions": ["copc"],
+                        "formatId": "copc",
+                        "primary": true,
+                        "target": "usd"
+                    }
+                }
+            }
+        }
+    ]
+}

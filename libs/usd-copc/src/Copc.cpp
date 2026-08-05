@@ -1,5 +1,7 @@
 #include "usdcopc/Copc.h"
 
+#include "usdlaz/Laz.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -274,6 +276,7 @@ bool CopcReader::ReadHierarchy(
     }
 
     std::unordered_set<std::uint64_t> visitedPages;
+    std::uint64_t totalPointCount = 0;
     std::function<bool(std::uint64_t, std::uint64_t)> readPage;
     readPage = [&](std::uint64_t offset, std::uint64_t size) {
         if (size == 0 || size % kHierarchyEntrySize != 0 ||
@@ -335,6 +338,17 @@ bool CopcReader::ReadHierarchy(
                               "COPC point data range is invalid", entryFileOffset);
                 return false;
             }
+            if (entry.IsPointData()) {
+                const auto pointCount = static_cast<std::uint64_t>(entry.pointCount);
+                if (pointCount > header.las.pointCount - totalPointCount) {
+                    AddDiagnostic(
+                        diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                        "COPC hierarchy point count exceeds the LAS header count",
+                        entryFileOffset);
+                    return false;
+                }
+                totalPointCount += pointCount;
+            }
             entries.push_back(entry);
         }
         return true;
@@ -344,6 +358,60 @@ bool CopcReader::ReadHierarchy(
                   header.info.rootHierarchySize)) {
         failureKind_ = CopcReadFailure::Hierarchy;
         entries.clear();
+        return false;
+    }
+    if (totalPointCount != header.las.pointCount) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                      "COPC hierarchy point count does not match the LAS header count");
+        failureKind_ = CopcReadFailure::Hierarchy;
+        entries.clear();
+        return false;
+    }
+    return true;
+}
+
+bool CopcReader::ReadPointData(
+    const CopcHeader& header,
+    const CopcHierarchyEntry& entry,
+    std::vector<std::uint8_t>& bytes,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    failureKind_ = CopcReadFailure::None;
+    bytes.clear();
+    if (!header.IsValid()) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidOffset,
+                      "COPC header is not valid");
+        failureKind_ = CopcReadFailure::Hierarchy;
+        return false;
+    }
+    if (!entry.IsValid() || !entry.IsPointData()) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                      "COPC entry does not identify point data");
+        failureKind_ = CopcReadFailure::Hierarchy;
+        return false;
+    }
+    if (!ReadFileRange(filename_, header.fileSize, entry.offset,
+                       static_cast<std::uint64_t>(entry.byteSize), bytes,
+                       diagnostics)) {
+        failureKind_ = CopcReadFailure::Hierarchy;
+        return false;
+    }
+    return true;
+}
+
+bool CopcReader::ReadPoints(
+    const CopcHeader& header,
+    const CopcHierarchyEntry& entry,
+    std::vector<usdlas::LasPoint>& points,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    std::vector<std::uint8_t> bytes;
+    if (!ReadPointData(header, entry, bytes, diagnostics)) {
+        points.clear();
+        return false;
+    }
+    if (!usdlaz::DecodeLazChunk(header.las, bytes,
+                                static_cast<std::uint64_t>(entry.pointCount),
+                                points, diagnostics)) {
+        failureKind_ = CopcReadFailure::Hierarchy;
         return false;
     }
     return true;

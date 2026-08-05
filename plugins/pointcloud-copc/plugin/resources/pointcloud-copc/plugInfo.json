@@ -1,0 +1,23 @@
+{
+    "Plugins": [
+        {
+            "Type": "library",
+            "Name": "UsdGeoCopcFileFormat",
+            "Root": ".",
+            "LibraryPath": "../../../lib/libUsdGeoCopcFileFormat.dll",
+            "ResourcePath": ".",
+            "Info": {
+                "Types": {
+                    "UsdGeoCopcFileFormat": {
+                        "bases": ["SdfFileFormat"],
+                        "displayName": "COPC File Format",
+                        "extensions": ["copc"],
+                        "formatId": "copc",
+                        "primary": true,
+                        "target": "usd"
+                    }
+                }
+            }
+        }
+    ]
+}

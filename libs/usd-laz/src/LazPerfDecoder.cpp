@@ -8,6 +8,8 @@
 #include <fstream>
 #include <limits>
 #include <memory>
+#include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -58,6 +60,43 @@ void AddDiagnostic(const std::string& error,
                    std::vector<usdgeo::Diagnostic>& diagnostics) {
     diagnostics.push_back({CodeForError(error), usdgeo::Severity::Error, error,
                             std::nullopt, std::nullopt});
+}
+
+class ChunkInput {
+public:
+    explicit ChunkInput(const std::vector<std::uint8_t>& bytes)
+        : bytes_(bytes) {}
+
+    void Read(unsigned char* output, std::size_t size) {
+        if (offset_ > bytes_.size() || size > bytes_.size() - offset_) {
+            throw std::runtime_error("LAZ chunk is truncated");
+        }
+        std::memcpy(output, bytes_.data() + offset_, size);
+        offset_ += size;
+    }
+
+    lazperf::InputCb Callback() {
+        return [this](unsigned char* output, std::size_t size) {
+            Read(output, size);
+        };
+    }
+
+private:
+    const std::vector<std::uint8_t>& bytes_;
+    std::size_t offset_ = 0;
+};
+
+std::size_t BasePointSize(std::uint8_t pointFormat) {
+    switch (pointFormat) {
+    case 6:
+        return 30;
+    case 7:
+        return 36;
+    case 8:
+        return 38;
+    default:
+        return 0;
+    }
 }
 
 bool ReadHeaderBytes(const std::string& filename,
@@ -241,6 +280,78 @@ private:
 } // namespace
 
 namespace usdlaz {
+
+bool DecodeLazChunk(const usdlas::LasHeader& header,
+                    const std::vector<std::uint8_t>& bytes,
+                    std::uint64_t pointCount,
+                    std::vector<usdlas::LasPoint>& points,
+                    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    points.clear();
+    const auto result = DecodeLazChunk(
+        header, bytes, pointCount,
+        [&](const usdlas::LasPoint& point, std::uint64_t) {
+            points.push_back(point);
+            return true;
+        },
+        diagnostics);
+    if (!result) {
+        points.clear();
+    }
+    return result;
+}
+
+bool DecodeLazChunk(const usdlas::LasHeader& header,
+                    const std::vector<std::uint8_t>& bytes,
+                    std::uint64_t pointCount,
+                    const LazPointConsumer& consume,
+                    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    const auto basePointSize = BasePointSize(header.pointFormat);
+    if (!header.IsValid() || basePointSize == 0 ||
+        header.pointRecordLength < basePointSize || pointCount == 0 ||
+        pointCount > header.pointCount ||
+        !consume) {
+        AddDiagnostic("invalid LAS header or LAZ chunk point count",
+                      diagnostics);
+        return false;
+    }
+
+    try {
+        ChunkInput input(bytes);
+        const auto decoder = lazperf::build_las_decompressor(
+            input.Callback(), header.pointFormat,
+            header.pointRecordLength - basePointSize);
+        if (!decoder) {
+            AddDiagnostic("unsupported LAZ point format", diagnostics);
+            return false;
+        }
+
+        std::vector<char> record(header.pointRecordLength);
+        for (std::uint64_t index = 0; index < pointCount; ++index) {
+            decoder->decompress(record.data());
+            std::vector<std::uint8_t> encoded(
+                reinterpret_cast<std::uint8_t*>(record.data()),
+                reinterpret_cast<std::uint8_t*>(record.data()) +
+                    record.size());
+            usdlas::LasPoint point;
+            if (!usdlas::DecodePoint(header, encoded, point, diagnostics)) {
+                return false;
+            }
+            if (!consume(point, index)) {
+                diagnostics.push_back(
+                    {usdgeo::DiagnosticCode::DecodeFailure,
+                     usdgeo::Severity::Error,
+                     "LAZ chunk consumer rejected a point", std::nullopt,
+                     index});
+                return false;
+            }
+        }
+    } catch (const std::exception& exception) {
+        AddDiagnostic(exception.what(), diagnostics);
+        return false;
+    }
+    return true;
+}
 
 std::unique_ptr<LazDecoder> CreateFileDecoder(const std::string& filename,
                                               std::string& error) {
