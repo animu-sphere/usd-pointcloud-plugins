@@ -200,6 +200,20 @@ std::uint64_t NewSpoolFileBytes(
     return bytes;
 }
 
+std::uint64_t PayloadBytes(const std::filesystem::path& directory) {
+    std::uint64_t bytes = 0;
+    std::error_code error;
+    for (const auto& entry : std::filesystem::directory_iterator(
+             directory, error)) {
+        if (error) break;
+        if (entry.is_regular_file(error) && entry.path().extension() == ".usdc") {
+            bytes += entry.file_size(error);
+        }
+        error.clear();
+    }
+    return bytes;
+}
+
 bool CountPayloads(const std::filesystem::path& directory,
                    std::uint64_t& count) {
     count = 0;
@@ -281,20 +295,6 @@ private:
     std::size_t index_ = 0;
 };
 
-std::uint64_t PayloadBytes(const std::filesystem::path& directory) {
-    std::uint64_t bytes = 0;
-    std::error_code error;
-    for (const auto& entry : std::filesystem::directory_iterator(
-             directory, error)) {
-        if (error) break;
-        if (entry.is_regular_file(error) && entry.path().extension() == ".usdc") {
-            bytes += entry.file_size(error);
-        }
-        error.clear();
-    }
-    return bytes;
-}
-
 } // namespace
 
 int main(int argc, char** argv) {
@@ -319,6 +319,7 @@ int main(int argc, char** argv) {
     std::atomic<bool> sampling{true};
     std::atomic<std::uint64_t> peakResident{ResidentBytes()};
     std::atomic<std::uint64_t> peakSpoolFileBytes{0};
+    std::atomic<std::uint64_t> peakPayloadBytes{0};
     const auto sample = [&]() {
         while (sampling.load(std::memory_order_relaxed)) {
             peakResident.store(
@@ -328,6 +329,10 @@ int main(int argc, char** argv) {
             peakSpoolFileBytes.store(
                 std::max(peakSpoolFileBytes.load(std::memory_order_relaxed),
                          NewSpoolFileBytes(existingSpoolDirectories)),
+                std::memory_order_relaxed);
+            peakPayloadBytes.store(
+                std::max(peakPayloadBytes.load(std::memory_order_relaxed),
+                         PayloadBytes(outputDirectory)),
                 std::memory_order_relaxed);
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
@@ -411,6 +416,10 @@ int main(int argc, char** argv) {
         std::max(peakSpoolFileBytes.load(std::memory_order_relaxed),
                  NewSpoolFileBytes(existingSpoolDirectories)),
         std::memory_order_relaxed);
+    peakPayloadBytes.store(
+        std::max(peakPayloadBytes.load(std::memory_order_relaxed),
+                 PayloadBytes(outputDirectory)),
+        std::memory_order_relaxed);
 
     const auto outputBytes = DirectoryBytesRecursive(outputDirectory);
     const auto payloadBytes = PayloadBytes(outputDirectory);
@@ -429,6 +438,7 @@ int main(int argc, char** argv) {
                       ? peakResident.load() - baselineResident
                       : 0)
               << " peak_spool_file_bytes=" << peakSpoolFileBytes.load()
+              << " peak_payload_file_bytes=" << peakPayloadBytes.load()
               << " payload_bytes=" << payloadBytes
               << " output_bytes=" << outputBytes
               << " process_write_bytes="

@@ -205,9 +205,12 @@ ctest --test-dir build/cy2026-windows-x86_64-py313-usd -C Release `
   ```
 
   The benchmark reports elapsed time, RSS delta, the generated `.usdc` payload
-  count as tile count, sampled peak spool file bytes, payload bytes, and process
-  write bytes. This benchmark authors one payload level per tile. The process
-  write counter is Windows-specific; it is reported as zero on other platforms.
+  count as tile count, sampled peak spool file bytes, sampled peak payload file
+  bytes, payload bytes, and process write bytes. The peak payload file metric
+  measures on-disk payload accumulation during generation; it does not measure
+  whether a scene or render delegate keeps a non-selected payload loaded. This
+  benchmark authors one payload level per tile. The process write counter is
+  Windows-specific; it is reported as zero on other platforms.
   Windows RSS uses the working set; Linux and macOS use the current resident set
   when the platform API is available.
   A Windows baseline using the supplied Shizuoka `08NF2330.las` dataset

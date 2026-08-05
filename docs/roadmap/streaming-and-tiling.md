@@ -12,9 +12,11 @@ and is not the target operational interface. The converter publishes a
 deterministic `<root>.manifest` sidecar containing normalized generation
 arguments and the relative payload asset list.
 Generated-corpus RSS measurement and an explicit benchmark target for
-generated, LAS, and LAZ inputs are implemented. A real-input baseline is
-recorded below; broader real-world measurements and payload working-set
-measurement remain open. What `main`
+generated, LAS, and LAZ inputs are implemented. The benchmark also reports
+sampled peak payload file bytes during generation, which measures on-disk
+payload accumulation but not scene or render-delegate loading. A real-input
+baseline is recorded below; broader real-world measurements and payload
+working-set measurement across consumers remain open. What `main`
 implements today is in
 [implementation status](implementation-status.md) and
 [capability matrix](../reference/CAPABILITY_MATRIX.md).
@@ -327,7 +329,8 @@ Run the benchmark after `ost build` by activating the managed environment with
 `usdPointCloudAuthoring_stream_benchmark.exe` with the options above. These
 fixtures validate the measurement path and cross-format output equivalence;
 they do not replace the full-size real-dataset baseline or payload working-set
-measurements across scene and render delegates.
+measurements across scene and render delegates. The benchmark's peak payload
+file value is limited to on-disk payload accumulation during the run.
 
 ## 11. Definition of done
 
