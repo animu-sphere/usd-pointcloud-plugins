@@ -84,5 +84,31 @@ if(NOT usdcat_result EQUAL 0)
         "generated root could not be reopened: ${usdcat_output}${usdcat_error}")
 endif()
 
+set(unsafe_root "${test_root}-unsafe")
+set(unsafe_output "${unsafe_root}/PointCloud.usda")
+set(unsafe_payloads "${test_root}/ProtectedPayloads")
+set(unsafe_transaction "${unsafe_output}.transaction")
+file(MAKE_DIRECTORY "${unsafe_root}" "${unsafe_payloads}" "${unsafe_transaction}")
+file(WRITE "${unsafe_output}.manifest" "stale manifest")
+file(WRITE "${unsafe_root}/PointCloud.tmp.usda" "stale root")
+file(WRITE "${unsafe_payloads}/must-survive.usdc" "protected payload")
+file(WRITE "${unsafe_transaction}/state"
+    "payloadDirectory=${unsafe_payloads}\n")
+
+execute_process(
+    COMMAND "${converter}" "${fixture}" "${unsafe_output}"
+            --tile-size 1 --memory-limit 1024
+            --attributes xyz,intensity
+    RESULT_VARIABLE unsafe_result
+    OUTPUT_VARIABLE unsafe_output_log
+    ERROR_VARIABLE unsafe_error_log)
+if(unsafe_result EQUAL 0 OR NOT EXISTS "${unsafe_payloads}/must-survive.usdc" OR
+   NOT EXISTS "${unsafe_transaction}")
+    message(FATAL_ERROR
+        "converter removed or accepted an unsafe transaction payload path: "
+        "${unsafe_output_log}${unsafe_error_log}")
+endif()
+
 file(REMOVE_RECURSE "${test_root}")
 file(REMOVE_RECURSE "${repeat_root}")
+file(REMOVE_RECURSE "${unsafe_root}")

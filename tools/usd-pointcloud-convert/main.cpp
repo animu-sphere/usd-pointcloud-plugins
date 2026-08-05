@@ -129,6 +129,22 @@ bool ReadTransactionPayloadDirectory(
     return true;
 }
 
+bool IsPathWithinDirectory(const std::filesystem::path& path,
+                           const std::filesystem::path& directory) {
+    const auto relative = path.lexically_normal().lexically_relative(
+        directory.lexically_normal());
+    if (relative.empty() || relative == ".") return false;
+    for (const auto& component : relative) {
+        if (component == "..") return false;
+    }
+    return true;
+}
+
+bool IsSamePath(const std::filesystem::path& left,
+                const std::filesystem::path& right) {
+    return left.lexically_normal() == right.lexically_normal();
+}
+
 bool RecoverIncompleteTransaction(
     const std::filesystem::path& outputPath,
     const std::filesystem::path& manifestPath,
@@ -178,6 +194,13 @@ bool RecoverIncompleteTransaction(
     if (!ReadTransactionPayloadDirectory(
             transactionPath, payloadDirectory, recordedPayloadDirectory,
             errorMessage)) {
+        return false;
+    }
+    if (!IsSamePath(recordedPayloadDirectory, payloadDirectory) &&
+        !IsPathWithinDirectory(
+            recordedPayloadDirectory, outputPath.parent_path())) {
+        errorMessage =
+            "conversion transaction payload directory is outside the output workspace";
         return false;
     }
 
