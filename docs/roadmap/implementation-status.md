@@ -91,9 +91,11 @@ ordered plan is in [README.md](README.md).
 The `v0.2.x` line stabilizes the LAS and LAZ implementation released in
 `v0.2.0`. It does not add a new point-cloud format.
 
-- [ ] Publish real-dataset processing-time, peak-RSS, spool, and payload
-      working-set measurements
-- [ ] Complete long-running, cancellation, failure, and interruption cleanup
+- [x] Publish real-dataset processing-time, peak-RSS, spool, and payload output
+      measurements
+- [x] Measure payload working sets through the available Storm scene/view and
+      headless render paths
+- [x] Complete long-running, cancellation, failure, and interruption cleanup
       validation for tiled reads
 - [x] Add the explicit LAS/LAZ conversion tool as the production path for
       tiled, payload-backed generation, including deterministic manifest output
@@ -126,20 +128,23 @@ The plan is [streaming and tiling](streaming-and-tiling.md).
 - [x] Spool schema, thresholds, cleanup, and deterministic iteration order
 - [x] Bounded-memory tests and generated large-corpus spill coverage
 - [x] Generated-corpus streaming benchmark and documented measurement command
-- [ ] Real-dataset RSS, spool, and payload working-set measurements
-- [ ] Failure and interruption cleanup validation across tiled reads
+- [x] Full-size real-dataset processing-time, RSS, spool, and payload output
+      measurements
+- [x] Payload working-set measurements through the available Storm scene/view
+      and headless render paths
+- [x] Failure and interruption cleanup validation across tiled reads
 - [x] Explicit conversion tool with atomic publish and deterministic manifest
       output
 
 The current stabilization slice adds a reproducible LAS/LAZ measurement matrix
-using the checked-in 4,096-point thinned corpora and regression coverage for
-recovery when a conversion transaction marker exists without its state file.
-Full-size real-dataset measurements, payload working-set measurements, and
-process-level interruption coverage remain open.
+using the checked-in 4,096-point thinned corpora, full-size Shizuoka LAS and
+derived-LAZ measurements, and regression coverage for recovery when a
+conversion transaction marker exists without its state file. Full-size
+interruption recovery is validated by force-terminating the converter after
+transaction state creation and retrying the same output workspace.
 
 ### Other open work
 
-- [ ] Payload working-set measurement across scene and render delegates
 - [ ] COPC implementation after the `v0.2.x` stabilization gate; see the
       `v0.3.0` release track above
 - [ ] Deterministic USDC cache generation and lookup
