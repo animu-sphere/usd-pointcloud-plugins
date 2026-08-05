@@ -244,7 +244,7 @@ bool PointRange::IsValid() const noexcept {
 
 bool PointReadOptions::IsValid() const noexcept {
     return chunkPointLimit != 0 && memoryBudgetBytes != 0 &&
-           range.IsValid();
+           range.IsValid() && (!bounds || bounds->IsValid());
 }
 
 } // namespace usdpointcloud

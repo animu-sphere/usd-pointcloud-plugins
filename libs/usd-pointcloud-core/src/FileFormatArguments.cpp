@@ -72,6 +72,7 @@ bool ParseBounds(std::string_view value,
                  usdgeo::SpatialBounds& bounds) {
     std::array<double, 6> coordinates{};
     std::size_t start = 0;
+    bool consumedAll = false;
     for (std::size_t index = 0; index < coordinates.size(); ++index) {
         const auto end = value.find(',', start);
         const auto component = Trim(value.substr(
@@ -82,11 +83,12 @@ bool ParseBounds(std::string_view value,
         }
         if (end == std::string_view::npos) {
             if (index + 1 != coordinates.size()) return false;
+            consumedAll = true;
             break;
         }
         start = end + 1;
     }
-    if (value.find(',', start) != std::string_view::npos) return false;
+    if (!consumedAll) return false;
     bounds = {{coordinates[0], coordinates[1], coordinates[2]},
               {coordinates[3], coordinates[4], coordinates[5]}};
     return bounds.IsValid();

@@ -4,6 +4,7 @@
 #include "usdpointcloud/Sampling.h"
 
 #include <cstdlib>
+#include <cmath>
 #include <limits>
 #include <map>
 #include <string>
@@ -124,6 +125,14 @@ void TestReadOptions() {
     options.range = {};
     options.memoryBudgetBytes = 0;
     Check(!options.IsValid());
+
+    options.memoryBudgetBytes = 64 * 1024 * 1024;
+    options.bounds = usdgeo::SpatialBounds::Empty();
+    Check(!options.IsValid());
+    options.bounds = usdgeo::SpatialBounds{
+        {std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0},
+        {1.0, 1.0, 1.0}};
+    Check(!options.IsValid());
 }
 
 void TestPointStreamContract() {
@@ -206,6 +215,11 @@ void TestFileFormatArgumentNormalization() {
           "bounds=0.000000,1.000000,-2.000000,10.000000,11.000000,12.000000&classification=2,5");
 
     arguments = {{"bounds", "0,1,2,1,0,3"}};
+    Check(!usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics));
+    Check(diagnostics.front().code ==
+          usdgeo::DiagnosticCode::InvalidFormatArgument);
+    arguments = {{"bounds", "0,1,2,3,4,5,6"}};
     Check(!usdpointcloud::NormalizeFileFormatArguments(
         arguments, request, diagnostics));
     Check(diagnostics.front().code ==
