@@ -131,6 +131,12 @@ The plan is [streaming and tiling](streaming-and-tiling.md).
 - [x] Explicit conversion tool with atomic publish and deterministic manifest
       output
 
+The current stabilization slice adds a reproducible LAS/LAZ measurement matrix
+using the checked-in 4,096-point thinned corpora and regression coverage for
+recovery when a conversion transaction marker exists without its state file.
+Full-size real-dataset measurements, payload working-set measurements, and
+process-level interruption coverage remain open.
+
 ### Other open work
 
 - [ ] Payload working-set measurement across scene and render delegates
