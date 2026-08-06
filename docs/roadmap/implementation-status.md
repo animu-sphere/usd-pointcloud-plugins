@@ -117,6 +117,7 @@ tiling, diagnostics, and `usdLod` contracts.
 - [x] Validate COPC information and hierarchy metadata
 - [x] Read required hierarchy nodes and point-data byte ranges selectively
 - [x] Map native hierarchy and resolution metadata to the shared tile/LOD model
+- [x] Add the COPC pull-based point stream over native hierarchy order
 - [ ] Verify LAS, LAZ, and COPC equivalence on equivalent fixtures
 - [ ] Defer COPC writing, HTTP range sources, network caching, and new public
       USD schemas

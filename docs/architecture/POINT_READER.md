@@ -56,6 +56,9 @@ authoring call returns. It is not a file-format argument. See the
 
 The initial COPC FileFormat adapter rejects `range` arguments because COPC
 hierarchy traversal is spatial and does not define LAS source-point order.
+`usdcopc::OpenCopcPointStream` exposes the same pull contract for native
+hierarchy traversal and applies the shared bounds, classification, memory, and
+cancellation options. It rejects source ranges for the same reason.
 
 ## Relationship to LOD
 

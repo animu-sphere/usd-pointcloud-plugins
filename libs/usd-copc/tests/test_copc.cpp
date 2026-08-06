@@ -292,6 +292,41 @@ void TestRejectsInvalidNodeCoordinates() {
     std::filesystem::remove(path);
 }
 
+void TestPointStreamRejectsSourceRange() {
+    const auto path = WriteFixture(MakeFixture(), "usd_copc_stream_range.copc");
+    usdpointcloud::PointReadOptions options;
+    options.range = {1, 1};
+    usdcopc::CopcHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    const auto stream = usdcopc::OpenCopcPointStream(
+        path.string(), options, header, diagnostics);
+    Check(!stream);
+    Check(diagnostics.size() == 1 &&
+          diagnostics.front().code ==
+              usdgeo::DiagnosticCode::InvalidPointSourceRange);
+    std::filesystem::remove(path);
+}
+
+void TestPointStreamChecksCancellation() {
+    const auto path = WriteFixture(MakeFixture(), "usd_copc_stream_cancel.copc");
+    usdpointcloud::PointReadOptions options;
+    options.isCancelled = [] { return true; };
+    usdcopc::CopcHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    auto stream = usdcopc::OpenCopcPointStream(
+        path.string(), options, header, diagnostics);
+    Check(stream && diagnostics.empty() && header.IsValid());
+
+    usdpointcloud::PointChunk chunk;
+    usdpointcloud::PointData data;
+    usdgeo::Diagnostic diagnostic;
+    Check(stream->ReadNext(chunk, data, diagnostic) ==
+          usdpointcloud::PointStreamStatus::Error);
+    Check(diagnostic.code == usdgeo::DiagnosticCode::DecodeFailure);
+    Check(diagnostic.message == "COPC read cancelled");
+    std::filesystem::remove(path);
+}
+
 } // namespace
 
 int main() {
@@ -302,5 +337,7 @@ int main() {
     TestRejectsMissingHierarchyVlr();
     TestRejectsNonZeroReservedInfo();
     TestRejectsInvalidNodeCoordinates();
+    TestPointStreamRejectsSourceRange();
+    TestPointStreamChecksCancellation();
     return 0;
 }

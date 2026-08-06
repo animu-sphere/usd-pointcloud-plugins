@@ -2,11 +2,12 @@
 
 `usdCopc` is the OpenUSD-independent COPC reader foundation. It validates the
 LAS 1.4 metadata required by COPC, reads the COPC Info and hierarchy VLRs, walks
-local hierarchy pages into format-independent hierarchy entries, and decodes
-selected local point-data chunks through the shared LAZ codec.
+local hierarchy pages into format-independent hierarchy entries, decodes
+selected local point-data chunks through the shared LAZ codec, and exposes a
+pull-based point stream over the native hierarchy order.
 
 The module deliberately does not make network requests, write COPC, or depend
-on OpenUSD. A streaming point reader and a thin FileFormat Plugin remain open.
+on OpenUSD. The thin FileFormat Plugin lives in `plugins/pointcloud-copc`.
 
 ## Public API
 
@@ -22,6 +23,7 @@ usdcopc/Copc.h
 | `CopcNode` / `CopcHierarchy` | Validated native hierarchy nodes and spatial bounds |
 | `CopcPointTile` | A shared point tile paired with its COPC point-data byte range |
 | `CopcReader` | Local metadata, hierarchy-page, and selected point-chunk reader |
+| `CopcPointStream` | Pull-based traversal of native point-data nodes |
 
 `CopcReader::ReadMetadata` delegates LAS header, VLR, EVLR, and CRS parsing to
 `usdlas::LasReader::ReadMetadata`. It then requires LAS 1.4 point formats 6
@@ -42,9 +44,13 @@ point counts, native spacing, and the source `pointDataOffset` /
 `pointDataSize` in `CopcPointTile`. Hierarchy-page entries are indexing nodes
 and are compressed out of the shared tile list.
 
-The initial reader is local and read-only. HTTP range sources, network caching,
-COPC writing, hierarchy optimization, and OpenUSD authoring remain outside this
-module. The OpenUSD adapter lives in `plugins/pointcloud-copc`.
+The reader is local and read-only. `OpenCopcPointStream` validates metadata and
+the complete local hierarchy before delivery, then applies bounds,
+classification, memory, chunk, and cancellation options while traversing
+point-data nodes. COPC hierarchy order is spatial rather than LAS source
+order, so source point ranges are rejected. HTTP range sources, network
+caching, COPC writing, hierarchy optimization, and OpenUSD authoring remain
+outside this module. The OpenUSD adapter lives in `plugins/pointcloud-copc`.
 
 ## Build and test
 

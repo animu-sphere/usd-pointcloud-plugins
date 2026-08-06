@@ -53,6 +53,13 @@ void AddDiagnostic(std::vector<usdgeo::Diagnostic>& diagnostics,
                            std::nullopt});
 }
 
+void AddStreamDiagnostic(usdgeo::DiagnosticCode code,
+                         const std::string& message,
+                         std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.push_back(
+        {code, usdgeo::Severity::Error, message, std::nullopt, std::nullopt});
+}
+
 bool GetFileSize(const std::string& filename, std::uint64_t& size) {
     std::ifstream file(filename, std::ios::binary);
     if (!file) {
@@ -285,6 +292,173 @@ bool CopcPointTile::IsValid() const noexcept {
 
 CopcReader::CopcReader(std::string filename)
     : filename_(std::move(filename)) {}
+
+CopcPointStream::CopcPointStream(
+    std::string filename,
+    usdpointcloud::PointReadOptions options,
+    CopcHeader header,
+    std::vector<CopcHierarchyEntry> entries,
+    std::size_t maximumPoints)
+    : filename_(std::move(filename)),
+      reader_(filename_),
+      options_(std::move(options)),
+      header_(std::move(header)),
+      entries_(std::move(entries)),
+      maximumPoints_(maximumPoints) {}
+
+CopcPointStream::~CopcPointStream() = default;
+
+usdpointcloud::PointStreamStatus CopcPointStream::ReadNext(
+    usdpointcloud::PointChunk& chunk,
+    usdpointcloud::PointData& data,
+    usdgeo::Diagnostic& diagnostic) {
+    chunk = {};
+    data = {};
+    diagnostic = {};
+    if (ended_) {
+        return usdpointcloud::PointStreamStatus::End;
+    }
+
+    while (true) {
+        if (pendingIndex_ < pendingPoints_.size()) {
+            const auto count = (std::min)(
+                maximumPoints_, pendingPoints_.size() - pendingIndex_);
+            std::vector<usdlas::LasPoint> points(
+                pendingPoints_.begin() +
+                    static_cast<std::ptrdiff_t>(pendingIndex_),
+                pendingPoints_.begin() +
+                    static_cast<std::ptrdiff_t>(pendingIndex_ + count));
+            pendingIndex_ += count;
+
+            std::string error;
+            if (!usdlas::AppendPointData(header_.las, points, filename_, data,
+                                         error)) {
+                failureKind_ = CopcReadFailure::Hierarchy;
+                diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                              usdgeo::Severity::Error, error, std::nullopt,
+                              pointsRead_};
+                ended_ = true;
+                return usdpointcloud::PointStreamStatus::Error;
+            }
+            usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+            for (const auto& position : data.positions) {
+                bounds.Expand(position);
+            }
+            chunk = usdpointcloud::MakePointChunk(data, bounds);
+            if (!chunk.IsValid() || chunk.pointCount == 0) {
+                failureKind_ = CopcReadFailure::Hierarchy;
+                diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                              usdgeo::Severity::Error,
+                              "COPC stream produced an invalid point chunk",
+                              std::nullopt, pointsRead_};
+                ended_ = true;
+                return usdpointcloud::PointStreamStatus::Error;
+            }
+            pointsRead_ += chunk.pointCount;
+            return usdpointcloud::PointStreamStatus::Chunk;
+        }
+
+        pendingPoints_.clear();
+        pendingIndex_ = 0;
+        if (entryIndex_ >= entries_.size()) {
+            ended_ = true;
+            return usdpointcloud::PointStreamStatus::End;
+        }
+        if (options_.isCancelled && options_.isCancelled()) {
+            diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                          usdgeo::Severity::Error, "COPC read cancelled",
+                          std::nullopt, pointsRead_};
+            failureKind_ = CopcReadFailure::Hierarchy;
+            ended_ = true;
+            return usdpointcloud::PointStreamStatus::Error;
+        }
+
+        const auto& entry = entries_[entryIndex_++];
+        if (!entry.IsPointData()) {
+            continue;
+        }
+        std::vector<usdlas::LasPoint> points;
+        std::vector<usdgeo::Diagnostic> diagnostics;
+        if (!reader_.ReadPoints(header_, entry, points, diagnostics)) {
+            diagnostic = diagnostics.empty()
+                             ? usdgeo::Diagnostic{
+                                   usdgeo::DiagnosticCode::DecodeFailure,
+                                   usdgeo::Severity::Error,
+                                   "COPC point data decode failed", std::nullopt,
+                                   pointsRead_}
+                             : diagnostics.front();
+            failureKind_ = CopcReadFailure::Hierarchy;
+            ended_ = true;
+            return usdpointcloud::PointStreamStatus::Error;
+        }
+        pendingPoints_.reserve(points.size());
+        for (const auto& point : points) {
+            if (usdlas::MatchesReadOptions(point, options_)) {
+                pendingPoints_.push_back(point);
+            }
+        }
+    }
+}
+
+const CopcHeader& CopcPointStream::Header() const noexcept {
+    return header_;
+}
+
+CopcReadFailure CopcPointStream::FailureKind() const noexcept {
+    return failureKind_;
+}
+
+std::unique_ptr<CopcPointStream> OpenCopcPointStream(
+    const std::string& filename,
+    const usdpointcloud::PointReadOptions& options,
+    CopcHeader& header,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    header = {};
+    if (!options.IsValid()) {
+        AddStreamDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                            "COPC stream options are invalid", diagnostics);
+        return nullptr;
+    }
+    if (options.range.firstPoint != 0 || options.range.pointCount != 0) {
+        AddStreamDiagnostic(
+            usdgeo::DiagnosticCode::InvalidPointSourceRange,
+            "COPC streams do not support LAS source point ranges", diagnostics);
+        return nullptr;
+    }
+
+    CopcReader reader(filename);
+    if (!reader.ReadMetadata(header, diagnostics)) {
+        return nullptr;
+    }
+    std::vector<CopcHierarchyEntry> entries;
+    if (!reader.ReadHierarchy(header, entries, diagnostics)) {
+        return nullptr;
+    }
+
+    const auto maximumSize = (std::numeric_limits<std::size_t>::max)();
+    if (header.las.pointRecordLength >
+        (maximumSize - sizeof(usdlas::LasPoint)) / 2) {
+        AddStreamDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                            "COPC point record size is invalid", diagnostics);
+        return nullptr;
+    }
+    const auto bytesPerPoint =
+        sizeof(usdlas::LasPoint) +
+        static_cast<std::size_t>(header.las.pointRecordLength) * 2;
+    const auto maximumPoints =
+        (std::min)(options.chunkPointLimit,
+                   options.memoryBudgetBytes / bytesPerPoint);
+    if (maximumPoints == 0) {
+        AddStreamDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                            "COPC memory budget is too small for one point",
+                            diagnostics);
+        return nullptr;
+    }
+    return std::unique_ptr<CopcPointStream>(new CopcPointStream(
+        filename, options, std::move(header), std::move(entries),
+        maximumPoints));
+}
 
 bool CopcReader::ReadMetadata(
     CopcHeader& header,
