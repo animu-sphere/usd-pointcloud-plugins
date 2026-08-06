@@ -3,6 +3,7 @@
 #include "usdgeo/Diagnostic.h"
 #include "usdgeo/SpatialBounds.h"
 #include "usdgeo/TileId.h"
+#include "usdpointcloud/Lod.h"
 #include "usdlas/Las.h"
 
 #include <cstdint>
@@ -72,6 +73,14 @@ struct CopcHierarchy {
     bool IsValid() const noexcept;
 };
 
+struct CopcPointTile {
+    usdpointcloud::PointTile tile;
+    std::uint64_t pointDataOffset = 0;
+    std::uint64_t pointDataSize = 0;
+
+    bool IsValid() const noexcept;
+};
+
 enum class CopcReadFailure {
     None,
     FileOpen,
@@ -94,6 +103,10 @@ public:
                         const std::vector<CopcHierarchyEntry>& entries,
                         CopcHierarchy& hierarchy,
                         std::vector<usdgeo::Diagnostic>& diagnostics) const;
+    bool BuildPointTiles(
+        const CopcHierarchy& hierarchy,
+        std::vector<CopcPointTile>& tiles,
+        std::vector<usdgeo::Diagnostic>& diagnostics) const;
     bool ReadPointData(const CopcHeader& header,
                        const CopcHierarchyEntry& entry,
                        std::vector<std::uint8_t>& bytes,

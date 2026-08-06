@@ -18,6 +18,7 @@ struct PointLodItem {
     std::uint64_t pointCount = 0;
     usdgeo::SpatialBounds bounds;
     PointSourceRange sourceRange;
+    double spacing = 0.0;
 
     bool IsValid() const noexcept;
 };

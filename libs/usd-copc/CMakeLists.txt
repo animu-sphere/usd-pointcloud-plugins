@@ -12,7 +12,7 @@ set_target_properties(usdCopc PROPERTIES
     POSITION_INDEPENDENT_CODE ON)
 
 target_compile_features(usdCopc PUBLIC cxx_std_17)
-target_link_libraries(usdCopc PUBLIC usdlas::core usdlaz::core)
+target_link_libraries(usdCopc PUBLIC usdlas::core usdlaz::core usdpointcloud::core)
 target_include_directories(usdCopc
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
