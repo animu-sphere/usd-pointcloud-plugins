@@ -84,9 +84,7 @@ bool BuildTiledAssets(
         sizeof(usdlas::LasPoint) + header.las.pointRecordLength;
     const auto budgetPointLimit =
         request.readOptions.memoryBudgetBytes / bytesPerPoint;
-    const auto maximumPoints =
-        (std::min)(request.readOptions.chunkPointLimit, budgetPointLimit);
-    if (maximumPoints == 0) {
+    if (budgetPointLimit == 0) {
         diagnostics.push_back(
             {usdgeo::DiagnosticCode::InvalidFormatArgument,
              usdgeo::Severity::Error,
@@ -112,7 +110,7 @@ bool BuildTiledAssets(
         }
         const auto nativePointCount =
             pointTile.tile.lod.items.front().pointCount;
-        if (nativePointCount > maximumPoints ||
+        if (nativePointCount > budgetPointLimit ||
             nativePointCount >
                 static_cast<std::uint64_t>((std::numeric_limits<std::int32_t>::max)())) {
             diagnostics.push_back(
