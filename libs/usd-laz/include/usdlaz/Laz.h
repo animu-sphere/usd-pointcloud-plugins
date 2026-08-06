@@ -38,6 +38,25 @@ std::unique_ptr<LazDecoder> CreateFileDecoder(
 
 using LazPointConsumer = std::function<bool(const usdlas::LasPoint&,
                                             std::uint64_t)>;
+using LazInput = std::function<void(unsigned char*, std::size_t)>;
+
+class LazChunkDecoder {
+public:
+    virtual ~LazChunkDecoder() = default;
+
+    virtual bool ReadChunk(
+        std::size_t maximumPoints,
+        std::vector<usdlas::LasPoint>& points,
+        bool& complete,
+        std::vector<usdgeo::Diagnostic>& diagnostics) = 0;
+};
+
+std::unique_ptr<LazChunkDecoder> CreateLazChunkDecoder(
+    const usdlas::LasHeader& header,
+    std::uint64_t pointCount,
+    const LazInput& input,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
+
 bool DecodeLazChunk(const usdlas::LasHeader& header,
                     const std::vector<std::uint8_t>& bytes,
                     std::uint64_t pointCount,
@@ -46,6 +65,11 @@ bool DecodeLazChunk(const usdlas::LasHeader& header,
 bool DecodeLazChunk(const usdlas::LasHeader& header,
                     const std::vector<std::uint8_t>& bytes,
                     std::uint64_t pointCount,
+                    const LazPointConsumer& consume,
+                    std::vector<usdgeo::Diagnostic>& diagnostics);
+bool DecodeLazChunk(const usdlas::LasHeader& header,
+                    std::uint64_t pointCount,
+                    const LazInput& input,
                     const LazPointConsumer& consume,
                     std::vector<usdgeo::Diagnostic>& diagnostics);
 

@@ -88,16 +88,101 @@ private:
 
 std::size_t BasePointSize(std::uint8_t pointFormat) {
     switch (pointFormat) {
+    case 0:
+        return 20;
+    case 1:
+        return 28;
+    case 2:
+        return 26;
+    case 3:
+        return 34;
+    case 4:
+        return 57;
+    case 5:
+        return 63;
     case 6:
         return 30;
     case 7:
         return 36;
     case 8:
         return 38;
+    case 9:
+        return 59;
+    case 10:
+        return 67;
     default:
         return 0;
     }
 }
+
+using LazPerfDecoderPtr = decltype(lazperf::build_las_decompressor(
+    std::declval<lazperf::InputCb>(), std::declval<std::uint8_t>(),
+    std::declval<std::size_t>()));
+
+class LazPerfChunkDecoder final : public usdlaz::LazChunkDecoder {
+public:
+    LazPerfChunkDecoder(usdlas::LasHeader header,
+                        std::uint64_t pointCount,
+                        LazPerfDecoderPtr decoder)
+        : header_(std::move(header)),
+          pointCount_(pointCount),
+          decoder_(std::move(decoder)) {}
+
+    bool ReadChunk(std::size_t maximumPoints,
+                   std::vector<usdlas::LasPoint>& points,
+                   bool& complete,
+                   std::vector<usdgeo::Diagnostic>& diagnostics) override {
+        points.clear();
+        complete = false;
+        diagnostics.clear();
+        if (maximumPoints == 0 || pointsRead_ >= pointCount_) {
+            complete = true;
+            return true;
+        }
+
+        const auto remaining = pointCount_ - pointsRead_;
+        const auto count = static_cast<std::size_t>(
+            remaining < maximumPoints ? remaining : maximumPoints);
+        std::vector<char> record(header_.pointRecordLength);
+        points.reserve(count);
+        try {
+            for (std::size_t index = 0; index < count; ++index) {
+                decoder_->decompress(record.data());
+                std::vector<std::uint8_t> encoded(
+                    reinterpret_cast<std::uint8_t*>(record.data()),
+                    reinterpret_cast<std::uint8_t*>(record.data()) +
+                        record.size());
+                usdlas::LasPoint point;
+                if (!usdlas::DecodePoint(header_, encoded, point,
+                                         diagnostics)) {
+                    if (!diagnostics.empty()) {
+                        diagnostics.back().pointIndex = pointsRead_ + index;
+                    }
+                    points.clear();
+                    return false;
+                }
+                points.push_back(std::move(point));
+            }
+        } catch (const std::exception& exception) {
+            points.clear();
+            AddDiagnostic(exception.what(), diagnostics);
+            if (!diagnostics.empty()) {
+                diagnostics.back().pointIndex = pointsRead_;
+            }
+            return false;
+        }
+
+        pointsRead_ += points.size();
+        complete = pointsRead_ == pointCount_;
+        return true;
+    }
+
+private:
+    usdlas::LasHeader header_;
+    std::uint64_t pointCount_ = 0;
+    LazPerfDecoderPtr decoder_;
+    std::uint64_t pointsRead_ = 0;
+};
 
 bool ReadHeaderBytes(const std::string& filename,
                      std::vector<std::uint8_t>& bytes,
@@ -305,50 +390,83 @@ bool DecodeLazChunk(const usdlas::LasHeader& header,
                     std::uint64_t pointCount,
                     const LazPointConsumer& consume,
                     std::vector<usdgeo::Diagnostic>& diagnostics) {
+    ChunkInput input(bytes);
+    return DecodeLazChunk(header, pointCount, input.Callback(), consume,
+                          diagnostics);
+}
+
+std::unique_ptr<LazChunkDecoder> CreateLazChunkDecoder(
+    const usdlas::LasHeader& header,
+    std::uint64_t pointCount,
+    const LazInput& input,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
     diagnostics.clear();
     const auto basePointSize = BasePointSize(header.pointFormat);
     if (!header.IsValid() || basePointSize == 0 ||
         header.pointRecordLength < basePointSize || pointCount == 0 ||
-        pointCount > header.pointCount ||
-        !consume) {
+        pointCount > header.pointCount || !input) {
         AddDiagnostic("invalid LAS header or LAZ chunk point count",
                       diagnostics);
-        return false;
+        return nullptr;
     }
 
     try {
-        ChunkInput input(bytes);
         const auto decoder = lazperf::build_las_decompressor(
-            input.Callback(), header.pointFormat,
+            input, header.pointFormat,
             header.pointRecordLength - basePointSize);
         if (!decoder) {
             AddDiagnostic("unsupported LAZ point format", diagnostics);
+            return nullptr;
+        }
+        return std::make_unique<LazPerfChunkDecoder>(
+            header, pointCount, std::move(decoder));
+    } catch (const std::exception& exception) {
+        AddDiagnostic(exception.what(), diagnostics);
+        return nullptr;
+    }
+}
+
+bool DecodeLazChunk(const usdlas::LasHeader& header,
+                    std::uint64_t pointCount,
+                    const LazInput& input,
+                    const LazPointConsumer& consume,
+                    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    auto decoder =
+        CreateLazChunkDecoder(header, pointCount, input, diagnostics);
+    if (!decoder || !consume) {
+        if (decoder && !consume) {
+            diagnostics.clear();
+            AddDiagnostic("invalid LAZ point consumer", diagnostics);
+        }
+        return false;
+    }
+
+    const auto maximumPoints = (std::min)(
+        pointCount,
+        static_cast<std::uint64_t>((std::numeric_limits<std::size_t>::max)()));
+    std::uint64_t pointsRead = 0;
+    bool complete = false;
+    while (!complete) {
+        std::vector<usdlas::LasPoint> points;
+        if (!decoder->ReadChunk(static_cast<std::size_t>(maximumPoints), points,
+                                complete, diagnostics)) {
             return false;
         }
-
-        std::vector<char> record(header.pointRecordLength);
-        for (std::uint64_t index = 0; index < pointCount; ++index) {
-            decoder->decompress(record.data());
-            std::vector<std::uint8_t> encoded(
-                reinterpret_cast<std::uint8_t*>(record.data()),
-                reinterpret_cast<std::uint8_t*>(record.data()) +
-                    record.size());
-            usdlas::LasPoint point;
-            if (!usdlas::DecodePoint(header, encoded, point, diagnostics)) {
-                return false;
-            }
-            if (!consume(point, index)) {
+        if (points.empty() && !complete) {
+            AddDiagnostic("LAZ decoder returned an empty incomplete chunk",
+                          diagnostics);
+            return false;
+        }
+        for (const auto& point : points) {
+            if (!consume(point, pointsRead++)) {
                 diagnostics.push_back(
                     {usdgeo::DiagnosticCode::DecodeFailure,
                      usdgeo::Severity::Error,
                      "LAZ chunk consumer rejected a point", std::nullopt,
-                     index});
+                     pointsRead - 1});
                 return false;
             }
         }
-    } catch (const std::exception& exception) {
-        AddDiagnostic(exception.what(), diagnostics);
-        return false;
     }
     return true;
 }

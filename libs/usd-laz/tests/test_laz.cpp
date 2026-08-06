@@ -5,8 +5,11 @@
 
 #include <cstdlib>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -362,6 +365,47 @@ void TestLazPerfFileDecoder() {
             ++chunks;
         }
         Check(header.pointCount == 3 && points == 3 && chunks == 2);
+    }
+
+    {
+        usdlas::LasHeader header;
+        std::vector<usdgeo::Diagnostic> diagnostics;
+        auto fileDecoder =
+            usdlaz::CreateFileDecoder(filename.string(), diagnostics);
+        Check(fileDecoder != nullptr &&
+              fileDecoder->ReadHeader(header, diagnostics));
+        auto file =
+            std::make_shared<std::ifstream>(filename, std::ios::binary);
+        Check(static_cast<bool>(*file));
+        file->seekg(static_cast<std::streamoff>(header.pointDataOffset),
+                    std::ios::beg);
+        Check(static_cast<bool>(*file));
+        auto remaining = std::filesystem::file_size(filename) -
+                         header.pointDataOffset;
+        const usdlaz::LazInput input =
+            [file, remaining](unsigned char* output,
+                              std::size_t size) mutable {
+                if (size > remaining) {
+                    throw std::runtime_error("test LAZ range is truncated");
+                }
+                file->read(reinterpret_cast<char*>(output),
+                           static_cast<std::streamsize>(size));
+                if (!*file) {
+                    throw std::runtime_error("test LAZ range is truncated");
+                }
+                remaining -= size;
+            };
+        auto decoder = usdlaz::CreateLazChunkDecoder(
+            header, header.pointCount, input, diagnostics);
+        Check(decoder != nullptr && diagnostics.empty());
+
+        for (int index = 0; index < 3; ++index) {
+            std::vector<usdlas::LasPoint> points;
+            bool complete = false;
+            Check(decoder->ReadChunk(1, points, complete, diagnostics));
+            Check(diagnostics.empty() && points.size() == 1);
+            Check(complete == (index == 2));
+        }
     }
     Check(std::remove(filename.string().c_str()) == 0);
 }

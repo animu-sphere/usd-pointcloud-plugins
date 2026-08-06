@@ -5,8 +5,12 @@
 #include "usdgeo/TileId.h"
 #include "usdpointcloud/Lod.h"
 #include "usdlas/Las.h"
+#include "usdlaz/Laz.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -115,6 +119,12 @@ public:
                     const CopcHierarchyEntry& entry,
                     std::vector<usdlas::LasPoint>& points,
                     std::vector<usdgeo::Diagnostic>& diagnostics);
+    using PointConsumer =
+        std::function<bool(const usdlas::LasPoint&, std::uint64_t)>;
+    bool ReadPoints(const CopcHeader& header,
+                    const CopcHierarchyEntry& entry,
+                    const PointConsumer& consume,
+                    std::vector<usdgeo::Diagnostic>& diagnostics);
 
     CopcReadFailure FailureKind() const noexcept;
 
@@ -122,5 +132,50 @@ private:
     std::string filename_;
     CopcReadFailure failureKind_ = CopcReadFailure::None;
 };
+
+class CopcPointStream final : public usdpointcloud::PointStream {
+public:
+    ~CopcPointStream() override;
+
+    usdpointcloud::PointStreamStatus ReadNext(
+        usdpointcloud::PointChunk& chunk,
+        usdpointcloud::PointData& data,
+        usdgeo::Diagnostic& diagnostic) override;
+
+    const CopcHeader& Header() const noexcept;
+    CopcReadFailure FailureKind() const noexcept;
+
+private:
+    friend std::unique_ptr<CopcPointStream> OpenCopcPointStream(
+        const std::string&,
+        const usdpointcloud::PointReadOptions&,
+        CopcHeader&,
+        std::vector<usdgeo::Diagnostic>&);
+
+    CopcPointStream(std::string filename,
+                    usdpointcloud::PointReadOptions options,
+                    CopcHeader header,
+                    std::vector<CopcHierarchyEntry> entries,
+                    std::size_t maximumPoints);
+
+    std::string filename_;
+    usdpointcloud::PointReadOptions options_;
+    CopcHeader header_;
+    std::unique_ptr<usdlaz::LazChunkDecoder> decoder_;
+    std::vector<CopcHierarchyEntry> entries_;
+    std::vector<usdlas::LasPoint> pendingPoints_;
+    std::size_t entryIndex_ = 0;
+    std::size_t pendingIndex_ = 0;
+    std::size_t maximumPoints_ = 0;
+    std::uint64_t pointsRead_ = 0;
+    CopcReadFailure failureKind_ = CopcReadFailure::None;
+    bool ended_ = false;
+};
+
+std::unique_ptr<CopcPointStream> OpenCopcPointStream(
+    const std::string& filename,
+    const usdpointcloud::PointReadOptions& options,
+    CopcHeader& header,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
 
 } // namespace usdcopc
