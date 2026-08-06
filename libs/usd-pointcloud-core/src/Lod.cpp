@@ -54,7 +54,8 @@ bool ValidThresholds(const std::vector<float>& thresholds) noexcept {
 } // namespace
 
 bool PointLodItem::IsValid() const noexcept {
-    return pointCount != 0 && bounds.IsValid() && sourceRange.IsValid();
+    return pointCount != 0 && bounds.IsValid() && sourceRange.IsValid() &&
+           std::isfinite(spacing) && spacing >= 0.0;
 }
 
 bool PointLodHierarchy::IsValid() const noexcept {

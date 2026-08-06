@@ -550,6 +550,73 @@ bool CopcReader::BuildHierarchy(
     return true;
 }
 
+bool CopcReader::BuildPointTiles(
+    const CopcHierarchy& hierarchy,
+    std::vector<usdpointcloud::PointTile>& tiles,
+    std::vector<usdgeo::Diagnostic>& diagnostics) const {
+    tiles.clear();
+    diagnostics.clear();
+    if (!hierarchy.IsValid()) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                      "COPC point tiles require a valid hierarchy");
+        return false;
+    }
+
+    std::map<std::string, std::size_t> tileIndices;
+    for (const auto& node : hierarchy.nodes) {
+        if (!node.hasPointData) {
+            continue;
+        }
+
+        usdpointcloud::PointTile tile;
+        tile.id = node.tile;
+        tile.bounds = node.bounds;
+        tile.lod.bounds = node.bounds;
+        tile.lod.items.push_back({
+            0, node.pointCount, node.bounds, {0, node.pointCount},
+            node.spacing});
+        const auto key = node.tile.ToString();
+        if (!tileIndices.emplace(key, tiles.size()).second) {
+            AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                          "COPC point tiles contain a duplicate node");
+            tiles.clear();
+            return false;
+        }
+        tiles.push_back(std::move(tile));
+    }
+
+    if (tiles.empty()) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                      "COPC hierarchy contains no point-data tiles");
+        return false;
+    }
+
+    for (const auto& node : hierarchy.nodes) {
+        if (!node.hasPointData || node.tile.level == 0) {
+            continue;
+        }
+        auto parent = node.tile;
+        while (parent.level > 0) {
+            parent = {parent.level - 1, parent.x / 2, parent.y / 2,
+                      parent.z / 2};
+            const auto parentIndex = tileIndices.find(parent.ToString());
+            if (parentIndex == tileIndices.end()) {
+                continue;
+            }
+            tiles[parentIndex->second].children.push_back(node.tile);
+            break;
+        }
+    }
+
+    for (const auto& tile : tiles) {
+        if (!usdpointcloud::ValidatePointTile(tile, diagnostics)) {
+            tiles.clear();
+            return false;
+        }
+    }
+    return true;
+}
+
 bool CopcReader::ReadPointData(
     const CopcHeader& header,
     const CopcHierarchyEntry& entry,

@@ -212,6 +212,7 @@ struct PointLodItem {
     std::uint64_t pointCount = 0;
     usdgeo::SpatialBounds bounds;
     PointSourceRange sourceRange;
+    double spacing = 0.0;
 };
 
 struct PointLodHierarchy {
@@ -228,6 +229,16 @@ struct PointTile {
     PointLodHierarchy lod;
 };
 ```
+
+`PointLodItem::spacing` preserves a native source resolution when the reader
+provides one, such as COPC node spacing. A value of zero means that the source
+does not expose a native resolution; it does not select an LOD. COPC hierarchy
+page entries remain indexing nodes, while point-data nodes become spatial
+`PointTile` values with one item carrying the node bounds, point range, and
+spacing. For COPC, the point range is local to the node's point-data payload;
+it is not a fabricated LAS-global source index. Missing point-data ancestors
+are compressed when connecting tile children, so hierarchy pages are not
+exposed as empty LOD items.
 
 `PointSourceRange` is the same selection concept the streaming reader already
 exposes as `PointReadOptions::range`; see
