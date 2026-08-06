@@ -5,9 +5,11 @@
 #include "usdgeo/TileId.h"
 #include "usdpointcloud/Lod.h"
 #include "usdlas/Las.h"
+#include "usdlaz/Laz.h"
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -117,6 +119,12 @@ public:
                     const CopcHierarchyEntry& entry,
                     std::vector<usdlas::LasPoint>& points,
                     std::vector<usdgeo::Diagnostic>& diagnostics);
+    using PointConsumer =
+        std::function<bool(const usdlas::LasPoint&, std::uint64_t)>;
+    bool ReadPoints(const CopcHeader& header,
+                    const CopcHierarchyEntry& entry,
+                    const PointConsumer& consume,
+                    std::vector<usdgeo::Diagnostic>& diagnostics);
 
     CopcReadFailure FailureKind() const noexcept;
 
@@ -151,9 +159,9 @@ private:
                     std::size_t maximumPoints);
 
     std::string filename_;
-    CopcReader reader_;
     usdpointcloud::PointReadOptions options_;
     CopcHeader header_;
+    std::unique_ptr<usdlaz::LazChunkDecoder> decoder_;
     std::vector<CopcHierarchyEntry> entries_;
     std::vector<usdlas::LasPoint> pendingPoints_;
     std::size_t entryIndex_ = 0;

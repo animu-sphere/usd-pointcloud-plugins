@@ -42,13 +42,18 @@ usdlaz/Laz.h
 
 | Group | Entry points |
 | --- | --- |
-| Codec seam | `LazDecoder` (`ReadHeader`, `ReadChunk`), `CreateFileDecoder`, `DecodeLazChunk` and its bounded point-consumer overload |
+| Codec seam | `LazDecoder` (`ReadHeader`, `ReadChunk`), `LazChunkDecoder`, `CreateFileDecoder`, `CreateLazChunkDecoder`, `DecodeLazChunk` and its bounded point-consumer overload |
 | Orchestration | `LazReader::Read`, `LazReader::ReadMetadata` |
 | Aliases | `LazReadOptions` = `usdpointcloud::PointReadOptions`, `LazPointChunkConsumer`, `LazPointChunkErrorConsumer` |
 
 `LazDecoder` is a public abstract interface, which makes the codec
 substitutable and lets tests drive `LazReader` with a fake decoder and no
 compressed input.
+
+`LazChunkDecoder` keeps a single compressed point-data range decoder alive and
+returns bounded point batches from a caller-provided `LazInput`. COPC uses this
+stateful path so a large hierarchy node does not have to be buffered as one
+decoded vector or one in-memory compressed range.
 
 Minimal use:
 

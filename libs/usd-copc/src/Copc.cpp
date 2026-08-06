@@ -10,8 +10,10 @@
 #include <functional>
 #include <limits>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
+#include <stdexcept>
 #include <type_traits>
 #include <unordered_set>
 #include <utility>
@@ -116,6 +118,57 @@ bool ReadFileRange(const std::string& filename,
         return false;
     }
     return true;
+}
+
+std::unique_ptr<usdlaz::LazChunkDecoder> OpenLazChunkDecoder(
+    const std::string& filename,
+    const usdcopc::CopcHeader& header,
+    const usdcopc::CopcHierarchyEntry& entry,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    if (!header.IsValid()) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidOffset,
+                      "COPC header is not valid");
+        return nullptr;
+    }
+    if (!entry.IsValid() || !entry.IsPointData()) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                      "COPC entry does not identify point data");
+        return nullptr;
+    }
+
+    auto file = std::make_shared<std::ifstream>(filename, std::ios::binary);
+    if (!*file) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                      "cannot open COPC file");
+        return nullptr;
+    }
+    file->seekg(static_cast<std::streamoff>(entry.offset), std::ios::beg);
+    if (!*file) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidOffset,
+                      "cannot seek to COPC point data", entry.offset);
+        return nullptr;
+    }
+
+    const auto streamSize = static_cast<std::size_t>(
+        (std::numeric_limits<std::streamsize>::max)());
+    auto remaining = static_cast<std::uint64_t>(entry.byteSize);
+    const usdlaz::LazInput input =
+        [file, remaining, streamSize](unsigned char* output,
+                                      std::size_t size) mutable {
+            if (size > streamSize ||
+                size > remaining) {
+                throw std::runtime_error("COPC point data range is truncated");
+            }
+            file->read(reinterpret_cast<char*>(output),
+                       static_cast<std::streamsize>(size));
+            if (!*file) {
+                throw std::runtime_error("COPC point data range is truncated");
+            }
+            remaining -= size;
+        };
+    return usdlaz::CreateLazChunkDecoder(
+        header.las, static_cast<std::uint64_t>(entry.pointCount), input,
+        diagnostics);
 }
 
 const usdlas::LasVariableLengthRecord* FindCopcInfo(
@@ -300,7 +353,6 @@ CopcPointStream::CopcPointStream(
     std::vector<CopcHierarchyEntry> entries,
     std::size_t maximumPoints)
     : filename_(std::move(filename)),
-      reader_(filename_),
       options_(std::move(options)),
       header_(std::move(header)),
       entries_(std::move(entries)),
@@ -360,6 +412,52 @@ usdpointcloud::PointStreamStatus CopcPointStream::ReadNext(
 
         pendingPoints_.clear();
         pendingIndex_ = 0;
+        if (decoder_) {
+            if (options_.isCancelled && options_.isCancelled()) {
+                diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                              usdgeo::Severity::Error, "COPC read cancelled",
+                              std::nullopt, pointsRead_};
+                failureKind_ = CopcReadFailure::Hierarchy;
+                ended_ = true;
+                return usdpointcloud::PointStreamStatus::Error;
+            }
+
+            std::vector<usdlas::LasPoint> points;
+            bool complete = false;
+            std::vector<usdgeo::Diagnostic> diagnostics;
+            if (!decoder_->ReadChunk(maximumPoints_, points, complete,
+                                     diagnostics)) {
+                diagnostic = diagnostics.empty()
+                                 ? usdgeo::Diagnostic{
+                                       usdgeo::DiagnosticCode::DecodeFailure,
+                                       usdgeo::Severity::Error,
+                                       "COPC point data decode failed",
+                                       std::nullopt, pointsRead_}
+                                 : diagnostics.front();
+                failureKind_ = CopcReadFailure::Hierarchy;
+                ended_ = true;
+                return usdpointcloud::PointStreamStatus::Error;
+            }
+            if (points.empty() && !complete) {
+                diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                              usdgeo::Severity::Error,
+                              "COPC decoder returned an empty incomplete chunk",
+                              std::nullopt, pointsRead_};
+                failureKind_ = CopcReadFailure::Hierarchy;
+                ended_ = true;
+                return usdpointcloud::PointStreamStatus::Error;
+            }
+            if (complete) {
+                decoder_.reset();
+            }
+            for (const auto& point : points) {
+                if (usdlas::MatchesReadOptions(point, options_)) {
+                    pendingPoints_.push_back(point);
+                }
+            }
+            continue;
+        }
+
         if (entryIndex_ >= entries_.size()) {
             ended_ = true;
             return usdpointcloud::PointStreamStatus::End;
@@ -377,25 +475,19 @@ usdpointcloud::PointStreamStatus CopcPointStream::ReadNext(
         if (!entry.IsPointData()) {
             continue;
         }
-        std::vector<usdlas::LasPoint> points;
         std::vector<usdgeo::Diagnostic> diagnostics;
-        if (!reader_.ReadPoints(header_, entry, points, diagnostics)) {
+        decoder_ = OpenLazChunkDecoder(filename_, header_, entry, diagnostics);
+        if (!decoder_) {
             diagnostic = diagnostics.empty()
                              ? usdgeo::Diagnostic{
                                    usdgeo::DiagnosticCode::DecodeFailure,
                                    usdgeo::Severity::Error,
-                                   "COPC point data decode failed", std::nullopt,
-                                   pointsRead_}
+                                   "COPC point data decoder could not be opened",
+                                   std::nullopt, pointsRead_}
                              : diagnostics.front();
             failureKind_ = CopcReadFailure::Hierarchy;
             ended_ = true;
             return usdpointcloud::PointStreamStatus::Error;
-        }
-        pendingPoints_.reserve(points.size());
-        for (const auto& point : points) {
-            if (usdlas::MatchesReadOptions(point, options_)) {
-                pendingPoints_.push_back(point);
-            }
         }
     }
 }
@@ -832,16 +924,62 @@ bool CopcReader::ReadPoints(
     const CopcHierarchyEntry& entry,
     std::vector<usdlas::LasPoint>& points,
     std::vector<usdgeo::Diagnostic>& diagnostics) {
-    std::vector<std::uint8_t> bytes;
-    if (!ReadPointData(header, entry, bytes, diagnostics)) {
-        points.clear();
-        return false;
-    }
-    if (!usdlaz::DecodeLazChunk(header.las, bytes,
-                                static_cast<std::uint64_t>(entry.pointCount),
-                                points, diagnostics)) {
+    points.clear();
+    return ReadPoints(
+        header, entry,
+        [&](const usdlas::LasPoint& point, std::uint64_t) {
+            points.push_back(point);
+            return true;
+        },
+        diagnostics);
+}
+
+bool CopcReader::ReadPoints(const CopcHeader& header,
+                            const CopcHierarchyEntry& entry,
+                            const PointConsumer& consume,
+                            std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.clear();
+    if (!consume) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                      "COPC point consumer is invalid");
         failureKind_ = CopcReadFailure::Hierarchy;
         return false;
+    }
+
+    auto decoder = OpenLazChunkDecoder(filename_, header, entry, diagnostics);
+    if (!decoder) {
+        failureKind_ = CopcReadFailure::Hierarchy;
+        return false;
+    }
+
+    const auto maximumPoints = (std::min)(
+        static_cast<std::uint64_t>(entry.pointCount),
+        static_cast<std::uint64_t>((std::numeric_limits<std::size_t>::max)()));
+    std::uint64_t pointsRead = 0;
+    bool complete = false;
+    while (!complete) {
+        std::vector<usdlas::LasPoint> points;
+        if (!decoder->ReadChunk(static_cast<std::size_t>(maximumPoints), points,
+                                complete, diagnostics)) {
+            failureKind_ = CopcReadFailure::Hierarchy;
+            return false;
+        }
+        if (points.empty() && !complete) {
+            AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                          "COPC decoder returned an empty incomplete chunk");
+            failureKind_ = CopcReadFailure::Hierarchy;
+            return false;
+        }
+        for (const auto& point : points) {
+            if (!consume(point, pointsRead)) {
+                AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                              "COPC point consumer rejected a point");
+                diagnostics.back().pointIndex = pointsRead;
+                failureKind_ = CopcReadFailure::Hierarchy;
+                return false;
+            }
+            ++pointsRead;
+        }
     }
     return true;
 }
