@@ -20,6 +20,7 @@ usdcopc/Copc.h
 | `CopcHierarchyEntry` | A point-data or child-hierarchy entry from a COPC page |
 | `CopcHeader` | Validated `usdlas::LasHeader`, COPC Info, and file size |
 | `CopcNode` / `CopcHierarchy` | Validated native hierarchy nodes and spatial bounds |
+| `CopcPointTile` | A shared point tile paired with its COPC point-data byte range |
 | `CopcReader` | Local metadata, hierarchy-page, and selected point-chunk reader |
 
 `CopcReader::ReadMetadata` delegates LAS header, VLR, EVLR, and CRS parsing to
@@ -37,8 +38,9 @@ hierarchy page; and zero identifies an empty entry. `ReadPointData` reads only
 the selected range, and `ReadPoints` decodes that range as a LAZ chunk into
 `usdlas::LasPoint` values. `BuildPointTiles` maps point-data nodes to the
 shared `PointTile` contract, preserving node IDs, bounds, child relationships,
-point counts, local payload ranges, and native spacing. Hierarchy-page entries
-are indexing nodes and are compressed out of the shared tile list.
+point counts, native spacing, and the source `pointDataOffset` /
+`pointDataSize` in `CopcPointTile`. Hierarchy-page entries are indexing nodes
+and are compressed out of the shared tile list.
 
 The initial reader is local and read-only. HTTP range sources, network caching,
 COPC writing, hierarchy optimization, and OpenUSD authoring remain outside this

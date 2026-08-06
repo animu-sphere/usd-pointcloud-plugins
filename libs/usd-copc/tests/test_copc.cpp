@@ -158,20 +158,26 @@ void TestMetadataAndHierarchy() {
             hierarchy.nodes[2].bounds.minimum.x == 1000.5 &&
             hierarchy.nodes[2].bounds.maximum.x == 1001.5);
 
-          std::vector<usdpointcloud::PointTile> tiles;
+          std::vector<usdcopc::CopcPointTile> tiles;
           Check(reader.BuildPointTiles(hierarchy, tiles, diagnostics));
           Check(diagnostics.empty() && tiles.size() == 2);
           Check(tiles[0].IsValid() && tiles[1].IsValid());
-          Check(tiles[0].id.ToString() == "L0/0/0/0" &&
-              tiles[0].lod.items[0].sourceRange.firstPoint == 0 &&
-              tiles[0].lod.items[0].sourceRange.pointCount == 1 &&
-              tiles[0].lod.items[0].spacing == 0.5 &&
-              tiles[0].children.size() == 1 &&
-              tiles[0].children[0].ToString() == "L2/2/0/0");
-          Check(tiles[1].id.ToString() == "L2/2/0/0" &&
-              tiles[1].lod.items[0].sourceRange.firstPoint == 0 &&
-              tiles[1].lod.items[0].sourceRange.pointCount == 1 &&
-              tiles[1].lod.items[0].spacing == 0.125);
+          Check(tiles[0].tile.id.ToString() == "L0/0/0/0" &&
+              tiles[0].tile.lod.items[0].sourceRange.firstPoint == 0 &&
+              tiles[0].tile.lod.items[0].sourceRange.pointCount == 1 &&
+              tiles[0].tile.lod.items[0].spacing == 0.5 &&
+              tiles[0].pointDataOffset == entries[0].offset &&
+              tiles[0].pointDataSize ==
+                  static_cast<std::uint64_t>(entries[0].byteSize) &&
+              tiles[0].tile.children.size() == 1 &&
+              tiles[0].tile.children[0].ToString() == "L2/2/0/0");
+          Check(tiles[1].tile.id.ToString() == "L2/2/0/0" &&
+              tiles[1].tile.lod.items[0].sourceRange.firstPoint == 0 &&
+              tiles[1].tile.lod.items[0].sourceRange.pointCount == 1 &&
+              tiles[1].tile.lod.items[0].spacing == 0.125 &&
+              tiles[1].pointDataOffset == entries[2].offset &&
+              tiles[1].pointDataSize ==
+                  static_cast<std::uint64_t>(entries[2].byteSize));
 
           auto reorderedEntries = entries;
           std::swap(reorderedEntries[0], reorderedEntries[1]);

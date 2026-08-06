@@ -238,7 +238,9 @@ page entries remain indexing nodes, while point-data nodes become spatial
 spacing. For COPC, the point range is local to the node's point-data payload;
 it is not a fabricated LAS-global source index. Missing point-data ancestors
 are compressed when connecting tile children, so hierarchy pages are not
-exposed as empty LOD items.
+exposed as empty LOD items. The shared `PointTile` and COPC source byte range
+are carried together by `usdcopc::CopcPointTile`; `PointLodItem::sourceRange`
+alone is not a byte-range locator.
 
 `PointSourceRange` is the same selection concept the streaming reader already
 exposes as `PointReadOptions::range`; see

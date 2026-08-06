@@ -73,6 +73,14 @@ struct CopcHierarchy {
     bool IsValid() const noexcept;
 };
 
+struct CopcPointTile {
+    usdpointcloud::PointTile tile;
+    std::uint64_t pointDataOffset = 0;
+    std::uint64_t pointDataSize = 0;
+
+    bool IsValid() const noexcept;
+};
+
 enum class CopcReadFailure {
     None,
     FileOpen,
@@ -97,7 +105,7 @@ public:
                         std::vector<usdgeo::Diagnostic>& diagnostics) const;
     bool BuildPointTiles(
         const CopcHierarchy& hierarchy,
-        std::vector<usdpointcloud::PointTile>& tiles,
+        std::vector<CopcPointTile>& tiles,
         std::vector<usdgeo::Diagnostic>& diagnostics) const;
     bool ReadPointData(const CopcHeader& header,
                        const CopcHierarchyEntry& entry,

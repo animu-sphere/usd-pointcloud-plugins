@@ -279,6 +279,10 @@ bool CopcHierarchy::IsValid() const noexcept {
     return hasRoot;
 }
 
+bool CopcPointTile::IsValid() const noexcept {
+    return tile.IsValid() && pointDataOffset > 0 && pointDataSize > 0;
+}
+
 CopcReader::CopcReader(std::string filename)
     : filename_(std::move(filename)) {}
 
@@ -552,7 +556,7 @@ bool CopcReader::BuildHierarchy(
 
 bool CopcReader::BuildPointTiles(
     const CopcHierarchy& hierarchy,
-    std::vector<usdpointcloud::PointTile>& tiles,
+    std::vector<CopcPointTile>& tiles,
     std::vector<usdgeo::Diagnostic>& diagnostics) const {
     tiles.clear();
     diagnostics.clear();
@@ -568,13 +572,15 @@ bool CopcReader::BuildPointTiles(
             continue;
         }
 
-        usdpointcloud::PointTile tile;
-        tile.id = node.tile;
-        tile.bounds = node.bounds;
-        tile.lod.bounds = node.bounds;
-        tile.lod.items.push_back({
+        CopcPointTile tile;
+        tile.tile.id = node.tile;
+        tile.tile.bounds = node.bounds;
+        tile.tile.lod.bounds = node.bounds;
+        tile.tile.lod.items.push_back({
             0, node.pointCount, node.bounds, {0, node.pointCount},
             node.spacing});
+        tile.pointDataOffset = node.pointDataOffset;
+        tile.pointDataSize = node.pointDataSize;
         const auto key = node.tile.ToString();
         if (!tileIndices.emplace(key, tiles.size()).second) {
             AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
@@ -603,13 +609,15 @@ bool CopcReader::BuildPointTiles(
             if (parentIndex == tileIndices.end()) {
                 continue;
             }
-            tiles[parentIndex->second].children.push_back(node.tile);
+            tiles[parentIndex->second].tile.children.push_back(node.tile);
             break;
         }
     }
 
     for (const auto& tile : tiles) {
-        if (!usdpointcloud::ValidatePointTile(tile, diagnostics)) {
+        if (!tile.IsValid()) {
+            AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                          "COPC point tile model is invalid");
             tiles.clear();
             return false;
         }
