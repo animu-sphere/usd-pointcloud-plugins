@@ -23,8 +23,8 @@ uses the same reader and authoring contracts for long-running generation.
 | --- | --- | --- |
 | LAS 1.4 COPC Info VLR validation | Foundation | Implemented in `usdCopc`; requires point formats 6-8, a first-position 160-byte Info VLR, and a hierarchy VLR |
 | Local hierarchy page validation | Foundation | Root and child pages are read depth-first with range, alignment, and repeated-page checks |
-| COPC point-data decoding | Foundation | Selected local hierarchy ranges are decoded as LAZ chunks through `usdlaz::DecodeLazChunk`; shared `PointStream` and authoring are not connected yet |
-| COPC FileFormat Plugin | Foundation | `pointcloud-copc` provides local metadata-only and non-tiled reads; source point ranges are rejected because hierarchy order is spatial, while tiled streaming and payload authoring are not connected yet |
+| COPC point-data decoding | Supported | Local hierarchy ranges are decoded as LAZ chunks through `usdlaz::DecodeLazChunk`; bounds, classification, and attribute selection use the shared point-cloud contracts |
+| COPC FileFormat Plugin | Supported | `pointcloud-copc` provides local metadata-only, non-tiled, and native hierarchy tiled reads; tiled output is payload-backed `usdLod`, while source point ranges are rejected because hierarchy order is spatial |
 
 ## LAS Versions
 

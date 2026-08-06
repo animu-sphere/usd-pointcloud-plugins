@@ -116,7 +116,7 @@ tiling, diagnostics, and `usdLod` contracts.
 - [x] Add a format-specific COPC reader and thin FileFormat Plugin adapter
 - [x] Validate COPC information and hierarchy metadata
 - [x] Read required hierarchy nodes and point-data byte ranges selectively
-- [ ] Map native hierarchy and resolution metadata to the shared tile/LOD model
+- [x] Map native hierarchy and resolution metadata to the shared tile/LOD model
 - [ ] Verify LAS, LAZ, and COPC equivalence on equivalent fixtures
 - [ ] Defer COPC writing, HTTP range sources, network caching, and new public
       USD schemas
