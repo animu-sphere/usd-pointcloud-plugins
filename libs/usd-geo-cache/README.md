@@ -10,8 +10,11 @@ not create different cache entries.
 Each descriptor maps to one entry directory with reserved paths for
 `root.usdc`, a `cache.manifest`, and a `payloads/` directory. `TilePayloadPath`
 uses the same stable tile naming shape as payload-backed authoring. Cache
-entries are deletable derived data: `Invalidate` removes the complete
-descriptor directory and never touches the source file.
+entries are deletable derived data. The manifest is the generation commit
+marker: `IsCacheHit` requires both `root.usdc` and `cache.manifest`, so a root
+layer left behind by an interrupted generation is not reusable. `Invalidate`
+recomputes the descriptor entry below the supplied cache root and never accepts
+an arbitrary layout path, so it cannot delete an unrelated sibling directory.
 
 CMake target `usdgeo::cache` and namespace `usdgeo::cache`.
 

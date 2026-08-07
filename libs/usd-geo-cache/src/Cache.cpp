@@ -113,13 +113,23 @@ bool IsCacheHit(const Layout& layout) noexcept {
     if (!layout.IsValid()) {
         return false;
     }
-    std::error_code error;
-    return std::filesystem::is_regular_file(layout.rootLayer, error) &&
-           !error;
+    std::error_code rootError;
+    const auto rootExists =
+        std::filesystem::is_regular_file(layout.rootLayer, rootError);
+    if (rootError || !rootExists) {
+        return false;
+    }
+
+    std::error_code manifestError;
+    const auto manifestExists =
+        std::filesystem::is_regular_file(layout.manifest, manifestError);
+    return !manifestError && manifestExists;
 }
 
-bool Invalidate(const Layout& layout) noexcept {
-    if (!layout.IsValid()) {
+bool Invalidate(const std::filesystem::path& cacheRoot,
+                const Descriptor& descriptor) noexcept {
+    Layout layout;
+    if (!TryBuildLayout(cacheRoot, descriptor, layout)) {
         return false;
     }
     std::error_code error;

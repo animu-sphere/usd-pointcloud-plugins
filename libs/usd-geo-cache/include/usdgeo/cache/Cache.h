@@ -52,6 +52,7 @@ std::filesystem::path TilePayloadPath(const Layout& layout,
                                       int lodLevel);
 
 bool IsCacheHit(const Layout& layout) noexcept;
-bool Invalidate(const Layout& layout) noexcept;
+bool Invalidate(const std::filesystem::path& cacheRoot,
+                const Descriptor& descriptor) noexcept;
 
 } // namespace usdgeo::cache

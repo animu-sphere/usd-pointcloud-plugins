@@ -59,9 +59,15 @@ void TestLayoutAndInvalidation() {
 
     std::filesystem::create_directories(layout.payloadDirectory);
     std::ofstream(layout.rootLayer) << "cache";
+    Check(!usdgeo::cache::IsCacheHit(layout));
+    std::ofstream(layout.manifest) << "committed";
     Check(usdgeo::cache::IsCacheHit(layout));
-    Check(usdgeo::cache::Invalidate(layout));
+    const auto unrelatedDirectory = root / "unrelated";
+    std::filesystem::create_directories(unrelatedDirectory);
+    std::ofstream(unrelatedDirectory / "source.las") << "source";
+    Check(usdgeo::cache::Invalidate(root, MakeDescriptor()));
     Check(!std::filesystem::exists(layout.entryDirectory));
+    Check(std::filesystem::exists(unrelatedDirectory / "source.las"));
 }
 
 } // namespace
