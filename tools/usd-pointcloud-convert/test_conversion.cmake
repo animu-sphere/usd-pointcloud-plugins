@@ -57,6 +57,7 @@ endforeach()
 file(SHA256 "${output_manifest}" first_manifest_hash)
 
 set(repeat_root "${test_root}-repeat")
+file(REMOVE_RECURSE "${repeat_root}")
 file(MAKE_DIRECTORY "${repeat_root}")
 execute_process(
     COMMAND "${converter}" "${fixture}" "${repeat_root}/PointCloud.usda"
@@ -74,9 +75,100 @@ if(NOT first_manifest_hash STREQUAL repeat_manifest_hash)
     message(FATAL_ERROR "converter manifest is not deterministic")
 endif()
 
+set(cache_root "${test_root}/cache")
+set(cache_first_root "${test_root}-cache-first")
+set(cache_second_root "${test_root}-cache-second")
+file(REMOVE_RECURSE "${cache_first_root}" "${cache_second_root}")
+file(MAKE_DIRECTORY "${cache_first_root}" "${cache_second_root}")
+execute_process(
+    COMMAND "${converter}" "${fixture}" "${cache_first_root}/PointCloud.usda"
+            --tile-size 1 --memory-limit 1024
+            --attributes xyz,intensity
+            --cache-root "${cache_root}"
+    RESULT_VARIABLE cache_first_result
+    OUTPUT_VARIABLE cache_first_output
+    ERROR_VARIABLE cache_first_error)
+if(NOT cache_first_result EQUAL 0 OR NOT cache_first_error STREQUAL "")
+    message(FATAL_ERROR
+        "cached first conversion failed: ${cache_first_output}${cache_first_error}")
+endif()
+file(GLOB cache_entries RELATIVE "${cache_root}" "${cache_root}/*")
+list(LENGTH cache_entries cache_entry_count)
+if(NOT cache_entry_count EQUAL 1 OR
+   NOT EXISTS "${cache_root}/${cache_entries}/root.usdc" OR
+   NOT EXISTS "${cache_root}/${cache_entries}/cache.manifest" OR
+   NOT EXISTS "${cache_root}/${cache_entries}/payloads")
+    message(FATAL_ERROR "converter did not publish the expected cache entry")
+endif()
+
+execute_process(
+    COMMAND "${converter}" "${fixture}" "${cache_second_root}/PointCloud.usda"
+            --tile-size 1 --memory-limit 1024
+            --attributes intensity,xyz
+            --cache-root "${cache_root}"
+    RESULT_VARIABLE cache_second_result
+    OUTPUT_VARIABLE cache_second_output
+    ERROR_VARIABLE cache_second_error)
+string(FIND "${cache_second_output}" "Cache hit " cache_hit_position)
+if(NOT cache_second_result EQUAL 0 OR NOT cache_second_error STREQUAL "" OR
+   cache_hit_position EQUAL -1 OR
+   NOT EXISTS "${cache_second_root}/PointCloud.usda" OR
+   NOT EXISTS "${cache_second_root}/PointCloud.usda.manifest" OR
+   NOT EXISTS "${cache_second_root}/payloads")
+    message(FATAL_ERROR
+        "converter did not reuse the cache entry: "
+        "${cache_second_output}${cache_second_error}")
+endif()
+    execute_process(
+        COMMAND usdcat --flatten "${cache_second_root}/PointCloud.usda"
+            -o "${cache_second_root}/flattened.usda"
+        RESULT_VARIABLE cache_usdcat_result
+        OUTPUT_VARIABLE cache_usdcat_output
+        ERROR_VARIABLE cache_usdcat_error)
+    if(NOT cache_usdcat_result EQUAL 0)
+        message(FATAL_ERROR
+        "materialized cache output could not be reopened: "
+        "${cache_usdcat_output}${cache_usdcat_error}")
+    endif()
+
+    set(cache_recovery_root "${test_root}-cache-recovery")
+    set(cache_recovery_output "${cache_recovery_root}/PointCloud.usda")
+    set(cache_recovery_payloads "${cache_recovery_root}/payloads")
+    set(cache_recovery_transaction "${cache_recovery_output}.transaction")
+    file(REMOVE_RECURSE "${cache_recovery_root}")
+    file(MAKE_DIRECTORY "${cache_recovery_transaction}" "${cache_recovery_payloads}")
+    file(WRITE "${cache_recovery_output}.manifest" "stale manifest")
+    file(WRITE "${cache_recovery_root}/PointCloud.tmp.usda" "stale root")
+    file(WRITE "${cache_recovery_output}.manifest.tmp" "stale temporary manifest")
+    file(WRITE "${cache_recovery_payloads}/stale.usdc" "stale payload")
+    file(WRITE "${cache_recovery_transaction}/state"
+        "payloadDirectory=${cache_recovery_payloads}\n")
+    execute_process(
+        COMMAND "${converter}" "${fixture}" "${cache_recovery_output}"
+                --tile-size 1 --memory-limit 1024
+                --attributes intensity,xyz
+                --cache-root "${cache_root}"
+        RESULT_VARIABLE cache_recovery_result
+        OUTPUT_VARIABLE cache_recovery_output_log
+        ERROR_VARIABLE cache_recovery_error_log)
+    string(FIND "${cache_recovery_output_log}" "Cache hit " cache_recovery_hit)
+    if(NOT cache_recovery_result EQUAL 0 OR
+       cache_recovery_hit EQUAL -1 OR
+       NOT EXISTS "${cache_recovery_output}" OR
+       NOT EXISTS "${cache_recovery_output}.manifest" OR
+       NOT EXISTS "${cache_recovery_payloads}" OR
+       EXISTS "${cache_recovery_transaction}" OR
+       EXISTS "${cache_recovery_root}/PointCloud.tmp.usda" OR
+       EXISTS "${cache_recovery_output}.manifest.tmp")
+        message(FATAL_ERROR
+            "converter did not recover and reuse a cache hit: "
+            "${cache_recovery_output_log}${cache_recovery_error_log}")
+    endif()
+
 set(failure_root "${test_root}-failure")
 set(failure_output "${failure_root}/PointCloud.usda")
 set(failure_payloads "${failure_root}/PointCloud_payloads")
+file(REMOVE_RECURSE "${failure_root}")
 file(MAKE_DIRECTORY "${failure_root}")
 execute_process(
     COMMAND "${converter}" "${fixture}" "${failure_output}"
@@ -110,6 +202,7 @@ set(unsafe_root "${test_root}-unsafe")
 set(unsafe_output "${unsafe_root}/PointCloud.usda")
 set(unsafe_payloads "${test_root}/ProtectedPayloads")
 set(unsafe_transaction "${unsafe_output}.transaction")
+file(REMOVE_RECURSE "${unsafe_root}")
 file(MAKE_DIRECTORY "${unsafe_root}" "${unsafe_payloads}" "${unsafe_transaction}")
 file(WRITE "${unsafe_output}.manifest" "stale manifest")
 file(WRITE "${unsafe_root}/PointCloud.tmp.usda" "stale root")
@@ -135,6 +228,7 @@ set(orphan_root "${test_root}-orphan")
 set(orphan_output "${orphan_root}/PointCloud.usda")
 set(orphan_payloads "${orphan_root}/PointCloud_payloads")
 set(orphan_transaction "${orphan_output}.transaction")
+file(REMOVE_RECURSE "${orphan_root}")
 file(MAKE_DIRECTORY "${orphan_root}" "${orphan_payloads}" "${orphan_transaction}")
 file(WRITE "${orphan_output}.manifest" "stale manifest")
 file(WRITE "${orphan_root}/PointCloud.tmp.usda" "stale root")
@@ -159,6 +253,9 @@ endif()
 
 file(REMOVE_RECURSE "${test_root}")
 file(REMOVE_RECURSE "${repeat_root}")
+file(REMOVE_RECURSE "${cache_first_root}")
+file(REMOVE_RECURSE "${cache_second_root}")
+file(REMOVE_RECURSE "${cache_recovery_root}")
 file(REMOVE_RECURSE "${failure_root}")
 file(REMOVE_RECURSE "${unsafe_root}")
 file(REMOVE_RECURSE "${orphan_root}")

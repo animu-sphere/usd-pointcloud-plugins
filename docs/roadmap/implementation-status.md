@@ -164,8 +164,9 @@ transaction state creation and retrying the same output workspace.
 
 - [ ] COPC implementation after the `v0.2.1` stabilization gate; see the
       `v0.3.0` release track above
-- [ ] Integrate deterministic USDC cache generation and lookup into authoring
-      and conversion paths
+- [x] Integrate deterministic USDC cache generation and lookup into the
+      conversion tool through `--cache-root`
+- [ ] Integrate cache lookup into direct FileFormat and authoring paths
 - [ ] Stage licensing, notice, capability, compatibility, and installation
       documents into release assets
 - [ ] Reconsider dynamic FileFormat support after generated assets and cache
