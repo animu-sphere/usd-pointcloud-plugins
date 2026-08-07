@@ -11,11 +11,13 @@ add_executable(usd-pointcloud-convert main.cpp)
 target_compile_features(usd-pointcloud-convert PRIVATE cxx_std_17)
 target_link_libraries(usd-pointcloud-convert
     PRIVATE
+        usdgeo::cache
         usdpointcloud::authoring
         usdlas::core
         usdlaz::core)
 target_include_directories(usd-pointcloud-convert PRIVATE
     "${CMAKE_SOURCE_DIR}/libs/usd-geo-core/include"
+    "${CMAKE_SOURCE_DIR}/libs/usd-geo-cache/include"
     "${CMAKE_SOURCE_DIR}/libs/usd-pointcloud-core/include"
     "${CMAKE_SOURCE_DIR}/libs/usd-pointcloud-authoring/include"
     "${CMAKE_SOURCE_DIR}/libs/usd-las/include"

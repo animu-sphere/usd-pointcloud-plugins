@@ -98,6 +98,24 @@ creates a temporary root layer and publishes it only after tiled authoring
 completes. Cancellation cleanup and interrupted-transaction recovery are
 validated; use `--help` for the current option surface.
 
+An optional `--cache-root <directory>` enables deterministic USDC cache lookup
+and generation. Cache entries contain `root.usdc`, `cache.manifest`, and a
+`payloads/` directory keyed by the canonical source identity and normalized
+generation arguments. Cache-enabled output uses `payloads/` beside the output
+root so the cached payload references remain portable:
+
+```powershell
+usd-pointcloud-convert `
+  C:\path\to\sample.las `
+  C:\path\to\output\PointCloud.usda `
+  --tile-size 128 `
+  --cache-root C:\path\to\pointcloud-cache
+```
+
+An existing committed cache entry is materialized without decoding the source
+again. The cache is derived data; the source file and normalized arguments
+remain the authority for invalidation.
+
 ## Plain CMake path
 
 The libraries build and test without `ost` and, for everything except the

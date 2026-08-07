@@ -1,18 +1,22 @@
 #include "usdgeo/PointCloudLayer.h"
+#include "usdgeo/cache/Cache.h"
 #include "usdpointcloud/FileFormatArguments.h"
 #include "usdlas/Las.h"
 #include "usdlaz/Laz.h"
 
 #include <pxr/usd/sdf/layer.h>
 
+#include <array>
 #include <csignal>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <algorithm>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -32,7 +36,9 @@ void PrintUsage() {
         << "  --memory-limit <bytes>\n"
         << "  --chunk-points <count>\n"
         << "  --attributes <comma-separated names>\n"
-        << "  --payload-directory <directory>\n";
+        << "  --payload-directory <directory>\n"
+        << "  --cache-root <directory>\n"
+        << "    (cache output uses a portable sibling payloads directory)\n";
 }
 
 bool ReadOptionValue(int& index, int argc, char** argv, std::string& value) {
@@ -234,6 +240,156 @@ std::string RelativeManifestPath(const std::filesystem::path& base,
     return std::filesystem::relative(path, base).generic_string();
 }
 
+std::string FormatDouble(double value) {
+    std::ostringstream result;
+    result << std::setprecision(17) << value;
+    return result.str();
+}
+
+bool HashFile(const std::filesystem::path& path,
+              std::string& identity,
+              std::string& errorMessage) {
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        errorMessage = "unable to open input for cache identity";
+        return false;
+    }
+
+    constexpr std::uint64_t offsetBasis = 14695981039346656037ull;
+    constexpr std::uint64_t prime = 1099511628211ull;
+    std::uint64_t hash = offsetBasis;
+    std::array<char, 64 * 1024> buffer{};
+    while (input) {
+        input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        const auto count = input.gcount();
+        for (std::streamsize index = 0; index < count; ++index) {
+            hash ^= static_cast<unsigned char>(
+                buffer[static_cast<std::size_t>(index)]);
+            hash *= prime;
+        }
+    }
+    if (!input.eof()) {
+        errorMessage = "unable to read input for cache identity";
+        return false;
+    }
+
+    std::ostringstream formatted;
+    formatted << "fnv1a64:" << std::hex << std::setfill('0') << std::setw(16)
+              << hash;
+    identity = formatted.str();
+    return true;
+}
+
+bool IsCachePayloadDirectory(const std::filesystem::path& outputPath,
+                             const std::filesystem::path& payloadDirectory) {
+    return IsSamePath(payloadDirectory,
+                      outputPath.parent_path() / "payloads");
+}
+
+bool CopyDirectory(const std::filesystem::path& source,
+                   const std::filesystem::path& destination,
+                   std::string& errorMessage) {
+    std::error_code error;
+    std::filesystem::create_directories(destination, error);
+    if (error) {
+        errorMessage = "unable to create cached payload directory: " +
+                       error.message();
+        return false;
+    }
+    std::filesystem::copy(
+        source, destination,
+        std::filesystem::copy_options::recursive |
+            std::filesystem::copy_options::overwrite_existing,
+        error);
+    if (error) {
+        errorMessage = "unable to materialize cached payloads: " +
+                       error.message();
+        return false;
+    }
+    return true;
+}
+
+bool BuildCacheDescriptor(
+    const std::filesystem::path& inputPath,
+    const usdgeo::GeoReference& reference,
+    const usdpointcloud::PointReadRequest& request,
+    usdgeo::cache::Descriptor& descriptor,
+    std::string& errorMessage) {
+    std::error_code error;
+    const auto canonicalPath = std::filesystem::weakly_canonical(inputPath, error);
+    if (error) {
+        errorMessage = "unable to canonicalize input for cache identity: " +
+                       error.message();
+        return false;
+    }
+    const auto size = std::filesystem::file_size(inputPath, error);
+    if (error) {
+        errorMessage = "unable to inspect input for cache identity: " +
+                       error.message();
+        return false;
+    }
+    const auto modified = std::filesystem::last_write_time(inputPath, error);
+    if (error) {
+        errorMessage = "unable to inspect input timestamp for cache identity: " +
+                       error.message();
+        return false;
+    }
+    std::string contentIdentity;
+    if (!HashFile(inputPath, contentIdentity, errorMessage)) return false;
+
+    descriptor.source = {
+        canonicalPath.generic_string(),
+        size,
+        modified.time_since_epoch().count(),
+        contentIdentity};
+    descriptor.pluginVersion = "usd-pointcloud-convert-0.2.2";
+    descriptor.parserVersion = IsExtension(inputPath, ".las")
+                                   ? "las-reader-1"
+                                   : "laz-reader-1";
+    descriptor.openUsdVersion = "26.08";
+    descriptor.coordinateTransform = {
+        {"epsg", reference.epsgCode ? std::to_string(*reference.epsgCode) : "0"},
+        {"linearUnit", reference.linearUnit},
+        {"sourceUpAxis", reference.sourceUpAxis},
+        {"stageUpAxis", reference.stageUpAxis},
+        {"origin.x", FormatDouble(reference.localOrigin.x)},
+        {"origin.y", FormatDouble(reference.localOrigin.y)},
+        {"origin.z", FormatDouble(reference.localOrigin.z)}};
+    for (const auto& [key, value] : request.canonicalArguments) {
+        if (key == "attributes") {
+            descriptor.attributes.emplace_back(key, value);
+        } else if (key != "payloadDirectory" && key != "chunkPointLimit" &&
+                   key != "memoryBudgetBytes") {
+            descriptor.tileAndLod.emplace_back(key, value);
+        }
+    }
+    descriptor.downsampling = {{"algorithm", "fixed-stride"},
+                               {"version", "1"}};
+    if (!descriptor.IsValid()) {
+        errorMessage = "cache descriptor is invalid";
+        return false;
+    }
+    return true;
+}
+
+bool MaterializeCache(const usdgeo::cache::Layout& layout,
+                      const std::filesystem::path& outputPath,
+                      const std::filesystem::path& payloadDirectory,
+                      std::string& errorMessage) {
+    if (!IsCachePayloadDirectory(outputPath, payloadDirectory)) {
+        errorMessage =
+            "--cache-root requires --payload-directory to be output-dir/payloads";
+        return false;
+    }
+    const auto cachedRoot = pxr::SdfLayer::FindOrOpen(layout.rootLayer.string());
+    if (!cachedRoot || !cachedRoot->Export(outputPath.string())) {
+        errorMessage = "unable to export cached root layer";
+        return false;
+    }
+    return CopyDirectory(layout.payloadDirectory, payloadDirectory,
+                         errorMessage);
+}
+
 bool WriteManifest(const std::filesystem::path& manifestPath,
                    const std::filesystem::path& inputPath,
                    const std::filesystem::path& outputPath,
@@ -353,6 +509,7 @@ int main(int argc, char** argv) {
     std::map<std::string, std::string> arguments;
     arguments.emplace("tile", "true");
     bool hasTileSize = false;
+    std::filesystem::path cacheRoot;
     std::filesystem::path payloadDirectory;
     for (int index = 3; index < argc; ++index) {
         const std::string option = argv[index];
@@ -373,6 +530,9 @@ int main(int argc, char** argv) {
         } else if (option == "--payload-directory") {
             if (!ReadOptionValue(index, argc, argv, value)) return 2;
             payloadDirectory = std::filesystem::path(value);
+        } else if (option == "--cache-root") {
+            if (!ReadOptionValue(index, argc, argv, value)) return 2;
+            cacheRoot = std::filesystem::path(value);
         } else {
             std::cerr << "Unknown option: " << option << "\n";
             PrintUsage();
@@ -385,12 +545,22 @@ int main(int argc, char** argv) {
         return 2;
     }
     if (payloadDirectory.empty()) {
-        payloadDirectory = outputPath.parent_path() /
-            (outputPath.stem().string() + "_payloads");
+        payloadDirectory = cacheRoot.empty()
+                               ? outputPath.parent_path() /
+                                     (outputPath.stem().string() + "_payloads")
+                               : outputPath.parent_path() / "payloads";
     } else if (payloadDirectory.is_relative()) {
         payloadDirectory = outputPath.parent_path() / payloadDirectory;
     }
     payloadDirectory = std::filesystem::absolute(payloadDirectory);
+    if (!cacheRoot.empty()) {
+        cacheRoot = std::filesystem::absolute(cacheRoot);
+        if (!IsCachePayloadDirectory(outputPath, payloadDirectory)) {
+            std::cerr << "--cache-root requires --payload-directory to be "
+                         "output-dir/payloads\n";
+            return 2;
+        }
+    }
     arguments["payloadDirectory"] = payloadDirectory.string();
 
     const auto temporaryRootPath = outputPath.parent_path() /
@@ -426,6 +596,9 @@ int main(int argc, char** argv) {
     std::vector<usdgeo::Diagnostic> diagnostics;
     if (!usdpointcloud::NormalizeFileFormatArguments(
             arguments, request, diagnostics)) {
+        if (diagnostics.empty()) {
+            std::cerr << "Unable to normalize conversion arguments\n";
+        }
         PrintDiagnostics(diagnostics);
         return 2;
     }
@@ -441,6 +614,9 @@ int main(int argc, char** argv) {
             inputPath.string(), request.readOptions, header, diagnostics);
     }
     if (!stream) {
+        if (diagnostics.empty()) {
+            std::cerr << "Unable to open point stream\n";
+        }
         PrintDiagnostics(diagnostics);
         return 1;
     }
@@ -457,6 +633,65 @@ int main(int argc, char** argv) {
             header, metadataChunk, reference, bounds, metadataError)) {
         std::cerr << "Unable to build source metadata: " << metadataError << "\n";
         return 1;
+    }
+
+    const bool cacheEnabled = !cacheRoot.empty();
+    usdgeo::cache::Layout cacheLayout;
+    bool cacheCommitted = false;
+    if (cacheEnabled) {
+        usdgeo::cache::Descriptor descriptor;
+        std::string cacheError;
+        if (!BuildCacheDescriptor(inputPath, reference, request, descriptor,
+                                  cacheError)) {
+            std::cerr << "Unable to build cache layout: " << cacheError << "\n";
+            return 1;
+        }
+        if (!usdgeo::cache::TryBuildLayout(cacheRoot, descriptor, cacheLayout)) {
+            std::cerr << "Unable to build cache layout: invalid cache root\n";
+            return 1;
+        }
+        const auto removeMaterialized = [&]() {
+            std::error_code cleanupError;
+            std::filesystem::remove(outputPath, cleanupError);
+            std::filesystem::remove(manifestPath, cleanupError);
+            std::filesystem::remove_all(payloadDirectory, cleanupError);
+        };
+        if (usdgeo::cache::IsCacheHit(cacheLayout)) {
+            if (!MaterializeCache(cacheLayout, outputPath, payloadDirectory,
+                                  cacheError)) {
+                removeMaterialized();
+                std::cerr << "Unable to materialize cache hit: " << cacheError
+                          << "\n";
+                return 1;
+            }
+            if (!WriteManifest(manifestPath, inputPath, outputPath,
+                               payloadDirectory, request, cacheError)) {
+                removeMaterialized();
+                std::cerr << "Unable to write conversion manifest: "
+                          << cacheError << "\n";
+                return 1;
+            }
+            std::cout << "Cache hit " << cacheLayout.entryDirectory.string()
+                      << "\n";
+            std::cout << "Generated " << outputPath.string() << "\n";
+            std::cout << "Payloads: " << payloadDirectory.string() << "\n";
+            return 0;
+        }
+        std::error_code cacheCleanupError;
+        std::filesystem::remove_all(cacheLayout.entryDirectory,
+                                     cacheCleanupError);
+        if (cacheCleanupError) {
+            std::cerr << "Unable to clear incomplete cache entry: "
+                      << cacheCleanupError.message() << "\n";
+            return 1;
+        }
+        std::filesystem::create_directories(cacheLayout.entryDirectory,
+                                             cacheCleanupError);
+        if (cacheCleanupError) {
+            std::cerr << "Unable to create cache entry: "
+                      << cacheCleanupError.message() << "\n";
+            return 1;
+        }
     }
 
     std::signal(SIGINT, HandleInterrupt);
@@ -480,6 +715,12 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    const auto generationRootPath = cacheEnabled
+                                        ? cacheLayout.rootLayer
+                                        : temporaryRootPath;
+    const auto generationPayloadDirectory = cacheEnabled
+                                                 ? cacheLayout.payloadDirectory
+                                                 : payloadDirectory;
     const auto cleanup = [&](bool removePublishedRoot = false) {
         layer = nullptr;
         if (removePublishedRoot) {
@@ -489,11 +730,14 @@ int main(int argc, char** argv) {
         std::filesystem::remove(temporaryManifestPath, error);
         std::filesystem::remove(manifestPath, error);
         std::filesystem::remove_all(payloadDirectory, error);
+        if (cacheEnabled && !cacheCommitted) {
+            std::filesystem::remove_all(cacheLayout.entryDirectory, error);
+        }
         std::filesystem::remove_all(transactionPath, error);
     };
 
     const usdgeo::PointCloudPayloadOptions payloadOptions{
-        payloadDirectory.string(), temporaryRootPath.string(),
+        generationPayloadDirectory.string(), generationRootPath.string(),
         request.tileMemoryLimitBytes, request.readOptions.isCancelled};
     const auto authored = usdgeo::AuthorPointCloudTiledAssetFromStream(
         layer.operator->(), "/PointCloud", *stream, reference,
@@ -502,23 +746,60 @@ int main(int argc, char** argv) {
         if (interrupted != 0) {
             std::cerr << "Conversion cancelled\n";
         }
+        if (!authored && diagnostics.empty()) {
+            std::cerr << "Unable to author tiled point-cloud asset\n";
+        }
         PrintDiagnostics(diagnostics);
         cleanup();
         return 1;
     }
-    layer->SetIdentifier(temporaryRootPath.string());
-    if (!layer->Save()) {
+    bool saved = false;
+    if (cacheEnabled) {
+        const auto cacheLayer =
+            pxr::SdfLayer::CreateNew(generationRootPath.string());
+        if (cacheLayer) {
+            cacheLayer->TransferContent(layer);
+            saved = cacheLayer->Save();
+        }
+    } else {
+        layer->SetIdentifier(generationRootPath.string());
+        saved = layer->Save();
+    }
+    if (!saved) {
         std::cerr << "Unable to save generated root layer\n";
         cleanup();
         return 1;
     }
     std::string manifestError;
-    if (!WriteManifest(temporaryManifestPath, inputPath, outputPath,
-                       payloadDirectory, request, manifestError)) {
+    const auto generatedManifestPath =
+        cacheEnabled ? cacheLayout.manifest : temporaryManifestPath;
+    const auto generatedOutputPath =
+        cacheEnabled ? cacheLayout.rootLayer : outputPath;
+    if (!WriteManifest(generatedManifestPath, inputPath, generatedOutputPath,
+                       generationPayloadDirectory, request, manifestError)) {
         std::cerr << "Unable to write conversion manifest: " << manifestError
                   << "\n";
         cleanup();
         return 1;
+    }
+    if (cacheEnabled) {
+        cacheCommitted = true;
+        layer = nullptr;
+        if (!MaterializeCache(cacheLayout, outputPath, payloadDirectory,
+                              manifestError) ||
+            !WriteManifest(manifestPath, inputPath, outputPath,
+                           payloadDirectory, request, manifestError)) {
+            cleanup(true);
+            std::cerr << "Unable to materialize generated cache: "
+                      << manifestError << "\n";
+            return 1;
+        }
+        std::filesystem::remove_all(transactionPath, error);
+        std::cout << "Generated cache " << cacheLayout.entryDirectory.string()
+                  << "\n";
+        std::cout << "Generated " << outputPath.string() << "\n";
+        std::cout << "Payloads: " << payloadDirectory.string() << "\n";
+        return 0;
     }
     if (interrupted != 0) {
         std::cerr << "Conversion cancelled\n";
