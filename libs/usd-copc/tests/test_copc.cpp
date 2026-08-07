@@ -207,6 +207,18 @@ void TestMetadataAndHierarchy() {
     std::filesystem::remove(path);
 }
 
+void TestCompressedPointFormatMetadata() {
+    auto bytes = MakeFixture();
+    bytes[104] = static_cast<std::uint8_t>(bytes[104] | 0x80);
+    const auto path = WriteFixture(bytes, "usd_copc_compressed_metadata.copc");
+    usdcopc::CopcReader reader(path.string());
+    usdcopc::CopcHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(reader.ReadMetadata(header, diagnostics));
+    Check(diagnostics.empty() && header.las.pointFormat == 6);
+    std::filesystem::remove(path);
+}
+
 void TestInvalidChildPage() {
     auto bytes = MakeFixture();
     constexpr std::size_t rootOffset = 643;
@@ -331,6 +343,7 @@ void TestPointStreamChecksCancellation() {
 
 int main() {
     TestMetadataAndHierarchy();
+    TestCompressedPointFormatMetadata();
     TestInvalidChildPage();
     TestRejectsPointCountMismatch();
     TestRejectsUnsupportedPointFormat();

@@ -207,6 +207,11 @@ void TestValidation() {
     auto las14 = MakeHeader(4, 6);
     Check(usdlas::InspectHeader(las14, header, error));
     Check(header.pointCount == 1);
+    las14[104] = static_cast<std::uint8_t>(6 | 0x80);
+    Check(usdlas::InspectHeader(las14, header, error));
+    Check(header.pointFormat == 6);
+    las14[104] = static_cast<std::uint8_t>(6 | 0xc0);
+    Check(!usdlas::InspectHeader(las14, header, error));
     std::vector<std::uint8_t> shortRecord(10);
     usdlas::LasPoint point;
     Check(!usdlas::DecodePoint(header, shortRecord, point, error));
