@@ -182,6 +182,16 @@ bool LasReader::ReadPoints(const LasReadOptions& options,
 
     detail::RangeReadFailure rangeFailure;
     std::vector<std::uint8_t> bytes;
+    if (!detail::ReadFileRange(stream, 104, 1, bytes, error,
+                               rangeFailure)) {
+        failureKind_ = LasReadFailure::Header;
+        return false;
+    }
+    if ((bytes.front() & 0xc0) != 0) {
+        failureKind_ = LasReadFailure::Header;
+        error = "LAS point reader cannot decode compressed point data";
+        return false;
+    }
     const auto recordLength =
         static_cast<std::uint64_t>(header.pointRecordLength);
     if (recordLength == 0 ||

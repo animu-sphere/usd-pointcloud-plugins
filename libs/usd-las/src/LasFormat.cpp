@@ -292,7 +292,13 @@ bool InspectHeader(const std::vector<std::uint8_t>& bytes,
     header.pointDataOffset = detail::ReadLittle<std::uint32_t>(bytes, 96);
     header.variableLengthRecordCount =
         detail::ReadLittle<std::uint32_t>(bytes, 100);
-    header.pointFormat = detail::ReadLittle<std::uint8_t>(bytes, 104);
+    const auto encodedPointFormat =
+        detail::ReadLittle<std::uint8_t>(bytes, 104);
+    if ((encodedPointFormat & 0xc0) == 0xc0) {
+        error = "LAS point format uses unsupported compression flags";
+        return false;
+    }
+    header.pointFormat = encodedPointFormat & 0x3f;
     header.pointRecordLength = detail::ReadLittle<std::uint16_t>(bytes, 105);
     const auto legacyCount = detail::ReadLittle<std::uint32_t>(bytes, 107);
 

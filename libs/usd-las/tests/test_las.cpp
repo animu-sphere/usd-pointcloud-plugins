@@ -207,6 +207,11 @@ void TestValidation() {
     auto las14 = MakeHeader(4, 6);
     Check(usdlas::InspectHeader(las14, header, error));
     Check(header.pointCount == 1);
+    las14[104] = static_cast<std::uint8_t>(6 | 0x80);
+    Check(usdlas::InspectHeader(las14, header, error));
+    Check(header.pointFormat == 6);
+    las14[104] = static_cast<std::uint8_t>(6 | 0xc0);
+    Check(!usdlas::InspectHeader(las14, header, error));
     std::vector<std::uint8_t> shortRecord(10);
     usdlas::LasPoint point;
     Check(!usdlas::DecodePoint(header, shortRecord, point, error));
@@ -320,6 +325,33 @@ void TestRangeReader() {
     Check(diagnostics.code == usdgeo::DiagnosticCode::NonFiniteCoordinate &&
           diagnostics.pointIndex == 0 && diagnostics.byteOffset == 227);
     Check(reader.FailureKind() == usdlas::LasReadFailure::PointDecode);
+    Check(std::remove(filename.string().c_str()) == 0);
+}
+
+void TestRawReaderRejectsCompressedPointData() {
+    const auto filename =
+        std::filesystem::temp_directory_path() /
+        "usd-pointcloud-plugins-compressed-las.las";
+    auto bytes = MakeHeader(2, 0);
+    bytes[104] = static_cast<std::uint8_t>(bytes[104] | 0x80);
+    Write(bytes, 107, std::uint32_t{1});
+    bytes.resize(bytes.size() + 20, 0);
+    {
+        std::ofstream output(filename, std::ios::binary);
+        output.write(reinterpret_cast<const char*>(bytes.data()),
+                     static_cast<std::streamsize>(bytes.size()));
+    }
+
+    usdlas::LasReader reader(filename.string());
+    usdlas::LasHeader header;
+    std::string error;
+    Check(!reader.Read(
+        {},
+        [&](const usdlas::LasHeader&,
+            const std::vector<usdlas::LasPoint>&) { return true; },
+        header, error));
+    Check(error == "LAS point reader cannot decode compressed point data");
+    Check(reader.FailureKind() == usdlas::LasReadFailure::Header);
     Check(std::remove(filename.string().c_str()) == 0);
 }
 
@@ -623,6 +655,7 @@ int main() {
     TestPointCloudAssetHelpers();
     TestValidation();
     TestRangeReader();
+    TestRawReaderRejectsCompressedPointData();
     TestPointStream();
     TestPointStreamDiagnostics();
     TestReaderFailureKinds();
