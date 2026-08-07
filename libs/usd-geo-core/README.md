@@ -129,5 +129,6 @@ bundle. See [BUILDING.md](../../docs/guides/BUILDING.md).
 - Diagnostic codes for the spool and payload failures introduced by
   [streaming and tiling](../../docs/roadmap/streaming-and-tiling.md).
 - Cache-key inputs for tiling configuration, once that configuration exists.
-- `usdGeoCache` (reserved) will build on `StableCacheKey` for USDC cache
-  lookup and invalidation.
+- `usdGeoCache` builds on `StableCacheKey` for USDC cache identity, layout,
+  lookup, and invalidation. Generation and manifest publication belong to its
+  OpenUSD-aware callers.

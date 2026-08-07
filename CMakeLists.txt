@@ -29,6 +29,7 @@ endif()
 option(USDGEO_BUILD_USD "Build the OpenUSD authoring bridge" ${_usdgeo_build_usd_default})
 
 add_subdirectory(libs/usd-geo-core)
+add_subdirectory(libs/usd-geo-cache)
 add_subdirectory(libs/usd-pointcloud-core)
 add_subdirectory(libs/usd-pointcloud-tiling)
 add_subdirectory(libs/usd-las)

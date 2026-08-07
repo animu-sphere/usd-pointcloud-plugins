@@ -28,6 +28,11 @@ project them onto their stable `LASxxx` / `LAZxxx` prefixes. Step 9 is open.
 See the [diagnostics contract](../architecture/DIAGNOSTICS.md) and the
 [tile and LOD contract](../architecture/LOD.md).
 
+Step 9 now has an initial implementation in `usdGeoCache`: descriptor-based
+cache keys, deterministic root and tile payload paths, cache hit lookup, and
+entry invalidation. USD generation, manifest publication, and reader/tool
+integration remain open.
+
 ## Contracts
 
 - Preserve input coordinates as `double`.

@@ -5,10 +5,10 @@ identities, dependency directions, root responsibilities, artifact naming, and
 change invariants. A structural change that contradicts this document must
 change this document first.
 
-Status: `usdGeoCore`, `usdPointCloudCore`, `usdLas`, `usdLaz`, `usdCopc`, and
-`usdPointCloudAuthoring` are implemented, as are the `pointcloud-las`,
-`pointcloud-laz`, and `pointcloud-copc` bundles. Future module identities are
-reserved here.
+Status: `usdGeoCore`, `usdGeoCache`, `usdPointCloudCore`, `usdLas`, `usdLaz`,
+`usdCopc`, and `usdPointCloudAuthoring` are implemented, as are the
+`pointcloud-las`, `pointcloud-laz`, and `pointcloud-copc` bundles. Future module
+identities are reserved here.
 
 ## 1. Components
 
@@ -24,7 +24,7 @@ reserved here.
 | `usdCopc` | `libs/usd-copc` | plain library | foundation implemented | COPC Info and hierarchy validation plus local point-data range selection through the shared LAZ chunk decoder. |
 | `pointcloud-copc` | `plugins/pointcloud-copc` | OpenStrata plugin bundle (`usd-fileformat`) | implemented (local read) | Local metadata-only, non-tiled, and native hierarchy tiled COPC adapter. Tiled output uses payload-backed shared `usdLod` authoring; source point ranges remain unsupported. |
 | `usdPointCloudTiling` | `libs/usd-pointcloud-tiling` | plain library | implemented (initial contracts) | Format-independent spatial partitioning and bounded-memory tile preparation: fixed-grid tile keys and source-coordinate bucketing are implemented; tile buffering and spill-to-disk, tile manifests, fixed-stride LOD sampling, deterministic tile and level ordering, and cleanup of incomplete temporary output remain. See the [streaming and tiling plan](../roadmap/streaming-and-tiling.md). |
-| `usdGeoCache` | `libs/usd-geo-cache` | plain library | reserved, not implemented | Stable cache keys, USDC tile layout, cache lookup and invalidation. |
+| `usdGeoCache` | `libs/usd-geo-cache` | plain CMake/OpenStrata static library | implemented (initial contracts) | Descriptor-based stable cache keys, deterministic USDC root and payload layout, cache hit lookup, and entry invalidation. Cache generation and manifest publication remain caller responsibilities. |
 | `usdPly`, `usdAsciiPoints`, `usdE57` | `libs/` | plain libraries | reserved, not implemented | Additional point-cloud readers targeting the same shared contracts. |
 | `geospatial-ply`, `geospatial-points-text`, `geospatial-e57` | `plugins/` | reserved, not implemented | Future point-cloud FileFormat Plugin adapters, in the order fixed by [format support order](../roadmap/format-support-order.md). |
 
@@ -49,6 +49,7 @@ Allowed today:
 
 ```text
 usdPointCloudCore      -> usdGeoCore
+usdGeoCache            -> usdGeoCore
 usdLas                 -> usdGeoCore, usdPointCloudCore
 usdLaz                 -> usdLas, usdPointCloudCore
 usdCopc                -> usdLas, usdLaz, usdPointCloudCore
@@ -98,6 +99,7 @@ identity and CMake package/target. A bundle declares the edge in its manifest;
 | `usdPointCloudCore` | `usdPointCloudCore` | `usdpointcloud::core` |
 | `usdPointCloudAuthoring` | `usdPointCloudAuthoring` | `usdpointcloud::authoring` |
 | `usdPointCloudTiling` | `usdPointCloudTiling` | `usdpointcloud::tiling` |
+| `usdGeoCache` | `usdGeoCache` | `usdgeo::cache` |
 | `usdLas` | `usdLas` | `usdlas::core` |
 | `usdLaz` | `usdLaz` | `usdlaz::core` |
 
@@ -133,6 +135,9 @@ libs/usd-pointcloud-core/
 
 libs/usd-geo-core/
     format- and USD-independent geospatial values and diagnostics
+
+libs/usd-geo-cache/
+    format- and USD-independent cache identity, layout, lookup, and invalidation
 
 libs/usd-pointcloud-authoring/
     OpenUSD authoring, shared by every format bundle
