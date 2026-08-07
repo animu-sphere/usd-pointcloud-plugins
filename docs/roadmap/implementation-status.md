@@ -118,7 +118,8 @@ tiling, diagnostics, and `usdLod` contracts.
 - [x] Read required hierarchy nodes and point-data byte ranges selectively
 - [x] Map native hierarchy and resolution metadata to the shared tile/LOD model
 - [x] Add the COPC pull-based point stream over native hierarchy order
-- [ ] Verify LAS, LAZ, and COPC equivalence on equivalent fixtures
+- [x] Add LAS, LAZ, and COPC point-stream equivalence regression coverage
+- [ ] Verify LAS, LAZ, and COPC equivalence across authored LOD representations
 - [ ] Defer COPC writing, HTTP range sources, network caching, and new public
       USD schemas
 

@@ -35,6 +35,13 @@ void AddDiagnostic(const std::string& error,
     diagnostics.back().pointIndex = pointIndex;
 }
 
+void AddStreamDiagnostic(usdgeo::DiagnosticCode code,
+                         const std::string& message,
+                         std::vector<usdgeo::Diagnostic>& diagnostics) {
+    diagnostics.push_back({code, usdgeo::Severity::Error, message,
+                           std::nullopt, std::nullopt});
+}
+
 } // namespace
 
 namespace usdlaz {
@@ -166,7 +173,8 @@ std::unique_ptr<LazPointStream> OpenLazPointStream(
     diagnostics.clear();
     header = {};
     if (!options.IsValid()) {
-        AddDiagnostic("LAZ read options are invalid", diagnostics);
+        AddStreamDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                            "LAZ read options are invalid", diagnostics);
         return nullptr;
     }
     auto decoder = CreateFileDecoder(filename, diagnostics);
@@ -174,7 +182,10 @@ std::unique_ptr<LazPointStream> OpenLazPointStream(
     if (options.range.firstPoint > header.pointCount ||
         (options.range.pointCount != 0 &&
          options.range.pointCount > header.pointCount - options.range.firstPoint)) {
-        AddDiagnostic("LAZ point range is outside the header", diagnostics);
+        diagnostics.clear();
+        AddStreamDiagnostic(usdgeo::DiagnosticCode::InvalidPointSourceRange,
+                            "LAZ point range is outside the header",
+                            diagnostics);
         return nullptr;
     }
     const auto maximumSize = (std::numeric_limits<std::size_t>::max)();
@@ -188,7 +199,10 @@ std::unique_ptr<LazPointStream> OpenLazPointStream(
     const auto maximumPoints = (std::min)(options.chunkPointLimit,
                                           options.memoryBudgetBytes / bytesPerPoint);
     if (maximumPoints == 0) {
-        AddDiagnostic("LAZ memory budget is too small for one point", diagnostics);
+        diagnostics.clear();
+        AddStreamDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                            "LAZ memory budget is too small for one point",
+                            diagnostics);
         return nullptr;
     }
     return std::unique_ptr<LazPointStream>(new LazPointStream(
