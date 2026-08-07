@@ -131,6 +131,40 @@ endif()
         "${cache_usdcat_output}${cache_usdcat_error}")
     endif()
 
+    set(cache_recovery_root "${test_root}-cache-recovery")
+    set(cache_recovery_output "${cache_recovery_root}/PointCloud.usda")
+    set(cache_recovery_payloads "${cache_recovery_root}/payloads")
+    set(cache_recovery_transaction "${cache_recovery_output}.transaction")
+    file(REMOVE_RECURSE "${cache_recovery_root}")
+    file(MAKE_DIRECTORY "${cache_recovery_transaction}" "${cache_recovery_payloads}")
+    file(WRITE "${cache_recovery_output}.manifest" "stale manifest")
+    file(WRITE "${cache_recovery_root}/PointCloud.tmp.usda" "stale root")
+    file(WRITE "${cache_recovery_output}.manifest.tmp" "stale temporary manifest")
+    file(WRITE "${cache_recovery_payloads}/stale.usdc" "stale payload")
+    file(WRITE "${cache_recovery_transaction}/state"
+        "payloadDirectory=${cache_recovery_payloads}\n")
+    execute_process(
+        COMMAND "${converter}" "${fixture}" "${cache_recovery_output}"
+                --tile-size 1 --memory-limit 1024
+                --attributes intensity,xyz
+                --cache-root "${cache_root}"
+        RESULT_VARIABLE cache_recovery_result
+        OUTPUT_VARIABLE cache_recovery_output_log
+        ERROR_VARIABLE cache_recovery_error_log)
+    string(FIND "${cache_recovery_output_log}" "Cache hit " cache_recovery_hit)
+    if(NOT cache_recovery_result EQUAL 0 OR
+       cache_recovery_hit EQUAL -1 OR
+       NOT EXISTS "${cache_recovery_output}" OR
+       NOT EXISTS "${cache_recovery_output}.manifest" OR
+       NOT EXISTS "${cache_recovery_payloads}" OR
+       EXISTS "${cache_recovery_transaction}" OR
+       EXISTS "${cache_recovery_root}/PointCloud.tmp.usda" OR
+       EXISTS "${cache_recovery_output}.manifest.tmp")
+        message(FATAL_ERROR
+            "converter did not recover and reuse a cache hit: "
+            "${cache_recovery_output_log}${cache_recovery_error_log}")
+    endif()
+
 set(failure_root "${test_root}-failure")
 set(failure_output "${failure_root}/PointCloud.usda")
 set(failure_payloads "${failure_root}/PointCloud_payloads")
@@ -221,6 +255,7 @@ file(REMOVE_RECURSE "${test_root}")
 file(REMOVE_RECURSE "${repeat_root}")
 file(REMOVE_RECURSE "${cache_first_root}")
 file(REMOVE_RECURSE "${cache_second_root}")
+file(REMOVE_RECURSE "${cache_recovery_root}")
 file(REMOVE_RECURSE "${failure_root}")
 file(REMOVE_RECURSE "${unsafe_root}")
 file(REMOVE_RECURSE "${orphan_root}")

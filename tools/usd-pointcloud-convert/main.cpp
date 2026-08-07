@@ -7,6 +7,7 @@
 #include <pxr/usd/sdf/layer.h>
 
 #include <array>
+#include <chrono>
 #include <csignal>
 #include <cstdint>
 #include <filesystem>
@@ -373,21 +374,90 @@ bool BuildCacheDescriptor(
 }
 
 bool MaterializeCache(const usdgeo::cache::Layout& layout,
-                      const std::filesystem::path& outputPath,
+                      const std::filesystem::path& rootPath,
                       const std::filesystem::path& payloadDirectory,
                       std::string& errorMessage) {
-    if (!IsCachePayloadDirectory(outputPath, payloadDirectory)) {
+    if (!IsCachePayloadDirectory(rootPath, payloadDirectory)) {
         errorMessage =
             "--cache-root requires --payload-directory to be output-dir/payloads";
         return false;
     }
     const auto cachedRoot = pxr::SdfLayer::FindOrOpen(layout.rootLayer.string());
-    if (!cachedRoot || !cachedRoot->Export(outputPath.string())) {
+    if (!cachedRoot || !cachedRoot->Export(rootPath.string())) {
         errorMessage = "unable to export cached root layer";
         return false;
     }
     return CopyDirectory(layout.payloadDirectory, payloadDirectory,
                          errorMessage);
+}
+
+usdgeo::cache::Layout LayoutAt(
+    const usdgeo::cache::Layout& layout,
+    const std::filesystem::path& entryDirectory) {
+    auto result = layout;
+    result.entryDirectory = entryDirectory;
+    result.rootLayer = entryDirectory / "root.usdc";
+    result.manifest = entryDirectory / "cache.manifest";
+    result.payloadDirectory = entryDirectory / "payloads";
+    return result;
+}
+
+bool CreateTemporaryCacheLayout(
+    const usdgeo::cache::Layout& layout,
+    usdgeo::cache::Layout& temporaryLayout,
+    std::string& errorMessage) {
+    std::error_code error;
+    std::filesystem::create_directories(layout.entryDirectory.parent_path(),
+                                        error);
+    if (error) {
+        errorMessage = "unable to create cache root: " + error.message();
+        return false;
+    }
+
+    const auto timestamp = std::chrono::steady_clock::now()
+                               .time_since_epoch()
+                               .count();
+    for (int attempt = 0; attempt != 16; ++attempt) {
+        const auto directory = std::filesystem::path(
+            layout.entryDirectory.string() + ".tmp-" +
+            std::to_string(timestamp) + "-" + std::to_string(attempt));
+        if (std::filesystem::create_directory(directory, error)) {
+            temporaryLayout = LayoutAt(layout, directory);
+            return true;
+        }
+        if (error && error != std::errc::file_exists) {
+            errorMessage = "unable to create temporary cache entry: " +
+                           error.message();
+            return false;
+        }
+        error.clear();
+    }
+    errorMessage = "unable to create a unique temporary cache entry";
+    return false;
+}
+
+bool PublishCacheEntry(const usdgeo::cache::Layout& temporaryLayout,
+                       const usdgeo::cache::Layout& layout,
+                       std::string& errorMessage) {
+    std::error_code error;
+    std::filesystem::rename(temporaryLayout.entryDirectory,
+                             layout.entryDirectory, error);
+    if (!error) return true;
+
+    if (usdgeo::cache::IsCacheHit(layout)) {
+        std::error_code cleanupError;
+        std::filesystem::remove_all(temporaryLayout.entryDirectory,
+                                     cleanupError);
+        if (cleanupError) {
+            errorMessage = "unable to remove duplicate temporary cache entry: " +
+                           cleanupError.message();
+            return false;
+        }
+        return true;
+    }
+
+    errorMessage = "unable to publish cache entry: " + error.message();
+    return false;
 }
 
 bool WriteManifest(const std::filesystem::path& manifestPath,
@@ -637,6 +707,8 @@ int main(int argc, char** argv) {
 
     const bool cacheEnabled = !cacheRoot.empty();
     usdgeo::cache::Layout cacheLayout;
+    usdgeo::cache::Layout cacheGenerationLayout;
+    bool cacheHit = false;
     bool cacheCommitted = false;
     if (cacheEnabled) {
         usdgeo::cache::Descriptor descriptor;
@@ -650,47 +722,24 @@ int main(int argc, char** argv) {
             std::cerr << "Unable to build cache layout: invalid cache root\n";
             return 1;
         }
-        const auto removeMaterialized = [&]() {
-            std::error_code cleanupError;
-            std::filesystem::remove(outputPath, cleanupError);
-            std::filesystem::remove(manifestPath, cleanupError);
-            std::filesystem::remove_all(payloadDirectory, cleanupError);
-        };
-        if (usdgeo::cache::IsCacheHit(cacheLayout)) {
-            if (!MaterializeCache(cacheLayout, outputPath, payloadDirectory,
-                                  cacheError)) {
-                removeMaterialized();
-                std::cerr << "Unable to materialize cache hit: " << cacheError
-                          << "\n";
+        cacheHit = usdgeo::cache::IsCacheHit(cacheLayout);
+        if (!cacheHit) {
+            std::error_code cacheCleanupError;
+            std::filesystem::remove_all(cacheLayout.entryDirectory,
+                                         cacheCleanupError);
+            if (cacheCleanupError) {
+                std::cerr << "Unable to clear incomplete cache entry: "
+                          << cacheCleanupError.message() << "\n";
                 return 1;
             }
-            if (!WriteManifest(manifestPath, inputPath, outputPath,
-                               payloadDirectory, request, cacheError)) {
-                removeMaterialized();
-                std::cerr << "Unable to write conversion manifest: "
-                          << cacheError << "\n";
+            if (!CreateTemporaryCacheLayout(cacheLayout,
+                                             cacheGenerationLayout,
+                                             cacheError)) {
+                std::cerr << cacheError << "\n";
                 return 1;
             }
-            std::cout << "Cache hit " << cacheLayout.entryDirectory.string()
-                      << "\n";
-            std::cout << "Generated " << outputPath.string() << "\n";
-            std::cout << "Payloads: " << payloadDirectory.string() << "\n";
-            return 0;
-        }
-        std::error_code cacheCleanupError;
-        std::filesystem::remove_all(cacheLayout.entryDirectory,
-                                     cacheCleanupError);
-        if (cacheCleanupError) {
-            std::cerr << "Unable to clear incomplete cache entry: "
-                      << cacheCleanupError.message() << "\n";
-            return 1;
-        }
-        std::filesystem::create_directories(cacheLayout.entryDirectory,
-                                             cacheCleanupError);
-        if (cacheCleanupError) {
-            std::cerr << "Unable to create cache entry: "
-                      << cacheCleanupError.message() << "\n";
-            return 1;
+        } else {
+            cacheCommitted = true;
         }
     }
 
@@ -716,10 +765,10 @@ int main(int argc, char** argv) {
     }
 
     const auto generationRootPath = cacheEnabled
-                                        ? cacheLayout.rootLayer
+                                        ? cacheGenerationLayout.rootLayer
                                         : temporaryRootPath;
     const auto generationPayloadDirectory = cacheEnabled
-                                                 ? cacheLayout.payloadDirectory
+                                                 ? cacheGenerationLayout.payloadDirectory
                                                  : payloadDirectory;
     const auto cleanup = [&](bool removePublishedRoot = false) {
         layer = nullptr;
@@ -730,11 +779,62 @@ int main(int argc, char** argv) {
         std::filesystem::remove(temporaryManifestPath, error);
         std::filesystem::remove(manifestPath, error);
         std::filesystem::remove_all(payloadDirectory, error);
-        if (cacheEnabled && !cacheCommitted) {
-            std::filesystem::remove_all(cacheLayout.entryDirectory, error);
+        if (cacheEnabled && !cacheCommitted &&
+            cacheGenerationLayout.IsValid()) {
+            std::filesystem::remove_all(cacheGenerationLayout.entryDirectory,
+                                        error);
         }
         std::filesystem::remove_all(transactionPath, error);
     };
+
+    if (cacheHit) {
+        std::string materializeError;
+        if (!MaterializeCache(cacheLayout, temporaryRootPath,
+                              payloadDirectory, materializeError) ||
+            !WriteManifest(temporaryManifestPath, inputPath, outputPath,
+                           payloadDirectory, request, materializeError)) {
+            cleanup();
+            std::cerr << "Unable to materialize cache hit: "
+                      << materializeError << "\n";
+            return 1;
+        }
+        if (interrupted != 0) {
+            std::cerr << "Conversion cancelled\n";
+            cleanup();
+            return 1;
+        }
+        layer = nullptr;
+        std::filesystem::rename(temporaryManifestPath, manifestPath, error);
+        if (error) {
+            std::cerr << "Unable to publish conversion manifest: "
+                      << error.message() << "\n";
+            cleanup();
+            return 1;
+        }
+        if (interrupted != 0) {
+            std::cerr << "Conversion cancelled\n";
+            cleanup();
+            return 1;
+        }
+        std::filesystem::rename(temporaryRootPath, outputPath, error);
+        if (error) {
+            std::cerr << "Unable to publish generated root layer: "
+                      << error.message() << "\n";
+            cleanup();
+            return 1;
+        }
+        if (interrupted != 0) {
+            std::cerr << "Conversion cancelled\n";
+            cleanup(true);
+            return 1;
+        }
+        std::filesystem::remove_all(transactionPath, error);
+        std::cout << "Cache hit " << cacheLayout.entryDirectory.string()
+                  << "\n";
+        std::cout << "Generated " << outputPath.string() << "\n";
+        std::cout << "Payloads: " << payloadDirectory.string() << "\n";
+        return 0;
+    }
 
     const usdgeo::PointCloudPayloadOptions payloadOptions{
         generationPayloadDirectory.string(), generationRootPath.string(),
@@ -772,9 +872,9 @@ int main(int argc, char** argv) {
     }
     std::string manifestError;
     const auto generatedManifestPath =
-        cacheEnabled ? cacheLayout.manifest : temporaryManifestPath;
+        cacheEnabled ? cacheGenerationLayout.manifest : temporaryManifestPath;
     const auto generatedOutputPath =
-        cacheEnabled ? cacheLayout.rootLayer : outputPath;
+        cacheEnabled ? cacheGenerationLayout.rootLayer : outputPath;
     if (!WriteManifest(generatedManifestPath, inputPath, generatedOutputPath,
                        generationPayloadDirectory, request, manifestError)) {
         std::cerr << "Unable to write conversion manifest: " << manifestError
@@ -783,15 +883,51 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (cacheEnabled) {
+        if (!PublishCacheEntry(cacheGenerationLayout, cacheLayout,
+                               manifestError)) {
+            cleanup();
+            std::cerr << "Unable to publish generated cache: "
+                      << manifestError << "\n";
+            return 1;
+        }
         cacheCommitted = true;
         layer = nullptr;
-        if (!MaterializeCache(cacheLayout, outputPath, payloadDirectory,
-                              manifestError) ||
-            !WriteManifest(manifestPath, inputPath, outputPath,
+        if (!MaterializeCache(cacheLayout, temporaryRootPath,
+                              payloadDirectory, manifestError) ||
+            !WriteManifest(temporaryManifestPath, inputPath, outputPath,
                            payloadDirectory, request, manifestError)) {
-            cleanup(true);
+            cleanup();
             std::cerr << "Unable to materialize generated cache: "
                       << manifestError << "\n";
+            return 1;
+        }
+        if (interrupted != 0) {
+            std::cerr << "Conversion cancelled\n";
+            cleanup();
+            return 1;
+        }
+        std::filesystem::rename(temporaryManifestPath, manifestPath, error);
+        if (error) {
+            std::cerr << "Unable to publish conversion manifest: "
+                      << error.message() << "\n";
+            cleanup();
+            return 1;
+        }
+        if (interrupted != 0) {
+            std::cerr << "Conversion cancelled\n";
+            cleanup();
+            return 1;
+        }
+        std::filesystem::rename(temporaryRootPath, outputPath, error);
+        if (error) {
+            std::cerr << "Unable to publish generated root layer: "
+                      << error.message() << "\n";
+            cleanup();
+            return 1;
+        }
+        if (interrupted != 0) {
+            std::cerr << "Conversion cancelled\n";
+            cleanup(true);
             return 1;
         }
         std::filesystem::remove_all(transactionPath, error);
