@@ -57,6 +57,7 @@ Component-specific usage stays with the component:
 | `pointcloud-las` | plugin bundle | [plugin README](../plugins/pointcloud-las/README.md) |
 | `pointcloud-laz` | plugin bundle | [plugin README](../plugins/pointcloud-laz/README.md) |
 | `usdGeoCore` | library | [library README](../libs/usd-geo-core/README.md) |
+| `usdGeoCache` | library | [library README](../libs/usd-geo-cache/README.md) |
 | `usdPointCloudCore` | library | [library README](../libs/usd-pointcloud-core/README.md) |
 | `usdPointCloudAuthoring` | library | [library README](../libs/usd-pointcloud-authoring/README.md) |
 | `usdLas` | library | [library README](../libs/usd-las/README.md) |

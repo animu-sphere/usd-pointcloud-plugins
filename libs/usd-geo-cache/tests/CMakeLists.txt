@@ -1,0 +1,3 @@
+add_executable(usdGeoCache_tests test_cache.cpp)
+target_link_libraries(usdGeoCache_tests PRIVATE usdgeo::cache)
+add_test(NAME usdGeoCache_unit COMMAND usdGeoCache_tests)

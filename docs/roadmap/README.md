@@ -111,9 +111,9 @@ factored into a common implementation.
 | Phase | Scope | Status | Notes |
 | --- | --- | --- | --- |
 | 0 | Technical validation of the FileFormat Plugin and dependencies | In progress | PoC, adapter split, and precision path are done; large-data timing and memory measurements are outstanding |
-| 1 | `usdGeoCore`, `usdPointCloudAuthoring`, and point-cloud contracts | In progress | Shipped in v0.1.0 except `usdGeoCache` |
+| 1 | `usdGeoCore`, `usdGeoCache`, `usdPointCloudAuthoring`, and point-cloud contracts | In progress | Shared geospatial and point-cloud contracts are shipped; `usdGeoCache` now has initial key, layout, lookup, and invalidation contracts |
 | 2 | Direct LAS loading and `UsdGeomPoints` | Complete | Point formats 0-10, LAS 1.4 attributes, waveform metadata, GeoTIFF keys, and scalar and vector Extra Bytes all land on `main` |
-| 3 | LAZ, attribute selection, and USDC caching | In progress | LAZ chunk decoding and normalized attribute selection shipped; the USDC cache is not started |
+| 3 | LAZ, attribute selection, and USDC caching | In progress | LAZ chunk decoding, normalized attribute selection, and the cache contract shipped; cache generation and reader/tool integration remain open |
 | 4a | Shared tile and LOD contracts and `usdLod` authoring | Complete | `usdLod` authoring, compact LOD profiles, deterministic sampling, per-tile roots, and payload-backed tile assets are available through the authoring library |
 | 4b | Bounded-memory streaming, spatial tiling, and explicit conversion tooling | Stabilization in `v0.2.x` | `PointStream`, spill-backed routing, payload authoring, and the `tile` argument are connected; the converter becomes the production path while the FileFormat path remains compatible |
 | 4c | COPC read support | Planned for `v0.3.0` | Local read-only support first; reuse the `v0.2.x` contracts and preserve the native hierarchy; no writer or remote range source initially |

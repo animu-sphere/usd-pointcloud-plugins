@@ -157,12 +157,15 @@ transaction state creation and retrying the same output workspace.
 - [x] EPSG inference and conflicting-CRS detection
 - [x] Declare OST smoke fixtures in both bundle manifests and pass L3/L4
       `usdcat.read` and `python.stage_open`
+- [x] Add the initial `usdGeoCache` contracts for deterministic descriptor keys,
+      USDC layout, cache lookup, and entry invalidation
 
 ### Remaining open work
 
 - [ ] COPC implementation after the `v0.2.1` stabilization gate; see the
       `v0.3.0` release track above
-- [ ] Deterministic USDC cache generation and lookup
+- [ ] Integrate deterministic USDC cache generation and lookup into authoring
+      and conversion paths
 - [ ] Stage licensing, notice, capability, compatibility, and installation
       documents into release assets
 - [ ] Reconsider dynamic FileFormat support after generated assets and cache
