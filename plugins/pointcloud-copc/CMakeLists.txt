@@ -74,18 +74,27 @@ if(USDGEO_BUILD_TESTS)
     add_executable(pointcloudCopc_tests tests/test_pointcloud_copc.cpp)
     target_compile_features(pointcloudCopc_tests PRIVATE cxx_std_17)
     target_compile_definitions(pointcloudCopc_tests PRIVATE
-        USDGEOCOPC_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+        USDGEOCOPC_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+        USDGEOLAS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../pointcloud-las"
+        USDGEOLAZ_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../pointcloud-laz")
     target_include_directories(pointcloudCopc_tests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/laz-perf/cpp"
         ${PXR_INCLUDE_DIRS})
     add_dependencies(pointcloudCopc_tests ${PLUGIN_NAME})
+    if(TARGET UsdGeoLasFileFormat)
+        add_dependencies(pointcloudCopc_tests UsdGeoLasFileFormat)
+    endif()
+    if(TARGET UsdGeoLazFileFormat)
+        add_dependencies(pointcloudCopc_tests UsdGeoLazFileFormat)
+    endif()
     if(MSVC)
         target_compile_definitions(pointcloudCopc_tests PRIVATE NOMINMAX)
         target_compile_options(pointcloudCopc_tests PRIVATE /utf-8)
     endif()
     openstrata_link_openusd(
         TARGET pointcloudCopc_tests
-        COMPONENTS arch tf gf vt sdf usd)
+        COMPONENTS arch tf gf vt sdf usd usdGeom usdLod)
     set_target_properties(pointcloudCopc_tests PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
     add_test(NAME pointcloudCopc_integration COMMAND pointcloudCopc_tests)
