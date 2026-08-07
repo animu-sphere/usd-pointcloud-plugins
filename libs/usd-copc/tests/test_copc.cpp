@@ -1,6 +1,8 @@
 #include "usdcopc/Copc.h"
 #include "usdlaz/Laz.h"
 
+#include "lazperf/io.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -125,6 +127,289 @@ std::filesystem::path WriteFixture(const std::vector<std::uint8_t>& bytes,
                static_cast<std::streamsize>(bytes.size()));
     Check(static_cast<bool>(file));
     return path;
+}
+
+template <typename T>
+T Read(const std::vector<std::uint8_t>& bytes, std::size_t offset) {
+    T value{};
+    std::memcpy(&value, bytes.data() + offset, sizeof(T));
+    return value;
+}
+
+std::vector<std::vector<std::uint8_t>> MakeEquivalentRecords() {
+    std::vector<std::vector<std::uint8_t>> records(3,
+                                                    std::vector<std::uint8_t>(30));
+    for (std::size_t index = 0; index < records.size(); ++index) {
+        auto& record = records[index];
+        Write(record, 0, static_cast<std::int32_t>(index * 100));
+        Write(record, 4, static_cast<std::int32_t>(index * 100));
+        Write(record, 8, static_cast<std::int32_t>(index * 100));
+        Write(record, 12, static_cast<std::uint16_t>(10 + index));
+        Write(record, 14, std::uint8_t{0x21});
+        Write(record, 15, static_cast<std::uint8_t>(2 + index));
+        Write(record, 16, static_cast<std::uint8_t>(7 + index));
+        Write(record, 17, static_cast<std::uint8_t>(20 + index));
+        Write(record, 18, static_cast<std::int16_t>(-4 + index));
+        Write(record, 20, static_cast<std::uint16_t>(42 + index));
+        Write(record, 22, 12.5 + index);
+    }
+    return records;
+}
+
+void SetEquivalentHeader(std::vector<std::uint8_t>& bytes,
+                         std::uint32_t pointDataOffset,
+                         std::uint32_t vlrCount) {
+    std::memcpy(bytes.data(), "LASF", 4);
+    Write(bytes, 24, std::uint8_t{1});
+    Write(bytes, 25, std::uint8_t{4});
+    Write(bytes, 94, std::uint16_t{375});
+    Write(bytes, 96, pointDataOffset);
+    Write(bytes, 100, vlrCount);
+    Write(bytes, 104, std::uint8_t{6});
+    Write(bytes, 105, std::uint16_t{30});
+    Write(bytes, 107, std::uint32_t{3});
+    Write(bytes, 131, 0.01);
+    Write(bytes, 139, 0.01);
+    Write(bytes, 147, 0.01);
+    Write(bytes, 155, 1000.0);
+    Write(bytes, 163, 2000.0);
+    Write(bytes, 171, 3000.0);
+    Write(bytes, 179, 1002.0);
+    Write(bytes, 187, 1000.0);
+    Write(bytes, 195, 2002.0);
+    Write(bytes, 203, 2000.0);
+    Write(bytes, 211, 3002.0);
+    Write(bytes, 219, 3000.0);
+    Write(bytes, 247, std::uint64_t{3});
+}
+
+std::filesystem::path WriteEquivalentLas(
+    const std::vector<std::vector<std::uint8_t>>& records) {
+    std::vector<std::uint8_t> bytes(375 + records.size() * 30, 0);
+    SetEquivalentHeader(bytes, 375, 0);
+    for (std::size_t index = 0; index < records.size(); ++index) {
+        std::copy(records[index].begin(), records[index].end(),
+                  bytes.begin() + 375 + index * 30);
+    }
+    return WriteFixture(bytes, "usd_copc_equivalent.las");
+}
+
+std::vector<std::uint8_t> MakeFormat0Record(
+    const std::vector<std::uint8_t>& format6Record) {
+    std::vector<std::uint8_t> record(20, 0);
+    std::copy(format6Record.begin(), format6Record.begin() + 15,
+              record.begin());
+    record[15] = format6Record[16];
+    Write(record, 16,
+          static_cast<std::int8_t>(Read<std::int16_t>(format6Record, 18)));
+    record[17] = format6Record[17];
+    std::copy(format6Record.begin() + 20, format6Record.begin() + 22,
+              record.begin() + 18);
+    return record;
+}
+
+std::vector<std::uint8_t> WriteEquivalentLaz(
+    const std::vector<std::vector<std::uint8_t>>& records,
+    const std::filesystem::path& path,
+    int pointFormat,
+    int minorVersion) {
+    lazperf::writer::named_file::config config;
+    config.scale = {0.01, 0.01, 0.01};
+    config.offset = {1000.0, 2000.0, 3000.0};
+    config.chunk_size = static_cast<unsigned int>(records.size());
+    config.pdrf = pointFormat;
+    config.minor_version = minorVersion;
+    lazperf::writer::named_file writer(path.string(), config);
+    for (const auto& record : records) {
+        const auto encoded = pointFormat == 0 ? MakeFormat0Record(record) : record;
+        writer.writePoint(reinterpret_cast<const char*>(encoded.data()));
+    }
+    writer.close();
+
+    std::ifstream input(path, std::ios::binary);
+    input.seekg(0, std::ios::end);
+    const auto size = input.tellg();
+    Check(size > 0);
+    input.seekg(0);
+    std::vector<std::uint8_t> bytes(static_cast<std::size_t>(size));
+    input.read(reinterpret_cast<char*>(bytes.data()), size);
+    Check(static_cast<bool>(input));
+
+    const auto pointDataOffset = Read<std::uint32_t>(bytes, 96);
+    const auto chunkTableOffset = Read<std::int64_t>(bytes, pointDataOffset);
+    Check(chunkTableOffset > static_cast<std::int64_t>(pointDataOffset + 8));
+    return std::vector<std::uint8_t>(
+        bytes.begin() + pointDataOffset + 8,
+        bytes.begin() + static_cast<std::size_t>(chunkTableOffset));
+}
+
+std::filesystem::path WriteEquivalentCopc(
+    const std::vector<std::uint8_t>& compressedPoints) {
+    constexpr std::size_t headerSize = 375;
+    constexpr std::size_t infoVlrOffset = headerSize;
+    constexpr std::size_t hierarchyVlrOffset = infoVlrOffset + 54 + 160;
+    constexpr std::size_t rootOffset = hierarchyVlrOffset + 54;
+    constexpr std::size_t pointDataOffset = rootOffset + 32;
+    std::vector<std::uint8_t> bytes(pointDataOffset + compressedPoints.size(), 0);
+    SetEquivalentHeader(bytes, static_cast<std::uint32_t>(pointDataOffset), 2);
+
+    Write(bytes, infoVlrOffset, std::uint16_t{0});
+    std::memcpy(bytes.data() + infoVlrOffset + 2, "copc", 4);
+    Write(bytes, infoVlrOffset + 18, std::uint16_t{1});
+    Write(bytes, infoVlrOffset + 20, std::uint16_t{160});
+    std::memcpy(bytes.data() + infoVlrOffset + 22, "COPC info", 9);
+    Write(bytes, infoVlrOffset + 54, 1001.0);
+    Write(bytes, infoVlrOffset + 62, 2001.0);
+    Write(bytes, infoVlrOffset + 70, 3001.0);
+    Write(bytes, infoVlrOffset + 78, 10.0);
+    Write(bytes, infoVlrOffset + 86, 0.5);
+    Write(bytes, infoVlrOffset + 94, static_cast<std::uint64_t>(rootOffset));
+    Write(bytes, infoVlrOffset + 102, std::uint64_t{32});
+    Write(bytes, infoVlrOffset + 110, 12.5);
+    Write(bytes, infoVlrOffset + 118, 14.5);
+
+    Write(bytes, hierarchyVlrOffset, std::uint16_t{0});
+    std::memcpy(bytes.data() + hierarchyVlrOffset + 2, "copc", 4);
+    Write(bytes, hierarchyVlrOffset + 18, std::uint16_t{1000});
+    Write(bytes, hierarchyVlrOffset + 20, std::uint16_t{32});
+    std::memcpy(bytes.data() + hierarchyVlrOffset + 22, "hierarchy", 9);
+    WriteHierarchyEntry(bytes, rootOffset, 0, 0, 0, 0, 3,
+                        static_cast<std::uint64_t>(pointDataOffset),
+                        static_cast<std::int32_t>(compressedPoints.size()));
+    std::copy(compressedPoints.begin(), compressedPoints.end(),
+              bytes.begin() + pointDataOffset);
+    return WriteFixture(bytes, "usd_copc_equivalent.copc");
+}
+
+struct StreamResult {
+    usdpointcloud::PointChunk chunk;
+    usdpointcloud::PointData data;
+};
+
+StreamResult ReadEquivalentStream(usdpointcloud::PointStream& stream) {
+    StreamResult result;
+    usdgeo::Diagnostic diagnostic;
+    Check(stream.ReadNext(result.chunk, result.data, diagnostic) ==
+          usdpointcloud::PointStreamStatus::Chunk);
+        Check(diagnostic.message.empty());
+    Check(result.chunk.IsValid() && result.data.IsValid());
+    usdpointcloud::PointChunk endChunk;
+    usdpointcloud::PointData endData;
+    Check(stream.ReadNext(endChunk, endData, diagnostic) ==
+          usdpointcloud::PointStreamStatus::End);
+    Check(diagnostic.message.empty());
+    return result;
+}
+
+void CheckEquivalentData(const usdpointcloud::PointData& expected,
+                         const usdpointcloud::PointData& actual) {
+    Check(expected.positions.size() == actual.positions.size());
+    for (std::size_t index = 0; index < expected.positions.size(); ++index) {
+        Check(expected.positions[index].x == actual.positions[index].x);
+        Check(expected.positions[index].y == actual.positions[index].y);
+        Check(expected.positions[index].z == actual.positions[index].z);
+    }
+    Check(expected.intensity == actual.intensity);
+    Check(expected.returnNumber == actual.returnNumber);
+    Check(expected.numberOfReturns == actual.numberOfReturns);
+    Check(expected.classification == actual.classification);
+    Check(expected.scanDirectionFlag == actual.scanDirectionFlag);
+    Check(expected.edgeOfFlightLine == actual.edgeOfFlightLine);
+    Check(expected.userData == actual.userData);
+    Check(expected.scanAngle == actual.scanAngle);
+    Check(expected.pointSourceId == actual.pointSourceId);
+}
+
+void TestLasLazCopcEquivalence() {
+    const auto records = MakeEquivalentRecords();
+    const auto lasPath = WriteEquivalentLas(records);
+    const auto lazPath = std::filesystem::temp_directory_path() /
+                         "usd_copc_equivalent.laz";
+    WriteEquivalentLaz(records, lazPath, 0, 2);
+    const auto copcCompressedPath = std::filesystem::temp_directory_path() /
+                                    "usd_copc_equivalent_source.laz";
+    const auto compressedPoints =
+        WriteEquivalentLaz(records, copcCompressedPath, 6, 4);
+    const auto copcPath = WriteEquivalentCopc(compressedPoints);
+
+    usdpointcloud::PointReadOptions options;
+    options.chunkPointLimit = 16;
+    options.memoryBudgetBytes = 1024 * 1024;
+    usdlas::LasHeader lasHeader;
+    std::vector<usdgeo::Diagnostic> lasDiagnostics;
+    auto lasStream = usdlas::OpenLasPointStream(
+        lasPath.string(), options, lasHeader, lasDiagnostics);
+    Check(lasStream && lasDiagnostics.empty());
+    const auto lasResult = ReadEquivalentStream(*lasStream);
+
+    usdlas::LasHeader lazHeader;
+    std::vector<usdgeo::Diagnostic> lazDiagnostics;
+    auto lazStream = usdlaz::OpenLazPointStream(
+        lazPath.string(), options, lazHeader, lazDiagnostics);
+    Check(lazStream && lazDiagnostics.empty());
+    const auto lazResult = ReadEquivalentStream(*lazStream);
+
+    usdcopc::CopcHeader copcHeader;
+    std::vector<usdgeo::Diagnostic> copcDiagnostics;
+    auto copcStream = usdcopc::OpenCopcPointStream(
+        copcPath.string(), options, copcHeader, copcDiagnostics);
+    Check(copcStream && copcDiagnostics.empty());
+    const auto copcResult = ReadEquivalentStream(*copcStream);
+
+    Check(lasHeader.pointCount == lazHeader.pointCount &&
+          lasHeader.pointCount == copcHeader.las.pointCount);
+        Check(lasHeader.pointFormat == 6 && lazHeader.pointFormat == 0 &&
+            copcHeader.las.pointFormat == 6);
+    Check(lasHeader.xScale == lazHeader.xScale &&
+          lasHeader.xScale == copcHeader.las.xScale);
+    Check(lasHeader.yScale == lazHeader.yScale &&
+          lasHeader.yScale == copcHeader.las.yScale);
+    Check(lasHeader.zScale == lazHeader.zScale &&
+          lasHeader.zScale == copcHeader.las.zScale);
+        Check(lasHeader.xOffset == lazHeader.xOffset &&
+            lasHeader.xOffset == copcHeader.las.xOffset);
+        Check(lasHeader.yOffset == lazHeader.yOffset &&
+            lasHeader.yOffset == copcHeader.las.yOffset);
+        Check(lasHeader.zOffset == lazHeader.zOffset &&
+            lasHeader.zOffset == copcHeader.las.zOffset);
+        Check(lasHeader.bounds.minimum.x == lazHeader.bounds.minimum.x &&
+            lasHeader.bounds.minimum.x == copcHeader.las.bounds.minimum.x &&
+            lasHeader.bounds.minimum.y == lazHeader.bounds.minimum.y &&
+            lasHeader.bounds.minimum.y == copcHeader.las.bounds.minimum.y &&
+            lasHeader.bounds.minimum.z == lazHeader.bounds.minimum.z &&
+            lasHeader.bounds.minimum.z == copcHeader.las.bounds.minimum.z &&
+            lasHeader.bounds.maximum.x == lazHeader.bounds.maximum.x &&
+            lasHeader.bounds.maximum.x == copcHeader.las.bounds.maximum.x &&
+            lasHeader.bounds.maximum.y == lazHeader.bounds.maximum.y &&
+            lasHeader.bounds.maximum.y == copcHeader.las.bounds.maximum.y &&
+            lasHeader.bounds.maximum.z == lazHeader.bounds.maximum.z &&
+            lasHeader.bounds.maximum.z == copcHeader.las.bounds.maximum.z);
+    CheckEquivalentData(lasResult.data, lazResult.data);
+    CheckEquivalentData(lasResult.data, copcResult.data);
+    Check(lasResult.data.gpsTime == copcResult.data.gpsTime);
+    Check(lazResult.data.gpsTime.empty());
+    Check(lasResult.chunk.pointCount == lazResult.chunk.pointCount &&
+          lasResult.chunk.pointCount == copcResult.chunk.pointCount);
+        Check(lasResult.chunk.bounds.minimum.x == lazResult.chunk.bounds.minimum.x &&
+            lasResult.chunk.bounds.minimum.x == copcResult.chunk.bounds.minimum.x &&
+            lasResult.chunk.bounds.minimum.y == lazResult.chunk.bounds.minimum.y &&
+            lasResult.chunk.bounds.minimum.y == copcResult.chunk.bounds.minimum.y &&
+            lasResult.chunk.bounds.minimum.z == lazResult.chunk.bounds.minimum.z &&
+            lasResult.chunk.bounds.minimum.z == copcResult.chunk.bounds.minimum.z &&
+            lasResult.chunk.bounds.maximum.x == lazResult.chunk.bounds.maximum.x &&
+            lasResult.chunk.bounds.maximum.x == copcResult.chunk.bounds.maximum.x &&
+            lasResult.chunk.bounds.maximum.y == lazResult.chunk.bounds.maximum.y &&
+            lasResult.chunk.bounds.maximum.y == copcResult.chunk.bounds.maximum.y &&
+            lasResult.chunk.bounds.maximum.z == lazResult.chunk.bounds.maximum.z &&
+            lasResult.chunk.bounds.maximum.z == copcResult.chunk.bounds.maximum.z);
+    copcStream.reset();
+    lazStream.reset();
+    lasStream.reset();
+
+    std::filesystem::remove(lasPath);
+    std::filesystem::remove(lazPath);
+    std::filesystem::remove(copcCompressedPath);
+    std::filesystem::remove(copcPath);
 }
 
 void TestMetadataAndHierarchy() {
@@ -352,5 +637,6 @@ int main() {
     TestRejectsInvalidNodeCoordinates();
     TestPointStreamRejectsSourceRange();
     TestPointStreamChecksCancellation();
+    TestLasLazCopcEquivalence();
     return 0;
 }
