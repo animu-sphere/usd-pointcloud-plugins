@@ -19,6 +19,8 @@ CMake package `usdGeoCore`, target `usdgeo::core`, C++ namespace `usdgeo`.
 - `TileId`: a deterministic level/x/y/z tile identity with a stable string form.
 - Cache-key normalization: `NormalizeCacheArguments` and `StableCacheKey` over
   an ordered key/value list.
+- `RandomAccessSource` and `LocalRandomAccessSource`: deterministic source-size
+  discovery and bounded offset reads for format readers and resolver adapters.
 - The shared diagnostic vocabulary: `Severity`, `DiagnosticCode`, and
   `Diagnostic` with optional byte-offset and point-index anchors.
 
@@ -40,6 +42,7 @@ usdgeo/GeoReference.h    GeoReference and its coordinate transforms
 usdgeo/TileId.h          TileId
 usdgeo/CacheKey.h        CacheArguments, NormalizeCacheArguments, StableCacheKey
 usdgeo/Diagnostic.h      Severity, DiagnosticCode, Diagnostic
+usdgeo/RandomAccessSource.h  RandomAccessSource, LocalRandomAccessSource
 ```
 
 Minimal use:
@@ -75,11 +78,9 @@ implicitly.
 
 ## Error and diagnostic behavior
 
-Nothing here throws or writes to a stream. Fallible operations return `bool`
-and use out-parameters (`TryToLocal`, `TryToSource`); validity predicates are
-`noexcept` and total (`IsValid`, `IsFinite`). Callers that need a reportable
-condition construct a `Diagnostic`; this module supplies the vocabulary but
-does not collect or emit diagnostics on its own behalf.
+Fallible operations return `bool` and use out-parameters; source reads report
+typed `Diagnostic` values for invalid ranges, missing files, and short reads.
+Validity predicates are `noexcept` and total (`IsValid`, `IsFinite`).
 
 ## Threading and ownership
 
@@ -103,9 +104,8 @@ statement is [ADR 0001](../../docs/adr/0001-coordinate-model.md).
 Builds and tests with plain CMake and **no OpenUSD runtime**:
 
 ```powershell
-cmake -S . -B build -DUSDGEO_BUILD_TESTS=ON
-cmake --build build --config Release
-ctest --test-dir build -C Release -R usdGeoCore_unit --output-on-failure
+ost build
+ost test --filter '^usdGeoCore_unit$' --jobs 1
 ```
 
 In the workspace flow, `ost build` and `ost test` cover it, and

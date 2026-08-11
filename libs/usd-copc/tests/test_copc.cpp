@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -128,6 +129,48 @@ std::filesystem::path WriteFixture(const std::vector<std::uint8_t>& bytes,
     Check(static_cast<bool>(file));
     return path;
 }
+
+class RecordingSource final : public usdgeo::RandomAccessSource {
+public:
+    explicit RecordingSource(std::vector<std::uint8_t> bytes)
+        : bytes_(std::move(bytes)) {}
+
+    bool GetSize(std::uint64_t& size,
+                 std::vector<usdgeo::Diagnostic>& diagnostics) const override {
+        diagnostics.clear();
+        size = bytes_.size();
+        return true;
+    }
+
+    bool Read(std::uint64_t offset,
+              std::size_t size,
+              std::vector<std::uint8_t>& bytes,
+              std::vector<usdgeo::Diagnostic>& diagnostics) override {
+        diagnostics.clear();
+        bytes.clear();
+        if (offset > bytes_.size() || size > bytes_.size() - offset) {
+            diagnostics.push_back(
+                {usdgeo::DiagnosticCode::InvalidOffset,
+                 usdgeo::Severity::Error,
+                 "recording source range is outside the fixture", offset,
+                 std::nullopt});
+            return false;
+        }
+        ranges.emplace_back(offset, size);
+        bytes.assign(bytes_.begin() + static_cast<std::ptrdiff_t>(offset),
+                     bytes_.begin() + static_cast<std::ptrdiff_t>(offset + size));
+        return true;
+    }
+
+    const std::vector<std::pair<std::uint64_t, std::size_t>>& Ranges() const
+        noexcept {
+        return ranges;
+    }
+
+private:
+    std::vector<std::uint8_t> bytes_;
+    std::vector<std::pair<std::uint64_t, std::size_t>> ranges;
+};
 
 template <typename T>
 T Read(const std::vector<std::uint8_t>& bytes, std::size_t offset) {
@@ -514,6 +557,31 @@ void TestMetadataAndHierarchy() {
     std::filesystem::remove(path);
 }
 
+void TestReaderAcceptsRandomAccessSource() {
+    const auto fixture = MakeFixture();
+    auto source = std::make_shared<RecordingSource>(fixture);
+    usdcopc::CopcReader reader(source);
+    usdcopc::CopcHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(reader.ReadMetadata(header, diagnostics));
+    Check(diagnostics.empty());
+
+    std::vector<usdcopc::CopcHierarchyEntry> entries;
+    Check(reader.ReadHierarchy(header, entries, diagnostics));
+    Check(diagnostics.empty() && entries.size() == 3);
+
+    std::vector<std::uint8_t> pointData;
+    Check(reader.ReadPointData(header, entries.back(), pointData, diagnostics));
+    Check(diagnostics.empty() && pointData.size() == 30);
+    Check(!source->Ranges().empty());
+    Check(source->Ranges().back().first == entries.back().offset &&
+          source->Ranges().back().second ==
+              static_cast<std::size_t>(entries.back().byteSize));
+    for (const auto& range : source->Ranges()) {
+        Check(range.second < fixture.size());
+    }
+}
+
 void TestCompressedPointFormatMetadata() {
     auto bytes = MakeFixture();
     bytes[104] = static_cast<std::uint8_t>(bytes[104] | 0x80);
@@ -650,6 +718,7 @@ void TestPointStreamChecksCancellation() {
 
 int main() {
     TestMetadataAndHierarchy();
+    TestReaderAcceptsRandomAccessSource();
     TestCompressedPointFormatMetadata();
     TestInvalidChildPage();
     TestRejectsPointCountMismatch();

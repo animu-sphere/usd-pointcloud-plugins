@@ -97,6 +97,7 @@ enum class CopcReadFailure {
 class CopcReader {
 public:
     explicit CopcReader(std::string filename);
+    explicit CopcReader(std::shared_ptr<usdgeo::RandomAccessSource> source);
 
     bool ReadMetadata(CopcHeader& header,
                       std::vector<usdgeo::Diagnostic>& diagnostics);
@@ -130,6 +131,7 @@ public:
 
 private:
     std::string filename_;
+    std::shared_ptr<usdgeo::RandomAccessSource> source_;
     CopcReadFailure failureKind_ = CopcReadFailure::None;
 };
 
@@ -151,14 +153,22 @@ private:
         const usdpointcloud::PointReadOptions&,
         CopcHeader&,
         std::vector<usdgeo::Diagnostic>&);
+    friend std::unique_ptr<CopcPointStream> OpenCopcPointStream(
+        std::shared_ptr<usdgeo::RandomAccessSource>,
+        const usdpointcloud::PointReadOptions&,
+        CopcHeader&,
+        std::vector<usdgeo::Diagnostic>&,
+        std::string);
 
-    CopcPointStream(std::string filename,
+    CopcPointStream(std::shared_ptr<usdgeo::RandomAccessSource> source,
+                    std::string sourceName,
                     usdpointcloud::PointReadOptions options,
                     CopcHeader header,
                     std::vector<CopcHierarchyEntry> entries,
                     std::size_t maximumPoints);
 
-    std::string filename_;
+    std::shared_ptr<usdgeo::RandomAccessSource> source_;
+    std::string sourceName_;
     usdpointcloud::PointReadOptions options_;
     CopcHeader header_;
     std::unique_ptr<usdlaz::LazChunkDecoder> decoder_;
@@ -177,5 +187,12 @@ std::unique_ptr<CopcPointStream> OpenCopcPointStream(
     const usdpointcloud::PointReadOptions& options,
     CopcHeader& header,
     std::vector<usdgeo::Diagnostic>& diagnostics);
+
+std::unique_ptr<CopcPointStream> OpenCopcPointStream(
+    std::shared_ptr<usdgeo::RandomAccessSource> source,
+    const usdpointcloud::PointReadOptions& options,
+    CopcHeader& header,
+    std::vector<usdgeo::Diagnostic>& diagnostics,
+    std::string sourceName = {});
 
 } // namespace usdcopc

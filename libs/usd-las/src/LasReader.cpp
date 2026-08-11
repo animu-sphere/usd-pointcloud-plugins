@@ -1,38 +1,60 @@
 #include "LasInternal.h"
 
 #include <algorithm>
-#include <fstream>
 #include <limits>
 #include <utility>
 
 namespace usdlas::detail {
 
-bool ReadFileRange(std::ifstream& stream,
+bool ReadFileRange(usdgeo::RandomAccessSource& source,
                    std::uint64_t offset,
                    std::size_t size,
                    std::vector<std::uint8_t>& bytes,
                    std::string& error,
-                   RangeReadFailure& failure) {
+                   RangeReadFailure& failure,
+                   std::vector<usdgeo::Diagnostic>* diagnostics) {
     failure = RangeReadFailure::None;
     if (offset > static_cast<std::uint64_t>(
                      (std::numeric_limits<std::streamoff>::max)())) {
         failure = RangeReadFailure::InvalidOffset;
         error = "LAS byte range offset is invalid";
+        if (diagnostics != nullptr) {
+            diagnostics->push_back(
+                {usdgeo::DiagnosticCode::InvalidOffset,
+                 usdgeo::Severity::Error, error, offset, std::nullopt});
+        }
         return false;
     }
-    stream.clear();
-    stream.seekg(static_cast<std::streamoff>(offset), std::ios::beg);
-    if (!stream) {
-        failure = RangeReadFailure::Seek;
-        error = "LAS byte range seek failed";
+    std::vector<usdgeo::Diagnostic> sourceDiagnostics;
+    if (!source.Read(offset, size, bytes, sourceDiagnostics)) {
+        failure = sourceDiagnostics.empty() ||
+                          sourceDiagnostics.front().code ==
+                              usdgeo::DiagnosticCode::InvalidOffset
+                      ? RangeReadFailure::InvalidOffset
+                      : RangeReadFailure::Read;
+        error = sourceDiagnostics.empty() ? "LAS byte range read failed"
+                                           : sourceDiagnostics.front().message;
+        if (diagnostics != nullptr) {
+            if (sourceDiagnostics.empty()) {
+                diagnostics->push_back(
+                    {usdgeo::DiagnosticCode::DecodeFailure,
+                     usdgeo::Severity::Error, error, offset, std::nullopt});
+            } else {
+                diagnostics->insert(diagnostics->end(),
+                                    sourceDiagnostics.begin(),
+                                    sourceDiagnostics.end());
+            }
+        }
         return false;
     }
-    bytes.resize(size);
-    if (!bytes.empty() &&
-        !stream.read(reinterpret_cast<char*>(bytes.data()),
-                     static_cast<std::streamsize>(bytes.size()))) {
+    if (bytes.size() != size) {
         failure = RangeReadFailure::Read;
-        error = "LAS byte range read failed";
+        error = "LAS byte range read returned a short buffer";
+        if (diagnostics != nullptr) {
+            diagnostics->push_back(
+                {usdgeo::DiagnosticCode::TruncatedRecord,
+                 usdgeo::Severity::Error, error, offset, std::nullopt});
+        }
         return false;
     }
     return true;
@@ -42,7 +64,12 @@ bool ReadFileRange(std::ifstream& stream,
 
 namespace usdlas {
 
-LasReader::LasReader(std::string filename) : filename_(std::move(filename)) {}
+LasReader::LasReader(std::string filename)
+    : filename_(std::move(filename)),
+      source_(std::make_shared<usdgeo::LocalRandomAccessSource>(filename_)) {}
+
+LasReader::LasReader(std::shared_ptr<usdgeo::RandomAccessSource> source)
+    : source_(std::move(source)) {}
 
 LasReadFailure LasReader::FailureKind() const noexcept {
     return failureKind_;
@@ -53,37 +80,43 @@ bool LasReader::ReadMetadata(
     std::vector<usdgeo::Diagnostic>& diagnostics,
     std::size_t memoryBudgetBytes) {
     diagnostics.clear();
+    failureDiagnostic_.reset();
     failureByteOffset_.reset();
     failurePointIndex_.reset();
     failureKind_ = LasReadFailure::None;
 
-    std::ifstream stream(filename_, std::ios::binary | std::ios::ate);
-    if (!stream) {
+    if (!source_) {
         failureKind_ = LasReadFailure::FileOpen;
         diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
                                usdgeo::Severity::Error,
-                               "could not open LAS file: " + filename_,
+                               "LAS random-access source is missing",
                                std::nullopt, std::nullopt});
         return false;
     }
-    const auto fileSizePosition = stream.tellg();
-    if (fileSizePosition < 0) {
+    std::uint64_t fileSize = 0;
+    if (!source_->GetSize(fileSize, diagnostics)) {
         failureKind_ = LasReadFailure::FileSize;
-        diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
-                               usdgeo::Severity::Error,
-                               "could not determine LAS file size",
-                               std::nullopt, std::nullopt});
+        if (diagnostics.empty()) {
+            diagnostics.push_back(
+                {usdgeo::DiagnosticCode::DecodeFailure,
+                 usdgeo::Severity::Error,
+                 "could not determine LAS file size", std::nullopt,
+                 std::nullopt});
+        }
         return false;
     }
-    const auto fileSize = static_cast<std::uint64_t>(fileSizePosition);
     std::vector<std::uint8_t> bytes;
     detail::RangeReadFailure rangeFailure;
     const auto headerReadSize = (std::min)(fileSize, std::uint64_t{375});
     std::string error;
-    if (!detail::ReadFileRange(stream, 0,
+    if (!detail::ReadFileRange(*source_, 0,
                                static_cast<std::size_t>(headerReadSize), bytes,
-                               error, rangeFailure) ||
-        !InspectHeader(bytes, header, error)) {
+                               error, rangeFailure, &diagnostics)) {
+        failureKind_ = LasReadFailure::Header;
+        failureDiagnostic_ = diagnostics.back();
+        return false;
+    }
+    if (!InspectHeader(bytes, header, error)) {
         failureKind_ = LasReadFailure::Header;
         detail::AddErrorDiagnostic(error, diagnostics);
         return false;
@@ -99,11 +132,10 @@ bool LasReader::ReadMetadata(
         detail::AddErrorDiagnostic(error, diagnostics);
         return false;
     }
-    if (!detail::ReadFileRange(
-            stream, 0, static_cast<std::size_t>(header.pointDataOffset), bytes,
-            error, rangeFailure)) {
+        if (!detail::ReadFileRange(
+            *source_, 0, static_cast<std::size_t>(header.pointDataOffset), bytes,
+            error, rangeFailure, &diagnostics)) {
         failureKind_ = LasReadFailure::Vlr;
-        detail::AddErrorDiagnostic(error, diagnostics);
         return false;
     }
     if (!InspectRecords(bytes, header.headerSize,
@@ -129,11 +161,10 @@ bool LasReader::ReadMetadata(
         }
         std::vector<std::uint8_t> extendedBytes;
         if (!detail::ReadFileRange(
-                stream, header.firstExtendedVariableLengthRecordOffset,
+            *source_, header.firstExtendedVariableLengthRecordOffset,
                 static_cast<std::size_t>(extendedByteCount), extendedBytes,
-                error, rangeFailure)) {
+                error, rangeFailure, &diagnostics)) {
             failureKind_ = LasReadFailure::Evlr;
-            detail::AddErrorDiagnostic(error, diagnostics);
             return false;
         }
         if (!InspectRecords(extendedBytes, 0,
@@ -155,6 +186,7 @@ bool LasReader::ReadPoints(const LasReadOptions& options,
                            const LasHeader& header,
                            std::string& error) {
     error.clear();
+    failureDiagnostic_.reset();
     failureByteOffset_.reset();
     failurePointIndex_.reset();
     failureKind_ = LasReadFailure::None;
@@ -164,27 +196,32 @@ bool LasReader::ReadPoints(const LasReadOptions& options,
         return false;
     }
 
-    std::ifstream stream(filename_, std::ios::binary | std::ios::ate);
-    if (!stream) {
+    if (!source_) {
         failureKind_ = LasReadFailure::FileOpen;
-        error = "could not open LAS file: " + filename_;
+        error = "LAS random-access source is missing";
         return false;
     }
-    const auto fileSizePosition = stream.tellg();
-    if (fileSizePosition < 0 ||
-        static_cast<std::uintmax_t>(fileSizePosition) >
-            (std::numeric_limits<std::uint64_t>::max)()) {
+    std::vector<usdgeo::Diagnostic> sourceDiagnostics;
+    std::uint64_t fileSize = 0;
+    if (!source_->GetSize(fileSize, sourceDiagnostics)) {
         failureKind_ = LasReadFailure::FileSize;
-        error = "could not determine LAS file size";
+        if (!sourceDiagnostics.empty()) {
+            failureDiagnostic_ = sourceDiagnostics.front();
+        }
+        error = sourceDiagnostics.empty() ? "could not determine LAS file size"
+                                          : sourceDiagnostics.front().message;
         return false;
     }
-    const auto fileSize = static_cast<std::uint64_t>(fileSizePosition);
 
     detail::RangeReadFailure rangeFailure;
     std::vector<std::uint8_t> bytes;
-    if (!detail::ReadFileRange(stream, 104, 1, bytes, error,
-                               rangeFailure)) {
+    std::vector<usdgeo::Diagnostic> rangeDiagnostics;
+    if (!detail::ReadFileRange(*source_, 104, 1, bytes, error,
+                               rangeFailure, &rangeDiagnostics)) {
         failureKind_ = LasReadFailure::Header;
+        if (!rangeDiagnostics.empty()) {
+            failureDiagnostic_ = rangeDiagnostics.front();
+        }
         return false;
     }
     if ((bytes.front() & 0xc0) != 0) {
@@ -244,11 +281,15 @@ bool LasReader::ReadPoints(const LasReadOptions& options,
         const auto byteOffset = header.pointDataOffset +
                                 pointsRead * recordLength;
         const auto byteCount = static_cast<std::size_t>(count * recordLength);
-        if (!detail::ReadFileRange(stream, byteOffset, byteCount, bytes, error,
-                                   rangeFailure)) {
+        rangeDiagnostics.clear();
+        if (!detail::ReadFileRange(*source_, byteOffset, byteCount, bytes, error,
+                                   rangeFailure, &rangeDiagnostics)) {
             failureKind_ = rangeFailure == detail::RangeReadFailure::Seek
                                ? LasReadFailure::PointDataSeek
                                : LasReadFailure::PointDataRead;
+            if (!rangeDiagnostics.empty()) {
+                failureDiagnostic_ = rangeDiagnostics.front();
+            }
             failureByteOffset_ = byteOffset;
             return false;
         }
@@ -289,6 +330,7 @@ bool LasReader::Read(const LasReadOptions& options,
                      LasHeader& header,
                      std::string& error) {
     error.clear();
+    failureDiagnostic_.reset();
     failureByteOffset_.reset();
     failurePointIndex_.reset();
     failureKind_ = LasReadFailure::None;
@@ -298,29 +340,34 @@ bool LasReader::Read(const LasReadOptions& options,
         return false;
     }
 
-    std::ifstream stream(filename_, std::ios::binary | std::ios::ate);
-    if (!stream) {
+    if (!source_) {
         failureKind_ = LasReadFailure::FileOpen;
-        error = "could not open LAS file: " + filename_;
+        error = "LAS random-access source is missing";
         return false;
     }
-    const auto fileSizePosition = stream.tellg();
-    if (fileSizePosition < 0 ||
-        static_cast<std::uintmax_t>(fileSizePosition) >
-            (std::numeric_limits<std::uint64_t>::max)()) {
+    std::vector<usdgeo::Diagnostic> sourceDiagnostics;
+    std::uint64_t fileSize = 0;
+    if (!source_->GetSize(fileSize, sourceDiagnostics)) {
         failureKind_ = LasReadFailure::FileSize;
-        error = "could not determine LAS file size";
+        if (!sourceDiagnostics.empty()) {
+            failureDiagnostic_ = sourceDiagnostics.front();
+        }
+        error = sourceDiagnostics.empty() ? "could not determine LAS file size"
+                                          : sourceDiagnostics.front().message;
         return false;
     }
-    const auto fileSize = static_cast<std::uint64_t>(fileSizePosition);
 
     std::vector<std::uint8_t> bytes;
     const auto headerReadSize = (std::min)(fileSize, std::uint64_t{375});
     detail::RangeReadFailure rangeFailure;
-    if (!detail::ReadFileRange(stream, 0,
+    std::vector<usdgeo::Diagnostic> rangeDiagnostics;
+    if (!detail::ReadFileRange(*source_, 0,
                                static_cast<std::size_t>(headerReadSize), bytes,
-                               error, rangeFailure)) {
+                               error, rangeFailure, &rangeDiagnostics)) {
         failureKind_ = LasReadFailure::Header;
+        if (!rangeDiagnostics.empty()) {
+            failureDiagnostic_ = rangeDiagnostics.front();
+        }
         return false;
     }
     if (!InspectHeader(bytes, header, error)) {
@@ -333,10 +380,13 @@ bool LasReader::Read(const LasReadOptions& options,
         error = "LAS point data offset is outside the file";
         return false;
     }
-    if (!detail::ReadFileRange(
-            stream, 0, static_cast<std::size_t>(header.pointDataOffset), bytes,
-            error, rangeFailure)) {
+        if (!detail::ReadFileRange(
+            *source_, 0, static_cast<std::size_t>(header.pointDataOffset), bytes,
+            error, rangeFailure, &rangeDiagnostics)) {
         failureKind_ = LasReadFailure::Vlr;
+        if (!rangeDiagnostics.empty()) {
+            failureDiagnostic_ = rangeDiagnostics.front();
+        }
         return false;
     }
     if (!InspectRecords(bytes, header.headerSize,
@@ -352,12 +402,16 @@ bool LasReader::Read(const LasReadOptions& options,
             return false;
         }
         std::vector<std::uint8_t> extendedBytes;
+        rangeDiagnostics.clear();
         if (!detail::ReadFileRange(
-                stream, header.firstExtendedVariableLengthRecordOffset,
+            *source_, header.firstExtendedVariableLengthRecordOffset,
                 static_cast<std::size_t>(
                     fileSize - header.firstExtendedVariableLengthRecordOffset),
-                extendedBytes, error, rangeFailure)) {
+                extendedBytes, error, rangeFailure, &rangeDiagnostics)) {
             failureKind_ = LasReadFailure::Evlr;
+            if (!rangeDiagnostics.empty()) {
+                failureDiagnostic_ = rangeDiagnostics.front();
+            }
             return false;
         }
         if (!InspectRecords(extendedBytes, 0,
@@ -382,6 +436,10 @@ bool LasReader::Read(const LasReadOptions& options,
     std::string error;
     if (Read(options, consume, header, error)) {
         return true;
+    }
+    if (failureDiagnostic_) {
+        diagnostics.push_back(*failureDiagnostic_);
+        return false;
     }
     diagnostics.push_back({detail::CodeForError(error), usdgeo::Severity::Error,
                            error, failureByteOffset_, failurePointIndex_});

@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <fstream>
 #include <limits>
 #include <string>
 #include <type_traits>
@@ -68,12 +67,13 @@ usdgeo::DiagnosticCode CodeForError(const std::string& error);
 void AddErrorDiagnostic(const std::string& error,
                         std::vector<usdgeo::Diagnostic>& diagnostics);
 
-bool ReadFileRange(std::ifstream& stream,
+bool ReadFileRange(usdgeo::RandomAccessSource& source,
                    std::uint64_t offset,
                    std::size_t size,
                    std::vector<std::uint8_t>& bytes,
                    std::string& error,
-                   RangeReadFailure& failure);
+                   RangeReadFailure& failure,
+                   std::vector<usdgeo::Diagnostic>* diagnostics = nullptr);
 
 bool ReadRecords(const std::vector<std::uint8_t>& bytes,
                  std::size_t offset,

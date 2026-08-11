@@ -51,6 +51,7 @@ usdlas/Las.h
 | --- | --- |
 | Value types | `LasHeader`, `LasPoint`, `LasVariableLengthRecord`, `LasGeoTiffKey`, `LasGeoTiffMetadata`, `LasExtraBytesDescriptor`, `LasWaveformPacket` |
 | Orchestration | `LasReader::Read`, `LasReader::ReadMetadata`, `LasReader::FailureKind`, `LasPointStream`, `OpenLasPointStream`, `LasReadFailure` |
+| Byte source | `LasReader(std::string)` for local files or `LasReader(std::shared_ptr<usdgeo::RandomAccessSource>)` for injected sources |
 | Buffer inspection | `InspectHeader`, `InspectMetadata`, `InspectRecords`, `ParseKnownMetadata`, `ExtractWktCrs`, `DecodePoint` |
 | Shared-contract construction | `AppendPointData`, `BuildPointCloudAsset`, `BuildPointCloudMetadata` |
 | Aliases | `LasReadOptions` = `usdpointcloud::PointReadOptions`, `LasPointChunkConsumer`, `LasPointChunkErrorConsumer` |

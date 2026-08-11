@@ -1,6 +1,7 @@
 #pragma once
 
 #include "usdgeo/Diagnostic.h"
+#include "usdgeo/RandomAccessSource.h"
 #include "usdgeo/SpatialBounds.h"
 #include "usdpointcloud/PointCloud.h"
 
@@ -170,6 +171,7 @@ enum class LasReadFailure {
 class LasReader {
 public:
     explicit LasReader(std::string filename);
+    explicit LasReader(std::shared_ptr<usdgeo::RandomAccessSource> source);
 
     bool Read(const LasReadOptions& options,
               const LasPointChunkConsumer& consume,
@@ -199,6 +201,8 @@ private:
                     std::string& error);
 
     std::string filename_;
+    std::shared_ptr<usdgeo::RandomAccessSource> source_;
+    std::optional<usdgeo::Diagnostic> failureDiagnostic_;
     std::optional<std::uint64_t> failureByteOffset_;
     std::optional<std::uint64_t> failurePointIndex_;
     LasReadFailure failureKind_ = LasReadFailure::None;

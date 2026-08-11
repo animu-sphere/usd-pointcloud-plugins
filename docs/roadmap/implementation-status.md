@@ -173,6 +173,9 @@ transaction state creation and retrying the same output workspace.
       documents into release assets
 - [x] Adopt narrow format-specific dynamic LOD fields after generated assets
       and cache lookup stabilized ([ADR 0003](../adr/0003-dynamic-file-format.md))
+- [x] Add the project-owned random-access byte source contract and move LAS
+      and local COPC reads onto it; resolver-backed `ArAsset` adaptation remains
+      open for v0.5.0
 
 ### Next release direction
 
@@ -181,9 +184,10 @@ transaction state creation and retrying the same output workspace.
 - [ ] Complete v0.4.0 PLY point-cloud read support with bounded source
       streaming and tiled authoring follow-up work after the shipped scalar
       direct-read and cache-lookup slice.
-- [ ] Complete v0.5.0 COPC random access through a project-owned source
-      interface and an OpenUSD `ArAsset` adapter, with resolver-dependent HTTP
-      support and conservative generated-cache identity.
+- [ ] Complete v0.5.0 COPC random access with an OpenUSD `ArAsset` adapter,
+      resolver-dependent HTTP support, and conservative generated-cache
+      identity; the project-owned source interface and local migration are
+      shipped.
 
 ## Notes
 

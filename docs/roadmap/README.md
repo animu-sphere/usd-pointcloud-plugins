@@ -142,7 +142,7 @@ sufficiently stable rather than risking stale generated output.
 | 3 | LAZ, arguments, streaming, and derived-USDC cache | Complete | Chunk decoding, normalized arguments, cache lookup, and conversion integration are shipped |
 | 4 | Tiling, LOD, and local COPC | Complete in `v0.3.0` | Spill-backed tiled authoring and local COPC hierarchy reads share the common contracts |
 | 5 | PLY point-cloud read support | In progress | PLY 1.0 header inspection is implemented; decoding and plugin integration are next |
-| 6 | Resolver-backed COPC random access | Planned for `v0.5.0` | Project-owned source interface and `ArAsset` adapter |
+| 6 | Resolver-backed COPC random access | In progress for `v0.5.0` | Project-owned source interface and local COPC migration are shipped; `ArAsset` adapter remains |
 | 7 | Delimited text and E57 | Not started | Follow PLY after generic property mapping is proven |
 
 ## Workstreams
@@ -158,7 +158,7 @@ maps onto the phases above.
 | W4 | Local COPC hierarchy, partial reads, and FileFormat integration | 4 | Complete in `v0.3.0` |
 | W5 | Documentation consolidation | `v0.3.x` | In progress |
 | W6 | PLY decoding and plugin integration | 5 | In progress from header inspection |
-| W7 | Random-access source and resolver-backed COPC | 6 | Planned for `v0.5.0` |
+| W7 | Random-access source and resolver-backed COPC | 6 | In progress for `v0.5.0` |
 
 The completed workstreams established the shared point schema, streaming reader
 API, tile/LOD representation, and local COPC path. PLY must consume those
