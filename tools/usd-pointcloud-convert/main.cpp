@@ -341,9 +341,9 @@ bool BuildCacheDescriptor(
     descriptor.source = {
         canonicalPath.generic_string(),
         size,
-        modified.time_since_epoch().count(),
+        static_cast<std::int64_t>(modified.time_since_epoch().count()),
         contentIdentity};
-    descriptor.pluginVersion = "usd-pointcloud-convert-0.2.2";
+    descriptor.pluginVersion = "usd-pointcloud-plugins-0.2.2";
     descriptor.parserVersion = IsExtension(inputPath, ".las")
                                    ? "las-reader-1"
                                    : "laz-reader-1";

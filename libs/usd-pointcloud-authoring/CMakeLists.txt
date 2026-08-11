@@ -8,6 +8,7 @@ project(usdPointCloudAuthoring
 find_package(pxr CONFIG REQUIRED)
 
 add_library(usdPointCloudAuthoring STATIC
+    src/PointCloudCache.cpp
     src/PointCloudLayer.cpp
     src/PointCloudStreaming.cpp)
 add_library(usdpointcloud::authoring ALIAS usdPointCloudAuthoring)
@@ -22,6 +23,7 @@ target_compile_features(usdPointCloudAuthoring PUBLIC cxx_std_17)
 target_link_libraries(usdPointCloudAuthoring
     PUBLIC
         usdgeo::core
+        usdgeo::cache
         usdpointcloud::core
         usdpointcloud::tiling
         usdGeom

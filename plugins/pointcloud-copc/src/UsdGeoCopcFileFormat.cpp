@@ -2,6 +2,7 @@
 #include "usdgeocopc/UsdGeoCopcDiagnostics.h"
 
 #include "usdgeo/Diagnostic.h"
+#include "usdgeo/PointCloudCache.h"
 #include "usdgeo/PointCloudLayer.h"
 #include "usdpointcloud/FileFormatArguments.h"
 #include "usdpointcloud/Sampling.h"
@@ -292,6 +293,32 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
             return false;
         }
         return true;
+    }
+
+    if (!usdgeo::PointCloudCacheRootFromEnvironment().empty()) {
+        usdpointcloud::PointChunk chunk;
+        usdgeo::GeoReference reference;
+        usdgeo::SpatialBounds bounds;
+        std::string metadataError;
+        if (!usdlas::BuildPointCloudMetadata(
+                header.las, chunk, reference, bounds, metadataError)) {
+            TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::BoundsTransformFailed);
+            return false;
+        }
+        bool cacheHit = false;
+        std::string cacheError;
+        if (!usdgeo::TryLoadPointCloudCache(
+                layer, resolvedPath, reference, request, "copc-reader-1",
+                cacheHit, cacheError)) {
+            TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(
+                                      usdgeocopc::diagnostics::PointCloudAuthorFailed,
+                                      cacheError)
+                                      .c_str());
+            return false;
+        }
+        if (cacheHit) {
+            return true;
+        }
     }
 
     std::vector<usdcopc::CopcHierarchyEntry> hierarchy;

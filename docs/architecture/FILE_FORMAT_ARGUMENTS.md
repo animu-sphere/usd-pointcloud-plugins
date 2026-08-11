@@ -108,6 +108,13 @@ non-canonical layer identifier. Dynamic file-format support may move this
 composition to Pcp later; it is deliberately not part of the current plugin
 contract.
 
+Derived cache storage is configured independently through the optional
+`USDGEO_CACHE_ROOT` host environment variable. It is intentionally not a
+file-format argument and therefore does not affect layer identity or cache
+descriptor identity. When a committed entry exists for the source, normalized
+arguments, and reader metadata, the LAS, LAZ, or COPC adapter loads it before
+point delivery; a miss follows the normal reader and authoring path.
+
 ## Rules
 
 1. **Validate everything.** An unknown key, an unparsable value, or an

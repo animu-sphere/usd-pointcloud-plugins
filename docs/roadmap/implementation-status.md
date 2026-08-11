@@ -166,7 +166,8 @@ transaction state creation and retrying the same output workspace.
       `v0.3.0` release track above
 - [x] Integrate deterministic USDC cache generation and lookup into the
       conversion tool through `--cache-root`
-- [ ] Integrate cache lookup into direct FileFormat and authoring paths
+- [x] Integrate cache lookup into direct FileFormat and authoring paths via
+      `USDGEO_CACHE_ROOT`
 - [ ] Stage licensing, notice, capability, compatibility, and installation
       documents into release assets
 - [ ] Reconsider dynamic FileFormat support after generated assets and cache

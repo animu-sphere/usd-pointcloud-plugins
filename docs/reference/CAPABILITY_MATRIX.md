@@ -224,7 +224,8 @@ in the [tile and LOD contract](../architecture/LOD.md).
 - Advanced tile planning such as adaptive depth and point-budget splitting is
   not exposed through LAS/LAZ file-format arguments. The current interface
   provides fixed-grid `tileSize` and `tileMemoryLimit`. The conversion tool
-  can generate and reuse deterministic USDC entries with `--cache-root`; direct
-  FileFormat and authoring-path cache lookup remains open.
+  can generate and reuse deterministic USDC entries with `--cache-root`.
+  Direct LAS, LAZ, and COPC FileFormat reads can reuse committed entries via
+  `USDGEO_CACHE_ROOT`.
 - Point decoding assumes a little-endian host.
 - Writing LAS or LAZ is out of scope; both plugins export as `usda`.
