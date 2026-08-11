@@ -2,6 +2,7 @@
 #include "usdgeolaz/UsdGeoLazDiagnostics.h"
 
 #include "usdgeo/Diagnostic.h"
+#include "usdgeo/PointCloudCache.h"
 #include "usdgeo/PointCloudLayer.h"
 #include "usdpointcloud/FileFormatArguments.h"
 #include "usdpointcloud/Sampling.h"
@@ -124,6 +125,48 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
                                                        "invalid arguments"))
                                   .c_str());
         return false;
+    }
+
+    if (!metadataOnly && !usdgeo::PointCloudCacheRootFromEnvironment().empty()) {
+        auto decoder = usdlaz::CreateFileDecoder(sourcePath, diagnostics);
+        if (!decoder) {
+            TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::FileOpenFailed);
+            return false;
+        }
+        usdlaz::LazReader reader(std::move(decoder));
+        usdlas::LasHeader header;
+        if (!reader.ReadMetadata(header, diagnostics)) {
+            TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
+                                      usdgeolaz::diagnostics::DecodeFailed,
+                                      "Unable to inspect LAZ file " + resolvedPath +
+                                          ": " + DiagnosticDetail(
+                                              diagnostics, "inspection failed"))
+                                      .c_str());
+            return false;
+        }
+        usdpointcloud::PointChunk chunk;
+        usdgeo::GeoReference reference;
+        usdgeo::SpatialBounds bounds;
+        std::string metadataError;
+        if (!usdlas::BuildPointCloudMetadata(
+                header, chunk, reference, bounds, metadataError)) {
+            TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::PointCloudAuthorFailed);
+            return false;
+        }
+        bool cacheHit = false;
+        std::string cacheError;
+        if (!usdgeo::TryLoadPointCloudCache(
+                layer, sourcePath, reference, request, "laz-reader-1",
+                cacheHit, cacheError)) {
+            TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
+                                      usdgeolaz::diagnostics::PointCloudAuthorFailed,
+                                      cacheError)
+                                      .c_str());
+            return false;
+        }
+        if (cacheHit) {
+            return true;
+        }
     }
 
     if (metadataOnly) {

@@ -116,6 +116,16 @@ An existing committed cache entry is materialized without decoding the source
 again. The cache is derived data; the source file and normalized arguments
 remain the authority for invalidation.
 
+Direct LAS, LAZ, and COPC FileFormat reads can use the same cache entries by
+setting `USDGEO_CACHE_ROOT` in the host process. A committed hit loads the
+cached root before point decoding. The environment variable is storage
+configuration only and is not part of the file-format argument map.
+
+```powershell
+$env:USDGEO_CACHE_ROOT = 'C:\path\to\pointcloud-cache'
+usdcat 'C:\path\to\sample.las:SDF_FORMAT_ARGS:tile=true&tileSize=128'
+```
+
 ## Plain CMake path
 
 The libraries build and test without `ost` and, for everything except the

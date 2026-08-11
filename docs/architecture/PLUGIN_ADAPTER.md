@@ -77,6 +77,13 @@ must normalize arguments first and pass the request's canonical map to
 `SdfLayer::FindOrOpen`; `Read` is too late to change the layer cache key. Pcp
 dynamic file-format composition is intentionally deferred to ADR-0003.
 
+The shared authoring bridge also owns the optional direct cache lookup. When
+`USDGEO_CACHE_ROOT` is set, adapters build the same source-and-request
+descriptor used by the converter after metadata inspection. A committed cache
+hit transfers the cached root into the requested layer and rebases payload
+paths to the cache entry; a miss leaves the existing reader-to-authoring flow
+unchanged. Cache storage is host configuration, not a file-format argument.
+
 ## Target Contract
 
 ```cpp
