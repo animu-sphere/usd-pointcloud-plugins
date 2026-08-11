@@ -1,5 +1,7 @@
 #include "lazperf/io.hpp"
 
+#include "usdgeocopc/ArAssetRandomAccessSource.h"
+
 #include <pxr/base/plug/plugin.h>
 #include <pxr/base/plug/registry.h>
 #include <pxr/base/gf/vec3d.h>
@@ -25,10 +27,60 @@
 
 namespace {
 
+class MemoryAsset final : public pxr::ArAsset {
+public:
+    explicit MemoryAsset(std::vector<std::uint8_t> bytes)
+        : bytes_(std::make_shared<std::vector<std::uint8_t>>(
+              std::move(bytes))) {}
+
+    std::size_t GetSize() const override { return bytes_->size(); }
+
+    std::shared_ptr<const char> GetBuffer() const override {
+        std::shared_ptr<const std::vector<std::uint8_t>> owner = bytes_;
+        return std::shared_ptr<const char>(
+            owner, reinterpret_cast<const char*>(owner->data()));
+    }
+
+    std::size_t Read(void* buffer,
+                     std::size_t count,
+                     std::size_t offset) const override {
+        if (offset > bytes_->size() || count > bytes_->size() - offset) {
+            return 0;
+        }
+        std::memcpy(buffer, bytes_->data() + offset, count);
+        return count;
+    }
+
+    std::pair<FILE*, std::size_t> GetFileUnsafe() const override {
+        return {nullptr, 0};
+    }
+
+private:
+    std::shared_ptr<std::vector<std::uint8_t>> bytes_;
+};
+
 void Check(bool condition) {
     if (!condition) {
         std::abort();
     }
+}
+
+void TestArAssetRandomAccessSource() {
+    auto asset = std::make_shared<MemoryAsset>(
+        std::vector<std::uint8_t>{1, 2, 3, 4, 5});
+    usdgeocopc::ArAssetRandomAccessSource source(asset, "memory.copc");
+
+    std::uint64_t size = 0;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(source.GetSize(size, diagnostics));
+    Check(size == 5);
+
+    std::vector<std::uint8_t> bytes;
+    Check(source.Read(1, 3, bytes, diagnostics));
+    Check((bytes == std::vector<std::uint8_t>{2, 3, 4}));
+    Check(!source.Read(4, 2, bytes, diagnostics));
+    Check(!diagnostics.empty());
+    Check(diagnostics.back().code == usdgeo::DiagnosticCode::InvalidOffset);
 }
 
 void RegisterPlugin(const std::filesystem::path& plugInfo) {
@@ -451,6 +503,7 @@ void TestAuthoredLodEquivalence() {
 } // namespace
 
 int main() {
+    TestArAssetRandomAccessSource();
     RegisterPlugin(std::filesystem::path(USDGEOLAS_SOURCE_DIR) /
                    "plugin" / "resources" / "pointcloud-las" /
                    "plugInfo.json");

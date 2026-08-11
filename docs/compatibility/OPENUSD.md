@@ -51,6 +51,9 @@ The plugins depend on a small, stable part of the API:
   `SDF_DEFINE_FILE_FORMAT`
 - `VtArray`, `GfVec3f`, and `GfVec3d` for authored values
 - `SdfPayload` for the payload-backed tile assets the authoring library emits
+- `ArResolver`, `ArResolvedPath`, and `ArAsset` for resolver-backed COPC byte
+  access; the plugin adapts this source to its OpenUSD-independent reader
+  contract
 
 No Hydra scene index is used.
 
@@ -117,3 +120,7 @@ remain static `SDF_FORMAT_ARGS`. See [ADR-0003](../adr/0003-dynamic-file-format.
   heuristics, and default index; they never read a camera or a viewport.
 - The host is responsible for rendering. These plugins author stages; they do
   not provide a point-cloud render delegate.
+- Remote COPC requires the active resolver to provide efficient random-access
+  reads. HTTP support, authentication, retries, and transport caching remain
+  resolver responsibilities. Generated-USDC cache reuse is disabled unless a
+  stable local filesystem identity is available.

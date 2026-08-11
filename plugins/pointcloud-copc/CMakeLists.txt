@@ -63,7 +63,9 @@ if(NOT pxr_FOUND)
 endif()
 
 set(PLUGIN_NAME UsdGeoCopcFileFormat)
-add_library(${PLUGIN_NAME} SHARED src/UsdGeoCopcFileFormat.cpp)
+add_library(${PLUGIN_NAME} SHARED
+    src/ArAssetRandomAccessSource.cpp
+    src/UsdGeoCopcFileFormat.cpp)
 
 target_compile_features(${PLUGIN_NAME} PRIVATE cxx_std_17)
 target_link_libraries(${PLUGIN_NAME} PRIVATE usdcopc::core usdpointcloud::authoring)
@@ -73,10 +75,12 @@ target_include_directories(${PLUGIN_NAME} PRIVATE
 
 openstrata_link_openusd(
     TARGET ${PLUGIN_NAME}
-    COMPONENTS arch tf gf vt sdf pcp usd)
+    COMPONENTS arch tf gf vt sdf pcp usd ar)
 
 if(USDGEO_BUILD_TESTS)
-    add_executable(pointcloudCopc_tests tests/test_pointcloud_copc.cpp)
+    add_executable(pointcloudCopc_tests
+        src/ArAssetRandomAccessSource.cpp
+        tests/test_pointcloud_copc.cpp)
     target_compile_features(pointcloudCopc_tests PRIVATE cxx_std_17)
     target_link_libraries(pointcloudCopc_tests PRIVATE usdlaz::core)
     target_compile_definitions(pointcloudCopc_tests PRIVATE
@@ -100,7 +104,7 @@ if(USDGEO_BUILD_TESTS)
     endif()
     openstrata_link_openusd(
         TARGET pointcloudCopc_tests
-        COMPONENTS arch tf gf vt sdf pcp usd usdGeom usdLod)
+        COMPONENTS arch tf gf vt sdf pcp usd usdGeom usdLod ar)
     set_target_properties(pointcloudCopc_tests PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
     add_test(NAME pointcloudCopc_integration COMMAND pointcloudCopc_tests)

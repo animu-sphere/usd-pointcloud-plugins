@@ -197,10 +197,11 @@ transaction state creation and retrying the same output workspace.
 - [x] Complete v0.4.0 PLY point-cloud read support with bounded source
       streaming and tiled authoring follow-up work after the shipped scalar
       direct-read and cache-lookup slice.
-- [ ] Complete v0.5.0 COPC random access with an OpenUSD `ArAsset` adapter,
+- [x] Complete v0.5.0 COPC random access with an OpenUSD `ArAsset` adapter,
       resolver-dependent HTTP support, and conservative generated-cache
       identity; the project-owned source interface and local migration are
-      shipped.
+      shipped. Resolver-backed cache reuse is disabled when a stable local
+      filesystem identity is unavailable.
 
 ## Notes
 
