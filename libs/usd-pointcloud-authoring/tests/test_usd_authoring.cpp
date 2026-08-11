@@ -465,6 +465,29 @@ void TestLodAuthoringRejectsMismatchedMetadata() {
     Check(!stage->GetPrimAtPath(pxr::SdfPath("/PointCloud")).IsValid());
 }
 
+void TestLodAuthoringRejectsNonRepresentableExtent() {
+    const auto stage = usdgeo::PointCloudLayer::CreateStage();
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    std::vector<usdpointcloud::PointCloudAsset> levels(2);
+    for (auto& level : levels) {
+        level.reference = reference;
+        level.data.positions = {{1.0e300, 2.0e300, 3.0e300}};
+        level.bounds.Expand(level.data.positions.front());
+        level.chunk = usdpointcloud::MakePointChunk(level.data, level.bounds);
+    }
+    usdpointcloud::PointLodHierarchy hierarchy;
+    hierarchy.bounds = levels[0].bounds;
+    hierarchy.items = {{0, 1, hierarchy.bounds, {0, 1}},
+                       {1, 1, hierarchy.bounds, {0, 1}}};
+    hierarchy.screenSizeThresholds = {0.1f};
+
+    Check(!usdgeo::AuthorPointCloudLodAsset(
+        stage, "/PointCloud", levels, hierarchy));
+    Check(!stage->GetPrimAtPath(pxr::SdfPath("/PointCloud")).IsValid());
+}
+
 void TestLodAuthoringRejectsInvalidLevelWithoutMutation() {
     const auto stage = usdgeo::PointCloudLayer::CreateStage();
     usdgeo::GeoReference reference;
@@ -922,6 +945,7 @@ int main() {
     TestMetadataAuthoringAllowsEmptyPointCloud();
     TestLodAuthoring();
     TestLodAuthoringRejectsMismatchedMetadata();
+    TestLodAuthoringRejectsNonRepresentableExtent();
     TestLodAuthoringRejectsInvalidLevelWithoutMutation();
     TestTiledLodAuthoring();
     TestTiledLodAuthoringSupportsNegativeTileCoordinates();

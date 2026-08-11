@@ -305,7 +305,7 @@ LodSnapshot ReadLodSnapshot(const pxr::UsdStageRefPtr& stage) {
     Check(root.GetAttribute(pxr::TfToken("lod:default:index"))
               .Get(&snapshot.defaultIndex));
     const auto heuristic = stage->GetPrimAtPath(pxr::SdfPath(
-        "/PointCloud/LodHeuristics/ScreenSize"));
+        "/LodHeuristics/PointCloudScreenSize"));
     Check(heuristic.IsValid());
     Check(heuristic.GetAttribute(pxr::TfToken("thresholds"))
               .Get(&snapshot.thresholds));

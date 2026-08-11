@@ -230,13 +230,22 @@ bool AuthorScreenSizeHeuristic(
     if (!heuristic) {
         return false;
     }
+    const pxr::GfVec3f minimum(
+        static_cast<float>(localBounds.minimum.x),
+        static_cast<float>(localBounds.minimum.y),
+        static_cast<float>(localBounds.minimum.z));
+    const pxr::GfVec3f maximum(
+        static_cast<float>(localBounds.maximum.x),
+        static_cast<float>(localBounds.maximum.y),
+        static_cast<float>(localBounds.maximum.z));
+    for (int index = 0; index < 3; ++index) {
+        if (!std::isfinite(minimum[index]) ||
+            !std::isfinite(maximum[index]) || minimum[index] > maximum[index]) {
+            return false;
+        }
+    }
     const pxr::VtArray<pxr::GfVec3f> extent = {
-        pxr::GfVec3f(static_cast<float>(localBounds.minimum.x),
-                     static_cast<float>(localBounds.minimum.y),
-                     static_cast<float>(localBounds.minimum.z)),
-        pxr::GfVec3f(static_cast<float>(localBounds.maximum.x),
-                     static_cast<float>(localBounds.maximum.y),
-                     static_cast<float>(localBounds.maximum.z))};
+        minimum, maximum};
     return heuristic.CreateLodDomainAttr().Set(pxr::UsdLodTokens->imaging) &&
            heuristic.CreateThresholdsAttr().Set(
                pxr::VtArray<float>(thresholds.begin(), thresholds.end())) &&
