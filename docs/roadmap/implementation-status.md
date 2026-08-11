@@ -166,9 +166,9 @@ transaction state creation and retrying the same output workspace.
 
 - [x] Integrate deterministic USDC cache generation and lookup into the
       conversion tool through `--cache-root`
-- [ ] Integrate cache lookup into direct FileFormat and authoring paths. The
-      conversion tool supports `--cache-root`; no FileFormat plugin currently
-      reads `USDGEO_CACHE_ROOT`.
+- [x] Integrate cache lookup into direct FileFormat and authoring paths. The
+      conversion tool owns generation through `--cache-root`; LAS, LAZ, COPC,
+      and PLY adapters read committed entries through `USDGEO_CACHE_ROOT`.
 - [x] Stage licensing, notice, capability, compatibility, and installation
       documents into release assets
 - [x] Adopt narrow format-specific dynamic LOD fields after generated assets
@@ -179,8 +179,8 @@ transaction state creation and retrying the same output workspace.
 - [ ] Complete the v0.3.x documentation consolidation: concise root README
       and synchronized workspace, capability, and implementation documents.
 - [ ] Complete v0.4.0 PLY point-cloud read support with bounded source
-      streaming, direct cache integration, and tiled authoring follow-up work
-      after the shipped scalar direct-read slice.
+      streaming and tiled authoring follow-up work after the shipped scalar
+      direct-read and cache-lookup slice.
 - [ ] Complete v0.5.0 COPC random access through a project-owned source
       interface and an OpenUSD `ArAsset` adapter, with resolver-dependent HTTP
       support and conservative generated-cache identity.

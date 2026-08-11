@@ -23,7 +23,7 @@ uses the same reader and authoring contracts for long-running generation.
 | --- | --- | --- |
 | PLY 1.0 header inspection | Supported | ASCII, binary little-endian, and binary big-endian headers are parsed through vendored tinyply; declared elements and scalar/list properties are retained |
 | Scalar vertex decoding | Supported | `usdply::OpenPointStream` decodes scalar `x`, `y`, `z`, intensity, RGB, and generic scalar vertex properties into shared point chunks and applies source bounds, classification, range, cancellation, chunk, and memory controls; tinyply currently reads the payload before chunking |
-| PLY FileFormat Plugin | Supported | Thin `pointcloud-ply` adapter requires an explicit `epsg` argument, applies optional unit and axis arguments, and authors shared `UsdGeomPoints`; direct cache and tiled reads are not yet connected |
+| PLY FileFormat Plugin | Supported | Thin `pointcloud-ply` adapter requires an explicit `epsg` argument, applies optional unit and axis arguments, authors shared `UsdGeomPoints`, reads committed generated-USDC cache entries, and is exercised by a thinned Stanford Bunny corpus; tiled reads are not yet connected |
 
 ## COPC
 
@@ -151,6 +151,8 @@ All three plugins produce the same layer shape.
 | Stage up axis | `Y` |
 | Stage metersPerUnit | `1.0` |
 | Local origin | Source-space minimum of the header bounds |
+| Point widths | `UsdGeomPoints.widths`, constant value set to approximately one five-thousandth of the stage-local bounds diagonal |
+| Display colors | `primvars:displayColor`, vertex interpolation when RGB data is available |
 
 Dataset metadata authored on the prim:
 
@@ -232,8 +234,9 @@ in the [tile and LOD contract](../architecture/LOD.md).
 - Advanced tile planning such as adaptive depth and point-budget splitting is
   not exposed through LAS/LAZ file-format arguments. The current interface
   provides fixed-grid `tileSize` and `tileMemoryLimit`. The conversion tool
-  can generate and reuse deterministic USDC entries with `--cache-root`.
-  Direct LAS, LAZ, and COPC FileFormat cache lookup is not implemented.
+  can generate and reuse deterministic USDC entries with `--cache-root`;
+  direct LAS, LAZ, COPC, and PLY FileFormat lookup reuses committed entries
+  through `USDGEO_CACHE_ROOT`.
 - Point decoding assumes a little-endian host.
 - Writing LAS, LAZ, or COPC is out of scope; all three plugins export as
   `usda`.

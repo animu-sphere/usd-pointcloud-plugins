@@ -56,6 +56,7 @@ struct PointData {
     std::vector<std::uint16_t> red;
     std::vector<std::uint16_t> green;
     std::vector<std::uint16_t> blue;
+    std::uint8_t colorBitDepth = 16;
     std::vector<std::uint16_t> nir;
     std::vector<double> gpsTime;
     std::vector<std::uint8_t> waveformDescriptorIndex;

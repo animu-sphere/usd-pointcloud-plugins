@@ -2,6 +2,7 @@
 #include "usdgeoply/UsdGeoPlyDiagnostics.h"
 
 #include "usdgeo/Diagnostic.h"
+#include "usdgeo/PointCloudCache.h"
 #include "usdgeo/PointCloudLayer.h"
 #include "usdpointcloud/FileFormatArguments.h"
 #include "usdpointcloud/Sampling.h"
@@ -143,6 +144,22 @@ bool UsdGeoPlyFileFormat::Read(SdfLayer* layer,
 
     usdpointcloud::PointCloudAsset asset;
     const auto reference = MakeReference(request);
+    if (!usdgeo::PointCloudCacheRootFromEnvironment().empty()) {
+        bool cacheHit = false;
+        std::string cacheError;
+        if (!usdgeo::TryLoadPointCloudCache(
+                layer, resolvedPath, reference, request, "ply-reader-1",
+                cacheHit, cacheError)) {
+            TF_RUNTIME_ERROR("%s", usdgeoply::diagnostics::Message(
+                                      usdgeoply::diagnostics::PointCloudAuthorFailed,
+                                      cacheError)
+                                      .c_str());
+            return false;
+        }
+        if (cacheHit) {
+            return true;
+        }
+    }
     if (!usdply::ReadPointCloud(resolvedPath, request.readOptions, reference,
                                 asset, diagnostics)) {
         TF_RUNTIME_ERROR("%s", usdgeoply::diagnostics::Message(

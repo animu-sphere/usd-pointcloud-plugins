@@ -153,10 +153,12 @@ bool AppendPointData(const usdpointcloud::PointData& source,
                      usdpointcloud::PointData& target,
                      std::string& error) {
     if (target.positions.empty()) {
+        target.colorBitDepth = source.colorBitDepth;
         target.extraByteNames = source.extraByteNames;
         target.extraByteComponentCounts = source.extraByteComponentCounts;
         target.extraBytes.resize(source.extraBytes.size());
-    } else if (target.extraByteNames != source.extraByteNames ||
+    } else if (target.colorBitDepth != source.colorBitDepth ||
+               target.extraByteNames != source.extraByteNames ||
                target.extraByteComponentCounts != source.extraByteComponentCounts ||
                target.extraBytes.size() != source.extraBytes.size()) {
         error = "PLY chunks contain inconsistent extra properties";
@@ -322,6 +324,35 @@ bool AssignUnsigned16(double value, std::uint16_t& target) {
     return true;
 }
 
+bool HasTypedIntensity(const std::vector<std::string>& propertyNames,
+                       const std::vector<std::vector<double>>& propertyValues) {
+    const auto intensityIndex = FindPropertyIndex(propertyNames, "intensity");
+    if (intensityIndex == propertyNames.size()) {
+        return false;
+    }
+    std::uint16_t converted = 0;
+    return std::all_of(propertyValues[intensityIndex].begin(),
+                       propertyValues[intensityIndex].end(),
+                       [&](double value) {
+                           return AssignUnsigned16(value, converted);
+                       });
+}
+
+std::uint8_t ColorBitDepth(const tinyply::PlyElement& vertex) {
+    bool hasColor = false;
+    for (const auto& property : vertex.properties) {
+        if (property.name != "red" && property.name != "green" &&
+            property.name != "blue") {
+            continue;
+        }
+        hasColor = true;
+        if (property.propertyType != tinyply::Type::UINT8) {
+            return 16;
+        }
+    }
+    return hasColor ? 8 : 16;
+}
+
 } // namespace
 
 bool InspectHeader(std::istream& input,
@@ -361,11 +392,15 @@ PlyPointStream::PlyPointStream(
     std::vector<std::vector<double>> propertyValues,
     std::uint64_t firstPoint,
     std::uint64_t endPoint,
+    bool typedIntensity,
+    std::uint8_t colorBitDepth,
     usdpointcloud::PointReadOptions options)
     : propertyNames_(std::move(propertyNames)),
       propertyValues_(std::move(propertyValues)),
       nextPoint_(firstPoint),
       endPoint_(endPoint),
+    typedIntensity_(typedIntensity),
+    colorBitDepth_(colorBitDepth),
       options_(std::move(options)) {}
 
 PlyPointStream::~PlyPointStream() = default;
@@ -401,9 +436,11 @@ usdpointcloud::PointStreamStatus PlyPointStream::ReadNext(
         data.red.reserve(count);
         data.green.reserve(count);
         data.blue.reserve(count);
+        data.colorBitDepth = colorBitDepth_;
         for (const auto& name : propertyNames_) {
             if (name != "x" && name != "y" && name != "z" &&
-                name != "intensity" && name != "classification" &&
+                (name != "intensity" || !typedIntensity_) &&
+                name != "classification" &&
                 name != "red" && name != "green" && name != "blue") {
                 data.extraByteNames.push_back(name);
                 data.extraByteComponentCounts.push_back(1);
@@ -452,7 +489,7 @@ usdpointcloud::PointStreamStatus PlyPointStream::ReadNext(
                 if (name == "x" || name == "y" || name == "z") {
                     continue;
                 }
-                if (name == "intensity") {
+                if (name == "intensity" && typedIntensity_) {
                     std::uint16_t converted = 0;
                     if (!AssignUnsigned16(value, converted)) {
                         diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
@@ -617,9 +654,11 @@ std::unique_ptr<PlyPointStream> OpenPointStream(
         const auto endPoint = options.range.pointCount == 0
                                   ? vertex->size
                                   : firstPoint + options.range.pointCount;
+        const auto typedIntensity = HasTypedIntensity(propertyNames, propertyValues);
+        const auto colorBitDepth = ColorBitDepth(*vertex);
         return std::unique_ptr<PlyPointStream>(new PlyPointStream(
             std::move(propertyNames), std::move(propertyValues), firstPoint,
-            endPoint, options));
+            endPoint, typedIntensity, colorBitDepth, options));
     } catch (const std::exception& exception) {
         AddDecodeDiagnostic(diagnostics,
                             std::string("PLY payload read failed: ") +

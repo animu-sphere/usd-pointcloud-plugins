@@ -1,6 +1,8 @@
 #include "usdgeo/PointCloudLayer.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <cmath>
 #include <filesystem>
 #include <set>
 
@@ -52,6 +54,32 @@ bool IsValidMetadataChunk(const usdpointcloud::PointChunk& chunk) {
         }
     }
     return true;
+}
+
+float EstimatePointWidth(const usdgeo::SpatialBounds& bounds,
+                         std::size_t pointCount) {
+    if (!bounds.IsValid() || pointCount == 0) {
+        return 0.001f;
+    }
+    const auto size = bounds.Size();
+    const auto diagonal = std::sqrt(
+        size.x * size.x + size.y * size.y + size.z * size.z);
+    if (!std::isfinite(diagonal) || diagonal <= 0.0) {
+        return 0.001f;
+    }
+    const auto width = diagonal / 5000.0;
+    return static_cast<float>((std::max)(width, 1.0e-6));
+}
+
+bool HasPointColors(const PointCloudLayer::Data& data,
+                    std::size_t pointCount) {
+    return data.red.size() == pointCount &&
+           data.green.size() == pointCount &&
+           data.blue.size() == pointCount;
+}
+
+float PointColorScale(const PointCloudLayer::Data& data) {
+    return data.colorBitDepth <= 8 ? 255.0f : 65535.0f;
 }
 
 pxr::VtIntArray ToIntArray(const std::vector<std::uint16_t>& values) {
@@ -283,6 +311,7 @@ bool AuthorPointCloudAsset(
 
     pxr::VtVec3fArray localPositions;
     localPositions.reserve(data.positions.size());
+    usdgeo::SpatialBounds localBounds = usdgeo::SpatialBounds::Empty();
     for (const Vec3d& position : data.positions) {
         Vec3d local;
         if (!reference.TryToLocal(position, local)) {
@@ -291,6 +320,7 @@ bool AuthorPointCloudAsset(
         localPositions.push_back(pxr::GfVec3f(
             static_cast<float>(local.x), static_cast<float>(local.y),
             static_cast<float>(local.z)));
+        localBounds.Expand(local);
     }
 
     auto points = pxr::UsdGeomPoints::Define(stage, pxr::SdfPath(primPath));
@@ -299,6 +329,28 @@ bool AuthorPointCloudAsset(
     }
 
     points.GetPointsAttr().Set(localPositions);
+    pxr::VtFloatArray widths(1);
+    widths[0] = EstimatePointWidth(localBounds, localPositions.size());
+    if (!points.SetWidthsInterpolation(pxr::UsdGeomTokens->constant) ||
+        !points.CreateWidthsAttr().Set(widths)) {
+        return false;
+    }
+    if (HasPointColors(data, localPositions.size())) {
+        const auto scale = PointColorScale(data);
+        pxr::VtVec3fArray displayColors;
+        displayColors.reserve(localPositions.size());
+        for (std::size_t index = 0; index < localPositions.size(); ++index) {
+            displayColors.push_back(pxr::GfVec3f(
+                static_cast<float>(data.red[index]) / scale,
+                static_cast<float>(data.green[index]) / scale,
+                static_cast<float>(data.blue[index]) / scale));
+        }
+        const auto displayColor = points.CreateDisplayColorPrimvar(
+            pxr::UsdGeomTokens->vertex);
+        if (!displayColor || !displayColor.Set(displayColors)) {
+            return false;
+        }
+    }
     if (!data.intensity.empty()) {
         points.GetPrim().CreateAttribute(
             pxr::TfToken("geo:intensity"), pxr::SdfValueTypeNames->IntArray)

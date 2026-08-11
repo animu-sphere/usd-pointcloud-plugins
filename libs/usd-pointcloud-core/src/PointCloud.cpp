@@ -107,7 +107,8 @@ bool PointData::IsValid() const noexcept {
             }
         }
     }
-    return HasPointCountOrIsEmpty(intensity, pointCount) &&
+        return (colorBitDepth == 8 || colorBitDepth == 16) &&
+            HasPointCountOrIsEmpty(intensity, pointCount) &&
            HasPointCountOrIsEmpty(returnNumber, pointCount) &&
            HasPointCountOrIsEmpty(numberOfReturns, pointCount) &&
            HasPointCountOrIsEmpty(classification, pointCount) &&

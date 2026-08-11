@@ -100,6 +100,7 @@ bool SamplePointData(const PointData& source,
     SampleAttribute(source.red, indices, sampled.red);
     SampleAttribute(source.green, indices, sampled.green);
     SampleAttribute(source.blue, indices, sampled.blue);
+    sampled.colorBitDepth = source.colorBitDepth;
     SampleAttribute(source.nir, indices, sampled.nir);
     SampleAttribute(source.gpsTime, indices, sampled.gpsTime);
     SampleAttribute(source.waveformDescriptorIndex, indices,

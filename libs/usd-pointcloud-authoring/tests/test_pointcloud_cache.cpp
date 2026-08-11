@@ -80,7 +80,7 @@ usdgeo::cache::Descriptor MakeDescriptor(
         std::filesystem::file_size(sourcePath),
         static_cast<std::int64_t>(modified.time_since_epoch().count()),
         HashFile(sourcePath)};
-    descriptor.pluginVersion = "usd-pointcloud-plugins-0.2.2";
+    descriptor.pluginVersion = "usd-pointcloud-plugins-0.3.0-display-v2";
     descriptor.parserVersion = "las-reader-1";
     descriptor.openUsdVersion = "26.08";
     descriptor.coordinateTransform = {

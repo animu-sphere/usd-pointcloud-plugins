@@ -71,12 +71,16 @@ private:
                    std::vector<std::vector<double>> propertyValues,
                    std::uint64_t firstPoint,
                    std::uint64_t endPoint,
+                   bool typedIntensity,
+                   std::uint8_t colorBitDepth,
                    usdpointcloud::PointReadOptions options);
 
     std::vector<std::string> propertyNames_;
     std::vector<std::vector<double>> propertyValues_;
     std::uint64_t nextPoint_ = 0;
     std::uint64_t endPoint_ = 0;
+    bool typedIntensity_ = false;
+    std::uint8_t colorBitDepth_ = 16;
     usdpointcloud::PointReadOptions options_;
 };
 
