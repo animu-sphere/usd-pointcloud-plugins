@@ -165,16 +165,16 @@ jobs:
             --from-artifact "$OST_CI_RUNTIME_ARTIFACT" --force
           ost runtime validate "$OST_PLATFORM" --profile "$OST_PROFILE" --json
 
-      - name: Build and test LAS, LAZ, and COPC plugins
+      - name: Build and test all plugins
         shell: bash
         run: |
           set -euo pipefail
-          for bundle in plugins/pointcloud-las plugins/pointcloud-laz plugins/pointcloud-copc; do
+          for bundle in plugins/pointcloud-las plugins/pointcloud-laz plugins/pointcloud-copc plugins/pointcloud-ply; do
             ost plugin build "$bundle" --target "$OST_PLATFORM" --profile "$OST_PROFILE"
             ost plugin test "$bundle" --target "$OST_PLATFORM" --profile "$OST_PROFILE" --up-to "${{ matrix.up_to }}" --json
           done
 
-      - name: Package LAS and LAZ plugins
+      - name: Package all plugins
         shell: bash
         run: |
           set -euo pipefail
