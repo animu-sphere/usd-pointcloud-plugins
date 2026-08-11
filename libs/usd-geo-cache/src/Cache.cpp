@@ -1,6 +1,10 @@
 #include "usdgeo/cache/Cache.h"
 
+#include <array>
+#include <fstream>
 #include <filesystem>
+#include <iomanip>
+#include <sstream>
 #include <string>
 
 namespace usdgeo::cache {
@@ -32,7 +36,8 @@ std::string TileName(const usdgeo::TileId& tile) {
 } // namespace
 
 bool SourceIdentity::IsValid() const noexcept {
-    return !canonicalPath.empty() && !contentIdentity.empty();
+    return (!identifier.empty() || !canonicalPath.empty()) &&
+           (!validationToken.empty() || !contentIdentity.empty());
 }
 
 bool Descriptor::IsValid() const noexcept {
@@ -49,12 +54,84 @@ bool Layout::IsValid() const noexcept {
            !manifest.empty() && !payloadDirectory.empty();
 }
 
+bool TryBuildLocalSourceIdentity(const std::filesystem::path& sourcePath,
+                                 SourceIdentity& identity,
+                                 std::string& errorMessage) {
+    identity = {};
+    errorMessage.clear();
+    std::error_code error;
+    const auto canonicalPath =
+        std::filesystem::weakly_canonical(sourcePath, error);
+    if (error) {
+        errorMessage = "unable to canonicalize input for cache identity: " +
+                       error.message();
+        return false;
+    }
+    const auto size = std::filesystem::file_size(sourcePath, error);
+    if (error) {
+        errorMessage = "unable to inspect input for cache identity: " +
+                       error.message();
+        return false;
+    }
+    const auto modified = std::filesystem::last_write_time(sourcePath, error);
+    if (error) {
+        errorMessage = "unable to inspect input timestamp for cache identity: " +
+                       error.message();
+        return false;
+    }
+
+    std::ifstream input(sourcePath, std::ios::binary);
+    if (!input) {
+        errorMessage = "unable to open input for cache identity";
+        return false;
+    }
+    constexpr std::uint64_t offsetBasis = 14695981039346656037ull;
+    constexpr std::uint64_t prime = 1099511628211ull;
+    std::uint64_t hash = offsetBasis;
+    std::array<char, 64 * 1024> buffer{};
+    while (input) {
+        input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        const auto count = input.gcount();
+        for (std::streamsize index = 0; index < count; ++index) {
+            hash ^= static_cast<unsigned char>(
+                buffer[static_cast<std::size_t>(index)]);
+            hash *= prime;
+        }
+    }
+    if (!input.eof()) {
+        errorMessage = "unable to read input for cache identity";
+        return false;
+    }
+
+    std::ostringstream token;
+    token << "fnv1a64:" << std::hex << std::setfill('0') << std::setw(16)
+          << hash;
+    identity.identifier = canonicalPath.generic_string();
+    identity.sizeBytes = size;
+    identity.modifiedTime =
+        static_cast<std::int64_t>(modified.time_since_epoch().count());
+    identity.validationToken = token.str();
+    identity.canonicalPath = identity.identifier;
+    identity.contentIdentity = identity.validationToken;
+    if (!identity.IsValid()) {
+        errorMessage = "generated source identity is invalid";
+        return false;
+    }
+    return true;
+}
+
 usdgeo::CacheArguments MakeCacheArguments(const Descriptor& descriptor) {
+    const auto& sourceIdentifier = descriptor.source.identifier.empty()
+                                       ? descriptor.source.canonicalPath
+                                       : descriptor.source.identifier;
+    const auto& sourceValidation = descriptor.source.validationToken.empty()
+                                       ? descriptor.source.contentIdentity
+                                       : descriptor.source.validationToken;
     usdgeo::CacheArguments arguments{
-        {"source.path", descriptor.source.canonicalPath},
+        {"source.identifier", sourceIdentifier},
         {"source.size", std::to_string(descriptor.source.sizeBytes)},
         {"source.modified", std::to_string(descriptor.source.modifiedTime)},
-        {"source.content", descriptor.source.contentIdentity},
+        {"source.validation", sourceValidation},
         {"plugin.version", descriptor.pluginVersion},
         {"parser.version", descriptor.parserVersion},
         {"openusd.version", descriptor.openUsdVersion}};

@@ -10,9 +10,11 @@
 namespace usdgeo::cache {
 
 struct SourceIdentity {
-    std::string canonicalPath;
+    std::string identifier;
     std::uintmax_t sizeBytes = 0;
     std::int64_t modifiedTime = 0;
+    std::string validationToken;
+    std::string canonicalPath;
     std::string contentIdentity;
 
     bool IsValid() const noexcept;
@@ -42,6 +44,10 @@ struct Layout {
 
 usdgeo::CacheArguments MakeCacheArguments(const Descriptor& descriptor);
 std::string StableCacheKey(const Descriptor& descriptor);
+
+bool TryBuildLocalSourceIdentity(const std::filesystem::path& sourcePath,
+                                 SourceIdentity& identity,
+                                 std::string& errorMessage);
 
 bool TryBuildLayout(const std::filesystem::path& cacheRoot,
                     const Descriptor& descriptor,
