@@ -57,7 +57,7 @@ schema is deferred until the plain-attribute metadata contract is stable.
 | --- | --- | --- | --- |
 | `v0.4.0` | PLY read support | Prove the shared contracts outside the LAS family | Released |
 | `v0.5.0` | Remote source architecture | Resolver-backed COPC through a project-owned random-access source | Implemented on `main`; release pending |
-| `v0.6.0` | Cache and source identity | Deterministic local and remote generated-output reuse | Planned |
+| `v0.6.0` | Cache and source identity | Deterministic local reuse and conservative remote identity | In progress |
 | `v0.7.0` | Adaptive tiling | Predictable payload density and memory through point-budget planning | Planned |
 | Later | Format expansion | E57 and other point-cloud formats through `PointStream` | Deferred |
 
@@ -105,6 +105,12 @@ Candidate work:
 
 Cache reuse remains disabled when source identity is not stable enough to
 exclude stale output.
+
+The current baseline is explicit: local conversion records one miss followed
+by one hit for the same descriptor, while resolver-backed COPC remains a
+non-reuse path unless the resolver can supply a stable validation token. The
+COPC integration test keeps this conservative behavior covered when
+`USDGEO_CACHE_ROOT` is configured.
 
 ### `v0.7.0` - Adaptive Tiling
 

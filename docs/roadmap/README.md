@@ -147,7 +147,7 @@ sufficiently stable rather than risking stale generated output.
 | 4 | Tiling, LOD, and local COPC | Complete in `v0.3.0` | Spill-backed tiled authoring and local COPC hierarchy reads share the common contracts |
 | 5 | PLY point-cloud read support | Complete in `v0.4.0` | Bounded scalar decoding and payload-backed tiled plugin reads share the common contracts |
 | 6 | Resolver-backed COPC random access | Implemented for `v0.5.0` | The plugin adapts resolver-opened `ArAsset` values to the project-owned source interface; remote cache reuse is conservative |
-| 7 | Source identity and cache hardening | Planned for `v0.6.0` | Keep generated-output cache identity format- and transport-independent |
+| 7 | Source identity and cache hardening | In progress for `v0.6.0` | Keep generated-output cache identity format- and transport-independent |
 | 8 | Point-budget-aware adaptive tiling | Planned for `v0.7.0` | Preserve fixed-grid behavior while adding deterministic adaptive planning |
 | 9 | E57 and other point-cloud formats | Deferred | Reuse `PointStream`, processing, authoring, and cache contracts |
 
@@ -165,7 +165,7 @@ maps onto the phases above.
 | W5 | Documentation consolidation | `v0.3.x` | Complete |
 | W6 | PLY decoding and plugin integration | 5 | Complete in `v0.4.0` |
 | W7 | Random-access source and resolver-backed COPC | 6 | Implemented for `v0.5.0` |
-| W8 | Source identity and generated-cache hardening | 7 | Planned for `v0.6.0` |
+| W8 | Source identity and generated-cache hardening | 7 | In progress for `v0.6.0` |
 | W9 | Point-budget-aware adaptive tiling | 8 | Planned for `v0.7.0` |
 
 The completed workstreams established the shared point schema, streaming reader

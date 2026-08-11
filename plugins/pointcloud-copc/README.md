@@ -21,5 +21,6 @@ only when the active resolver supplies an asset with efficient random-access
 reads, such as HTTP byte-range support. The plugin does not implement an HTTP
 client, transport retries, or a network cache. Generated-USDC cache lookup is
 limited to stable local filesystem identities; resolver-backed sources are
-not reused when that identity cannot be established. Remote tiled reads
-require an absolute local `payloadDirectory`.
+not reused when that identity cannot be established. The integration baseline
+keeps this behavior covered with `USDGEO_CACHE_ROOT` configured. Remote tiled
+reads require an absolute local `payloadDirectory`.

@@ -227,7 +227,11 @@ The ordered plan and acceptance priorities are in the
       committed cache roots are opened and payload references are validated
       before reuse; unreadable roots and invalid or missing payloads are
       invalidated through the descriptor-derived entry path
-- [ ] Establish local and resolver-backed cache reuse baselines
+- [x] Establish local and resolver-backed cache reuse baselines. The
+      conversion integration test records the local miss-to-hit path, while
+      `pointcloudCopc_integration` verifies that configuring `USDGEO_CACHE_ROOT`
+      does not enable reuse for resolver assets without a stable validation
+      token.
 
 #### `v0.7.0` - adaptive tiling
 

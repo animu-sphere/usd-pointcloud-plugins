@@ -86,6 +86,14 @@ void SetHttpResolverAsset(const std::filesystem::path& assetPath) {
 #endif
 }
 
+void SetCacheRoot(const std::filesystem::path& cacheRoot) {
+#if defined(_WIN32)
+    Check(_putenv_s("USDGEO_CACHE_ROOT", cacheRoot.string().c_str()) == 0);
+#else
+    Check(setenv("USDGEO_CACHE_ROOT", cacheRoot.string().c_str(), 1) == 0);
+#endif
+}
+
 void TestArAssetRandomAccessSource() {
     auto asset = std::make_shared<MemoryAsset>(
         std::vector<std::uint8_t>{1, 2, 3, 4, 5});
@@ -546,6 +554,11 @@ void TestResolverBackedRead() {
     Check(resolverOutput.good());
     resolverOutput.close();
     SetHttpResolverAsset(resolverAsset);
+    const auto cacheRoot = std::filesystem::temp_directory_path() /
+                           "usd_copc_resolver_cache_baseline";
+    std::error_code cacheError;
+    std::filesystem::remove_all(cacheRoot, cacheError);
+    SetCacheRoot(cacheRoot);
 
     const auto resolvedAsset = pxr::ArGetResolver().OpenAsset(
         pxr::ArResolvedPath("http://memory.copc"));
@@ -569,6 +582,7 @@ void TestResolverBackedRead() {
         pxr::SdfPath("/PointCloud.geo:pointCount")));
 
     std::error_code error;
+    std::filesystem::remove_all(cacheRoot, error);
     std::filesystem::remove(lazPath, error);
     std::filesystem::remove(copcPath, error);
     std::filesystem::remove(resolverAsset, error);
