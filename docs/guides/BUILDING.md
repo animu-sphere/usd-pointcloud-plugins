@@ -123,7 +123,7 @@ configuration only and is not part of the file-format argument map.
 
 ```powershell
 $env:USDGEO_CACHE_ROOT = 'C:\path\to\pointcloud-cache'
-usdcat 'C:\path\to\sample.las:SDF_FORMAT_ARGS:tile=true&tileSize=128'
+usdcat 'C:\path\to\sample.las:SDF_FORMAT_ARGS:tile=true&tileSize=128&payloadDirectory=payloads'
 ```
 
 ## Plain CMake path

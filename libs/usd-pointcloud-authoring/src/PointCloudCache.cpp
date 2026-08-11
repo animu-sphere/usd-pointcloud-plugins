@@ -8,7 +8,9 @@
 #include <cstdlib>
 #include <fstream>
 #include <iomanip>
+#include <set>
 #include <sstream>
+#include <vector>
 
 namespace usdgeo {
 namespace {
@@ -84,8 +86,10 @@ bool BuildDescriptor(const std::filesystem::path& sourcePath,
         return false;
     }
 
-    descriptor.source = {canonicalPath.generic_string(), size,
-                         modified.time_since_epoch().count(), contentIdentity};
+    descriptor.source = {
+        canonicalPath.generic_string(), size,
+        static_cast<std::int64_t>(modified.time_since_epoch().count()),
+        contentIdentity};
     descriptor.pluginVersion = "usd-pointcloud-plugins-0.2.2";
     descriptor.parserVersion = parserVersion;
     descriptor.openUsdVersion = "26.08";
@@ -114,8 +118,110 @@ bool BuildDescriptor(const std::filesystem::path& sourcePath,
     return true;
 }
 
+bool IsWithin(const std::filesystem::path& path,
+              const std::filesystem::path& directory) {
+    const auto relative = path.lexically_normal().lexically_relative(
+        directory.lexically_normal());
+    if (relative.empty() || relative.is_absolute()) {
+        return false;
+    }
+    for (const auto& component : relative) {
+        if (component == "..") {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool MaterializePayloads(
+    const pxr::SdfLayerHandle& layer,
+    const usdgeo::cache::Layout& layout,
+    const std::filesystem::path& targetDirectory) {
+    const auto sourceDirectory = layout.payloadDirectory.lexically_normal();
+    const auto normalizedTarget = targetDirectory.lexically_normal();
+
+    std::vector<std::pair<std::filesystem::path, std::filesystem::path>> files;
+    bool valid = true;
+    layer->Traverse(pxr::SdfPath::AbsoluteRootPath(),
+                    [&](const pxr::SdfPath& path) {
+        const auto prim = layer->GetPrimAtPath(path);
+        if (!prim || !prim->HasPayloads()) {
+            return;
+        }
+        const auto payloads = prim->GetPayloadList();
+        const auto collect = [&](auto items) {
+            for (const auto& item : items) {
+                const pxr::SdfPayload payload = item;
+                const auto assetPath = payload.GetAssetPath();
+                if (assetPath.empty()) {
+                    continue;
+                }
+                const std::filesystem::path sourcePath =
+                    (layout.entryDirectory / assetPath).lexically_normal();
+                if (std::filesystem::path(assetPath).is_absolute() ||
+                    !IsWithin(sourcePath, sourceDirectory)) {
+                    valid = false;
+                    return;
+                }
+                const auto relative =
+                    sourcePath.lexically_relative(sourceDirectory);
+                const auto targetPath =
+                    (normalizedTarget / relative).lexically_normal();
+                std::error_code error;
+                if (!std::filesystem::is_regular_file(sourcePath, error) ||
+                    error) {
+                    valid = false;
+                    return;
+                }
+                files.emplace_back(sourcePath, targetPath);
+            }
+        };
+        collect(payloads.GetExplicitItems());
+        collect(payloads.GetAddedItems());
+        collect(payloads.GetPrependedItems());
+        collect(payloads.GetAppendedItems());
+    });
+    if (!valid) {
+        return false;
+    }
+
+    std::set<std::filesystem::path> createdFiles;
+    std::error_code error;
+    for (const auto& [sourcePath, targetPath] : files) {
+        static_cast<void>(sourcePath);
+        const auto targetExists = std::filesystem::exists(targetPath, error);
+        if (error || (targetExists &&
+                      !std::filesystem::is_regular_file(targetPath, error)) ||
+            error) {
+            valid = false;
+            break;
+        }
+        if (targetExists) {
+            continue;
+        }
+        std::filesystem::create_directories(targetPath.parent_path(), error);
+        if (error || !std::filesystem::copy_file(
+                         sourcePath, targetPath,
+                         std::filesystem::copy_options::none, error) ||
+            error) {
+            valid = false;
+            break;
+        }
+        createdFiles.insert(targetPath);
+    }
+    if (!valid) {
+        for (const auto& path : createdFiles) {
+            std::filesystem::remove(path, error);
+            error.clear();
+        }
+    }
+    return valid;
+}
+
 void RebasePayloads(pxr::SdfLayer* layer,
-                    const std::filesystem::path& entryDirectory) {
+                    const std::filesystem::path& sourceBaseDirectory,
+                    const std::filesystem::path& targetBaseDirectory,
+                    const std::filesystem::path& layerBaseDirectory) {
     layer->Traverse(pxr::SdfPath::AbsoluteRootPath(),
                     [&](const pxr::SdfPath& path) {
         const auto prim = layer->GetPrimAtPath(path);
@@ -130,10 +236,19 @@ void RebasePayloads(pxr::SdfLayer* layer,
                     std::filesystem::path(payload.GetAssetPath()).is_absolute()) {
                     continue;
                 }
-                const auto absolutePath =
-                    (entryDirectory / payload.GetAssetPath()).lexically_normal();
+                const auto sourcePath =
+                    (sourceBaseDirectory / payload.GetAssetPath()).lexically_normal();
+                const auto targetPath =
+                    (targetBaseDirectory /
+                     sourcePath.lexically_relative(
+                         (sourceBaseDirectory / "payloads").lexically_normal()))
+                        .lexically_normal();
+                const auto relativeTarget = targetPath.lexically_relative(
+                    layerBaseDirectory.lexically_normal());
                 auto rebased = payload;
-                rebased.SetAssetPath(absolutePath.generic_string());
+                rebased.SetAssetPath(
+                    (relativeTarget.empty() ? targetPath : relativeTarget)
+                        .generic_string());
                 items.Replace(payload, rebased);
             }
         };
@@ -141,7 +256,6 @@ void RebasePayloads(pxr::SdfLayer* layer,
         rebase(payloads.GetAddedItems());
         rebase(payloads.GetPrependedItems());
         rebase(payloads.GetAppendedItems());
-        rebase(payloads.GetDeletedItems());
     });
 }
 
@@ -191,11 +305,30 @@ bool TryLoadPointCloudCache(
 
     const auto cachedLayer = pxr::SdfLayer::FindOrOpen(layout.rootLayer.string());
     if (!cachedLayer) {
-        errorMessage = "unable to open cached root layer";
-        return false;
+        return true;
+    }
+
+    std::filesystem::path targetPayloadDirectory;
+    if (!request.payloadDirectory.empty()) {
+        targetPayloadDirectory = request.payloadDirectory;
+        if (targetPayloadDirectory.is_relative()) {
+            targetPayloadDirectory = sourcePath.parent_path() /
+                                     targetPayloadDirectory;
+        }
+        std::error_code error;
+        targetPayloadDirectory =
+            std::filesystem::absolute(targetPayloadDirectory, error);
+        if (error || !MaterializePayloads(
+                         cachedLayer, layout, targetPayloadDirectory)) {
+            return true;
+        }
     }
     layer->TransferContent(cachedLayer);
-    RebasePayloads(layer, layout.entryDirectory);
+    RebasePayloads(
+        layer, layout.entryDirectory,
+        targetPayloadDirectory.empty() ? layout.payloadDirectory
+                                       : targetPayloadDirectory,
+        sourcePath.parent_path());
     hit = true;
     return true;
 }
