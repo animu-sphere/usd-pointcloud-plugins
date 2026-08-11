@@ -183,6 +183,18 @@ jobs:
             --profile "$OST_PROFILE" --json
           find . -type f \( -name '*-plugin-product.tar.zst' -o -name '*.manifest.json' -o -name '*.sbom.spdx.json' \) \
             -exec cp {} release-stage/ \;
+          cp LICENSE NOTICE THIRD_PARTY_NOTICES.md \
+            third_party/laz-perf/COPYING \
+            docs/reference/CAPABILITY_MATRIX.md \
+            docs/compatibility/OPENUSD.md \
+            docs/guides/INSTALL.md release-stage/
+          test -f release-stage/LICENSE
+          test -f release-stage/NOTICE
+          test -f release-stage/THIRD_PARTY_NOTICES.md
+          test -f release-stage/COPYING
+          test -f release-stage/CAPABILITY_MATRIX.md
+          test -f release-stage/OPENUSD.md
+          test -f release-stage/INSTALL.md
           test -n "$(find release-stage -type f -print -quit)"
           ls -la release-stage
 

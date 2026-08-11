@@ -70,7 +70,9 @@ step, not to layer composition.
   [tile and LOD contract](../architecture/LOD.md), where each LOD child is its
   own `.usdc`.
 - Best runtime behavior for large data: no re-decode, real payload boundaries.
-- Requires the USDC cache, which is not implemented.
+- Requires the generated USDC cache path to be stable and usable by hosts. The
+  repository now provides deterministic cache descriptors, generation through
+  the conversion tool, and direct lookup through `USDGEO_CACHE_ROOT`.
 - Parameters are not interactively adjustable on the composed stage.
 
 ### C. Dynamic file format
