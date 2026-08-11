@@ -1,20 +1,22 @@
 # Streaming and Spatial Tiling
 
-This is the plan for the next major capability: consuming large point clouds
-without accumulating the complete cloud in memory, and turning the result into
-payload-backed `usdLod` tile assets.
+This document records the completed first-generation approach to consuming
+large point clouds without accumulating the complete cloud in memory and
+turning the result into payload-backed `usdLod` tile assets.
 
-Status: **in progress**. The `PointStream` contract, LAS and LAZ connections,
+Status: **complete for fixed-grid tiling**. The `PointStream` contract, LAS,
+LAZ, COPC, and PLY connections,
 spill-backed routing, and one-tile-at-a-time payload authoring are implemented.
 The production path for long-running tiled generation is now an explicit
 conversion tool; FileFormat-triggered generation remains a compatibility path
 and is not the target operational interface. The converter publishes a
 deterministic `<root>.manifest` sidecar containing normalized generation
 arguments and the relative payload asset list.
-Generated-corpus RSS measurement and an explicit benchmark target for
-generated, LAS, and LAZ inputs are implemented. A real-input baseline is
-recorded below; broader real-world measurements and payload working-set
-measurement remain open. What `main`
+Generated-corpus RSS measurement and explicit benchmark paths are implemented.
+Real-input and payload working-set baselines are recorded below; a broader
+real-world matrix remains open. Adaptive point-budget planning is a later
+milestone in the
+[infrastructure maturity roadmap](infrastructure-maturity.md). What `main`
 implements today is in
 [implementation status](implementation-status.md) and
 [capability matrix](../reference/CAPABILITY_MATRIX.md).

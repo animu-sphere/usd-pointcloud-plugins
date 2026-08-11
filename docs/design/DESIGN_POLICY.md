@@ -1,6 +1,6 @@
 # Development Policy
 
-Last updated: 2026-08-01
+Last updated: 2026-08-12
 
 This document is the standing development policy for `usd-pointcloud-plugins`. The
 roadmap, format support order, and architecture documents refine it; they do
@@ -8,57 +8,64 @@ not override it.
 
 ## 1. Purpose
 
-`usd-pointcloud-plugins` provides OpenUSD FileFormat Plugins that bring point-
-cloud data into OpenUSD workflows for surveying, scanning, mapping, and 3D
-data exchange.
+`usd-pointcloud-plugins` provides format-independent ingestion, streaming,
+tiling, metadata, cache, and OpenUSD authoring infrastructure that brings
+point-cloud data into surveying, scanning, mapping, and 3D data-exchange
+workflows.
 
-LAS and LAZ are the initial targets. The intended point-cloud coverage is
-wider: COPC, PLY, delimited text point formats (XYZ, PTS, CSV), and E57. The
-shared contracts must therefore not depend on a single format or a single
-OpenUSD version, so that those formats, plus tiling, LOD, caching, and
-streaming, can be added later without rewriting the readers.
+LAS, LAZ, COPC, and PLY establish the current implementation. Future formats
+such as E57 and delimited text must adapt to `PointStream` and the existing
+processing, cache, and authoring path. The shared contracts do not depend on a
+single format, transport, or OpenUSD version.
 The order and entry gates are in
 [format support order](../roadmap/format-support-order.md).
 
-Terrain, raster, and vector formats are outside this repository's active scope.
+Point-cloud rendering, viewport LOD selection, generic mesh import, writing,
+and arbitrary scene conversion are outside this repository's active scope.
+Terrain, raster, and vector formats are also outside this repository.
 Potential future repositories for those data models are recorded in the
 roadmap rather than treated as point-cloud release gates.
 
-The repository is not a one-shot conversion tool. The goal is a foundation
-where an OpenUSD application can reference, inspect, and progressively load
-point-cloud data directly.
+The repository supports both direct FileFormat access and explicit conversion.
+Direct access serves inspection and preview; `usd-pointcloud-convert` is the
+production path for long-running deterministic payload and cache generation.
 
 ## 2. Current Assessment
 
-v0.1.0 is a complete first public release. The properties to preserve are:
+v0.4.0 is released and resolver-backed COPC for v0.5.0 is implemented on
+`main`. The properties to preserve are:
 
 - Format parsing is separated from OpenUSD API usage.
-- LAS and LAZ share one point-cloud authoring path.
+- LAS, LAZ, COPC, and PLY share point-stream and authoring contracts.
 - The core libraries and readers build and test without OpenUSD.
 - Geospatial metadata, point-cloud, USD authoring, and plugin responsibilities
   have clear boundaries.
 - License boundaries for test data, third-party code, and project code are
   recorded.
+- Readers remain independent of OpenUSD and transport policy.
 - Implementation status and roadmap are documented.
 
-The next work tightens the match between documented and implemented behavior,
-then strengthens large-data handling, point-format coverage, distribution
-licensing, and the diagnostics API.
+The next work formalizes source identity and cache invalidation, then adds
+point-budget-aware adaptive tiling. Format expansion follows those
+infrastructure milestones. See the
+[infrastructure maturity roadmap](../roadmap/infrastructure-maturity.md).
 
 ## 3. Design Principles
 
 ### 3.1 Dependency Direction
 
 ```text
-usdGeoCore
-  |-- usdPointCloudCore -- usdLas -- usdLaz
-  `-- usdPointCloudAuthoring
-             |
-  pointcloud-las / pointcloud-laz plugin bundles
+format source -> format reader -> PointStream
+                                  |
+                                  +-> usdPointCloudTiling
+                                  +-> usdPointCloudAuthoring -> OpenUSD
+
+ArResolver -> ArAsset adapter -> random-access source -> usdCopc
 ```
 
-`usdLas` and `usdPointCloudCore` both depend on `usdGeoCore`. `usdLaz` delegates
-LAS record interpretation to `usdLas` after decompression.
+Format readers depend on project-owned core contracts. `usdLaz` delegates LAS
+record interpretation to `usdLas` after decompression, while `usdCopc` uses the
+same LAZ decoding path behind a transport-independent random-access source.
 
 Rules:
 
@@ -72,9 +79,9 @@ Rules:
 - New OpenUSD features are not embedded directly into format-independent
   contracts.
 
-Both plugins now meet the thin-adapter rule: each normalizes its arguments,
-drives `usdlas::LasReader` or `usdlaz::LazReader`, and authors through the
-shared entry point. The remaining migration steps are recorded in the
+The LAS, LAZ, COPC, and PLY plugins meet the thin-adapter rule: each normalizes
+its arguments, drives its format reader, and authors through the shared entry
+point. Adapter requirements are recorded in the
 [plugin adapter contract](../architecture/PLUGIN_ADAPTER.md). Keeping the
 adapters thin remains a prerequisite for streaming and tiling work, because
 otherwise the duplication is copied into every later bundle.
@@ -214,9 +221,9 @@ Extra Bytes support is high priority. Requirements:
 
 ### 4.7 Formats After LAS and LAZ
 
-The next formats are COPC, PLY, delimited text point files, E57, GeoTIFF and
-DEM elevation, and COG. They are added under the same rules, with three
-additions:
+COPC and PLY are implemented. E57, delimited text, and other point-cloud
+formats remain deferred until source identity, cache hardening, and adaptive
+tiling mature. They are added under the same rules, with three additions:
 
 - **No implied georeferencing.** PLY, XYZ, PTS, CSV, and some E57 files carry
   no CRS or unit. A missing CRS is a diagnostic and an explicit file-format
@@ -565,10 +572,14 @@ libs/
       LasWaveform.cpp
   usd-laz/
   usd-pointcloud-authoring/
-  usd-pointcloud-tiling/        (reserved)
+  usd-pointcloud-tiling/
+  usd-copc/
+  usd-ply/
 plugins/
   pointcloud-las/
   pointcloud-laz/
+  pointcloud-copc/
+  pointcloud-ply/
 docs/
   architecture/
   reference/
@@ -589,108 +600,61 @@ The LAS implementation is split into internal modules by format inspection,
 metadata, point decoding, reader/streaming, and PointCloud conversion. New
 directories are created when their first tested capability exists.
 
-Later format libraries (`usd-copc`, `usd-ply`, `usd-ascii-points`, `usd-e57`,
-`usd-terrain-core`) and their plugin bundles follow the same shape. The full
-target layout is in [workspace contract](../architecture/WORKSPACE.md).
+Later point-cloud libraries such as `usd-ascii-points` and `usd-e57`, if
+approved by the roadmap, follow the same shape. Terrain, raster, and vector
+modules belong in separate repositories. The binding layout is in the
+[workspace contract](../architecture/WORKSPACE.md).
 
 ## 15. Workstream Priority
 
-### W1: Public specification alignment
+### W1: Remote Source Architecture (`v0.5.0`)
 
-- State the exact point format range in the README
-- Add the supported formats matrix
-- Add known limitations
-- Define the base typed diagnostic types
-- Introduce an endian-safe binary reader
+Keep the random-access source project-owned and transport-independent. Adapt
+resolver-opened `ArAsset` values in the plugin layer and prove selective,
+bounded, cancellable COPC reads with deterministic diagnostics.
 
-### W2: LAS attribute coverage
+### W2: Cache and Source Identity (`v0.6.0`)
 
-Classification flags, scanner channel, scan angle, user data, point source ID,
-NIR, GeoTIFF CRS, and Extra Bytes.
+Define neutral source identity and explicit generated-cache invalidation,
+compatibility, diagnostics, statistics, and corruption-recovery behavior.
+Transport-specific metadata may inform identity but does not enter the cache
+contract directly.
 
-### W3: All standard point formats
+### W3: Adaptive Tiling (`v0.7.0`)
 
-Formats 4, 5, 9, and 10; waveform descriptors; waveform packet metadata; and
-external waveform data references.
+Add deterministic point-budget-aware planning, depth and payload limits, tile
+statistics, and cross-format performance baselines while preserving the
+existing fixed-grid path.
 
-### W4: Large-data foundation
+### W4: Format Expansion (Later)
 
-Chunk iterator, range decode, memory budget, cancellation, attribute
-selection, bounds filter, and deterministic sampling.
+Add E57 and other point-cloud formats only through the shared `PointStream`,
+processing, cache, and authoring contracts. Do not use format work to bypass an
+unresolved common abstraction.
 
-The reader-side contract is reachable through both plugins for chunking,
-ranges, attribute selection, LOD profiles, and spatial tiling. Bounds and
-classification filters remain to be exposed as file-format arguments. See the
-[plugin adapter contract](../architecture/PLUGIN_ADAPTER.md).
+Workstreams and acceptance criteria are maintained in the
+[infrastructure maturity roadmap](../roadmap/infrastructure-maturity.md).
 
-### W5: Tile and LOD
+## 16. Active Planning Topics
 
-Shared tile and LOD contracts, hierarchy builder, geometric error,
-deterministic sampling, `usdLod` authoring in `usdPointCloudAuthoring`, LOD file-format
-arguments, per-tile USD assets, and Storm integration evidence. Scoped by the
-[tile and LOD contract](../architecture/LOD.md).
+Public issues should be derived from the current roadmap rather than retained
+as a duplicate numbered list in this policy. Active topics are:
 
-### W6: Cache and additional formats
-
-USDC cache, COPC, PLY, delimited text point formats, E57, GeoTIFF and DEM
-elevation, COG, and remote byte-range sources.
-
-Workstreams map onto the roadmap phases in
-[roadmap](../roadmap/README.md). Point-format expansion and tile/LOD work may run
-in parallel, but the shared point schema and streaming reader API are
-stabilized first because both depend on them.
-
-## 16. Tracked Issues
-
-The following are managed as public issues:
-
-1. Document the exact LAS point-format support matrix
-2. Introduce endian-safe binary decoding
-3. Replace string-only LAS errors with typed diagnostics
-4. Add LAS point format 4 decoding
-5. Add LAS point format 5 decoding
-6. Add LAS point format 9 decoding
-7. Add LAS point format 10 decoding
-8. Add waveform packet descriptor parsing
-9. Add GeoTIFF CRS VLR parsing
-10. Add Extra Bytes VLR parsing and generic attributes
-11. Add complete LAS 1.4 classification flags
-12. Add NIR point attribute support
-13. Add chunked and range-based reader API
-14. Define shared tile and LOD contracts with validation invariants
-15. Add deterministic point-cloud downsampling with a versioned algorithm
-16. Author `UsdLodRootAPI` and `UsdLodScreenSizeHeuristic` in `usdPointCloudAuthoring`
-17. Define USDC cache identity and invalidation
-18. Add LAS/LAZ fuzzing targets
-19. Expand CC0/public point-cloud conformance corpus
-20. Document LGPL-compliant binary distribution
-21. Define the generic point attribute model shared by Extra Bytes, PLY
-    properties, and text columns
-22. Add PLY point reading
-23. Add delimited text point reading with explicit column mapping
-24. Extend point-cloud contracts to multiple scans and per-scan poses
-25. Add E57 scan reading
-26. Add GeoTIFF and DEM elevation reading
-27. Add COG overview and range-based raster access
-28. Move `pointcloud-las` onto `usdlas::LasReader` and delete its inline read
-    orchestration
-29. Add `usdgeo::AuthorPointCloudAsset` as the single authoring entry point for
-    both plugins
-30. Normalize file-format arguments and pass read options through the plugins
-31. Add LOD file-format arguments and the compact `lod` profile
-32. Add `UsdLodOverrideAPI` and Storm LOD integration tests
-33. Measure payload and stage-population behavior beneath non-selected LOD
-    children
-34. Add metadata-only reads through the LAS and LAZ plugins
-35. Decide whether the plugins become dynamic file formats; see
-    [ADR-0003](../adr/0003-dynamic-file-format.md)
+- resolver-backed source correctness, cancellation, and range-read evidence;
+- source identity and generated-cache invalidation;
+- cache statistics, diagnostics, and corruption recovery;
+- broader real-world and remote-access performance baselines;
+- deterministic point-budget-aware tiling;
+- stabilization of the
+  [point-cloud metadata contract](../reference/POINTCLOUD_METADATA.md);
+- E57 and other point-cloud formats after infrastructure maturity.
 
 ## 17. Definition of Done
 
 A point format counts as supported only when all of the following hold:
 
 - Required fields of the format decode correctly.
-- Fixtures exist for both LAS and LAZ.
+- Licensed fixtures cover the supported encodings and representative errors.
 - Invalid record lengths are rejected.
 - Attributes reach the shared point schema.
 - Attributes survive the USD authoring path.
@@ -701,13 +665,10 @@ A point format counts as supported only when all of the following hold:
 
 ## 18. Immediate Actions
 
-1. Make the README point format statement exact.
-2. Add [capability matrix](../reference/CAPABILITY_MATRIX.md).
-3. Land the binary reader and typed diagnostics first.
-4. Implement Extra Bytes and GeoTIFF CRS.
-5. Define the waveform contract for formats 4, 5, 9, and 10.
-6. Collect per-format LAS and LAZ fixtures.
-7. Then land the shared tile and LOD contracts, and reconcile `PointTileId`
-   with the existing `usdgeo::TileId` so there is one spatial identity.
-8. Verify the `usdLod` schema surface against the pinned OpenUSD 26.08 runtime
-   before authoring against it.
+1. Finish v0.5.0 verification and release documentation for resolver-backed
+  COPC.
+2. Specify source identity and generated-cache invalidation for v0.6.0.
+3. Add cache diagnostics, statistics, recovery tests, and performance evidence.
+4. Define and benchmark deterministic point-budget-aware tiling for v0.7.0.
+5. Keep `geo:*` metadata documented as a provisional plain-attribute contract.
+6. Reassess E57 and other format entry gates after v0.7.0.

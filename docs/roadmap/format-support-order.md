@@ -2,7 +2,11 @@
 
 ## Selection Criteria
 
-Formats are prioritized by their ability to validate the shared architecture, deliver practical value, and reuse earlier work. A format moves into active implementation only when its required foundation and test data are available.
+Formats are prioritized by their ability to validate the shared architecture,
+deliver practical value, and reuse earlier work. This is the order among format
+additions, not the release order: source identity, cache hardening, and adaptive
+tiling take priority after resolver-backed COPC. A format moves into active
+implementation only when its required foundation and test data are available.
 
 Priority is determined by:
 
@@ -15,6 +19,19 @@ Priority is determined by:
 
 ## Support Sequence
 
+Infrastructure gates before the next format addition:
+
+| Order | Capability | Release target | Exit gate |
+| --- | --- | --- | --- |
+| 1 | Resolver-backed COPC | `v0.5.0` | Project-owned random access, `ArAsset` adaptation, selective reads, and conservative identity are verified |
+| 2 | Source identity and cache hardening | `v0.6.0` | Local and remote generated-output reuse has explicit invalidation and recovery rules |
+| 3 | Point-budget-aware adaptive tiling | `v0.7.0` | Deterministic planning, memory limits, tile statistics, and cross-format baselines are available |
+
+The format sequence below resumes only after those infrastructure gates. E57
+is the preferred substantial format extension; delimited text and other
+point-cloud formats remain candidates whose order may be driven by concrete
+workflows and test data.
+
 | Order | Format | Initial scope | Why this position | Entry gate |
 | --- | --- | --- | --- | --- |
 | 1 | LAS | LAS 1.2-1.4 headers, point formats 0-3 and 6-8, VLR/EVLR, XYZ, intensity, returns, classification, RGB, GPS time, CRS; then the full LAS 1.4 attribute set, Extra Bytes, and formats 4, 5, 9, 10 | Uncompressed records expose the complete coordinate and point-attribute model without codec complexity | `usdGeoCore`, `usdPointCloudCore`, and a minimal `usdPointCloudAuthoring` writer are tested |
@@ -24,11 +41,11 @@ Priority is determined by:
 | 5 | XYZ / PTS / CSV | Delimiter and column mapping, optional header line, unit and CRS arguments, line-anchored diagnostics, bounded streaming | Exercises normalized file-format arguments and cache keys harder than any binary format, and is ubiquitous in survey exchange | File-format argument normalization, cache-key inputs, and the streaming reader API exist |
 | 6 | E57 | Multiple `Data3D` scans, per-scan pose, cartesian and spherical coordinates, intensity, RGB, timestamps, per-scan bounds; `Image2D` deferred | High-value survey format whose multi-scan model is a real contract extension rather than another LAS variant | Point-cloud contracts carry multiple scans and per-scan transforms without LAS-specific assumptions |
 
-Orders 1 through 6 keep the point-cloud family contiguous, so the shared point
-schema evolves once instead of being revisited after unrelated work. Each step
-feeds the next: Extra Bytes produces the generic attribute model that PLY
-needs, PLY forces deterministic primvar naming, ASCII forces the file-format
-argument contract, and E57 then extends the model to multiple scans.
+The sequence keeps the point-cloud family contiguous, so the shared point
+schema evolves once instead of being revisited after unrelated work. LAS,
+LAZ, COPC, and PLY established the current generic attribute and streaming
+model. Later formats must reuse that model; E57 may extend it for multiple
+scans only after the infrastructure roadmap is complete.
 
 Formats without embedded georeferencing (PLY, XYZ, PTS, CSV, and some E57
 files) never guess a CRS or unit. Missing georeferencing is reported as a

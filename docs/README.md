@@ -12,7 +12,7 @@ workspace contract wins; structural changes must update that contract first.
 | Category | Answers | Start here |
 | --- | --- | --- |
 | [architecture/](architecture/) | How the workspace is structured, which dependency directions are legal, and what each cross-cutting contract requires. | [WORKSPACE.md](architecture/WORKSPACE.md) |
-| [reference/](reference/) | What LAS, LAZ, and COPC input is accepted today and how it maps to USD. | [CAPABILITY_MATRIX.md](reference/CAPABILITY_MATRIX.md) |
+| [reference/](reference/) | What point-cloud input is accepted today and how it maps to USD. | [CAPABILITY_MATRIX.md](reference/CAPABILITY_MATRIX.md), [POINTCLOUD_METADATA.md](reference/POINTCLOUD_METADATA.md) |
 | [guides/](guides/) | How to build, test, install, and redistribute the plugins. | [BUILDING.md](guides/BUILDING.md), [INSTALL.md](guides/INSTALL.md) |
 | [compatibility/](compatibility/) | Which OpenUSD and OpenStrata versions are supported, and how to migrate across renames. | [OPENUSD.md](compatibility/OPENUSD.md), [MIGRATION.md](compatibility/MIGRATION.md) |
 | [roadmap/](roadmap/) | What remains incomplete and in what order it lands. | [README.md](roadmap/README.md) |
@@ -34,6 +34,9 @@ workspace contract wins; structural changes must update that contract first.
   what the current tree implements, not what it intends to implement later.
   It separates authoring-library capability from what direct LAS, LAZ, and
   COPC FileFormat reads reach.
+- [reference/POINTCLOUD_METADATA.md](reference/POINTCLOUD_METADATA.md) defines
+  the provisional v0.x `geo:*` names, USD types, semantics, coordinate spaces,
+  source mappings, and compatibility policy.
 - [architecture/LOD.md](architecture/LOD.md) fixes OpenUSD 26.08 `usdLod` as
   the only public LOD representation and defines tiling, sampling, cache-key,
   and payload rules.

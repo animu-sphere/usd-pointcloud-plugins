@@ -3,13 +3,15 @@
 [![ost source ci](https://github.com/animu-sphere/usd-pointcloud-plugins/actions/workflows/ost-source-ci.yml/badge.svg?branch=main)](https://github.com/animu-sphere/usd-pointcloud-plugins/actions/workflows/ost-source-ci.yml)
 
 OpenUSD FileFormat Plugins and libraries for point-cloud data. The project
-opens LAS, LAZ, local COPC, and PLY sources through shared point-cloud contracts for
-surveying, mapping, scanning, and 3D data-exchange workflows.
+opens LAS, LAZ, local or resolver-backed COPC, and PLY sources through shared
+point-cloud contracts for surveying, mapping, scanning, and 3D data-exchange
+workflows.
 
 **What it does**
 
 - Reads LAS 1.2-1.4 and LAZ point records through format-specific plugins.
-- Reads local COPC metadata, hierarchy, and selected point ranges.
+- Reads local and resolver-backed COPC metadata, hierarchy, and selected byte
+  ranges without coupling the reader to HTTP.
 - Reads scalar PLY vertex properties through ASCII and binary point streams.
 - Authors `UsdGeomPoints`, metadata, OpenUSD 26.08 `usdLod` roots, and
   payload-backed spatial tiles through shared authoring.
@@ -28,7 +30,7 @@ with the host application. See the
 | --- | --- | --- |
 | `.las` | `pointcloud-las` | LAS 1.2-1.4, point formats 0-10, CRS, waveform metadata, and Extra Bytes |
 | `.laz` | `pointcloud-laz` | Compressed point formats supported by the bundled `laz-perf` adapter |
-| `.copc` | `pointcloud-copc` | Local metadata-only, direct, and native-hierarchy tiled reads |
+| `.copc` | `pointcloud-copc` | Local or resolver-backed metadata-only, direct, and native-hierarchy tiled reads |
 | `.ply` | `pointcloud-ply` | Scalar vertex reads, explicit CRS, bounded streaming, and payload-backed tiled reads |
 
 Point formats 4 and 5 require LAS 1.3 or newer; formats 6-10 require LAS 1.4.
@@ -57,9 +59,10 @@ the [capability matrix](docs/reference/CAPABILITY_MATRIX.md).
 
 The [capability matrix](docs/reference/CAPABILITY_MATRIX.md) is the canonical
 source for point formats, attributes, CRS, metadata, and authored USD details.
-Resolver-backed remote COPC is the next format milestone. Delimited text and
-E57 remain later work; terrain, raster, and vector formats are future repository
-candidates.
+The next milestones harden
+[source identity, caching, and adaptive tiling](docs/roadmap/infrastructure-maturity.md)
+before E57 or other format expansion. Terrain, raster, and vector formats are
+future repository candidates.
 
 ## Quick Start
 
