@@ -38,6 +38,14 @@ public:
               std::vector<std::uint8_t>& bytes,
               std::vector<usdgeo::Diagnostic>& diagnostics) override {
         diagnostics.clear();
+        const auto readNumber = readCount_++;
+        if (failOpenAfterFirstRead_ && readNumber > 0) {
+            diagnostics.push_back(
+                {usdgeo::DiagnosticCode::SourceOpenFailed,
+                 usdgeo::Severity::Error, "test source could not be opened",
+                 offset, std::nullopt});
+            return false;
+        }
         if (fail_) {
             diagnostics.push_back(
                 {usdgeo::DiagnosticCode::InvalidOffset,
@@ -54,8 +62,10 @@ public:
 
     bool fail_ = false;
     bool shortRead_ = false;
+    bool failOpenAfterFirstRead_ = false;
 
 private:
+    std::size_t readCount_ = 0;
     std::vector<std::uint8_t> bytes_;
 };
 
@@ -387,6 +397,16 @@ void TestRandomAccessSourceDiagnostics() {
     Check(diagnostics.size() == 1 &&
         diagnostics.front().code == usdgeo::DiagnosticCode::TruncatedRecord &&
         diagnostics.front().byteOffset == 0);
+
+    auto sourceOpenAfterHeader =
+        std::make_shared<TestSource>(MakeHeader(2, 0));
+    sourceOpenAfterHeader->failOpenAfterFirstRead_ = true;
+    usdlas::LasReader sourceOpenAfterHeaderReader(sourceOpenAfterHeader);
+    Check(!sourceOpenAfterHeaderReader.ReadMetadata(header, diagnostics));
+    Check(sourceOpenAfterHeaderReader.FailureKind() ==
+          usdlas::LasReadFailure::FileOpen);
+    Check(diagnostics.size() == 1 &&
+          diagnostics.front().code == usdgeo::DiagnosticCode::SourceOpenFailed);
 
     const auto missingFilename =
         std::filesystem::temp_directory_path() /

@@ -155,7 +155,7 @@ bool LasReader::ReadMetadata(
         if (!detail::ReadFileRange(
             *source_, 0, static_cast<std::size_t>(header.pointDataOffset), bytes,
             error, rangeFailure, &diagnostics)) {
-        failureKind_ = LasReadFailure::Vlr;
+        failureKind_ = SourceFailureKind(diagnostics, LasReadFailure::Vlr);
         return false;
     }
     if (!InspectRecords(bytes, header.headerSize,
@@ -184,7 +184,7 @@ bool LasReader::ReadMetadata(
             *source_, header.firstExtendedVariableLengthRecordOffset,
                 static_cast<std::size_t>(extendedByteCount), extendedBytes,
                 error, rangeFailure, &diagnostics)) {
-            failureKind_ = LasReadFailure::Evlr;
+            failureKind_ = SourceFailureKind(diagnostics, LasReadFailure::Evlr);
             return false;
         }
         if (!InspectRecords(extendedBytes, 0,
@@ -306,9 +306,10 @@ bool LasReader::ReadPoints(const LasReadOptions& options,
         rangeDiagnostics.clear();
         if (!detail::ReadFileRange(*source_, byteOffset, byteCount, bytes, error,
                                    rangeFailure, &rangeDiagnostics)) {
-            failureKind_ = rangeFailure == detail::RangeReadFailure::Seek
-                               ? LasReadFailure::PointDataSeek
-                               : LasReadFailure::PointDataRead;
+            const auto fallback = rangeFailure == detail::RangeReadFailure::Seek
+                                      ? LasReadFailure::PointDataSeek
+                                      : LasReadFailure::PointDataRead;
+            failureKind_ = SourceFailureKind(rangeDiagnostics, fallback);
             if (!rangeDiagnostics.empty()) {
                 failureDiagnostic_ = rangeDiagnostics.front();
             }
@@ -406,7 +407,7 @@ bool LasReader::Read(const LasReadOptions& options,
         if (!detail::ReadFileRange(
             *source_, 0, static_cast<std::size_t>(header.pointDataOffset), bytes,
             error, rangeFailure, &rangeDiagnostics)) {
-        failureKind_ = LasReadFailure::Vlr;
+        failureKind_ = SourceFailureKind(rangeDiagnostics, LasReadFailure::Vlr);
         if (!rangeDiagnostics.empty()) {
             failureDiagnostic_ = rangeDiagnostics.front();
         }
@@ -431,7 +432,8 @@ bool LasReader::Read(const LasReadOptions& options,
                 static_cast<std::size_t>(
                     fileSize - header.firstExtendedVariableLengthRecordOffset),
                 extendedBytes, error, rangeFailure, &rangeDiagnostics)) {
-            failureKind_ = LasReadFailure::Evlr;
+            failureKind_ = SourceFailureKind(rangeDiagnostics,
+                                             LasReadFailure::Evlr);
             if (!rangeDiagnostics.empty()) {
                 failureDiagnostic_ = rangeDiagnostics.front();
             }
