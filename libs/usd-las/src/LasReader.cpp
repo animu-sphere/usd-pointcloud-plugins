@@ -64,6 +64,26 @@ bool ReadFileRange(usdgeo::RandomAccessSource& source,
 
 namespace usdlas {
 
+namespace {
+
+LasReadFailure SourceFailureKind(
+    const std::vector<usdgeo::Diagnostic>& diagnostics,
+    LasReadFailure fallback) {
+    if (!diagnostics.empty()) {
+        switch (diagnostics.front().code) {
+        case usdgeo::DiagnosticCode::SourceOpenFailed:
+            return LasReadFailure::FileOpen;
+        case usdgeo::DiagnosticCode::SourceSizeUnavailable:
+            return LasReadFailure::FileSize;
+        default:
+            break;
+        }
+    }
+    return fallback;
+}
+
+} // namespace
+
 LasReader::LasReader(std::string filename)
     : filename_(std::move(filename)),
       source_(std::make_shared<usdgeo::LocalRandomAccessSource>(filename_)) {}
@@ -95,7 +115,7 @@ bool LasReader::ReadMetadata(
     }
     std::uint64_t fileSize = 0;
     if (!source_->GetSize(fileSize, diagnostics)) {
-        failureKind_ = LasReadFailure::FileSize;
+        failureKind_ = SourceFailureKind(diagnostics, LasReadFailure::FileSize);
         if (diagnostics.empty()) {
             diagnostics.push_back(
                 {usdgeo::DiagnosticCode::DecodeFailure,
@@ -112,7 +132,7 @@ bool LasReader::ReadMetadata(
     if (!detail::ReadFileRange(*source_, 0,
                                static_cast<std::size_t>(headerReadSize), bytes,
                                error, rangeFailure, &diagnostics)) {
-        failureKind_ = LasReadFailure::Header;
+        failureKind_ = SourceFailureKind(diagnostics, LasReadFailure::Header);
         failureDiagnostic_ = diagnostics.back();
         return false;
     }
@@ -204,7 +224,8 @@ bool LasReader::ReadPoints(const LasReadOptions& options,
     std::vector<usdgeo::Diagnostic> sourceDiagnostics;
     std::uint64_t fileSize = 0;
     if (!source_->GetSize(fileSize, sourceDiagnostics)) {
-        failureKind_ = LasReadFailure::FileSize;
+        failureKind_ = SourceFailureKind(sourceDiagnostics,
+                                         LasReadFailure::FileSize);
         if (!sourceDiagnostics.empty()) {
             failureDiagnostic_ = sourceDiagnostics.front();
         }
@@ -218,7 +239,8 @@ bool LasReader::ReadPoints(const LasReadOptions& options,
     std::vector<usdgeo::Diagnostic> rangeDiagnostics;
     if (!detail::ReadFileRange(*source_, 104, 1, bytes, error,
                                rangeFailure, &rangeDiagnostics)) {
-        failureKind_ = LasReadFailure::Header;
+        failureKind_ = SourceFailureKind(rangeDiagnostics,
+                         LasReadFailure::Header);
         if (!rangeDiagnostics.empty()) {
             failureDiagnostic_ = rangeDiagnostics.front();
         }
@@ -348,7 +370,8 @@ bool LasReader::Read(const LasReadOptions& options,
     std::vector<usdgeo::Diagnostic> sourceDiagnostics;
     std::uint64_t fileSize = 0;
     if (!source_->GetSize(fileSize, sourceDiagnostics)) {
-        failureKind_ = LasReadFailure::FileSize;
+        failureKind_ = SourceFailureKind(sourceDiagnostics,
+                                         LasReadFailure::FileSize);
         if (!sourceDiagnostics.empty()) {
             failureDiagnostic_ = sourceDiagnostics.front();
         }

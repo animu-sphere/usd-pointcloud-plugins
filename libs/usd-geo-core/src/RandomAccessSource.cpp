@@ -26,13 +26,13 @@ bool LocalRandomAccessSource::GetSize(
     std::vector<Diagnostic>& diagnostics) const {
     std::ifstream file(filename_, std::ios::binary | std::ios::ate);
     if (!file) {
-        AddDiagnostic(diagnostics, DiagnosticCode::DecodeFailure,
+        AddDiagnostic(diagnostics, DiagnosticCode::SourceOpenFailed,
                       "could not open source: " + filename_);
         return false;
     }
     const auto end = file.tellg();
     if (end < 0) {
-        AddDiagnostic(diagnostics, DiagnosticCode::DecodeFailure,
+        AddDiagnostic(diagnostics, DiagnosticCode::SourceSizeUnavailable,
                       "could not determine source size: " + filename_);
         return false;
     }
@@ -55,13 +55,13 @@ bool LocalRandomAccessSource::Read(
 
     std::ifstream file(filename_, std::ios::binary | std::ios::ate);
     if (!file) {
-        AddDiagnostic(diagnostics, DiagnosticCode::DecodeFailure,
+        AddDiagnostic(diagnostics, DiagnosticCode::SourceOpenFailed,
                       "could not open source: " + filename_);
         return false;
     }
     const auto end = file.tellg();
     if (end < 0) {
-        AddDiagnostic(diagnostics, DiagnosticCode::DecodeFailure,
+        AddDiagnostic(diagnostics, DiagnosticCode::SourceSizeUnavailable,
                       "could not determine source size: " + filename_);
         return false;
     }

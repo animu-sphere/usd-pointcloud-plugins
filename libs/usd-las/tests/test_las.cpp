@@ -387,6 +387,16 @@ void TestRandomAccessSourceDiagnostics() {
     Check(diagnostics.size() == 1 &&
         diagnostics.front().code == usdgeo::DiagnosticCode::TruncatedRecord &&
         diagnostics.front().byteOffset == 0);
+
+    const auto missingFilename =
+        std::filesystem::temp_directory_path() /
+        "usd-pointcloud-plugins-missing-las-source.las";
+    std::filesystem::remove(missingFilename);
+    usdlas::LasReader missingReader(missingFilename.string());
+    Check(!missingReader.ReadMetadata(header, diagnostics));
+    Check(missingReader.FailureKind() == usdlas::LasReadFailure::FileOpen);
+    Check(diagnostics.size() == 1 &&
+          diagnostics.front().code == usdgeo::DiagnosticCode::SourceOpenFailed);
 }
 
 void TestRawReaderRejectsCompressedPointData() {
