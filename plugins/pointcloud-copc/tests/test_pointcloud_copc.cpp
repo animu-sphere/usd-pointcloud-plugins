@@ -307,11 +307,11 @@ LodSnapshot ReadLodSnapshot(const pxr::UsdStageRefPtr& stage) {
     const auto heuristic = stage->GetPrimAtPath(pxr::SdfPath(
         "/PointCloud/LodHeuristics/ScreenSize"));
     Check(heuristic.IsValid());
-    Check(heuristic.GetAttribute(pxr::TfToken("lod:thresholds"))
+    Check(heuristic.GetAttribute(pxr::TfToken("thresholds"))
               .Get(&snapshot.thresholds));
     for (int index = 0; index < 4; ++index) {
         const auto path = pxr::SdfPath(
-            "/PointCloud/LOD" + std::to_string(index) + "/Points");
+            "/PointCloud/LOD" + std::to_string(index));
         const auto points = pxr::UsdGeomPoints::Get(stage, path);
         if (!points.GetPrim().IsValid()) break;
         pxr::VtVec3fArray positions;
@@ -365,10 +365,6 @@ void CheckEquivalentLodSnapshots(const LodSnapshot& expected,
 }
 
 void TestMetadataIntegration() {
-    const auto plugInfo = std::filesystem::path(USDGEOCOPC_SOURCE_DIR) /
-                          "plugin" / "resources" / "pointcloud-copc" /
-                          "plugInfo.json";
-    RegisterPlugin(plugInfo);
     const auto format = pxr::SdfFileFormat::FindByExtension("sample.copc");
     Check(format);
     Check(dynamic_cast<const pxr::PcpDynamicFileFormatInterface*>(
@@ -395,13 +391,6 @@ void TestMetadataIntegration() {
 }
 
 void TestAuthoredLodEquivalence() {
-    RegisterPlugin(std::filesystem::path(USDGEOLAS_SOURCE_DIR) /
-                   "plugin" / "resources" / "pointcloud-las" /
-                   "plugInfo.json");
-    RegisterPlugin(std::filesystem::path(USDGEOLAZ_SOURCE_DIR) /
-                   "plugin" / "resources" / "pointcloud-laz" /
-                   "plugInfo.json");
-
     const auto records = MakeEquivalentRecords();
     const auto lasPath = WriteEquivalentLas(records);
     const auto lazPath = std::filesystem::temp_directory_path() /
@@ -462,6 +451,15 @@ void TestAuthoredLodEquivalence() {
 } // namespace
 
 int main() {
+    RegisterPlugin(std::filesystem::path(USDGEOLAS_SOURCE_DIR) /
+                   "plugin" / "resources" / "pointcloud-las" /
+                   "plugInfo.json");
+    RegisterPlugin(std::filesystem::path(USDGEOLAZ_SOURCE_DIR) /
+                   "plugin" / "resources" / "pointcloud-laz" /
+                   "plugInfo.json");
+    RegisterPlugin(std::filesystem::path(USDGEOCOPC_SOURCE_DIR) /
+                   "plugin" / "resources" / "pointcloud-copc" /
+                   "plugInfo.json");
     TestMetadataIntegration();
     TestAuthoredLodEquivalence();
     return 0;

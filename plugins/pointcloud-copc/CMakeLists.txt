@@ -78,6 +78,7 @@ openstrata_link_openusd(
 if(USDGEO_BUILD_TESTS)
     add_executable(pointcloudCopc_tests tests/test_pointcloud_copc.cpp)
     target_compile_features(pointcloudCopc_tests PRIVATE cxx_std_17)
+    target_link_libraries(pointcloudCopc_tests PRIVATE usdlaz::core)
     target_compile_definitions(pointcloudCopc_tests PRIVATE
         USDGEOCOPC_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
         USDGEOLAS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../pointcloud-las"

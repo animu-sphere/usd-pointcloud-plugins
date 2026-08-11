@@ -101,7 +101,7 @@ This patch release stabilizes the LAS and LAZ implementation released in
       tiled, payload-backed generation, including deterministic manifest output
 - [x] Close release documentation gaps for compatibility, installation,
       licensing, and large-data operation
-- [ ] Add regression coverage for each stabilization fix
+- [x] Add regression coverage for each stabilization fix
 
 ### `v0.3.0` — COPC read support
 
