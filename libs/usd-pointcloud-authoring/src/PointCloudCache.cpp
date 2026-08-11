@@ -72,6 +72,44 @@ bool IsWithin(const std::filesystem::path& path,
     return true;
 }
 
+bool ValidateCachedPayloads(
+    const pxr::SdfLayerHandle& layer,
+    const usdgeo::cache::Layout& layout) {
+    bool valid = true;
+    layer->Traverse(pxr::SdfPath::AbsoluteRootPath(),
+                    [&](const pxr::SdfPath& path) {
+        const auto prim = layer->GetPrimAtPath(path);
+        if (!prim || !prim->HasPayloads()) {
+            return;
+        }
+        const auto payloads = prim->GetPayloadList();
+        const auto validate = [&](auto items) {
+            for (const auto& item : items) {
+                const pxr::SdfPayload payload = item;
+                const auto assetPath = payload.GetAssetPath();
+                if (assetPath.empty()) {
+                    continue;
+                }
+                const std::filesystem::path sourcePath =
+                    (layout.entryDirectory / assetPath).lexically_normal();
+                std::error_code error;
+                if (std::filesystem::path(assetPath).is_absolute() ||
+                    !IsWithin(sourcePath, layout.payloadDirectory) ||
+                    !std::filesystem::is_regular_file(sourcePath, error) ||
+                    error) {
+                    valid = false;
+                    return;
+                }
+            }
+        };
+        validate(payloads.GetExplicitItems());
+        validate(payloads.GetAddedItems());
+        validate(payloads.GetPrependedItems());
+        validate(payloads.GetAppendedItems());
+    });
+    return valid;
+}
+
 bool MaterializePayloads(
     const pxr::SdfLayerHandle& layer,
     const usdgeo::cache::Layout& layout,
@@ -256,6 +294,11 @@ bool TryLoadPointCloudCache(
 
     const auto cachedLayer = pxr::SdfLayer::FindOrOpen(layout.rootLayer.string());
     if (!cachedLayer) {
+        usdgeo::cache::Invalidate(cacheRoot, descriptor);
+        return true;
+    }
+    if (!ValidateCachedPayloads(cachedLayer, layout)) {
+        usdgeo::cache::Invalidate(cacheRoot, descriptor);
         return true;
     }
 

@@ -218,7 +218,10 @@ The ordered plan and acceptance priorities are in the
       conversion tool
 - [ ] Document cache invalidation and compatibility rules
 - [ ] Add cache statistics and stable diagnostics
-- [ ] Harden corrupt-entry and interrupted-publication recovery
+- [x] Harden corrupt-entry and interrupted-publication recovery
+      committed cache roots are opened and payload references are validated
+      before reuse; unreadable roots and invalid or missing payloads are
+      invalidated through the descriptor-derived entry path
 - [ ] Establish local and resolver-backed cache reuse baselines
 
 #### `v0.7.0` - adaptive tiling
