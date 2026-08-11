@@ -581,6 +581,53 @@ void TestResolverBackedRead() {
     Check(layer->GetAttributeAtPath(
         pxr::SdfPath("/PointCloud.geo:pointCount")));
 
+    const auto firstStage = pxr::UsdStage::Open(layer);
+    Check(firstStage);
+    const auto firstPoints = pxr::UsdGeomPoints::Get(
+        firstStage, pxr::SdfPath("/PointCloud"));
+    pxr::VtVec3fArray firstPositions;
+    Check(firstPoints.GetPointsAttr().Get(&firstPositions));
+    Check(!firstPositions.empty());
+
+    auto changedRecords = records;
+    Write(changedRecords.front(), 0, std::int32_t{9000});
+    const auto changedCompressedPoints =
+        WriteEquivalentLaz(changedRecords, lazPath);
+    const auto changedCopcPath = WriteEquivalentCopc(changedCompressedPoints);
+    std::ifstream changedInput(changedCopcPath,
+                               std::ios::binary | std::ios::ate);
+    Check(changedInput.good());
+    const auto changedEnd = changedInput.tellg();
+    Check(changedEnd > 0);
+    changedInput.seekg(0, std::ios::beg);
+    std::vector<std::uint8_t> changedBytes(
+        static_cast<std::size_t>(changedEnd));
+    changedInput.read(reinterpret_cast<char*>(changedBytes.data()),
+                      static_cast<std::streamsize>(changedBytes.size()));
+    Check(static_cast<bool>(changedInput));
+    std::ofstream resolverReplacement(
+        resolverAsset, std::ios::binary | std::ios::trunc);
+    Check(resolverReplacement.good());
+    resolverReplacement.write(
+        reinterpret_cast<const char*>(changedBytes.data()),
+        static_cast<std::streamsize>(changedBytes.size()));
+    Check(resolverReplacement.good());
+    resolverReplacement.close();
+
+    const auto changedLayer =
+        pxr::SdfLayer::CreateAnonymous("resolver-changed.usda");
+    Check(changedLayer);
+    Check(format->Read(changedLayer.operator->(), "http://memory.copc", false));
+    const auto changedStage = pxr::UsdStage::Open(changedLayer);
+    Check(changedStage);
+    const auto changedPoints = pxr::UsdGeomPoints::Get(
+        changedStage, pxr::SdfPath("/PointCloud"));
+    pxr::VtVec3fArray changedPositions;
+    Check(changedPoints.GetPointsAttr().Get(&changedPositions));
+    Check(!changedPositions.empty());
+    Check(changedPositions.front() != firstPositions.front(),
+          "resolver read reused cached output");
+
     std::error_code error;
     std::filesystem::remove_all(cacheRoot, error);
     std::filesystem::remove(lazPath, error);
