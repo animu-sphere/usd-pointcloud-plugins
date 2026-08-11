@@ -7,6 +7,7 @@
 #include <pxr/base/vt/array.h>
 #include <pxr/usd/sdf/fileFormat.h>
 #include <pxr/usd/sdf/layer.h>
+#include <pxr/usd/pcp/dynamicFileFormatInterface.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/points.h>
 
@@ -55,6 +56,8 @@ void TestFileFormatIntegration() {
     Check(plugins.front()->Load());
     const auto format = pxr::SdfFileFormat::FindByExtension("sample.laz");
     Check(format);
+    Check(dynamic_cast<const pxr::PcpDynamicFileFormatInterface*>(
+              format.operator->()));
 
     const auto path = MakeFixture();
     const auto layer = pxr::SdfLayer::FindOrOpen(path.string());

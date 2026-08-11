@@ -232,7 +232,7 @@ and documentation steps that precede them.
 | 5 | Connect LAZ streaming to tiled payload authoring | LAZ `PointStream`; an output contract equivalent to LAS; codec-specific diagnostics; cross-format consistency tests. |
 | 6 | Enable spatial tiled reads through FileFormat arguments | Enable the spatial tile argument; define output and cache paths; connect profiles to tiling configuration; update plugin READMEs and root documentation; add integration tests with plugin discovery. |
 | 7 | Add explicit conversion tooling | Add a thin LAS/LAZ command-line entry point over the shared stream and authoring APIs; publish the root layer last; add cancellation, cleanup, and deterministic-output tests. |
-| 8 | Reconsider dynamic FileFormat composition | Evaluate cache lookup and authored-field recomposition only after generated assets, manifest identity, and operational recovery are stable. Raw source re-generation during recomposition remains out of scope. |
+| 8 | Adopt narrow dynamic FileFormat composition | Format-specific LOD metadata fields map to the normalized `lod` argument after generated assets, cache lookup, manifest identity, and operational recovery stabilized. Other fields and raw source re-generation during recomposition remain out of scope. |
 
 ## 10. Testing requirements
 

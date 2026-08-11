@@ -68,7 +68,7 @@ target_include_directories(${PLUGIN_NAME} PRIVATE
 
 openstrata_link_openusd(
     TARGET ${PLUGIN_NAME}
-    COMPONENTS arch tf gf vt sdf usd)
+    COMPONENTS arch tf gf vt sdf pcp usd)
 
 if(USDGEO_BUILD_TESTS)
     add_executable(pointcloudLaz_tests tests/test_pointcloud_laz.cpp)
@@ -86,7 +86,7 @@ if(USDGEO_BUILD_TESTS)
     endif()
     openstrata_link_openusd(
         TARGET pointcloudLaz_tests
-        COMPONENTS arch tf gf vt sdf usd usdGeom)
+        COMPONENTS arch tf gf vt sdf pcp usd usdGeom)
     set_target_properties(pointcloudLaz_tests PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
     add_test(NAME pointcloudLaz_integration COMMAND pointcloudLaz_tests)

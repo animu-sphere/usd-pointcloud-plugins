@@ -8,6 +8,7 @@
 #include <pxr/usd/sdf/fileFormat.h>
 #include <pxr/usd/sdf/layer.h>
 #include <pxr/usd/sdf/primSpec.h>
+#include <pxr/usd/pcp/dynamicFileFormatInterface.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/points.h>
 #include <pxr/usd/usdLod/rootAPI.h>
@@ -370,6 +371,8 @@ void TestMetadataIntegration() {
     RegisterPlugin(plugInfo);
     const auto format = pxr::SdfFileFormat::FindByExtension("sample.copc");
     Check(format);
+    Check(dynamic_cast<const pxr::PcpDynamicFileFormatInterface*>(
+              format.operator->()));
 
     const auto path = std::filesystem::temp_directory_path() /
                       "usd_pointcloud_plugins_metadata.copc";

@@ -10,6 +10,8 @@
 
 #include <pxr/base/tf/diagnostic.h>
 #include <pxr/base/tf/registryManager.h>
+#include <pxr/base/vt/value.h>
+#include <pxr/usd/pcp/dynamicFileFormatContext.h>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -21,6 +23,18 @@
 PXR_NAMESPACE_OPEN_SCOPE
 
 namespace {
+
+const TfToken DynamicLodField("pc_laz_lod");
+
+std::string DynamicTokenValue(const VtValue& value) {
+    if (value.IsHolding<TfToken>()) {
+        return value.UncheckedGet<TfToken>().GetString();
+    }
+    if (value.IsHolding<std::string>()) {
+        return value.UncheckedGet<std::string>();
+    }
+    return {};
+}
 
 std::string DiagnosticDetail(
     const std::vector<usdgeo::Diagnostic>& diagnostics,
@@ -97,6 +111,28 @@ UsdGeoLazFileFormat::UsdGeoLazFileFormat()
                     UsdGeoLazFileFormatTokens->Extension) {}
 
 UsdGeoLazFileFormat::~UsdGeoLazFileFormat() = default;
+
+void UsdGeoLazFileFormat::ComposeFieldsForFileFormatArguments(
+    const std::string&,
+    const PcpDynamicFileFormatContext& context,
+    FileFormatArguments* args,
+    VtValue*) const {
+    VtValue value;
+    if (context.ComposeValue(DynamicLodField, &value)) {
+        const auto lod = DynamicTokenValue(value);
+        if (!lod.empty()) {
+            (*args)["lod"] = lod;
+        }
+    }
+}
+
+bool UsdGeoLazFileFormat::CanFieldChangeAffectFileFormatArguments(
+    const TfToken& field,
+    const VtValue&,
+    const VtValue&,
+    const VtValue&) const {
+    return field == DynamicLodField;
+}
 
 bool UsdGeoLazFileFormat::CanRead(const std::string& file) const {
     return SdfFileFormat::GetFileExtension(file) == "laz";

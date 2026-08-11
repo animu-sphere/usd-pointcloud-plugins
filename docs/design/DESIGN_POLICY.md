@@ -110,11 +110,11 @@ readers and `usdPointCloudAuthoring` never see the Sdf argument encoding. The fu
 is in the
 [file-format argument contract](../architecture/FILE_FORMAT_ARGUMENTS.md).
 
-Whether the plugins additionally become dynamic file formats, so that
-parameters can be authored as prim metadata instead of baked into asset paths,
-is an open decision recorded in
-[ADR-0003](../adr/0003-dynamic-file-format.md). It is not adopted, and it
-is not a prerequisite for arguments.
+The plugins expose the compact format-specific LOD profile fields as prim
+metadata through the dynamic file-format interface. They map to the same normalized `lod` argument;
+all other generation parameters remain baked into `SDF_FORMAT_ARGS`. The
+scope and compatibility decision are recorded in
+[ADR-0003](../adr/0003-dynamic-file-format.md).
 
 ### 3.4 Data Preservation
 
