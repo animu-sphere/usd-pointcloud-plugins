@@ -73,11 +73,20 @@ bool DecodeLazChunk(const usdlas::LasHeader& header,
                     const LazPointConsumer& consume,
                     std::vector<usdgeo::Diagnostic>& diagnostics);
 
+enum class LazReadFailure {
+    None,
+    FileOpen,
+    Decode,
+    InvalidRequest,
+    Asset,
+};
+
 bool ReadPointCloud(const std::string& filename,
                     const usdpointcloud::PointReadOptions& options,
                     const std::vector<std::string>& attributes,
                     const std::string& missingCrsMessage,
                     usdpointcloud::PointCloudAsset& asset,
+                    LazReadFailure& failure,
                     std::vector<usdgeo::Diagnostic>& diagnostics);
 
 using LazReadOptions = usdpointcloud::PointReadOptions;

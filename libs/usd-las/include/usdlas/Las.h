@@ -153,6 +153,7 @@ bool BuildPointCloudMetadata(const LasHeader& header,
 enum class LasReadFailure {
     None,
     InvalidRequest,
+    Asset,
     FileOpen,
     FileSize,
     Header,

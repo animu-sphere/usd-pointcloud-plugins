@@ -53,10 +53,13 @@ bool ReadPointCloud(const std::string& filename,
                     const std::vector<std::string>& attributes,
                     const std::string& missingCrsMessage,
                     usdpointcloud::PointCloudAsset& asset,
+                    LazReadFailure& failure,
                     std::vector<usdgeo::Diagnostic>& diagnostics) {
     asset = {};
+    failure = LazReadFailure::None;
     auto decoder = CreateFileDecoder(filename, diagnostics);
     if (!decoder) {
+        failure = LazReadFailure::FileOpen;
         return false;
     }
 
@@ -70,6 +73,7 @@ bool ReadPointCloud(const std::string& filename,
                                        pointData, error);
     };
     if (!reader.Read(options, consume, header, diagnostics)) {
+        failure = LazReadFailure::Decode;
         return false;
     }
 
@@ -80,6 +84,7 @@ bool ReadPointCloud(const std::string& filename,
         diagnostics.push_back({usdgeo::DiagnosticCode::InvalidFormatArgument,
                                usdgeo::Severity::Error, selectionError,
                                std::nullopt, std::nullopt});
+        failure = LazReadFailure::InvalidRequest;
         return false;
     }
     std::string assetError;
@@ -89,6 +94,7 @@ bool ReadPointCloud(const std::string& filename,
         diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
                                usdgeo::Severity::Error, assetError,
                                std::nullopt, std::nullopt});
+        failure = LazReadFailure::Asset;
         return false;
     }
     return true;

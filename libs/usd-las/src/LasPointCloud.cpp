@@ -220,7 +220,7 @@ bool ReadPointCloud(const std::string& filename,
         diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
                                usdgeo::Severity::Error, assetError,
                                std::nullopt, std::nullopt});
-        failure = LasReadFailure::Other;
+        failure = LasReadFailure::Asset;
         return false;
     }
     return true;

@@ -39,6 +39,21 @@ std::string DiagnosticDetail(
     return detail;
 }
 
+const char* ReaderDiagnosticCode(usdlaz::LazReadFailure failure) {
+    switch (failure) {
+    case usdlaz::LazReadFailure::FileOpen:
+        return usdgeolaz::diagnostics::FileOpenFailed;
+    case usdlaz::LazReadFailure::InvalidRequest:
+        return usdgeolaz::diagnostics::FormatArgumentInvalid;
+    case usdlaz::LazReadFailure::Asset:
+        return usdgeolaz::diagnostics::BoundsTransformFailed;
+    case usdlaz::LazReadFailure::Decode:
+    case usdlaz::LazReadFailure::None:
+        return usdgeolaz::diagnostics::DecodeFailed;
+    }
+    return usdgeolaz::diagnostics::DecodeFailed;
+}
+
 class SelectedPointStream final : public usdpointcloud::PointStream {
 public:
     SelectedPointStream(std::unique_ptr<usdpointcloud::PointStream> stream,
@@ -194,11 +209,13 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
     }
 
     usdpointcloud::PointCloudAsset asset;
+    usdlaz::LazReadFailure failure = usdlaz::LazReadFailure::None;
     if (!usdlaz::ReadPointCloud(
             sourcePath, request.readOptions, request.attributes,
-            "LAZ CRS unavailable; inspect VLR metadata", asset, diagnostics)) {
+            "LAZ CRS unavailable; inspect VLR metadata", asset, failure,
+            diagnostics)) {
         TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
-                                  usdgeolaz::diagnostics::DecodeFailed,
+                                  ReaderDiagnosticCode(failure),
                                   "Unable to decode LAZ file " + resolvedPath +
                                       ": " +
                                       DiagnosticDetail(diagnostics, "decode failed"))

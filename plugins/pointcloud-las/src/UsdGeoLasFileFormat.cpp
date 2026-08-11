@@ -63,6 +63,13 @@ const char* ReaderDiagnosticCode(
         return usdgeolas::diagnostics::PointReadFailed;
     case usdlas::LasReadFailure::PointDecode:
         return usdgeolas::diagnostics::PointDecodeFailed;
+    case usdlas::LasReadFailure::Asset:
+        return usdgeolas::diagnostics::BoundsTransformFailed;
+    case usdlas::LasReadFailure::InvalidRequest:
+        if (diagnostics.front().code == usdgeo::DiagnosticCode::InvalidFormatArgument) {
+            return usdgeolas::diagnostics::FormatArgumentInvalid;
+        }
+        break;
     default:
         break;
     }
