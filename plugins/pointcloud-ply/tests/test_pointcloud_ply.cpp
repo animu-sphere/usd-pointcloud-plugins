@@ -17,6 +17,24 @@ void Check(bool condition) {
     }
 }
 
+void TestCorpusAsset(const std::filesystem::path& relativePath,
+                     std::size_t expectedPointCount) {
+    const auto source = std::filesystem::path(USDGEOPLY_SOURCE_DIR) /
+                        "tests" / "corpus" / relativePath;
+    const pxr::SdfLayer::FileFormatArguments arguments = {{"epsg", "4978"}};
+    const auto layer = pxr::SdfLayer::FindOrOpen(source.string(), arguments);
+    Check(layer);
+    const auto stage = pxr::UsdStage::Open(layer);
+    Check(stage);
+    const auto points = pxr::UsdGeomPoints::Get(
+        stage, pxr::SdfPath("/PointCloud"));
+    Check(points.GetPrim().IsValid());
+
+    pxr::VtVec3fArray positions;
+    Check(points.GetPointsAttr().Get(&positions));
+    Check(positions.size() == expectedPointCount);
+}
+
 void TestFileFormatIntegration() {
     const auto plugInfo = std::filesystem::path(USDGEOPLY_SOURCE_DIR) /
                           "plugin" / "resources" / "pointcloud-ply" /
@@ -46,6 +64,15 @@ void TestFileFormatIntegration() {
     Check(positions.size() == 2);
     Check(positions[0] == pxr::GfVec3f(1.0f, 2.0f, 3.0f));
     Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:red")).IsValid());
+
+    TestCorpusAsset(
+        std::filesystem::path("stanford-bunny") /
+            "stanford-bunny-thinned-4096.ply",
+        4096);
+    TestCorpusAsset(
+        std::filesystem::path("open3d-fragment") /
+            "open3d-fragment-thinned-8192.ply",
+        8192);
 }
 
 } // namespace

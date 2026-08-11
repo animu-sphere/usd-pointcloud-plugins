@@ -1,6 +1,8 @@
 #include "usdgeo/PointCloudLayer.h"
 
 #include <pxr/base/gf/vec3d.h>
+#include <pxr/base/gf/vec3f.h>
+#include <pxr/base/vt/array.h>
 #include <pxr/usd/sdf/layer.h>
 #include <pxr/usd/usdGeom/points.h>
 #include <pxr/usd/usdGeom/metrics.h>
@@ -168,6 +170,9 @@ void TestPointCloudRoundTrip() {
     chunk.bounds.Expand({1002.0, 2003.0, 3004.0});
     chunk.attributes = {
         {"intensity", usdpointcloud::PointAttributeType::UInt16},
+        {"red", usdpointcloud::PointAttributeType::UInt16},
+        {"green", usdpointcloud::PointAttributeType::UInt16},
+        {"blue", usdpointcloud::PointAttributeType::UInt16},
         {"classification", usdpointcloud::PointAttributeType::UInt8},
         {"classificationFlags", usdpointcloud::PointAttributeType::UInt8},
         {"scannerChannel", usdpointcloud::PointAttributeType::UInt8},
@@ -191,6 +196,9 @@ void TestPointCloudRoundTrip() {
     usdgeo::PointCloudLayer::Data data;
     data.positions = positions;
     data.intensity = {42, 84};
+    data.red = {255, 128};
+    data.green = {64, 192};
+    data.blue = {0, 255};
     data.classification = {2, 5};
     data.classificationFlags = {1, 3};
     data.scannerChannel = {0, 2};
@@ -230,6 +238,16 @@ void TestPointCloudRoundTrip() {
     Check(points.GetPointsAttr().Get(&authoredPositions));
     Check(authoredPositions.size() == 2);
     Check(authoredPositions[1] == pxr::GfVec3f(2.0f, 3.0f, 4.0f));
+    pxr::VtFloatArray authoredWidths;
+    Check(points.GetWidthsAttr().Get(&authoredWidths));
+    Check(authoredWidths.size() == 1 && authoredWidths[0] > 0.0f);
+    Check(points.GetWidthsInterpolation() == pxr::UsdGeomTokens->constant);
+    pxr::VtVec3fArray authoredColors;
+    Check(points.GetDisplayColorPrimvar().Get(&authoredColors));
+    Check(authoredColors.size() == 2 &&
+          authoredColors[0] == pxr::GfVec3f(1.0f, 64.0f / 255.0f, 0.0f) &&
+          authoredColors[1] == pxr::GfVec3f(128.0f / 255.0f, 192.0f / 255.0f,
+                                             1.0f));
     pxr::VtIntArray authoredIntensity;
     Check(points.GetPrim()
               .GetAttribute(pxr::TfToken("geo:intensity"))

@@ -322,6 +322,20 @@ bool AssignUnsigned16(double value, std::uint16_t& target) {
     return true;
 }
 
+bool HasTypedIntensity(const std::vector<std::string>& propertyNames,
+                       const std::vector<std::vector<double>>& propertyValues) {
+    const auto intensityIndex = FindPropertyIndex(propertyNames, "intensity");
+    if (intensityIndex == propertyNames.size()) {
+        return false;
+    }
+    std::uint16_t converted = 0;
+    return std::all_of(propertyValues[intensityIndex].begin(),
+                       propertyValues[intensityIndex].end(),
+                       [&](double value) {
+                           return AssignUnsigned16(value, converted);
+                       });
+}
+
 } // namespace
 
 bool InspectHeader(std::istream& input,
@@ -382,6 +396,8 @@ usdpointcloud::PointStreamStatus PlyPointStream::ReadNext(
     const auto zIndex = FindPropertyIndex(propertyNames_, "z");
     const auto classificationIndex =
         FindPropertyIndex(propertyNames_, "classification");
+    const auto typedIntensity =
+        HasTypedIntensity(propertyNames_, propertyValues_);
     while (nextPoint_ < endPoint_) {
         if (options_.isCancelled && options_.isCancelled()) {
             diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
@@ -403,7 +419,8 @@ usdpointcloud::PointStreamStatus PlyPointStream::ReadNext(
         data.blue.reserve(count);
         for (const auto& name : propertyNames_) {
             if (name != "x" && name != "y" && name != "z" &&
-                name != "intensity" && name != "classification" &&
+                (name != "intensity" || !typedIntensity) &&
+                name != "classification" &&
                 name != "red" && name != "green" && name != "blue") {
                 data.extraByteNames.push_back(name);
                 data.extraByteComponentCounts.push_back(1);
@@ -452,7 +469,7 @@ usdpointcloud::PointStreamStatus PlyPointStream::ReadNext(
                 if (name == "x" || name == "y" || name == "z") {
                     continue;
                 }
-                if (name == "intensity") {
+                if (name == "intensity" && typedIntensity) {
                     std::uint16_t converted = 0;
                     if (!AssignUnsigned16(value, converted)) {
                         diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
