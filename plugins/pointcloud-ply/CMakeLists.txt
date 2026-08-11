@@ -22,6 +22,14 @@ if(NOT TARGET usdpointcloud::core)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-pointcloud-core"
                      "${CMAKE_CURRENT_BINARY_DIR}/usd-pointcloud-core")
 endif()
+if(NOT TARGET usdgeo::cache)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-geo-cache"
+                     "${CMAKE_CURRENT_BINARY_DIR}/usd-geo-cache")
+endif()
+if(NOT TARGET usdpointcloud::tiling)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-pointcloud-tiling"
+                     "${CMAKE_CURRENT_BINARY_DIR}/usd-pointcloud-tiling")
+endif()
 if(NOT TARGET OpenGL::GL)
     find_package(OpenGL REQUIRED)
 endif()
