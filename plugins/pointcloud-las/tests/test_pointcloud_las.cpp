@@ -263,6 +263,9 @@ void TestFileFormatIntegration() {
         pxr::SdfPath("/Survey"));
     Check(survey.IsValid());
     Check(survey.HasAPI<pxr::UsdLodRootAPI>());
+    Check(survey.SetMetadata(
+        pxr::TfToken("pc_las_lod"), pxr::VtValue(pxr::TfToken("off"))));
+    Check(!survey.HasAPI<pxr::UsdLodRootAPI>());
     std::filesystem::remove(dynamicPath);
 
     pxr::VtArray<std::string> availableAttributes;

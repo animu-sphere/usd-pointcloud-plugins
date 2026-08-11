@@ -10,6 +10,7 @@
 #include <pxr/usd/pcp/dynamicFileFormatInterface.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/points.h>
+#include <pxr/usd/usdLod/rootAPI.h>
 
 #include <cstdlib>
 #include <chrono>
@@ -85,6 +86,28 @@ void TestFileFormatIntegration() {
               pxr::SdfPath("/PointCloud.geo:classificationFlags")) == nullptr);
     Check(layer->GetAttributeAtPath(
               pxr::SdfPath("/PointCloud.geo:scannerChannel")) == nullptr);
+
+    const auto dynamicPath = std::filesystem::temp_directory_path() /
+                             "usd_pointcloud_plugins_dynamic_laz_lod.usda";
+    {
+        std::ofstream output(dynamicPath);
+        Check(output.good());
+        output << "#usda 1.0\n"
+               << "def \"Survey\" (\n"
+               << "    prepend payload = @" << path.generic_string()
+               << "@</PointCloud>\n"
+               << "    pc_laz_lod = \"balanced\"\n"
+               << ")\n"
+               << "{}\n";
+        Check(output.good());
+    }
+    const auto dynamicStage = pxr::UsdStage::Open(dynamicPath.string());
+    Check(dynamicStage);
+    const auto survey = dynamicStage->GetPrimAtPath(
+        pxr::SdfPath("/Survey"));
+    Check(survey.IsValid());
+    Check(survey.HasAPI<pxr::UsdLodRootAPI>());
+    std::filesystem::remove(dynamicPath);
 
     const pxr::SdfLayer::FileFormatArguments arguments = {
         {"attributes", "intensity"},
