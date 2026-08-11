@@ -198,7 +198,9 @@ void TestPointCloudCacheMissAndMaterialization() {
     }
     Check(usdgeo::cache::IsCacheHit(layout));
 
-    const auto requestedRoot = testRoot / "requested.usda";
+    const auto requestedDirectory = testRoot / "output";
+    Check(std::filesystem::create_directories(requestedDirectory));
+    const auto requestedRoot = requestedDirectory / "requested.usda";
     const auto requestedLayer = pxr::SdfLayer::CreateNew(requestedRoot.string());
     Check(requestedLayer);
     hit = false;
@@ -214,10 +216,10 @@ void TestPointCloudCacheMissAndMaterialization() {
     const auto cachedPrim = requestedLayer->GetPrimAtPath(
         pxr::SdfPath("/PointCloud/Tile"));
     Check(cachedPrim != nullptr);
-    const auto payloadItems = cachedPrim->GetPayloadList().GetExplicitItems();
+    const auto payloadItems = cachedPrim->GetPayloadList().GetPrependedItems();
     Check(payloadItems.size() == 1);
     Check(payloadItems.front().GetAssetPath() ==
-          "requested_payloads/tile.usdc");
+            "../requested_payloads/tile.usdc");
 
     const auto requestedStage = pxr::UsdStage::Open(requestedLayer);
     Check(requestedStage);
