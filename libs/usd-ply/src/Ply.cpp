@@ -66,15 +66,24 @@ bool InspectHeader(std::istream& input,
                    std::vector<usdgeo::Diagnostic>& diagnostics) {
     header = {};
     diagnostics.clear();
+    PlyHeader parsed;
 
     std::string line;
     std::uint64_t byteOffset = 0;
-    if (!std::getline(input, line) || line != "ply") {
+    if (!std::getline(input, line)) {
         AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidSignature,
                       "PLY header must begin with the ply signature", 0);
         return false;
     }
     byteOffset += static_cast<std::uint64_t>(line.size()) + 1;
+    if (!line.empty() && line.back() == '\r') {
+        line.pop_back();
+    }
+    if (line != "ply") {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidSignature,
+                      "PLY header must begin with the ply signature", 0);
+        return false;
+    }
 
     bool sawFormat = false;
     PlyElement* currentElement = nullptr;
@@ -92,7 +101,8 @@ bool InspectHeader(std::istream& input,
                               lineOffset);
                 return false;
             }
-            header.dataOffset = byteOffset;
+            parsed.dataOffset = byteOffset;
+            header = std::move(parsed);
             return true;
         }
 
@@ -106,7 +116,7 @@ bool InspectHeader(std::istream& input,
             std::string encoding;
             std::string version;
             if (sawFormat || !(fields >> encoding >> version) ||
-                version != "1.0" || !ParseFormat(encoding, header.format)) {
+                version != "1.0" || !ParseFormat(encoding, parsed.format)) {
                 AddDiagnostic(diagnostics,
                               usdgeo::DiagnosticCode::UnsupportedVersion,
                               "PLY format must be ascii, binary_little_endian, or binary_big_endian version 1.0",
@@ -127,8 +137,8 @@ bool InspectHeader(std::istream& input,
                               "PLY element declaration is invalid", lineOffset);
                 return false;
             }
-            header.elements.push_back({std::move(name), count, {}});
-            currentElement = &header.elements.back();
+            parsed.elements.push_back({std::move(name), count, {}});
+            currentElement = &parsed.elements.back();
             continue;
         }
         if (keyword == "property") {

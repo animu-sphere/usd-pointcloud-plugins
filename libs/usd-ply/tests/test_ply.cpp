@@ -58,6 +58,23 @@ void TestBinaryListProperty() {
     Check(property.valueType == usdply::PlyScalarType::Int32);
 }
 
+void TestCrLfAndBigEndianHeader() {
+    const std::string contents =
+        "ply\r\n"
+        "format binary_big_endian 1.0\r\n"
+        "element vertex 1\r\n"
+        "property float x\r\n"
+        "end_header\r\n"
+        "data";
+    std::istringstream input(contents);
+    usdply::PlyHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+
+    Check(usdply::InspectHeader(input, header, diagnostics));
+    Check(header.format == usdply::PlyFormat::BinaryBigEndian);
+    Check(header.dataOffset == contents.find("data"));
+}
+
 void TestMalformedHeaders() {
     std::istringstream invalidSignature("not-ply\n");
     usdply::PlyHeader header;
@@ -72,6 +89,19 @@ void TestMalformedHeaders() {
     Check(!usdply::InspectHeader(invalidProperty, header, diagnostics));
     Check(diagnostics.front().byteOffset == 21);
 
+    std::istringstream partialHeader(
+        "ply\nformat binary_little_endian 1.0\nelement vertex 1\n"
+        "property unsupported x\nend_header\n");
+    Check(!usdply::InspectHeader(partialHeader, header, diagnostics));
+    Check(header.format == usdply::PlyFormat::Ascii);
+    Check(header.elements.empty());
+    Check(header.dataOffset == 0);
+
+    std::istringstream duplicateFormat(
+        "ply\nformat ascii 1.0\nformat ascii 1.0\nend_header\n");
+    Check(!usdply::InspectHeader(duplicateFormat, header, diagnostics));
+    Check(diagnostics.front().code == usdgeo::DiagnosticCode::UnsupportedVersion);
+
     std::istringstream truncated("ply\nformat ascii 1.0\n");
     Check(!usdply::InspectHeader(truncated, header, diagnostics));
     Check(diagnostics.front().code == usdgeo::DiagnosticCode::TruncatedHeader);
@@ -82,6 +112,7 @@ void TestMalformedHeaders() {
 int main() {
     TestAsciiVertexProperties();
     TestBinaryListProperty();
+    TestCrLfAndBigEndianHeader();
     TestMalformedHeaders();
     return 0;
 }
