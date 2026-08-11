@@ -41,13 +41,6 @@ std::string DiagnosticDetail(
     return detail;
 }
 
-bool MakeReadRequest(const SdfLayer* layer,
-                     usdpointcloud::PointReadRequest& request,
-                     std::vector<usdgeo::Diagnostic>& diagnostics) {
-    return usdpointcloud::NormalizeFileFormatArguments(
-        layer->GetFileFormatArguments(), request, diagnostics);
-}
-
 const char* ReaderDiagnosticCode(
     const std::vector<usdgeo::Diagnostic>& diagnostics) {
     if (!diagnostics.empty() &&
@@ -241,7 +234,8 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
 
     usdpointcloud::PointReadRequest request;
     std::vector<usdgeo::Diagnostic> diagnostics;
-    if (!MakeReadRequest(layer, request, diagnostics)) {
+        if (!usdpointcloud::MakeReadRequest(
+            layer->GetFileFormatArguments(), request, diagnostics)) {
         TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(
                                   usdgeocopc::diagnostics::FormatArgumentInvalid,
                                   "Invalid COPC file-format arguments: " +

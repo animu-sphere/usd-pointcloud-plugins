@@ -79,16 +79,6 @@ const char* ReaderDiagnosticCode(
     }
 }
 
-bool MakeReadRequest(const SdfLayer* layer,
-                     const std::string& resolvedPath,
-                     std::string& sourcePath,
-                     usdpointcloud::PointReadRequest& request,
-                     std::vector<usdgeo::Diagnostic>& diagnostics) {
-    sourcePath = resolvedPath;
-                    return usdpointcloud::NormalizeFileFormatArguments(
-                        layer->GetFileFormatArguments(), request, diagnostics);
-}
-
 class SelectedPointStream final : public usdpointcloud::PointStream {
 public:
     SelectedPointStream(std::unique_ptr<usdpointcloud::PointStream> stream,
@@ -147,11 +137,11 @@ bool UsdGeoLasFileFormat::Read(SdfLayer* layer,
         return false;
     }
 
-    std::string sourcePath;
+        const std::string sourcePath = resolvedPath;
     usdpointcloud::PointReadRequest request;
     std::vector<usdgeo::Diagnostic> diagnostics;
-    if (!MakeReadRequest(layer, resolvedPath, sourcePath, request,
-                         diagnostics)) {
+        if (!usdpointcloud::MakeReadRequest(
+            layer->GetFileFormatArguments(), request, diagnostics)) {
         TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::Message(
                                   usdgeolas::diagnostics::FormatArgumentInvalid,
                                   "Invalid LAS file-format arguments: " +
@@ -235,46 +225,17 @@ bool UsdGeoLasFileFormat::Read(SdfLayer* layer,
         return true;
     }
 
-    usdlas::LasHeader header;
-    usdpointcloud::PointData pointData;
-    usdlas::LasReader reader(sourcePath);
-    const auto consume = [&](const usdlas::LasHeader& chunkHeader,
-                             const std::vector<usdlas::LasPoint>& points,
-                             std::string& error) {
-        return usdlas::AppendPointData(chunkHeader, points, sourcePath,
-                                        pointData, error);
-    };
-    if (!reader.Read(request.readOptions, consume, header, diagnostics)) {
+    usdpointcloud::PointCloudAsset asset;
+    usdlas::LasReadFailure failure = usdlas::LasReadFailure::None;
+    if (!usdlas::ReadPointCloud(
+            sourcePath, request.readOptions, request.attributes,
+            "LAS CRS unavailable; inspect VLR metadata", asset, failure,
+            diagnostics)) {
         TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::Message(
-                                  ReaderDiagnosticCode(diagnostics,
-                                                       reader.FailureKind()),
+                                  ReaderDiagnosticCode(diagnostics, failure),
                                   "Unable to read LAS file " + resolvedPath +
                                       ": " +
                                       DiagnosticDetail(diagnostics, "read failed"))
-                                  .c_str());
-        return false;
-    }
-
-    std::string selectionError;
-    if (!usdpointcloud::SelectPointDataAttributes(
-            pointData, request.attributes, selectionError)) {
-        TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::Message(
-                                  usdgeolas::diagnostics::FormatArgumentInvalid,
-                                  "Unable to select LAS point attributes: " +
-                                      selectionError)
-                                  .c_str());
-        return false;
-    }
-
-    usdpointcloud::PointCloudAsset asset;
-    std::string assetError;
-    if (!usdlas::BuildPointCloudAsset(
-            header, pointData, "LAS CRS unavailable; inspect VLR metadata",
-            asset, assetError)) {
-        TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::Message(
-                                  usdgeolas::diagnostics::BoundsTransformFailed,
-                                  "Unable to build LAS point cloud asset: " +
-                                      assetError)
                                   .c_str());
         return false;
     }

@@ -73,6 +73,13 @@ bool DecodeLazChunk(const usdlas::LasHeader& header,
                     const LazPointConsumer& consume,
                     std::vector<usdgeo::Diagnostic>& diagnostics);
 
+bool ReadPointCloud(const std::string& filename,
+                    const usdpointcloud::PointReadOptions& options,
+                    const std::vector<std::string>& attributes,
+                    const std::string& missingCrsMessage,
+                    usdpointcloud::PointCloudAsset& asset,
+                    std::vector<usdgeo::Diagnostic>& diagnostics);
+
 using LazReadOptions = usdpointcloud::PointReadOptions;
 using LazPointChunkConsumer = std::function<bool(
     const usdlas::LasHeader&, const std::vector<usdlas::LasPoint>&)>;

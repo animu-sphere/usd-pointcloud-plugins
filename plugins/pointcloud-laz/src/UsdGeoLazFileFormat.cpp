@@ -39,16 +39,6 @@ std::string DiagnosticDetail(
     return detail;
 }
 
-bool MakeReadRequest(const SdfLayer* layer,
-                     const std::string& resolvedPath,
-                     std::string& sourcePath,
-                     usdpointcloud::PointReadRequest& request,
-                     std::vector<usdgeo::Diagnostic>& diagnostics) {
-    sourcePath = resolvedPath;
-                    return usdpointcloud::NormalizeFileFormatArguments(
-                        layer->GetFileFormatArguments(), request, diagnostics);
-}
-
 class SelectedPointStream final : public usdpointcloud::PointStream {
 public:
     SelectedPointStream(std::unique_ptr<usdpointcloud::PointStream> stream,
@@ -107,11 +97,11 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
         return false;
     }
 
-    std::string sourcePath;
+        const std::string sourcePath = resolvedPath;
     usdpointcloud::PointReadRequest request;
     std::vector<usdgeo::Diagnostic> diagnostics;
-    if (!MakeReadRequest(layer, resolvedPath, sourcePath, request,
-                         diagnostics)) {
+        if (!usdpointcloud::MakeReadRequest(
+            layer->GetFileFormatArguments(), request, diagnostics)) {
         TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
                                   usdgeolaz::diagnostics::FormatArgumentInvalid,
                                   "Invalid LAZ file-format arguments: " +
@@ -203,59 +193,15 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
         return true;
     }
 
-    auto decoder = usdlaz::CreateFileDecoder(sourcePath, diagnostics);
-    if (!decoder) {
-        TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
-                                  usdgeolaz::diagnostics::FileOpenFailed,
-                                  "Unable to open LAZ file " + sourcePath +
-                                      ": " +
-                                      DiagnosticDetail(diagnostics, "decoder could not be created"))
-                                  .c_str());
-        return false;
-    }
-
-    usdlaz::LazReader reader(std::move(decoder));
-    usdlas::LasHeader header;
-    usdpointcloud::PointData pointData;
-    const auto consumed = reader.Read(
-        request.readOptions,
-        [&](const usdlas::LasHeader& chunkHeader,
-            const std::vector<usdlas::LasPoint>& points,
-            std::string& error) {
-            return usdlas::AppendPointData(chunkHeader, points, sourcePath,
-                                           pointData, error);
-        },
-        header, diagnostics);
-    if (!consumed) {
+    usdpointcloud::PointCloudAsset asset;
+    if (!usdlaz::ReadPointCloud(
+            sourcePath, request.readOptions, request.attributes,
+            "LAZ CRS unavailable; inspect VLR metadata", asset, diagnostics)) {
         TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
                                   usdgeolaz::diagnostics::DecodeFailed,
                                   "Unable to decode LAZ file " + resolvedPath +
                                       ": " +
                                       DiagnosticDetail(diagnostics, "decode failed"))
-                                  .c_str());
-        return false;
-    }
-
-    std::string selectionError;
-    if (!usdpointcloud::SelectPointDataAttributes(
-            pointData, request.attributes, selectionError)) {
-        TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
-                                  usdgeolaz::diagnostics::FormatArgumentInvalid,
-                                  "Unable to select LAZ point attributes: " +
-                                      selectionError)
-                                  .c_str());
-        return false;
-    }
-
-    usdpointcloud::PointCloudAsset asset;
-    std::string assetError;
-    if (!usdlas::BuildPointCloudAsset(
-            header, pointData, "LAZ CRS unavailable; inspect VLR metadata",
-            asset, assetError)) {
-        TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
-                                  usdgeolaz::diagnostics::BoundsTransformFailed,
-                                  "Unable to build LAZ point cloud asset: " +
-                                      assetError)
                                   .c_str());
         return false;
     }

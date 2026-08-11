@@ -134,6 +134,16 @@ bool BuildPointCloudAsset(const LasHeader& header,
                           usdpointcloud::PointCloudAsset& asset,
                           std::string& error);
 
+enum class LasReadFailure;
+
+bool ReadPointCloud(const std::string& filename,
+                    const LasReadOptions& options,
+                    const std::vector<std::string>& attributes,
+                    const std::string& missingCrsMessage,
+                    usdpointcloud::PointCloudAsset& asset,
+                    LasReadFailure& failure,
+                    std::vector<usdgeo::Diagnostic>& diagnostics);
+
 bool BuildPointCloudMetadata(const LasHeader& header,
                              usdpointcloud::PointChunk& chunk,
                              usdgeo::GeoReference& reference,

@@ -1,5 +1,7 @@
 #include "usdlaz/Laz.h"
 
+#include "usdpointcloud/FileFormatArguments.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <limits>
@@ -45,6 +47,52 @@ void AddStreamDiagnostic(usdgeo::DiagnosticCode code,
 } // namespace
 
 namespace usdlaz {
+
+bool ReadPointCloud(const std::string& filename,
+                    const usdpointcloud::PointReadOptions& options,
+                    const std::vector<std::string>& attributes,
+                    const std::string& missingCrsMessage,
+                    usdpointcloud::PointCloudAsset& asset,
+                    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    asset = {};
+    auto decoder = CreateFileDecoder(filename, diagnostics);
+    if (!decoder) {
+        return false;
+    }
+
+    LazReader reader(std::move(decoder));
+    usdlas::LasHeader header;
+    usdpointcloud::PointData pointData;
+    const auto consume = [&](const usdlas::LasHeader& chunkHeader,
+                             const std::vector<usdlas::LasPoint>& points,
+                             std::string& error) {
+        return usdlas::AppendPointData(chunkHeader, points, filename,
+                                       pointData, error);
+    };
+    if (!reader.Read(options, consume, header, diagnostics)) {
+        return false;
+    }
+
+    std::string selectionError;
+    if (!usdpointcloud::SelectPointDataAttributes(
+            pointData, attributes, selectionError)) {
+        diagnostics.clear();
+        diagnostics.push_back({usdgeo::DiagnosticCode::InvalidFormatArgument,
+                               usdgeo::Severity::Error, selectionError,
+                               std::nullopt, std::nullopt});
+        return false;
+    }
+    std::string assetError;
+    if (!usdlas::BuildPointCloudAsset(header, pointData, missingCrsMessage,
+                                      asset, assetError)) {
+        diagnostics.clear();
+        diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
+                               usdgeo::Severity::Error, assetError,
+                               std::nullopt, std::nullopt});
+        return false;
+    }
+    return true;
+}
 
 LazPointStream::LazPointStream(std::unique_ptr<LazDecoder> decoder,
                                LazReadOptions options,
