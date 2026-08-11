@@ -15,6 +15,11 @@ marker: `IsCacheHit` requires both `root.usdc` and `cache.manifest`, so a root
 layer left behind by an interrupted generation is not reusable. `Invalidate`
 recomputes the descriptor entry below the supplied cache root and never accepts
 an arbitrary layout path, so it cannot delete an unrelated sibling directory.
+The shared authoring cache loader also opens the committed root and validates
+every payload reference before reuse. A root that cannot be opened, a missing
+payload, or a payload outside the entry is treated as a corrupt entry and
+invalidated; failures materializing valid cached payloads into a caller-owned
+directory do not invalidate the cache entry.
 
 CMake target `usdgeo::cache` and namespace `usdgeo::cache`.
 

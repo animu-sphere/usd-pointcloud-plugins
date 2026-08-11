@@ -210,6 +210,112 @@ void TestPointCloudCacheMissAndMaterialization() {
     Check(!hit);
     Check(errorMessage.empty());
 
+    const auto corruptSource = testRoot / "corrupt-source.las";
+    {
+        std::ofstream source(corruptSource, std::ios::binary);
+        source << "corrupt cache identity source";
+    }
+    usdgeo::cache::Layout corruptLayout;
+    Check(usdgeo::cache::TryBuildLayout(
+        cacheRoot, MakeDescriptor(corruptSource, reference, request),
+        corruptLayout));
+    std::filesystem::create_directories(corruptLayout.payloadDirectory);
+    std::ofstream(corruptLayout.rootLayer, std::ios::binary | std::ios::trunc)
+        << "corrupt root layer";
+    {
+        std::ofstream manifest(corruptLayout.manifest);
+        manifest << "committed\n";
+    }
+    Check(usdgeo::cache::IsCacheHit(corruptLayout));
+    const auto corruptLayer = pxr::SdfLayer::CreateNew(
+        (testRoot / "corrupt.usda").string());
+    Check(corruptLayer);
+    hit = true;
+    errorMessage.clear();
+    Check(usdgeo::TryLoadPointCloudCache(
+        corruptLayer.operator->(), corruptSource, reference, request,
+        "las-reader-1", hit, errorMessage));
+    Check(!hit);
+    Check(errorMessage.empty());
+    Check(!std::filesystem::exists(corruptLayout.entryDirectory));
+
+    const auto missingPayloadSource = testRoot / "missing-payload-source.las";
+    {
+        std::ofstream source(missingPayloadSource, std::ios::binary);
+        source << "missing payload cache identity source";
+    }
+    usdgeo::cache::Layout missingPayloadLayout;
+    Check(usdgeo::cache::TryBuildLayout(
+        cacheRoot,
+        MakeDescriptor(missingPayloadSource, reference, request),
+        missingPayloadLayout));
+    std::filesystem::create_directories(
+        missingPayloadLayout.payloadDirectory);
+    const auto missingPayloadStage = pxr::UsdStage::CreateNew(
+        missingPayloadLayout.rootLayer.string());
+    Check(missingPayloadStage);
+    const auto missingPayloadPrim = pxr::UsdGeomXform::Define(
+        missingPayloadStage, pxr::SdfPath("/PointCloud/Tile"));
+    Check(missingPayloadPrim.GetPrim().IsValid());
+    Check(missingPayloadPrim.GetPrim().GetPayloads().AddPayload(
+        pxr::SdfPayload("payloads/missing.usdc")));
+    Check(missingPayloadStage->GetRootLayer()->Save());
+    {
+        std::ofstream manifest(missingPayloadLayout.manifest);
+        manifest << "committed\n";
+    }
+    const auto missingPayloadLayer = pxr::SdfLayer::CreateNew(
+        (testRoot / "missing-payload.usda").string());
+    Check(missingPayloadLayer);
+    hit = true;
+    errorMessage.clear();
+    Check(usdgeo::TryLoadPointCloudCache(
+        missingPayloadLayer.operator->(), missingPayloadSource, reference,
+        request, "las-reader-1", hit, errorMessage));
+    Check(!hit);
+    Check(errorMessage.empty());
+    Check(!std::filesystem::exists(missingPayloadLayout.entryDirectory));
+
+    const auto corruptPayloadSource = testRoot / "corrupt-payload-source.las";
+    {
+        std::ofstream source(corruptPayloadSource, std::ios::binary);
+        source << "corrupt payload cache identity source";
+    }
+    usdgeo::cache::Layout corruptPayloadLayout;
+    Check(usdgeo::cache::TryBuildLayout(
+        cacheRoot,
+        MakeDescriptor(corruptPayloadSource, reference, request),
+        corruptPayloadLayout));
+    std::filesystem::create_directories(
+        corruptPayloadLayout.payloadDirectory);
+    const auto corruptPayloadStage = pxr::UsdStage::CreateNew(
+        corruptPayloadLayout.rootLayer.string());
+    Check(corruptPayloadStage);
+    const auto corruptPayloadPrim = pxr::UsdGeomXform::Define(
+        corruptPayloadStage, pxr::SdfPath("/PointCloud/Tile"));
+    Check(corruptPayloadPrim.GetPrim().IsValid());
+    Check(corruptPayloadPrim.GetPrim().GetPayloads().AddPayload(
+        pxr::SdfPayload("payloads/corrupt.usdc")));
+    Check(corruptPayloadStage->GetRootLayer()->Save());
+    std::ofstream(corruptPayloadLayout.payloadDirectory / "corrupt.usdc",
+                  std::ios::binary)
+        << "corrupt payload";
+    {
+        std::ofstream manifest(corruptPayloadLayout.manifest);
+        manifest << "committed\n";
+    }
+    const auto corruptPayloadLayer = pxr::SdfLayer::CreateNew(
+        (testRoot / "corrupt-payload.usda").string());
+    Check(corruptPayloadLayer);
+    hit = true;
+    errorMessage.clear();
+    Check(usdgeo::TryLoadPointCloudCache(
+        corruptPayloadLayer.operator->(), corruptPayloadSource, reference,
+        request, "las-reader-1", hit, errorMessage));
+    Check(!hit);
+    Check(errorMessage.empty());
+    Check(!std::filesystem::exists(corruptPayloadLayout.entryDirectory));
+
     if (hadPreviousCacheRoot) {
         SetCacheRoot(previousCacheRootValue);
     } else {

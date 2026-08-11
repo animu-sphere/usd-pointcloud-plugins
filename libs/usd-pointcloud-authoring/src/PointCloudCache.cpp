@@ -72,6 +72,62 @@ bool IsWithin(const std::filesystem::path& path,
     return true;
 }
 
+bool IsValidCachedPayloadPath(
+    const std::filesystem::path& sourcePath,
+    const std::filesystem::path& payloadDirectory) {
+    std::error_code error;
+    if (!std::filesystem::is_regular_file(sourcePath, error) || error) {
+        return false;
+    }
+    const auto resolvedSourcePath =
+        std::filesystem::weakly_canonical(sourcePath, error);
+    if (error) {
+        return false;
+    }
+    const auto resolvedPayloadDirectory =
+        std::filesystem::weakly_canonical(payloadDirectory, error);
+    return !error &&
+           IsWithin(resolvedSourcePath, resolvedPayloadDirectory);
+}
+
+bool ValidateCachedPayloads(
+    const pxr::SdfLayerHandle& layer,
+    const usdgeo::cache::Layout& layout) {
+    bool valid = true;
+    layer->Traverse(pxr::SdfPath::AbsoluteRootPath(),
+                    [&](const pxr::SdfPath& path) {
+        const auto prim = layer->GetPrimAtPath(path);
+        if (!prim || !prim->HasPayloads()) {
+            return;
+        }
+        const auto payloads = prim->GetPayloadList();
+        const auto validate = [&](auto items) {
+            for (const auto& item : items) {
+                const pxr::SdfPayload payload = item;
+                const auto assetPath = payload.GetAssetPath();
+                if (assetPath.empty()) {
+                    continue;
+                }
+                const std::filesystem::path sourcePath =
+                    (layout.entryDirectory / assetPath).lexically_normal();
+                if (std::filesystem::path(assetPath).is_absolute() ||
+                    !IsWithin(sourcePath, layout.payloadDirectory) ||
+                    !IsValidCachedPayloadPath(sourcePath,
+                                              layout.payloadDirectory) ||
+                    !pxr::SdfLayer::FindOrOpen(sourcePath.string())) {
+                    valid = false;
+                    return;
+                }
+            }
+        };
+        validate(payloads.GetExplicitItems());
+        validate(payloads.GetAddedItems());
+        validate(payloads.GetPrependedItems());
+        validate(payloads.GetAppendedItems());
+    });
+    return valid;
+}
+
 bool MaterializePayloads(
     const pxr::SdfLayerHandle& layer,
     const usdgeo::cache::Layout& layout,
@@ -106,9 +162,8 @@ bool MaterializePayloads(
                     sourcePath.lexically_relative(sourceDirectory);
                 const auto targetPath =
                     (normalizedTarget / relative).lexically_normal();
-                std::error_code error;
-                if (!std::filesystem::is_regular_file(sourcePath, error) ||
-                    error) {
+                if (!IsValidCachedPayloadPath(sourcePath,
+                                              sourceDirectory)) {
                     valid = false;
                     return;
                 }
@@ -256,6 +311,11 @@ bool TryLoadPointCloudCache(
 
     const auto cachedLayer = pxr::SdfLayer::FindOrOpen(layout.rootLayer.string());
     if (!cachedLayer) {
+        usdgeo::cache::Invalidate(cacheRoot, descriptor);
+        return true;
+    }
+    if (!ValidateCachedPayloads(cachedLayer, layout)) {
+        usdgeo::cache::Invalidate(cacheRoot, descriptor);
         return true;
     }
 
