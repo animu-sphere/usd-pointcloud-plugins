@@ -143,6 +143,9 @@ GeoTIFF keys when available and is `0` when no EPSG code can be resolved.
 ## Authored USD
 
 All three plugins produce the same layer shape.
+The provisional public meaning and compatibility policy of every authored
+`geo:*` attribute is defined in the
+[point-cloud metadata contract](POINTCLOUD_METADATA.md).
 
 | Item | Value |
 | --- | --- |

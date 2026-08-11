@@ -187,8 +187,9 @@ transaction state creation and retrying the same output workspace.
 - [x] Adopt narrow format-specific dynamic LOD fields after generated assets
       and cache lookup stabilized ([ADR 0003](../adr/0003-dynamic-file-format.md))
 - [x] Add the project-owned random-access byte source contract and move LAS
-      and local COPC reads onto it; resolver-backed `ArAsset` adaptation remains
-      open for v0.5.0
+      and local COPC reads onto it
+- [x] Add resolver-backed `ArAsset` adaptation without introducing OpenUSD or
+      transport dependencies into `usdCopc`
 
 ### Next release direction
 
@@ -202,6 +203,30 @@ transaction state creation and retrying the same output workspace.
       identity; the project-owned source interface and local migration are
       shipped. Resolver-backed cache reuse is disabled when a stable local
       filesystem identity is unavailable.
+
+### Planned infrastructure maturity
+
+The ordered plan and acceptance priorities are in the
+[infrastructure maturity roadmap](infrastructure-maturity.md).
+
+#### `v0.6.0` - cache and source identity
+
+- [ ] Define a format- and transport-independent source identity contract
+- [ ] Document cache invalidation and compatibility rules
+- [ ] Add cache statistics and stable diagnostics
+- [ ] Harden corrupt-entry and interrupted-publication recovery
+- [ ] Establish local and resolver-backed cache reuse baselines
+
+#### `v0.7.0` - adaptive tiling
+
+- [ ] Define deterministic point-budget planning and limits
+- [ ] Preserve fixed-grid `tileSize` and `tileMemoryLimit` behavior
+- [ ] Add tile statistics and planning diagnostics
+- [ ] Compare LAS, LAZ, COPC, and PLY payload and memory behavior
+
+E57, delimited text, and other point-cloud formats follow these infrastructure
+milestones. A public custom USD schema remains deferred until the documented
+plain-attribute metadata contract is stable across formats.
 
 ## Notes
 

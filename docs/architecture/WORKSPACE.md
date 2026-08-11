@@ -8,8 +8,9 @@ change this document first.
 Status: `usdGeoCore`, `usdGeoCache`, `usdPointCloudCore`,
 `usdPointCloudTiling`, `usdPointCloudAuthoring`, `usdLas`, `usdLaz`, `usdCopc`,
 and `usdPly` are implemented, as are the `pointcloud-las`, `pointcloud-laz`,
-`pointcloud-copc`, and `pointcloud-ply` bundles. PLY source streaming remains
-a follow-up limitation.
+`pointcloud-copc`, and `pointcloud-ply` bundles. Resolver-backed COPC random
+access is implemented on `main`; production network transport remains the
+active resolver's responsibility.
 
 ## 1. Components
 
@@ -132,8 +133,8 @@ libs/usd-laz/
     laz-perf isolation and the equivalent LazReader orchestration
 
 libs/usd-copc/
-    COPC metadata, hierarchy, and local range decoding through the shared LAZ
-    decoder; future random-access sources remain OpenUSD-independent
+    COPC metadata, hierarchy, and local or resolver-backed range decoding
+    through the shared LAZ decoder and an OpenUSD-independent source contract
 
 libs/usd-pointcloud-core/
     the point schema, chunk contracts, read options, sampling, LOD values
@@ -289,7 +290,9 @@ as LAS and LAZ.
 | v0.2.0 | typed diagnostics, LAS 1.4 attributes and waveform formats, GeoTIFF key parsing, Extra Bytes, file-format arguments, shared authoring, `usdLod`, and metadata-only reads | released 2026-08-05 |
 | v0.2.1 | bounded-memory streaming, spill-backed tile routing, conversion tooling, cache generation and lookup in the conversion tool | released |
 | v0.3.0 | local COPC reader and FileFormat integration, native hierarchy streaming, shared LOD authoring, and all-bundle CI smoke coverage | released |
-| next | documentation consolidation, then PLY point decoding and resolver-backed COPC random access | tracked in [roadmap](../roadmap/README.md) |
+| v0.4.0 | PLY point decoding, adaptive display attributes, shared authoring, and payload-backed tiled reads | released 2026-08-12 |
+| v0.5.0 | project-owned random access and resolver-backed COPC without transport coupling | implemented on `main`; release pending |
+| v0.6.0-v0.7.0 | source identity, cache hardening, then point-budget-aware adaptive tiling | tracked in [infrastructure maturity roadmap](../roadmap/infrastructure-maturity.md) |
 
 Current work and acceptance gaps are tracked in
 [roadmap/implementation-status.md](../roadmap/implementation-status.md).
