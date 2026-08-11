@@ -21,8 +21,8 @@ uses the same reader and authoring contracts for long-running generation.
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| LAS 1.4 COPC Info VLR validation | Foundation | Implemented in `usdCopc`; requires point formats 6-8, a first-position 160-byte Info VLR, and a hierarchy VLR |
-| Local hierarchy page validation | Foundation | Root and child pages are read depth-first with range, alignment, and repeated-page checks |
+| LAS 1.4 COPC Info VLR validation | Supported | Implemented in `usdCopc`; requires point formats 6-8, a first-position 160-byte Info VLR, and a hierarchy VLR |
+| Local hierarchy page validation | Supported | Root and child pages are read depth-first with range, alignment, and repeated-page checks |
 | COPC point-data decoding | Supported | Local hierarchy ranges are decoded as LAZ chunks through `usdlaz::DecodeLazChunk`; bounds, classification, and attribute selection use the shared point-cloud contracts |
 | COPC FileFormat Plugin | Supported | `pointcloud-copc` provides local metadata-only, non-tiled, and native hierarchy tiled reads; tiled output is payload-backed `usdLod`, while source point ranges are rejected because hierarchy order is spatial |
 
@@ -225,8 +225,7 @@ in the [tile and LOD contract](../architecture/LOD.md).
   not exposed through LAS/LAZ file-format arguments. The current interface
   provides fixed-grid `tileSize` and `tileMemoryLimit`. The conversion tool
   can generate and reuse deterministic USDC entries with `--cache-root`.
-  Direct LAS, LAZ, and COPC FileFormat reads can reuse committed entries via
-  `USDGEO_CACHE_ROOT`.
+  Direct LAS, LAZ, and COPC FileFormat cache lookup is not implemented.
 - Point decoding assumes a little-endian host.
 - Writing LAS, LAZ, or COPC is out of scope; all three plugins export as
   `usda`.

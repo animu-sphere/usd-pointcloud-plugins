@@ -103,10 +103,9 @@ This patch release stabilizes the LAS and LAZ implementation released in
       licensing, and large-data operation
 - [x] Add regression coverage for each stabilization fix
 
-### `v0.3.0` — COPC read support
+### `v0.3.0` — COPC read support (shipped)
 
-COPC is the next format milestone after the `v0.2.1` stabilization work. The
-initial scope is local, read-only support using the existing point, streaming,
+COPC shipped as local, read-only support using the existing point, streaming,
 tiling, diagnostics, and `usdLod` contracts.
 
 - [x] Add the OpenUSD-independent COPC metadata and hierarchy reader foundation
@@ -120,8 +119,8 @@ tiling, diagnostics, and `usdLod` contracts.
 - [x] Add the COPC pull-based point stream over native hierarchy order
 - [x] Add LAS, LAZ, and COPC point-stream equivalence regression coverage
 - [x] Verify LAS, LAZ, and COPC equivalence across authored LOD representations
-- [ ] Defer COPC writing, HTTP range sources, network caching, and new public
-      USD schemas
+- [x] Keep COPC writing, HTTP range sources, network caching, and new public
+      USD schemas out of the local-read release
 
 ## Follow-up Status
 
@@ -164,12 +163,23 @@ transaction state creation and retrying the same output workspace.
 
 - [x] Integrate deterministic USDC cache generation and lookup into the
       conversion tool through `--cache-root`
-- [x] Integrate cache lookup into direct FileFormat and authoring paths via
-      `USDGEO_CACHE_ROOT`
+- [ ] Integrate cache lookup into direct FileFormat and authoring paths. The
+      conversion tool supports `--cache-root`; no FileFormat plugin currently
+      reads `USDGEO_CACHE_ROOT`.
 - [x] Stage licensing, notice, capability, compatibility, and installation
       documents into release assets
 - [x] Adopt narrow format-specific dynamic LOD fields after generated assets
       and cache lookup stabilized ([ADR 0003](../adr/0003-dynamic-file-format.md))
+
+### Next release direction
+
+- [ ] Complete the v0.3.x documentation consolidation: concise root README
+      and synchronized workspace, capability, and implementation documents.
+- [ ] Complete v0.4.0 PLY point-cloud read support from the implemented PLY 1.0
+      header-inspection foundation through a thin `pointcloud-ply` adapter.
+- [ ] Complete v0.5.0 COPC random access through a project-owned source
+      interface and an OpenUSD `ArAsset` adapter, with resolver-dependent HTTP
+      support and conservative generated-cache identity.
 
 ## Notes
 

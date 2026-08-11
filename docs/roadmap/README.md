@@ -25,101 +25,125 @@ support, in [capability matrix](../reference/CAPABILITY_MATRIX.md).
 
 ## Immediate direction
 
-The current major capability is **bounded-memory streaming into spatially
-tiled, payload-backed `usdLod` assets**. Tiled reads now spool by source tile
-and reconstruct one tile at a time. The release train is now split into two
-deliberate steps:
+LAS, LAZ, local COPC, bounded-memory tiling, generated-USDC caching, and the
+conversion tool now validate the shared point-cloud architecture. The next
+release sequence strengthens that architecture in increasing order of risk:
 
-- **`v0.2.x` — stabilization:** keep the existing LAS and LAZ behavior and
-  public contracts stable while closing real-world RSS, payload working-set,
-  compatibility, documentation, and operational reliability gaps.
-- **`v0.3.0` — COPC:** add read-only COPC support for local files, reusing the
-  shared point, streaming, tiling, diagnostics, and `usdLod` contracts. COPC
-  hierarchy and byte ranges are mapped onto the shared representation; COPC
-  writing and remote HTTP range access are outside the initial release.
+| Release | Theme | Outcome |
+| --- | --- | --- |
+| `v0.3.x` | Documentation and contract stabilization | One current canonical document for each concern |
+| `v0.4.0` | PLY read support | Validate shared contracts outside the LAS family |
+| `v0.5.0` | Resolver-backed COPC random access | Remote-capable COPC without coupling `usdCopc` to HTTP |
 
-The full plan — the `PointStream` interface, the spill-backed fixed-grid
-tiling design, spool and payload contracts, the file-format argument surface,
-the pull-request sequence, testing requirements, and the definition of done —
-is in [streaming and tiling](streaming-and-tiling.md).
+The core architecture remains format-independent:
 
-Production tiled generation now has an explicit operational boundary. The
-canonical path is a command-line conversion tool that consumes the shared LAS
-and LAZ readers and the shared payload authoring API, then publishes the root
-layer last after payload generation succeeds. Static FileFormat reads remain useful for
-preview, metadata inspection, and small inputs. Dynamic FileFormat support is
-limited to format-specific LOD profile fields now that generated assets and cache
-lookup are stable; it must not make raw LAS or LAZ decoding an implicit side
-effect of recomposition when a committed cache entry is available.
+```text
+LAS  -> usdLas  ----\
+LAZ  -> usdLaz  -----+--> PointStream / usdPointCloudCore
+COPC -> usdCopc -----/              |
+                                   v
+                         optional tiling / LOD
+                                   |
+                                   v
+                      usdPointCloudAuthoring
+                                   |
+                                   v
+                              OpenUSD stage
+```
 
-COPC follows LAS and LAZ because it validates native spatial hierarchy and
-partial loading using the infrastructure completed for `v0.2.x`. E57 follows
-COPC and reuses the same streaming, tiling, diagnostics, and authoring
-infrastructure. Terrain, raster, and vector formats are future repository
-candidates because they require different storage and authoring contracts from
-point clouds.
+### `v0.3.x` — documentation and contract stabilization
 
-## Release tracks
+The implementation and release engineering shipped in v0.3.0 ahead of several
+public documents. This release line removes that drift before more architecture
+is added.
 
-### `v0.2.x` — existing implementation stabilization and conversion tooling
+- Simplify the root README into a product and contributor entry point. It
+  summarizes support and links to canonical detail rather than duplicating the
+  capability, argument, cache, and release documents.
+- Synchronize the [workspace contract](../architecture/WORKSPACE.md) with the
+  shipped tiling, cache, COPC, conversion-tool, fixture, and CI state.
+- Keep [implementation status](implementation-status.md) and the
+  [capability matrix](../reference/CAPABILITY_MATRIX.md) consistent with the
+  workspace contract.
+- Keep ownership explicit: structure belongs to `WORKSPACE.md`, support to
+  `CAPABILITY_MATRIX.md`, arguments to `FILE_FORMAT_ARGUMENTS.md`, tile and
+  LOD behavior to `LOD.md`, release behavior to `releases/vX.Y.Z.md`, and
+  completed/open implementation work to `implementation-status.md`.
 
-The `v0.2.x` line does not introduce another point-cloud format. It stabilizes
-the LAS and LAZ implementation shipped in `v0.2.0`:
+Exit criteria: the README, workspace contract, implementation checklist, and
+capability matrix contain no known contradictions about LAS, LAZ, COPC,
+tiling, cache reuse, conversion, fixtures, or CI.
 
-- measure real-dataset processing time, peak RSS, spool usage, and payload
-  working set;
-- fix reliability issues in long-running, cancelled, failed, and
-  interrupted tiled reads, including temporary-file cleanup and rollback;
-- keep LAS and LAZ output, metadata, diagnostics, normalized arguments, and
-  tile/LOD contracts backward compatible;
-- complete compatibility, installation, licensing, and large-data usage
-  documentation; and
-- add an explicit conversion tool for production tiled generation, with
-  deterministic output, atomic publish, cancellation, and cleanup; and
-- add regression coverage for every behavioral fix without widening the
-  public format surface unnecessarily.
+### `v0.4.0` — PLY read support
 
-`v0.2.x` is complete when the existing LAS/LAZ path has published real-world
-measurements, no known resource-leak or cleanup issue remains in the tested
-failure paths, and the release documentation matches the shipped behavior.
+PLY is the first intentional validation of the shared contracts outside the
+LAS family. It has no LAS header or point-format model, no LAZ compression, no
+COPC hierarchy, and flexible properties. Its reader must enter the same shared
+`PointStream`, validation, filtering, LOD, tiling, and authoring path without
+introducing LAS types into shared APIs.
 
-### `v0.3.0` — COPC read support (shipped)
+`libs/usd-ply` already provides the tested PLY 1.0 header-inspection foundation
+for ASCII, binary little-endian, and binary big-endian inputs. v0.4.0 completes
+the point-focused reader and adds a thin `plugins/pointcloud-ply` adapter.
 
-The first COPC release is deliberately read-first and local-first:
+Initial scope is ASCII and binary little-endian vertex data; `x`, `y`, `z`,
+RGB/RGBA, normals, and deterministic generic attributes for additional scalar
+vertex properties; metadata-only inspection where practical; `PLYxxx`
+diagnostics; plugin discovery and stage-open smoke tests; and shared
+PointStream, LOD, tiled authoring, and cross-format equivalence tests. Binary
+big-endian support is welcome when it does not delay the milestone.
 
-- add a format-specific COPC reader, preferably as `libs/usd-copc`, with a
-  thin `plugins/geospatial-copc` adapter;
-- inspect and validate COPC information and hierarchy metadata before point
-  decoding;
-- read only the hierarchy nodes and point-data byte ranges required for the
-  requested operation;
-- reuse the existing point attributes, Extra Bytes, metadata-only,
-  `PointStream`, memory-budget, typed-diagnostics, tiling, and `usdLod`
-  contracts;
-- preserve the COPC hierarchy and resolution information when authoring the
-  shared USD tile/LOD representation; and
-- verify LAS, LAZ, and COPC equivalence for bounds, counts, coordinates,
-  attributes, metadata, LOD, and diagnostics on equivalent fixtures.
+Faces, arbitrary non-vertex elements, mesh authoring, PLY writing, and
+renderer-specific behavior are out of scope. PLY files without reliable
+georeferencing must use explicit arguments or report its absence; they must
+not invent a CRS.
 
-COPC writing, conversion to COPC, HTTP byte-range sources, network caching,
-and COPC-specific public USD schemas remain deferred until the local read path
-and its resource behavior are proven. COPC-specific parsing stays out of
-`usd-laz`; only genuinely shared LAZ decoding or byte-range primitives may be
-factored into a common implementation.
+### `v0.5.0` — remote COPC through OpenUSD asset resolution
+
+`usdCopc` must consume a project-owned random-access byte source, not HTTP.
+The OpenUSD-dependent plugin layer may adapt an `ArAsset` supplied by the
+active `ArResolver`:
+
+```text
+Local file -> LocalRandomAccessSource -> usdCopc
+ArResolver -> ArAsset adapter --------> usdCopc
+```
+
+The contract provides deterministic offset reads, source-size discovery,
+explicit short-read and EOF behavior, and typed diagnostics. It contains no
+OpenUSD types, implicit retries, or transport policy. Local COPC first moves
+onto this same interface so remote reads are not a parallel path.
+
+HTTP is resolver capability, not a bundled COPC feature. Remote COPC is
+supported only when the active resolver can resolve the asset and provide
+efficient random-access `ArAsset` reads, such as an HTTP resolver that uses
+byte ranges. No HTTP client, cloud SDK, authentication flow, retry policy,
+generic network cache, source upload, or COPC writing belongs in this release.
+
+Tests use an instrumented project-owned source to prove selective header,
+hierarchy-page, and selected-point range reads, then verify equivalent local
+and resolver-backed point streams and authored USD. Resolver-backed failures
+map to project-owned diagnostics.
+
+Generated-USDC caching remains separate from source byte-range caching. A
+resolver or transport may cache bytes; `usdGeoCache` caches generated USD.
+Resolver-backed cache identity is conservative: it requires stable
+resolver-provided identity inputs such as a resolved identifier, size,
+validation token, or digest. Cache reuse is disabled when that identity is not
+sufficiently stable rather than risking stale generated output.
 
 ## Phases
 
 | Phase | Scope | Status | Notes |
 | --- | --- | --- | --- |
-| 0 | Technical validation of the FileFormat Plugin and dependencies | In progress | PoC, adapter split, and precision path are done; large-data timing and memory measurements are outstanding |
-| 1 | `usdGeoCore`, `usdGeoCache`, `usdPointCloudAuthoring`, and point-cloud contracts | In progress | Shared geospatial and point-cloud contracts are shipped; `usdGeoCache` now has initial key, layout, lookup, and invalidation contracts |
-| 2 | Direct LAS loading and `UsdGeomPoints` | Complete | Point formats 0-10, LAS 1.4 attributes, waveform metadata, GeoTIFF keys, and scalar and vector Extra Bytes all land on `main` |
-| 3 | LAZ, attribute selection, and USDC caching | In progress | LAZ chunk decoding, normalized attribute selection, and the cache contract shipped; cache generation and reader/tool integration remain open |
-| 4a | Shared tile and LOD contracts and `usdLod` authoring | Complete | `usdLod` authoring, compact LOD profiles, deterministic sampling, per-tile roots, and payload-backed tile assets are available through the authoring library |
-| 4b | Bounded-memory streaming, spatial tiling, and explicit conversion tooling | Stabilization in `v0.2.x` | `PointStream`, spill-backed routing, payload authoring, and the `tile` argument are connected; the converter becomes the production path while the FileFormat path remains compatible |
-| 4c | COPC read support | Complete in `v0.3.0` | Local read-only support, native hierarchy streaming, shared LOD authoring, and FileFormat integration; no writer or remote range source |
-| 5 | PLY and delimited text point clouds (XYZ, PTS, CSV) | Not started | Needs the generic attribute model and file-format arguments |
-| 6 | E57 and multi-scan point clouds | Not started | Extends the point-cloud contracts to several scans per file |
+| 0 | Technical validation and plugin dependencies | Complete | Reader/plugin split, precision path, fixtures, and CI are shipped |
+| 1 | Shared geospatial, cache, point-cloud, and authoring contracts | Complete | `usdGeoCore`, `usdGeoCache`, `usdPointCloudCore`, and authoring contracts are shipped |
+| 2 | Direct LAS loading and `UsdGeomPoints` | Complete | LAS 1.2-1.4, formats 0-10, CRS, waveform metadata, and Extra Bytes are shipped |
+| 3 | LAZ, arguments, streaming, and derived-USDC cache | Complete | Chunk decoding, normalized arguments, cache lookup, and conversion integration are shipped |
+| 4 | Tiling, LOD, and local COPC | Complete in `v0.3.0` | Spill-backed tiled authoring and local COPC hierarchy reads share the common contracts |
+| 5 | PLY point-cloud read support | In progress | PLY 1.0 header inspection is implemented; decoding and plugin integration are next |
+| 6 | Resolver-backed COPC random access | Planned for `v0.5.0` | Project-owned source interface and `ArAsset` adapter |
+| 7 | Delimited text and E57 | Not started | Follow PLY after generic property mapping is proven |
 
 ## Workstreams
 
@@ -129,21 +153,18 @@ maps onto the phases above.
 | Workstream | Scope | Phases | Status |
 | --- | --- | --- | --- |
 | W1 | Public specification alignment, typed diagnostics, endian-safe decoding | 0, 1 | Complete |
-| W2 | LAS attribute coverage, GeoTIFF CRS, Extra Bytes | 2 | Complete for scalar and vector Extra Bytes, including name normalization |
-| W3 | Point formats 4, 5, 9, 10 and the waveform contract | 2 | Complete |
-| W4 | Chunked and range-based reader API, memory budget, filtering | 3 | Reader API and memory budget complete; bounds and classification filters open |
-| W5 | Shared tile and LOD contracts, deterministic sampling, OpenUSD 26.08 `usdLod` authoring | 4a | Complete |
-| W6 | `PointStream`, spill-backed spatial tiling, explicit conversion tooling, spatial tile arguments, and LAS/LAZ stabilization | 4b | `v0.2.x` stabilization in progress |
-| W7 | COPC hierarchy, partial reads, and local COPC FileFormat integration | 4c | Complete in `v0.3.0` |
-| W8 | USDC cache, remote byte-range sources, PLY, delimited text, and E57 | 3-6 | Deferred until the `v0.3.0` COPC boundary is stable |
+| W2 | LAS, LAZ, CRS, Extra Bytes, filters, streaming, and cache | 2, 3 | Complete |
+| W3 | Shared tile/LOD contracts, spill-backed tiling, and conversion | 4 | Complete |
+| W4 | Local COPC hierarchy, partial reads, and FileFormat integration | 4 | Complete in `v0.3.0` |
+| W5 | Documentation consolidation | `v0.3.x` | In progress |
+| W6 | PLY decoding and plugin integration | 5 | In progress from header inspection |
+| W7 | Random-access source and resolver-backed COPC | 6 | Planned for `v0.5.0` |
 
-W1 through W5 stabilized the shared point schema, the streaming reader API, and
-the public LOD representation. W6 now stabilizes how much memory a tiled read
-costs and moves long-running generation into an explicit tool boundary. W6 is
-the entry gate for W7: COPC should consume these contracts, not create a
-parallel streaming or authoring path. The first W7 slice now validates local
-COPC metadata and hierarchy pages through `libs/usd-copc`; point-data decoding
-and FileFormat integration remain open.
+The completed workstreams established the shared point schema, streaming reader
+API, tile/LOD representation, and local COPC path. PLY must consume those
+contracts rather than create a second point authoring route. Remote COPC then
+extends only the source boundary; it must not make transport part of COPC
+parsing.
 
 ## Documents
 
