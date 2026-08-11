@@ -1,0 +1,19 @@
+{
+    "Plugins": [
+        {
+            "Type": "library",
+            "Name": "HttpResolver",
+            "Root": ".",
+            "LibraryPath": "../../../lib/@OPENSTRATA_PLUGIN_LIBRARY_FILENAME@",
+            "ResourcePath": ".",
+            "Info": {
+                "Types": {
+                    "HttpResolver": {
+                        "bases": ["ArResolver"],
+                        "uriSchemes": ["http", "https"]
+                    }
+                }
+            }
+        }
+    ]
+}

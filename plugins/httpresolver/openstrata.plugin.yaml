@@ -1,0 +1,15 @@
+manifest:
+  schema: openstrata.plugin/v1alpha1
+plugin:
+  name: httpresolver
+  version: 0.4.0
+  kind: usd-package-resolver
+license: Apache-2.0
+runtime:
+  openusd: ">=26.08,<27.0"
+provides:
+  - usd-resolver:http
+requires:
+  capabilities: [usd-stage-read]
+usd:
+  plug_info: plugin/resources/httpresolver/plugInfo.json

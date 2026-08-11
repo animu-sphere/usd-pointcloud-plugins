@@ -1,5 +1,6 @@
 #include "usdgeocopc/UsdGeoCopcFileFormat.h"
 #include "usdgeocopc/UsdGeoCopcDiagnostics.h"
+#include "usdgeocopc/ArAssetRandomAccessSource.h"
 
 #include "usdgeo/Diagnostic.h"
 #include "usdgeo/PointCloudCache.h"
@@ -12,6 +13,7 @@
 #include <pxr/base/tf/diagnostic.h>
 #include <pxr/base/tf/registryManager.h>
 #include <pxr/base/vt/value.h>
+#include <pxr/usd/ar/resolver.h>
 #include <pxr/usd/pcp/dynamicFileFormatContext.h>
 #include <pxr/usd/usdGeom/metrics.h>
 
@@ -59,10 +61,32 @@ std::string DiagnosticDetail(
 const char* ReaderDiagnosticCode(
     const std::vector<usdgeo::Diagnostic>& diagnostics) {
     if (!diagnostics.empty() &&
-        diagnostics.front().code == usdgeo::DiagnosticCode::InvalidOffset) {
+        (diagnostics.front().code == usdgeo::DiagnosticCode::InvalidOffset ||
+         diagnostics.front().code == usdgeo::DiagnosticCode::SourceOpenFailed ||
+         diagnostics.front().code ==
+             usdgeo::DiagnosticCode::SourceSizeUnavailable)) {
         return usdgeocopc::diagnostics::FileOpenFailed;
     }
     return usdgeocopc::diagnostics::DecodeFailed;
+}
+
+bool IsLocalFileSource(const std::string& path) {
+    std::error_code error;
+    return std::filesystem::is_regular_file(std::filesystem::path(path), error) &&
+           !error;
+}
+
+std::shared_ptr<usdgeo::RandomAccessSource> OpenResolvedAssetSource(
+    const std::string& resolvedPath,
+    std::string& error) {
+    const auto asset = pxr::ArGetResolver().OpenAsset(
+        pxr::ArResolvedPath(resolvedPath));
+    if (!asset) {
+        error = "active resolver could not open COPC asset: " + resolvedPath;
+        return nullptr;
+    }
+    return std::make_shared<usdgeocopc::ArAssetRandomAccessSource>(
+        asset, resolvedPath);
 }
 
 bool IsSelectedPoint(const usdlas::LasPoint& point,
@@ -291,7 +315,16 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
         return false;
     }
 
-    usdcopc::CopcReader reader(resolvedPath);
+    std::string sourceError;
+    const auto source = OpenResolvedAssetSource(resolvedPath, sourceError);
+    if (!source) {
+        TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(
+                                  usdgeocopc::diagnostics::FileOpenFailed,
+                                  sourceError)
+                                  .c_str());
+        return false;
+    }
+    usdcopc::CopcReader reader(source);
     usdcopc::CopcHeader header;
     if (!reader.ReadMetadata(header, diagnostics)) {
         TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(
@@ -332,7 +365,8 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
         return true;
     }
 
-    if (!usdgeo::PointCloudCacheRootFromEnvironment().empty()) {
+    if (IsLocalFileSource(resolvedPath) &&
+        !usdgeo::PointCloudCacheRootFromEnvironment().empty()) {
         usdpointcloud::PointChunk chunk;
         usdgeo::GeoReference reference;
         usdgeo::SpatialBounds bounds;
@@ -416,6 +450,15 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
         }
         std::filesystem::path payloadDirectory(request.payloadDirectory);
         if (payloadDirectory.is_relative()) {
+            if (!IsLocalFileSource(resolvedPath)) {
+                TF_RUNTIME_ERROR(
+                    "%s",
+                    usdgeocopc::diagnostics::Message(
+                        usdgeocopc::diagnostics::FormatArgumentInvalid,
+                        "remote COPC tiled reads require an absolute local payloadDirectory")
+                        .c_str());
+                return false;
+            }
             payloadDirectory =
                 std::filesystem::path(resolvedPath).parent_path() /
                 payloadDirectory;

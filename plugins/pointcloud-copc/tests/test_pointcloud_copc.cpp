@@ -1,5 +1,7 @@
 #include "lazperf/io.hpp"
 
+#include "usdgeocopc/ArAssetRandomAccessSource.h"
+
 #include <pxr/base/plug/plugin.h>
 #include <pxr/base/plug/registry.h>
 #include <pxr/base/gf/vec3d.h>
@@ -8,6 +10,7 @@
 #include <pxr/usd/sdf/fileFormat.h>
 #include <pxr/usd/sdf/layer.h>
 #include <pxr/usd/sdf/primSpec.h>
+#include <pxr/usd/ar/resolver.h>
 #include <pxr/usd/pcp/dynamicFileFormatInterface.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/points.h>
@@ -18,6 +21,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -25,10 +29,79 @@
 
 namespace {
 
-void Check(bool condition) {
+class MemoryAsset final : public pxr::ArAsset {
+public:
+    explicit MemoryAsset(std::vector<std::uint8_t> bytes)
+        : bytes_(std::make_shared<std::vector<std::uint8_t>>(
+              std::move(bytes))) {}
+
+    std::size_t GetSize() const override { return bytes_->size(); }
+
+    std::shared_ptr<const char> GetBuffer() const override {
+        std::shared_ptr<const std::vector<std::uint8_t>> owner = bytes_;
+        return std::shared_ptr<const char>(
+            owner, reinterpret_cast<const char*>(owner->data()));
+    }
+
+    std::size_t Read(void* buffer,
+                     std::size_t count,
+                     std::size_t offset) const override {
+        if (offset > bytes_->size() || count > bytes_->size() - offset) {
+            return 0;
+        }
+        std::memcpy(buffer, bytes_->data() + offset, count);
+        return count;
+    }
+
+    std::pair<FILE*, std::size_t> GetFileUnsafe() const override {
+        return {nullptr, 0};
+    }
+
+private:
+    std::shared_ptr<std::vector<std::uint8_t>> bytes_;
+};
+
+void Check(bool condition, const char* message = nullptr) {
     if (!condition) {
+        if (message) {
+            std::fprintf(stderr, "check failed: %s\n", message);
+        }
         std::abort();
     }
+}
+
+void SelectHttpResolver() {
+#if defined(_WIN32)
+    Check(_putenv_s("PXR_AR_DEFAULT_RESOLVER", "HttpResolver") == 0);
+#else
+    Check(setenv("PXR_AR_DEFAULT_RESOLVER", "HttpResolver", 1) == 0);
+#endif
+}
+
+void SetHttpResolverAsset(const std::filesystem::path& assetPath) {
+#if defined(_WIN32)
+    Check(_putenv_s("USDGEOCOPC_TEST_ASSET", assetPath.string().c_str()) == 0);
+#else
+    Check(setenv("USDGEOCOPC_TEST_ASSET", assetPath.string().c_str(), 1) == 0);
+#endif
+}
+
+void TestArAssetRandomAccessSource() {
+    auto asset = std::make_shared<MemoryAsset>(
+        std::vector<std::uint8_t>{1, 2, 3, 4, 5});
+    usdgeocopc::ArAssetRandomAccessSource source(asset, "memory.copc");
+
+    std::uint64_t size = 0;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(source.GetSize(size, diagnostics));
+    Check(size == 5);
+
+    std::vector<std::uint8_t> bytes;
+    Check(source.Read(1, 3, bytes, diagnostics));
+    Check((bytes == std::vector<std::uint8_t>{2, 3, 4}));
+    Check(!source.Read(4, 2, bytes, diagnostics));
+    Check(!diagnostics.empty());
+    Check(diagnostics.back().code == usdgeo::DiagnosticCode::InvalidOffset);
 }
 
 void RegisterPlugin(const std::filesystem::path& plugInfo) {
@@ -448,9 +521,67 @@ void TestAuthoredLodEquivalence() {
     std::filesystem::remove(copcPath, error);
 }
 
+void TestResolverBackedRead() {
+    const auto records = MakeEquivalentRecords();
+    const auto lazPath = std::filesystem::temp_directory_path() /
+                         "usd_copc_resolver_test.laz";
+    const auto compressedPoints = WriteEquivalentLaz(records, lazPath);
+    const auto copcPath = WriteEquivalentCopc(compressedPoints);
+    std::ifstream input(copcPath, std::ios::binary | std::ios::ate);
+    Check(input.good());
+    const auto end = input.tellg();
+    Check(end > 0);
+    input.seekg(0, std::ios::beg);
+    std::vector<std::uint8_t> bytes(static_cast<std::size_t>(end));
+    input.read(reinterpret_cast<char*>(bytes.data()),
+               static_cast<std::streamsize>(bytes.size()));
+    Check(static_cast<bool>(input));
+    const auto resolverAsset = std::filesystem::temp_directory_path() /
+                               "usd_copc_resolver_asset.copc";
+    std::ofstream resolverOutput(resolverAsset,
+                                 std::ios::binary | std::ios::trunc);
+    Check(resolverOutput.good());
+    resolverOutput.write(reinterpret_cast<const char*>(bytes.data()),
+                         static_cast<std::streamsize>(bytes.size()));
+    Check(resolverOutput.good());
+    resolverOutput.close();
+    SetHttpResolverAsset(resolverAsset);
+
+    const auto resolvedAsset = pxr::ArGetResolver().OpenAsset(
+        pxr::ArResolvedPath("http://memory.copc"));
+    Check(static_cast<bool>(resolvedAsset), "resolver returned an asset");
+    Check(resolvedAsset->GetSize() == bytes.size(),
+          "resolver asset size matches");
+    char signature[4]{};
+    Check(resolvedAsset->Read(signature, sizeof(signature), 0) ==
+              sizeof(signature),
+            "resolver asset signature read");
+        Check(std::memcmp(signature, "LASF", sizeof(signature)) == 0,
+                    "resolver asset has LAS signature");
+
+    const auto format = pxr::SdfFileFormat::FindByExtension("sample.copc");
+    Check(format);
+    const auto layer = pxr::SdfLayer::CreateAnonymous("resolver.usda");
+    Check(layer);
+    Check(format->Read(layer.operator->(), "http://memory.copc", false));
+    Check(layer->GetPrimAtPath(pxr::SdfPath("/PointCloud")));
+    Check(layer->GetAttributeAtPath(
+        pxr::SdfPath("/PointCloud.geo:pointCount")));
+
+    std::error_code error;
+    std::filesystem::remove(lazPath, error);
+    std::filesystem::remove(copcPath, error);
+    std::filesystem::remove(resolverAsset, error);
+}
+
 } // namespace
 
 int main() {
+    SelectHttpResolver();
+    TestArAssetRandomAccessSource();
+    RegisterPlugin(std::filesystem::path(USDGEOCOPC_HTTP_RESOLVER_SOURCE_DIR) /
+                   "plugin" / "resources" / "httpresolver" /
+                   "plugInfo.json");
     RegisterPlugin(std::filesystem::path(USDGEOLAS_SOURCE_DIR) /
                    "plugin" / "resources" / "pointcloud-las" /
                    "plugInfo.json");
@@ -462,5 +593,6 @@ int main() {
                    "plugInfo.json");
     TestMetadataIntegration();
     TestAuthoredLodEquivalence();
+    TestResolverBackedRead();
     return 0;
 }
