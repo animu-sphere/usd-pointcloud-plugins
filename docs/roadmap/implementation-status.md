@@ -176,7 +176,8 @@ transaction state creation and retrying the same output workspace.
 - [ ] Complete the v0.3.x documentation consolidation: concise root README
       and synchronized workspace, capability, and implementation documents.
 - [ ] Complete v0.4.0 PLY point-cloud read support from the implemented PLY 1.0
-      header-inspection foundation through a thin `pointcloud-ply` adapter.
+      header and scalar vertex decoding foundation through a thin
+      `pointcloud-ply` adapter.
 - [ ] Complete v0.5.0 COPC random access through a project-owned source
       interface and an OpenUSD `ArAsset` adapter, with resolver-dependent HTTP
       support and conservative generated-cache identity.

@@ -35,6 +35,19 @@ FileFormat Plugin targets. It is not vendored by this repository. Follow the
 license and notice requirements of the OpenUSD distribution used to build and
 ship a plugin bundle.
 
+## tinyply 2.3.4
+
+The `usdPly` reader incorporates the upstream `tinyply` single-header PLY
+reader from:
+
+- Upstream: https://github.com/ddiakopoulos/tinyply
+- Version: 2.3.4
+- Commit: `40aa4a0ae9e9c203e11893f78b8bcaf8a50e65f0`
+- Local source: `third_party/tinyply`
+
+tinyply is dedicated to the public domain under the Unlicense. Its upstream
+README and source notice are retained with the vendored files.
+
 ## Test data
 
 The LAS and LAZ corpus files under `plugins/*/tests/corpus` are test fixtures,
