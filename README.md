@@ -2,26 +2,19 @@
 
 [![ost source ci](https://github.com/animu-sphere/usd-pointcloud-plugins/actions/workflows/ost-source-ci.yml/badge.svg?branch=main)](https://github.com/animu-sphere/usd-pointcloud-plugins/actions/workflows/ost-source-ci.yml)
 
-OpenUSD FileFormat Plugins and libraries for point-cloud data, including LAS,
-LAZ, local COPC reads, spatial tiling, payload-backed authoring, and shared point-cloud contracts
-for surveying, mapping, scanning, and 3D data-exchange workflows.
+OpenUSD FileFormat Plugins and libraries for point-cloud data. The project
+opens LAS, LAZ, and local COPC sources through shared point-cloud contracts for
+surveying, mapping, scanning, and 3D data-exchange workflows.
 
 **What it does**
 
-- Imports LAS 1.2-1.4 headers and point formats 0-10 through the `las` file
-  format, including waveform packet metadata for formats 4, 5, 9, and 10 and
-  scalar Extra Bytes point attributes.
-- Imports compressed LAZ point records through the `laz` file format for the
-  point formats the bundled `laz-perf` codec supports.
-- Authors `UsdGeomPoints` with positions, intensity, returns, classification,
-  RGB, NIR, GPS time, waveform metadata, Extra Bytes, CRS metadata, local
-  origin, bounds, and point-count metadata.
-- Authors OpenUSD 26.08 `usdLod` roots from compact `lod` profiles, and reads
-  headers alone through `metadataOnly`.
-- Keeps format-independent validation and coordinate handling outside the USD
-  plugin layer, so the core libraries test without an OpenUSD runtime.
-- Reports stable, machine-readable `LASxxx` / `LAZxxx` / `COPCxxx` diagnostics
-  for invalid or unsupported input.
+- Reads LAS 1.2-1.4 and LAZ point records through format-specific plugins.
+- Reads local COPC metadata, hierarchy, and selected point ranges.
+- Authors `UsdGeomPoints`, metadata, OpenUSD 26.08 `usdLod` roots, and
+  payload-backed spatial tiles through shared authoring.
+- Supports metadata-only inspection, bounded-memory tiled generation, stable
+  `LASxxx` / `LAZxxx` / `COPCxxx` diagnostics, and explicit conversion for
+  long-running tiled jobs.
 
 Rendering is the consuming application's responsibility. These plugins provide
 import and USD authoring, not a point-cloud renderer, and LOD selection stays
@@ -32,9 +25,9 @@ with the host application. See the
 
 | Extension | Plugin | Current support |
 | --- | --- | --- |
-| `.las` | `pointcloud-las` | LAS 1.2-1.4 headers, VLR/EVLR metadata, WKT CRS, GeoTIFF keys, point formats 0-10 |
-| `.laz` | `pointcloud-laz` | Point formats 0-3 and 6-8 through the bundled `laz-perf` adapter |
-| `.copc` | `pointcloud-copc` | Local metadata-only, non-tiled, and native hierarchy tiled reads |
+| `.las` | `pointcloud-las` | LAS 1.2-1.4, point formats 0-10, CRS, waveform metadata, and Extra Bytes |
+| `.laz` | `pointcloud-laz` | Compressed point formats supported by the bundled `laz-perf` adapter |
+| `.copc` | `pointcloud-copc` | Local metadata-only, direct, and native-hierarchy tiled reads |
 
 Point formats 4 and 5 require LAS 1.3 or newer; formats 6-10 require LAS 1.4.
 The LAZ adapter rejects waveform formats because the bundled `laz-perf` codec
@@ -60,10 +53,11 @@ to ASCII USD identifiers; original names remain in header metadata. See the
 The complete matrix, including VLR, CRS, and authored USD attributes, is in
 the [capability matrix](docs/reference/CAPABILITY_MATRIX.md).
 
-COPC local read support is shipped in v0.3.0; PLY, delimited text point files (XYZ, PTS,
-CSV), and E57 follow in that order. Terrain, raster, and vector formats are
-future repository candidates. See
-[format support order](docs/roadmap/format-support-order.md).
+The [capability matrix](docs/reference/CAPABILITY_MATRIX.md) is the canonical
+source for point formats, attributes, CRS, metadata, and authored USD details.
+PLY point reading is the next format milestone, followed by resolver-backed
+remote COPC. Delimited text and E57 remain later work; terrain, raster, and
+vector formats are future repository candidates.
 
 ## Quick Start
 
@@ -100,7 +94,9 @@ The converter is the operational path for long-running tiled generation. It
 publishes the root layer and a deterministic `PointCloud.usda.manifest`
 sidecar after generation completes; static FileFormat tiled reads remain
 available for preview and small inputs. The sidecar records normalized
-generation arguments and relative payload asset paths.
+generation arguments and relative payload asset paths. The converter can reuse
+committed deterministic USDC cache entries through `--cache-root`; FileFormat
+cache lookup is not currently supported.
 
 Build and test the libraries with plain CMake — without an OpenUSD runtime,
 this covers `usdGeoCore`, `usdPointCloudCore`, `usdLas`, and `usdLaz`:
@@ -259,9 +255,9 @@ dataset coverage remains open.
 - CRS WKT is retained and EPSG is inferred from explicit WKT or GeoTIFF
   horizontal CRS keys. Conflicting definitions are rejected with a typed
   `ConflictingCrs` diagnostic.
-- The deterministic USDC cache is available to the conversion tool and direct
-  FileFormat reads through `--cache-root` and `USDGEO_CACHE_ROOT`. Broader
-  real-world dataset coverage remains open.
+- The deterministic USDC cache is available to the conversion tool through
+  `--cache-root`. Direct FileFormat cache lookup and resolver-backed source
+  identity remain future work.
 - Writing LAS, LAZ, or COPC is out of scope; all three plugins export as
   `usda`.
 
@@ -271,7 +267,7 @@ See the [implementation status](docs/roadmap/implementation-status.md) and
 ## Status
 
 Latest release: **v0.3.0** — local COPC reading, native hierarchy LOD
-authoring, and deterministic cache reuse. The v0.2.0
+authoring, and deterministic cache reuse in the conversion tool. The v0.2.0
 module and bundle rename is recorded in
 [MIGRATION.md](docs/compatibility/MIGRATION.md). See the
 [release record](docs/releases/v0.3.0.md) and [CHANGELOG.md](CHANGELOG.md).
@@ -283,9 +279,9 @@ structure is fixed in the
 ## Architecture
 
 ```text
-.las -> usdLas -----------\
-                           >-- usdPointCloudAuthoring -- pointcloud-las/laz -> stage
-.laz -> usdLaz -> usdLas -/
+.las  -> usdLas  ----\
+.laz  -> usdLaz  -----+--> usdPointCloudAuthoring --> pointcloud plugins --> stage
+.copc -> usdCopc -----/
           ^
           usdGeoCore + usdPointCloudCore
           (shared geospatial and point-cloud contracts)
@@ -308,8 +304,11 @@ libs/usd-pointcloud-core/       Point attribute, chunk, read-option, sampling, a
 libs/usd-pointcloud-authoring/  OpenUSD point-cloud, usdLod, and payload authoring
 libs/usd-las/                   LAS header, metadata, and point-record reader
 libs/usd-laz/                   LAZ chunk reader and laz-perf adapter
+libs/usd-copc/                  COPC metadata, hierarchy, and local range reader
+libs/usd-ply/                   PLY 1.0 header-inspection foundation
 plugins/pointcloud-las/         LAS OpenUSD FileFormat Plugin
 plugins/pointcloud-laz/         LAZ OpenUSD FileFormat Plugin
+plugins/pointcloud-copc/        COPC OpenUSD FileFormat Plugin
 docs/                           See docs/README.md for the documentation index
 ```
 

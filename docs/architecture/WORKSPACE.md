@@ -5,10 +5,11 @@ identities, dependency directions, root responsibilities, artifact naming, and
 change invariants. A structural change that contradicts this document must
 change this document first.
 
-Status: `usdGeoCore`, `usdGeoCache`, `usdPointCloudCore`, `usdLas`, `usdLaz`,
-`usdCopc`, and `usdPointCloudAuthoring` are implemented, as are the
-`pointcloud-las`, `pointcloud-laz`, and `pointcloud-copc` bundles. Future module
-identities are reserved here.
+Status: `usdGeoCore`, `usdGeoCache`, `usdPointCloudCore`,
+`usdPointCloudTiling`, `usdPointCloudAuthoring`, `usdLas`, `usdLaz`, and
+`usdCopc` are implemented, as are the `pointcloud-las`, `pointcloud-laz`, and
+`pointcloud-copc` bundles. `usdPly` has a tested header-inspection foundation;
+its point decoder and plugin are future work.
 
 ## 1. Components
 
@@ -18,15 +19,16 @@ identities are reserved here.
 | `usdPointCloudCore` | `libs/usd-pointcloud-core` | plain CMake/OpenStrata static library | implemented | Format-independent point-cloud contracts: point attribute definitions and types, `PointChunk` / `PointData` / `PointCloudAsset`, point validation, attribute selection, range and chunk read options, deterministic sampling, and the shared LOD hierarchy and tile value types. |
 | `usdLas` | `libs/usd-las` | plain CMake/OpenStrata static library | implemented | LAS parsing and decoding: 1.2-1.4 headers, VLR/EVLR, point formats 0-10, waveform packet metadata, GeoTIFF key records, scalar and vector Extra Bytes, metadata-only reads, and chunked and range-based reads behind `LasReader`. |
 | `usdLaz` | `libs/usd-laz` | plain CMake/OpenStrata static library | implemented | LAZ decompression through the vendored laz-perf codec, converted into the shared LAS and point-cloud contracts, with metadata-only reads, chunked reads, and stable diagnostics for unsupported compressed formats. Owns the vendored laz-perf subset. |
-| `usdPointCloudAuthoring` | `libs/usd-pointcloud-authoring` | plain CMake/OpenStrata static library | implemented | Shared OpenUSD authoring: `UsdGeomPoints` and geospatial metadata authoring, point-attribute authoring, `usdLod` hierarchy authoring, tiled point-cloud authoring, payload-backed tile assets, root layer generation, and stage/layer validation. Renamed from `usdPointCloudAuthoring` after v0.1.0. |
+| `usdPointCloudAuthoring` | `libs/usd-pointcloud-authoring` | plain CMake/OpenStrata static library | implemented | Shared OpenUSD authoring: `UsdGeomPoints` and geospatial metadata authoring, point-attribute authoring, `usdLod` hierarchy authoring, tiled point-cloud authoring, payload-backed tile assets, root layer generation, and stage/layer validation. |
 | `pointcloud-las` | `plugins/pointcloud-las` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | OpenUSD `SdfFileFormat` adapter for `.las`: plugin registration, argument normalization, `LasReader` construction, and authoring through the shared library. Owns its `LASxxx` diagnostic codes. |
 | `pointcloud-laz` | `plugins/pointcloud-laz` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | The same adapter shape for `.laz`, using `LazReader` and the laz-perf codec integration. Owns its `LAZxxx` diagnostic codes. |
-| `usdCopc` | `libs/usd-copc` | plain library | foundation implemented | COPC Info and hierarchy validation plus local point-data range selection through the shared LAZ chunk decoder. |
+| `usdCopc` | `libs/usd-copc` | plain CMake/OpenStrata static library | implemented (local read) | COPC Info and hierarchy validation, selective local point-data range decoding through the shared LAZ chunk decoder, and native hierarchy streaming. Remote sources are deferred. |
 | `pointcloud-copc` | `plugins/pointcloud-copc` | OpenStrata plugin bundle (`usd-fileformat`) | implemented (local read) | Local metadata-only, non-tiled, and native hierarchy tiled COPC adapter. Tiled output uses payload-backed shared `usdLod` authoring; source point ranges remain unsupported. |
-| `usdPointCloudTiling` | `libs/usd-pointcloud-tiling` | plain library | implemented (initial contracts) | Format-independent spatial partitioning and bounded-memory tile preparation: fixed-grid tile keys and source-coordinate bucketing are implemented; tile buffering and spill-to-disk, tile manifests, fixed-stride LOD sampling, deterministic tile and level ordering, and cleanup of incomplete temporary output remain. See the [streaming and tiling plan](../roadmap/streaming-and-tiling.md). |
-| `usdGeoCache` | `libs/usd-geo-cache` | plain CMake/OpenStrata static library | implemented (initial contracts) | Descriptor-based stable cache keys, deterministic USDC root and payload layout, cache hit lookup, and entry invalidation. Cache generation and manifest publication remain caller responsibilities. |
-| `usdPly`, `usdAsciiPoints`, `usdE57` | `libs/` | plain libraries | reserved, not implemented | Additional point-cloud readers targeting the same shared contracts. |
-| `geospatial-ply`, `geospatial-points-text`, `geospatial-e57` | `plugins/` | reserved, not implemented | Future point-cloud FileFormat Plugin adapters, in the order fixed by [format support order](../roadmap/format-support-order.md). |
+| `usdPointCloudTiling` | `libs/usd-pointcloud-tiling` | plain CMake/OpenStrata static library | implemented | Format-independent fixed-grid partitioning, spill-backed bounded-memory routing, deterministic tile and LOD ordering, spool validation, and cleanup contracts. Tile manifests remain a follow-up contract. See the [streaming and tiling plan](../roadmap/streaming-and-tiling.md). |
+| `usdGeoCache` | `libs/usd-geo-cache` | plain CMake/OpenStrata static library | implemented | Descriptor-based stable cache keys, deterministic USDC root/payload layout, hit lookup, and entry invalidation. The conversion tool owns generation and atomic publication; FileFormat lookup is not implemented. |
+| `usdPly` | `libs/usd-ply` | plain CMake/OpenStrata static library | foundation implemented | Tested PLY 1.0 header inspection for ASCII and binary encodings. Vertex decoding and shared point-cloud integration are planned for v0.4.0. |
+| `usdAsciiPoints`, `usdE57` | `libs/` | plain libraries | reserved, not implemented | Additional point-cloud readers targeting the same shared contracts. |
+| `pointcloud-ply`, `pointcloud-points-text`, `pointcloud-e57` | `plugins/` | reserved, not implemented | Future point-cloud FileFormat Plugin adapters, in the order fixed by [format support order](../roadmap/format-support-order.md). |
 
 Terrain, raster, and vector contracts belong to future repository candidates:
 `usd-terrain-plugins` and `usd-vector-plugins`. They are not reserved modules
@@ -53,6 +55,7 @@ usdGeoCache            -> usdGeoCore
 usdLas                 -> usdGeoCore, usdPointCloudCore
 usdLaz                 -> usdLas, usdPointCloudCore
 usdCopc                -> usdLas, usdLaz, usdPointCloudCore
+usdPly                 -> usdGeoCore
 usdLaz                 -> laz-perf (private, vendored codec implementation)
 usdPointCloudAuthoring -> usdGeoCore, usdPointCloudCore
 usdPointCloudAuthoring -> OpenUSD (usdGeom, usdLod)
@@ -103,9 +106,6 @@ identity and CMake package/target. A bundle declares the edge in its manifest;
 | `usdLas` | `usdLas` | `usdlas::core` |
 | `usdLaz` | `usdLaz` | `usdlaz::core` |
 
-`usdpointcloud::authoring` remains as a deprecated alias of `usdpointcloud::authoring` and
-is removed in v0.3.0; see [MIGRATION.md](../compatibility/MIGRATION.md).
-
 ## 3. Source boundaries
 
 ```text
@@ -129,6 +129,10 @@ libs/usd-las/
 libs/usd-laz/
     laz-perf isolation and the equivalent LazReader orchestration
 
+libs/usd-copc/
+    COPC metadata, hierarchy, and local range decoding through the shared LAZ
+    decoder; future random-access sources remain OpenUSD-independent
+
 libs/usd-pointcloud-core/
     the point schema, chunk contracts, read options, sampling, LOD values
     every reader and the authoring library share
@@ -143,8 +147,8 @@ libs/usd-pointcloud-authoring/
     OpenUSD authoring, shared by every format bundle
 ```
 
-The C++ namespaces are `usdgeo`, `usdpointcloud`, `usdlas`, `usdlaz`, and the
-per-bundle `usdgeolas` / `usdgeolaz`. Directory names, CMake target names, and
+The C++ namespaces are `usdgeo`, `usdpointcloud`, `usdlas`, `usdlaz`, `usdcopc`,
+and the per-bundle `usdgeolas` / `usdgeolaz` / `usdgeocopc`. Directory names, CMake target names, and
 C++ namespaces are deliberately not required to be identical: the external
 bundle name uses the explicit `geospatial` term while the internal C++ prefix
 stays `UsdGeo` to avoid excessively long symbols. The authoring library keeps
@@ -194,10 +198,11 @@ Per-bundle artifacts use OpenStrata's target-qualified convention:
 ```text
 pointcloud-las-<version>-<target>.tar.zst
 pointcloud-laz-<version>-<target>.tar.zst
+pointcloud-copc-<version>-<target>.tar.zst
 ```
 
-The installed shared libraries are `UsdGeoLasFileFormat` and
-`UsdGeoLazFileFormat`, and the registered `plugInfo.json` type names match
+The installed shared libraries are `UsdGeoLasFileFormat`, `UsdGeoLazFileFormat`,
+and `UsdGeoCopcFileFormat`, and the registered `plugInfo.json` type names match
 them. Until a real need for independent release cadences appears, every bundle
 and plain library mirrors the repository-root `VERSION`. Git tags use `vX.Y.Z`.
 
@@ -239,8 +244,8 @@ Every structural or format change preserves these invariants:
 - Keep the root CMake build working without `ost` for local development.
 - Keep large dependencies optional and scoped to the owning target.
 - Test pure libraries without requiring an OpenUSD runtime where possible.
-  `usdGeoCore`, `usdPointCloudCore`, `usdLas`, and `usdLaz` build and test with
-    no OpenUSD runtime; `usdPointCloudAuthoring` and all three bundles require
+    `usdGeoCore`, `usdPointCloudCore`, `usdLas`, `usdLaz`, `usdCopc`, and `usdPly`
+        build and test with no OpenUSD runtime; `usdPointCloudAuthoring` and all three bundles require
     one.
 - Validate plugin bundles with the pinned OpenStrata `cy2026` / `usd` runtime.
 
@@ -264,22 +269,25 @@ ost build
 ost test
 ost plugin build plugins/pointcloud-las
 ost plugin build plugins/pointcloud-laz
+ost plugin build plugins/pointcloud-copc
 ost plugin test plugins/pointcloud-las --up-to 4
 ost plugin test plugins/pointcloud-laz --up-to 4
+ost plugin test plugins/pointcloud-copc --up-to 4
 ```
 
-Neither bundle declares OST test fixtures yet, so the L3 `usdcat.read` and L4
-`python.stage_open` checks currently skip. Wiring the existing conformance
-fixtures into the manifests is open work tracked in
-[roadmap/implementation-status.md](../roadmap/implementation-status.md).
+All three bundles declare OST smoke fixtures and run the L3 `usdcat.read` and
+L4 `python.stage_open` checks. The COPC bundle follows the same runtime matrix
+as LAS and LAZ.
 
 ## 10. Delivery status
 
 | Milestone | Boundary | Status |
 | --- | --- | --- |
 | v0.1.0 | shared geospatial and point-cloud contracts, LAS and LAZ readers, FileFormat Plugin integration | released 2026-08-01 |
-| unreleased | typed diagnostics end to end, LAS 1.4 attributes and waveform formats, GeoTIFF key parsing, scalar and vector Extra Bytes, chunked and range-based reads, file-format arguments, shared authoring entry point, `usdLod` authoring, compact LOD profiles, tiled and payload-backed authoring, metadata-only reads, and the module rename | on `main` |
-| next | bounded-memory streaming: `PointStream`, `usdPointCloudTiling`, spill-backed tile routing, payload generation during file open, spatial tile arguments | in progress; generated-corpus benchmark is available, while real-dataset measurement remains in [streaming and tiling](../roadmap/streaming-and-tiling.md) |
+| v0.2.0 | typed diagnostics, LAS 1.4 attributes and waveform formats, GeoTIFF key parsing, Extra Bytes, file-format arguments, shared authoring, `usdLod`, and metadata-only reads | released 2026-08-05 |
+| v0.2.1 | bounded-memory streaming, spill-backed tile routing, conversion tooling, cache generation and lookup in the conversion tool | released |
+| v0.3.0 | local COPC reader and FileFormat integration, native hierarchy streaming, shared LOD authoring, and all-bundle CI smoke coverage | released |
+| next | documentation consolidation, then PLY point decoding and resolver-backed COPC random access | tracked in [roadmap](../roadmap/README.md) |
 
 Current work and acceptance gaps are tracked in
 [roadmap/implementation-status.md](../roadmap/implementation-status.md).

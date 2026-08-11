@@ -12,7 +12,7 @@ workspace contract wins; structural changes must update that contract first.
 | Category | Answers | Start here |
 | --- | --- | --- |
 | [architecture/](architecture/) | How the workspace is structured, which dependency directions are legal, and what each cross-cutting contract requires. | [WORKSPACE.md](architecture/WORKSPACE.md) |
-| [reference/](reference/) | What LAS and LAZ input is accepted today and how it maps to USD. | [CAPABILITY_MATRIX.md](reference/CAPABILITY_MATRIX.md) |
+| [reference/](reference/) | What LAS, LAZ, and COPC input is accepted today and how it maps to USD. | [CAPABILITY_MATRIX.md](reference/CAPABILITY_MATRIX.md) |
 | [guides/](guides/) | How to build, test, install, and redistribute the plugins. | [BUILDING.md](guides/BUILDING.md), [INSTALL.md](guides/INSTALL.md) |
 | [compatibility/](compatibility/) | Which OpenUSD and OpenStrata versions are supported, and how to migrate across renames. | [OPENUSD.md](compatibility/OPENUSD.md), [MIGRATION.md](compatibility/MIGRATION.md) |
 | [roadmap/](roadmap/) | What remains incomplete and in what order it lands. | [README.md](roadmap/README.md) |
@@ -31,8 +31,8 @@ workspace contract wins; structural changes must update that contract first.
   artifact naming. A structural change updates it first.
 - [reference/CAPABILITY_MATRIX.md](reference/CAPABILITY_MATRIX.md) describes
   what the current tree implements, not what it intends to implement later.
-  It separates authoring-library capability from what direct LAS/LAZ
-  FileFormat reads reach.
+  It separates authoring-library capability from what direct LAS, LAZ, and
+  COPC FileFormat reads reach.
 - [architecture/LOD.md](architecture/LOD.md) fixes OpenUSD 26.08 `usdLod` as
   the only public LOD representation and defines tiling, sampling, cache-key,
   and payload rules.
@@ -42,8 +42,8 @@ workspace contract wins; structural changes must update that contract first.
 - [architecture/PLUGIN_ADAPTER.md](architecture/PLUGIN_ADAPTER.md) is the
   thin-adapter rule every FileFormat Plugin is held to.
 - [architecture/DIAGNOSTICS.md](architecture/DIAGNOSTICS.md) defines the typed
-  diagnostic contract and its projection onto stable `LASxxx` / `LAZxxx`
-  plugin codes.
+  diagnostic contract and its projection onto stable `LASxxx` / `LAZxxx` /
+  `COPCxxx` plugin codes.
 - [contributing/MODULE_README_CONTRACT.md](contributing/MODULE_README_CONTRACT.md)
   makes each module's `README.md` part of that module's contract rather than
   optional supplementary documentation.
@@ -56,13 +56,20 @@ Component-specific usage stays with the component:
 | --- | --- | --- |
 | `pointcloud-las` | plugin bundle | [plugin README](../plugins/pointcloud-las/README.md) |
 | `pointcloud-laz` | plugin bundle | [plugin README](../plugins/pointcloud-laz/README.md) |
+| `pointcloud-copc` | plugin bundle | [plugin README](../plugins/pointcloud-copc/README.md) |
 | `usdGeoCore` | library | [library README](../libs/usd-geo-core/README.md) |
 | `usdGeoCache` | library | [library README](../libs/usd-geo-cache/README.md) |
 | `usdPointCloudCore` | library | [library README](../libs/usd-pointcloud-core/README.md) |
 | `usdPointCloudAuthoring` | library | [library README](../libs/usd-pointcloud-authoring/README.md) |
+| `usdPointCloudTiling` | library | [library README](../libs/usd-pointcloud-tiling/README.md) |
 | `usdLas` | library | [library README](../libs/usd-las/README.md) |
 | `usdLaz` | library | [library README](../libs/usd-laz/README.md) |
+| `usdCopc` | library | [library README](../libs/usd-copc/README.md) |
+| `usdPly` | library foundation | [library README](../libs/usd-ply/README.md) |
 
 Per-bundle diagnostic code tables live with their bundle:
 [pointcloud-las](../plugins/pointcloud-las/docs/DIAGNOSTICS.md),
-[pointcloud-laz](../plugins/pointcloud-laz/docs/DIAGNOSTICS.md).
+[pointcloud-laz](../plugins/pointcloud-laz/docs/DIAGNOSTICS.md). COPC
+diagnostics are documented in the shared
+[diagnostics contract](architecture/DIAGNOSTICS.md) and the
+[capability matrix](reference/CAPABILITY_MATRIX.md).
