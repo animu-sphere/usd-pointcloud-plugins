@@ -30,6 +30,10 @@ def main() -> int:
             rf'^  version: {re.escape(version)}$',
         "plugins/pointcloud-ply/CMakeLists.txt":
             rf'^    VERSION {re.escape(version)}$',
+        "plugins/httpresolver/openstrata.plugin.yaml":
+            rf'^  version: {re.escape(version)}$',
+        "plugins/httpresolver/CMakeLists.txt":
+            rf'^    VERSION {re.escape(version)}$',
     }
 
     failures = []

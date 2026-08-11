@@ -2,6 +2,43 @@
 
 All notable changes to this project are documented here.
 
+## [0.5.0] - 2026-08-12
+
+### Added
+
+- Resolver-backed COPC reads through the active OpenUSD `ArResolver`, including
+  `ArAsset` random access for local and resolver-provided assets.
+- Typed COPC diagnostics for resolver-open failures, range failures, and short
+  reads, plus local payload-directory validation for remote tiled reads.
+- A transport-independent cache `SourceIdentity` contract and shared local
+  filesystem identity construction for authoring and the conversion tool.
+- HTTP resolver integration-test coverage on Windows, Linux, and macOS through
+  the `httpresolver` plugin and the generated OpenStrata CI matrix.
+
+### Changed
+
+- COPC FileFormat reads now use the active resolver instead of requiring a
+  project-owned HTTP transport or direct local-file access.
+- Generated cache reuse remains enabled only for stable local filesystem
+  identities, avoiding stale output when resolver identity is unavailable.
+- Release and compatibility documentation now includes the resolver bundle and
+  cross-platform source CI coverage.
+
+### Compatibility
+
+- Existing LAS, LAZ, COPC, and PLY format ids, arguments, authored stage shape,
+  and local cache behavior remain compatible with v0.4.0.
+- COPC resolver-backed reads require OpenUSD 26.08 and an active resolver that
+  can provide the requested asset and byte ranges.
+
+### Known limitations
+
+- The repository does not include a production HTTP client, authentication,
+  retries, network caching, or resolver-backed generated-cache identity.
+- Remote COPC tiled reads require an absolute local `payloadDirectory`.
+- COPC writing, adaptive tiling, and new public USD schemas remain out of
+  scope.
+
 ## [0.4.0] - 2026-08-12
 
 ### Added
