@@ -4,7 +4,9 @@
 #include <pxr/base/tf/errorMark.h>
 #include <pxr/usd/sdf/fileFormat.h>
 #include <pxr/usd/sdf/layer.h>
+#include <pxr/usd/pcp/dynamicFileFormatInterface.h>
 #include <pxr/usd/usdGeom/points.h>
+#include <pxr/usd/usdLod/rootAPI.h>
 
 #include <cstdint>
 #include <chrono>
@@ -99,6 +101,8 @@ void TestFileFormatIntegration() {
     Check(plugins.front()->Load());
     const auto format = pxr::SdfFileFormat::FindByExtension("sample.las");
     Check(format);
+    Check(dynamic_cast<const pxr::PcpDynamicFileFormatInterface*>(
+              format.operator->()));
 
     const auto path = std::filesystem::temp_directory_path() /
                       "usd_pointcloud_plugins_conformance.las";
@@ -238,6 +242,32 @@ void TestFileFormatIntegration() {
               .GetAttribute(pxr::TfToken("geo:metadataOnly"))
               .Get(&metadataOnlyValue));
     Check(metadataOnlyValue);
+
+    const auto dynamicPath = std::filesystem::temp_directory_path() /
+                             "usd_pointcloud_plugins_dynamic_lod.usda";
+    {
+        std::ofstream output(dynamicPath);
+        Check(output.good());
+        output << "#usda 1.0\n"
+               << "def \"Survey\" (\n"
+               << "    prepend payload = @" << path.generic_string()
+               << "@</PointCloud>\n"
+               << "    pc_las_lod = \"balanced\"\n"
+               << ")\n"
+             << "{}\n";
+        Check(output.good());
+    }
+    const auto dynamicStage = pxr::UsdStage::Open(dynamicPath.string());
+    Check(dynamicStage);
+    const auto survey = dynamicStage->GetPrimAtPath(
+        pxr::SdfPath("/Survey"));
+    Check(survey.IsValid());
+    Check(survey.HasAPI<pxr::UsdLodRootAPI>());
+    Check(survey.SetMetadata(
+        pxr::TfToken("pc_las_lod"), pxr::VtValue(pxr::TfToken("off"))));
+    Check(!survey.HasAPI<pxr::UsdLodRootAPI>());
+    std::filesystem::remove(dynamicPath);
+
     pxr::VtArray<std::string> availableAttributes;
     Check(metadataPoints.GetPrim()
               .GetAttribute(pxr::TfToken("geo:availableAttributes"))

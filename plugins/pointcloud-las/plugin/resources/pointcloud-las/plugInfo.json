@@ -7,6 +7,15 @@
             "LibraryPath": "../../../lib/libUsdGeoLasFileFormat.dll",
             "ResourcePath": ".",
             "Info": {
+                "SdfMetadata": {
+                    "pc_las_lod": {
+                        "appliesTo": ["prims"],
+                        "default": "off",
+                        "displayGroup": "Point Cloud",
+                        "documentation": "LOD profile used to generate this point cloud payload",
+                        "type": "token"
+                    }
+                },
                 "Types": {
                     "UsdGeoLasFileFormat": {
                         "bases": ["SdfFileFormat"],

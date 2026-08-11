@@ -48,8 +48,9 @@ canonical path is a command-line conversion tool that consumes the shared LAS
 and LAZ readers and the shared payload authoring API, then publishes the root
 layer last after payload generation succeeds. Static FileFormat reads remain useful for
 preview, metadata inspection, and small inputs. Dynamic FileFormat support is
-deferred until generated assets and cache lookup are stable; it must not make
-raw LAS or LAZ decoding an implicit side effect of recomposition.
+limited to format-specific LOD profile fields now that generated assets and cache
+lookup are stable; it must not make raw LAS or LAZ decoding an implicit side
+effect of recomposition when a committed cache entry is available.
 
 COPC follows LAS and LAZ because it validates native spatial hierarchy and
 partial loading using the infrastructure completed for `v0.2.x`. E57 follows

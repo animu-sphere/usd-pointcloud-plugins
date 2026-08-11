@@ -104,9 +104,17 @@ implemented for LAS and LAZ and produces payload-backed tile roots; `tile` and
 hosts must pass that map to `SdfLayer::FindOrOpen` or
 `SdfLayer::CreateIdentifier` before layer lookup. A static
 `SdfFileFormat::Read` implementation runs after that lookup and cannot repair a
-non-canonical layer identifier. Dynamic file-format support may move this
-composition to Pcp later; it is deliberately not part of the current plugin
-contract.
+non-canonical layer identifier. The implemented format-specific dynamic LOD
+fields map
+back into this same normalized argument path; other dynamic composition is
+deliberately not part of the current plugin contract.
+
+Dynamic LAS, LAZ, and COPC payloads may author their registered `pc_las_lod`,
+`pc_laz_lod`, or `pc_copc_lod` prim metadata field. Values are the same compact
+profiles as `lod`, and changing the field recomposes the payload. The fields
+are format-specific because OpenUSD registers plugin metadata globally. They
+do not replace `SDF_FORMAT_ARGS` for attributes, filters, ranges, tiling, or
+payload paths.
 
 Derived cache storage is configured independently through the optional
 `USDGEO_CACHE_ROOT` host environment variable. It is intentionally not a

@@ -168,8 +168,8 @@ transaction state creation and retrying the same output workspace.
       `USDGEO_CACHE_ROOT`
 - [x] Stage licensing, notice, capability, compatibility, and installation
       documents into release assets
-- [ ] Reconsider dynamic FileFormat support after generated assets and cache
-      lookup are stable ([ADR 0003](../adr/0003-dynamic-file-format.md))
+- [x] Adopt narrow format-specific dynamic LOD fields after generated assets
+      and cache lookup stabilized ([ADR 0003](../adr/0003-dynamic-file-format.md))
 
 ## Notes
 

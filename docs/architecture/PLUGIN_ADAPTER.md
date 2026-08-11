@@ -74,8 +74,9 @@ and reconstruct one tile at a time before payload authoring.
 The static adapters consume `SdfLayer::GetFileFormatArguments()`, which is the
 argument map OpenUSD stores after layer lookup. Callers that construct a layer
 must normalize arguments first and pass the request's canonical map to
-`SdfLayer::FindOrOpen`; `Read` is too late to change the layer cache key. Pcp
-dynamic file-format composition is intentionally deferred to ADR-0003.
+`SdfLayer::FindOrOpen`; `Read` is too late to change the layer cache key. The
+registered format-specific LOD metadata field is composed by Pcp and mapped
+back to the same normalized `lod` argument; all other arguments remain static.
 
 The shared authoring bridge also owns the optional direct cache lookup. When
 `USDGEO_CACHE_ROOT` is set, adapters build the same source-and-request

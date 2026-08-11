@@ -7,6 +7,15 @@
             "LibraryPath": "../../../lib/@OPENSTRATA_PLUGIN_LIBRARY_FILENAME@",
             "ResourcePath": ".",
             "Info": {
+                "SdfMetadata": {
+                    "pc_copc_lod": {
+                        "appliesTo": ["prims"],
+                        "default": "off",
+                        "displayGroup": "Point Cloud",
+                        "documentation": "LOD profile used to generate this point cloud payload",
+                        "type": "token"
+                    }
+                },
                 "Types": {
                     "UsdGeoCopcFileFormat": {
                         "bases": ["SdfFileFormat"],

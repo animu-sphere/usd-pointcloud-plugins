@@ -2,8 +2,9 @@
 
 ## Status
 
-Proposed. Not decided, and not scheduled before the plugins are thinned onto a
-shared reader and authoring path.
+Accepted for the format-specific `pc_<format>_lod` fields (2026-08-11). Other generation parameters
+remain static file-format arguments until their recomposition and cache costs
+are measured.
 
 ## Context
 
@@ -35,18 +36,18 @@ def "Survey" (
     prepend payload = @./sample.las@
 )
 {
-    int geo:lodLevels = 3
-    token geo:lod = "balanced"
+    pc_las_lod = "balanced"
 }
 ```
 
-Changing `geo:lod` recomposes the payload. The custom fields are declared in
+Changing `pc_las_lod` recomposes the payload. The custom fields are declared in
 the plugin's `plugInfo.json` under `SdfMetadata`, the format declares dynamic
 support, and the implementation provides
 `ComposeFieldsForFileFormatArguments` and
-`CanFieldChangeAffectFileFormatArguments`. Neither plugin's manifest declares
-anything of the sort today; both register only `bases`, `extensions`,
-`formatId`, `primary`, and `target`.
+`CanFieldChangeAffectFileFormatArguments`. The LAS, LAZ, and COPC manifests
+declare a format-specific `pc_<format>_lod` prim metadata field, and each
+format maps it to the existing normalized `lod` argument. The names are
+format-specific because OpenUSD registers plugin metadata fields globally.
 
 ## Options
 
@@ -92,46 +93,44 @@ Implement `PcpDynamicFileFormatInterface` so parameters are authored fields.
   composed. Exposing both as similar-looking authored fields risks users
   reaching for the wrong one.
 
-## Recommendation
+## Decision
 
-Sequence rather than choose: **A, then B, then reconsider C.**
+Keep A and B as the compatibility and production paths, and adopt a narrow form
+of C for LOD profile selection: **A, then B, then `pc_<format>_lod`**.
 
-A is required work under any option, and it is currently blocked only by the
-plugin-thinning migration. B delivers the actual large-data win and is already
-the documented target structure. C is attractive for authoring ergonomics but
-its cost is dominated by recomposition, which B is what makes affordable.
+A is required work under any option. B delivers the actual large-data win and
+is already the documented target structure. C is attractive for authoring
+ergonomics but its cost is dominated by recomposition, which B is what makes
+affordable.
 
-Deciding C before the cache exists risks shipping a mechanism whose main effect
-is making it easy to trigger a full re-decode.
+The initial dynamic fields are deliberately limited to the compact `lod` profile.
+When `USDGEO_CACHE_ROOT` contains a committed entry, recomposition loads the
+derived USDC result; a cache miss follows the existing reader path.
 
 ## Open Questions
 
-These are resolved before this ADR moves to Accepted or Rejected:
-
-1. Does the pinned OpenUSD 26.08 runtime expose
-   `PcpDynamicFileFormatInterface` with the same surface used here? Verify
-   alongside the `usdLod` schema check in
-   [phase 0](../roadmap/phase-0-technical-validation.md).
-2. Which parameters would be dynamic fields, and which stay arguments? A
+1. Which parameters would be dynamic fields, and which stay arguments? A
    parameter that alters authored topology is a poor candidate for casual
    interactive editing.
-3. What is the recomposition cost for a representative file once the USDC cache
+2. What is the recomposition cost for a representative file once the USDC cache
    exists, and does `CanFieldChangeAffectFileFormatArguments` isolate it
    adequately?
-4. How do dynamic argument fields coexist with `UsdLodOverrideAPI` without
+3. How do dynamic argument fields coexist with `UsdLodOverrideAPI` without
    presenting two overlapping ways to control detail?
-5. Do the `geo:*` metadata field names collide with the authored `geo:*`
+4. Do the `geo:*` metadata field names collide with the authored `geo:*`
    attributes already documented in
    [capability matrix](../reference/CAPABILITY_MATRIX.md)? A distinct namespace is
-   probably required.
+  required; `pc_<format>_lod` is intentionally outside the `geo:*` namespace.
 
 ## Consequences If Adopted
 
-- Both plugin manifests declare dynamic support and their `SdfMetadata` fields.
+- All three plugin manifests declare their format-specific `pc_<format>_lod`
+  `SdfMetadata` field.
 - The field names become a stable public contract, versioned like diagnostic
   codes.
 - Argument normalization is shared between the static argument path and the
   composed-field path, so one file cannot mean two things depending on how the
   parameter arrived.
-- Plugin integration tests cover recomposition on field change, and confirm
-  that unrelated field edits do not recompose.
+- The LAS integration test covers payload recomposition into a `usdLod` root;
+  LAZ and COPC use the same adapter contract and are covered by bundle smoke
+  tests and plugin builds.

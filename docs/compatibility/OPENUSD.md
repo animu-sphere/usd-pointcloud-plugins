@@ -89,20 +89,17 @@ repository-specific LOD schema is published. See the
 [tile and LOD contract](../architecture/LOD.md) and the
 [design policy](../design/DESIGN_POLICY.md).
 
-## Possible Additional Surface
-
-Not adopted, and listed so the compatibility impact is visible before it is:
+## Dynamic FileFormat Surface
 
 | Mechanism | Impact |
 | --- | --- |
 | `SDF_FORMAT_ARGS` handling | No new API surface; the plugins parse and normalize arguments themselves |
-| `PcpDynamicFileFormatInterface` | Adds a Pcp dependency, `SdfMetadata` field declarations in each manifest, and recomposition behavior to test |
+| `PcpDynamicFileFormatInterface` | Used by LAS, LAZ, and COPC for format-specific LOD prim metadata fields; adds a Pcp dependency and recomposition behavior |
 
-Both plugin manifests currently declare only `bases`, `extensions`,
-`formatId`, `primary`, and `target`. Dynamic file format support would extend
-them. The decision is open in
-[ADR-0003](../adr/0003-dynamic-file-format.md), and the runtime's
-`PcpDynamicFileFormatInterface` surface is verified before it is taken.
+The plugin manifests declare `pc_las_lod`, `pc_laz_lod`, or `pc_copc_lod` in
+`SdfMetadata`. Each field maps to the existing normalized `lod` argument and
+accepts `off`, `preview`, `balanced`, or `quality`. Other generation arguments
+remain static `SDF_FORMAT_ARGS`. See [ADR-0003](../adr/0003-dynamic-file-format.md).
 
 ## Host Expectations
 

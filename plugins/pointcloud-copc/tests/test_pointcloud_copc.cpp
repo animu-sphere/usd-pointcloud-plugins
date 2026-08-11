@@ -8,6 +8,7 @@
 #include <pxr/usd/sdf/fileFormat.h>
 #include <pxr/usd/sdf/layer.h>
 #include <pxr/usd/sdf/primSpec.h>
+#include <pxr/usd/pcp/dynamicFileFormatInterface.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/points.h>
 #include <pxr/usd/usdLod/rootAPI.h>
@@ -370,6 +371,8 @@ void TestMetadataIntegration() {
     RegisterPlugin(plugInfo);
     const auto format = pxr::SdfFileFormat::FindByExtension("sample.copc");
     Check(format);
+    Check(dynamic_cast<const pxr::PcpDynamicFileFormatInterface*>(
+              format.operator->()));
 
     const auto path = std::filesystem::temp_directory_path() /
                       "usd_pointcloud_plugins_metadata.copc";
@@ -427,6 +430,28 @@ void TestAuthoredLodEquivalence() {
     Check(lasSnapshot.positions.size() == 3);
     CheckEquivalentLodSnapshots(lasSnapshot, lazSnapshot);
     CheckEquivalentLodSnapshots(lasSnapshot, copcSnapshot);
+
+    const auto dynamicPath = std::filesystem::temp_directory_path() /
+                             "usd_pointcloud_plugins_dynamic_copc_lod.usda";
+    {
+        std::ofstream output(dynamicPath);
+        Check(output.good());
+        output << "#usda 1.0\n"
+               << "def \"Survey\" (\n"
+               << "    prepend payload = @" << copcPath.generic_string()
+               << "@</PointCloud>\n"
+               << "    pc_copc_lod = \"balanced\"\n"
+               << ")\n"
+               << "{}\n";
+        Check(output.good());
+    }
+    const auto dynamicStage = pxr::UsdStage::Open(dynamicPath.string());
+    Check(dynamicStage);
+    const auto survey = dynamicStage->GetPrimAtPath(
+        pxr::SdfPath("/Survey"));
+    Check(survey.IsValid());
+    Check(survey.HasAPI<pxr::UsdLodRootAPI>());
+    std::filesystem::remove(dynamicPath);
 
     std::error_code error;
     std::filesystem::remove(lasPath, error);

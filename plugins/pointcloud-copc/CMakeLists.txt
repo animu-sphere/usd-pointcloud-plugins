@@ -73,7 +73,7 @@ target_include_directories(${PLUGIN_NAME} PRIVATE
 
 openstrata_link_openusd(
     TARGET ${PLUGIN_NAME}
-    COMPONENTS arch tf gf vt sdf usd)
+    COMPONENTS arch tf gf vt sdf pcp usd)
 
 if(USDGEO_BUILD_TESTS)
     add_executable(pointcloudCopc_tests tests/test_pointcloud_copc.cpp)
@@ -99,7 +99,7 @@ if(USDGEO_BUILD_TESTS)
     endif()
     openstrata_link_openusd(
         TARGET pointcloudCopc_tests
-        COMPONENTS arch tf gf vt sdf usd usdGeom usdLod)
+        COMPONENTS arch tf gf vt sdf pcp usd usdGeom usdLod)
     set_target_properties(pointcloudCopc_tests PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
     add_test(NAME pointcloudCopc_integration COMMAND pointcloudCopc_tests)
