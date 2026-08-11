@@ -6,6 +6,8 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <thread>
+#include <vector>
 
 namespace {
 
@@ -175,6 +177,47 @@ void TestLayoutAndInvalidation() {
         std::filesystem::remove_all(root);
     }
 
+void TestConcurrentLookupStatistics() {
+    usdgeo::cache::ResetLookupStatistics();
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("usdgeo-cache-concurrent-statistics-" +
+                       std::to_string(std::chrono::steady_clock::now()
+                                          .time_since_epoch()
+                                          .count()));
+    usdgeo::cache::Layout layout;
+    Check(usdgeo::cache::TryBuildLayout(root, MakeDescriptor(), layout));
+    std::filesystem::create_directories(layout.entryDirectory);
+    std::ofstream(layout.rootLayer) << "cache";
+    std::ofstream(layout.manifest) << "committed";
+
+    constexpr int threadCount = 8;
+    constexpr int lookupsPerThread = 64;
+    std::vector<std::thread> workers;
+    workers.reserve(threadCount);
+    for (int threadIndex = 0; threadIndex != threadCount; ++threadIndex) {
+        workers.emplace_back([&layout] {
+            for (int lookupIndex = 0; lookupIndex != lookupsPerThread;
+                 ++lookupIndex) {
+                usdgeo::cache::Inspect(layout);
+            }
+        });
+    }
+    for (auto& worker : workers) {
+        worker.join();
+    }
+
+    const auto statistics = usdgeo::cache::GetLookupStatistics();
+    const auto expectedLookups =
+        static_cast<std::uint64_t>(threadCount * lookupsPerThread);
+    Check(statistics.lookups == expectedLookups);
+    Check(statistics.hits == expectedLookups);
+    Check(statistics.misses == 0 && statistics.incomplete == 0 &&
+          statistics.invalidLayouts == 0);
+    Check(statistics.HitRatio() == 1.0);
+    std::filesystem::remove_all(root);
+    usdgeo::cache::ResetLookupStatistics();
+}
+
 } // namespace
 
 int main() {
@@ -182,5 +225,6 @@ int main() {
     TestStableDescriptorKey();
     TestLayoutAndInvalidation();
     TestLookupStatistics();
+    TestConcurrentLookupStatistics();
     return 0;
 }
