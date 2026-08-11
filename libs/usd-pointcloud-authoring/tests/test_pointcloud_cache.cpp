@@ -276,6 +276,46 @@ void TestPointCloudCacheMissAndMaterialization() {
     Check(errorMessage.empty());
     Check(!std::filesystem::exists(missingPayloadLayout.entryDirectory));
 
+    const auto corruptPayloadSource = testRoot / "corrupt-payload-source.las";
+    {
+        std::ofstream source(corruptPayloadSource, std::ios::binary);
+        source << "corrupt payload cache identity source";
+    }
+    usdgeo::cache::Layout corruptPayloadLayout;
+    Check(usdgeo::cache::TryBuildLayout(
+        cacheRoot,
+        MakeDescriptor(corruptPayloadSource, reference, request),
+        corruptPayloadLayout));
+    std::filesystem::create_directories(
+        corruptPayloadLayout.payloadDirectory);
+    const auto corruptPayloadStage = pxr::UsdStage::CreateNew(
+        corruptPayloadLayout.rootLayer.string());
+    Check(corruptPayloadStage);
+    const auto corruptPayloadPrim = pxr::UsdGeomXform::Define(
+        corruptPayloadStage, pxr::SdfPath("/PointCloud/Tile"));
+    Check(corruptPayloadPrim.GetPrim().IsValid());
+    Check(corruptPayloadPrim.GetPrim().GetPayloads().AddPayload(
+        pxr::SdfPayload("payloads/corrupt.usdc")));
+    Check(corruptPayloadStage->GetRootLayer()->Save());
+    std::ofstream(corruptPayloadLayout.payloadDirectory / "corrupt.usdc",
+                  std::ios::binary)
+        << "corrupt payload";
+    {
+        std::ofstream manifest(corruptPayloadLayout.manifest);
+        manifest << "committed\n";
+    }
+    const auto corruptPayloadLayer = pxr::SdfLayer::CreateNew(
+        (testRoot / "corrupt-payload.usda").string());
+    Check(corruptPayloadLayer);
+    hit = true;
+    errorMessage.clear();
+    Check(usdgeo::TryLoadPointCloudCache(
+        corruptPayloadLayer.operator->(), corruptPayloadSource, reference,
+        request, "las-reader-1", hit, errorMessage));
+    Check(!hit);
+    Check(errorMessage.empty());
+    Check(!std::filesystem::exists(corruptPayloadLayout.entryDirectory));
+
     if (hadPreviousCacheRoot) {
         SetCacheRoot(previousCacheRootValue);
     } else {
