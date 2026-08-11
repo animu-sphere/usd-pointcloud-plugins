@@ -99,7 +99,7 @@ This patch release stabilizes the LAS and LAZ implementation released in
       validation for tiled reads
 - [x] Add the explicit LAS/LAZ conversion tool as the production path for
       tiled, payload-backed generation, including deterministic manifest output
-- [ ] Close release documentation gaps for compatibility, installation,
+- [x] Close release documentation gaps for compatibility, installation,
       licensing, and large-data operation
 - [ ] Add regression coverage for each stabilization fix
 
@@ -162,13 +162,11 @@ transaction state creation and retrying the same output workspace.
 
 ### Remaining open work
 
-- [ ] COPC implementation after the `v0.2.1` stabilization gate; see the
-      `v0.3.0` release track above
 - [x] Integrate deterministic USDC cache generation and lookup into the
       conversion tool through `--cache-root`
 - [x] Integrate cache lookup into direct FileFormat and authoring paths via
       `USDGEO_CACHE_ROOT`
-- [ ] Stage licensing, notice, capability, compatibility, and installation
+- [x] Stage licensing, notice, capability, compatibility, and installation
       documents into release assets
 - [ ] Reconsider dynamic FileFormat support after generated assets and cache
       lookup are stable ([ADR 0003](../adr/0003-dynamic-file-format.md))

@@ -88,10 +88,11 @@ A published release contains, per platform:
 | `INSTALL.md` | Plugin discovery and installation instructions |
 | `SHA256SUMS` | SHA-256 for every artifact |
 
-The release workflow currently publishes the plugin products, manifests, SBOMs,
-the source archive, release notes, and `SHA256SUMS`. Staging the license,
-notice, capability, compatibility, and installation documents into the release
-assets is outstanding work and blocks the first public binary release.
+The release workflow publishes the plugin products, manifests, SBOMs, the
+source archive, release notes, `SHA256SUMS`, and the license, notice,
+capability, compatibility, and installation documents listed above. The
+workflow stages these documents before checksums are generated, so they are
+covered by the published checksum file.
 
 ## Verification Before Publishing
 
