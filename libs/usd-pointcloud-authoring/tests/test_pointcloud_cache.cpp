@@ -12,9 +12,7 @@
 #include <pxr/usd/usdGeom/xform.h>
 #include <pxr/usd/usd/stage.h>
 
-#include <array>
 #include <chrono>
-#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -32,31 +30,6 @@ void Check(bool condition) {
     }
 }
 
-std::string HashFile(const std::filesystem::path& path) {
-    std::ifstream input(path, std::ios::binary);
-    Check(input.good());
-
-    constexpr std::uint64_t offsetBasis = 14695981039346656037ull;
-    constexpr std::uint64_t prime = 1099511628211ull;
-    std::uint64_t hash = offsetBasis;
-    std::array<char, 64 * 1024> buffer{};
-    while (input) {
-        input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-        const auto count = input.gcount();
-        for (std::streamsize index = 0; index < count; ++index) {
-            hash ^= static_cast<unsigned char>(
-                buffer[static_cast<std::size_t>(index)]);
-            hash *= prime;
-        }
-    }
-    Check(input.eof());
-
-    std::ostringstream result;
-    result << "fnv1a64:" << std::hex << std::setfill('0') << std::setw(16)
-           << hash;
-    return result.str();
-}
-
 std::string FormatDouble(double value) {
     std::ostringstream result;
     result << std::setprecision(17) << value;
@@ -67,19 +40,11 @@ usdgeo::cache::Descriptor MakeDescriptor(
     const std::filesystem::path& sourcePath,
     const usdgeo::GeoReference& reference,
     const usdpointcloud::PointReadRequest& request) {
-    std::error_code error;
-    const auto canonicalPath =
-        std::filesystem::weakly_canonical(sourcePath, error);
-    Check(!error);
-    const auto modified = std::filesystem::last_write_time(sourcePath, error);
-    Check(!error);
-
     usdgeo::cache::Descriptor descriptor;
-    descriptor.source = {
-        canonicalPath.generic_string(),
-        std::filesystem::file_size(sourcePath),
-        static_cast<std::int64_t>(modified.time_since_epoch().count()),
-        HashFile(sourcePath)};
+    std::string errorMessage;
+    Check(usdgeo::cache::TryBuildLocalSourceIdentity(
+        sourcePath, descriptor.source, errorMessage));
+    Check(errorMessage.empty());
     descriptor.pluginVersion = "usd-pointcloud-plugins-0.3.0-display-v2";
     descriptor.parserVersion = "las-reader-1";
     descriptor.openUsdVersion = "26.08";

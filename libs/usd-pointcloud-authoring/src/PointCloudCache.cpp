@@ -3,10 +3,7 @@
 #include <pxr/usd/sdf/payload.h>
 #include <pxr/usd/sdf/primSpec.h>
 
-#include <array>
-#include <cstdint>
 #include <cstdlib>
-#include <fstream>
 #include <iomanip>
 #include <set>
 #include <sstream>
@@ -21,75 +18,17 @@ std::string FormatDouble(double value) {
     return result.str();
 }
 
-bool HashFile(const std::filesystem::path& path,
-              std::string& identity,
-              std::string& errorMessage) {
-    std::ifstream input(path, std::ios::binary);
-    if (!input) {
-        errorMessage = "unable to open input for cache identity";
-        return false;
-    }
-
-    constexpr std::uint64_t offsetBasis = 14695981039346656037ull;
-    constexpr std::uint64_t prime = 1099511628211ull;
-    std::uint64_t hash = offsetBasis;
-    std::array<char, 64 * 1024> buffer{};
-    while (input) {
-        input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-        const auto count = input.gcount();
-        for (std::streamsize index = 0; index < count; ++index) {
-            hash ^= static_cast<unsigned char>(
-                buffer[static_cast<std::size_t>(index)]);
-            hash *= prime;
-        }
-    }
-    if (!input.eof()) {
-        errorMessage = "unable to read input for cache identity";
-        return false;
-    }
-
-    std::ostringstream formatted;
-    formatted << "fnv1a64:" << std::hex << std::setfill('0') << std::setw(16)
-              << hash;
-    identity = formatted.str();
-    return true;
-}
-
 bool BuildDescriptor(const std::filesystem::path& sourcePath,
                      const GeoReference& reference,
                      const usdpointcloud::PointReadRequest& request,
                      const std::string& parserVersion,
                      usdgeo::cache::Descriptor& descriptor,
                      std::string& errorMessage) {
-    std::error_code error;
-    const auto canonicalPath =
-        std::filesystem::weakly_canonical(sourcePath, error);
-    if (error) {
-        errorMessage = "unable to canonicalize input for cache identity: " +
-                       error.message();
-        return false;
-    }
-    const auto size = std::filesystem::file_size(sourcePath, error);
-    if (error) {
-        errorMessage = "unable to inspect input for cache identity: " +
-                       error.message();
-        return false;
-    }
-    const auto modified = std::filesystem::last_write_time(sourcePath, error);
-    if (error) {
-        errorMessage = "unable to inspect input timestamp for cache identity: " +
-                       error.message();
-        return false;
-    }
-    std::string contentIdentity;
-    if (!HashFile(sourcePath, contentIdentity, errorMessage)) {
+    if (!usdgeo::cache::TryBuildLocalSourceIdentity(
+            sourcePath, descriptor.source, errorMessage)) {
         return false;
     }
 
-    descriptor.source = {
-        canonicalPath.generic_string(), size,
-        static_cast<std::int64_t>(modified.time_since_epoch().count()),
-        contentIdentity};
     descriptor.pluginVersion = "usd-pointcloud-plugins-0.3.0-display-v2";
     descriptor.parserVersion = parserVersion;
     descriptor.openUsdVersion = "26.08";

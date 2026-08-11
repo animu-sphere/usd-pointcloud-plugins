@@ -90,7 +90,9 @@ leaking transport-specific policy into `usdGeoCache`.
 
 Candidate work:
 
-- define a formal source identity contract;
+- define a formal source identity contract; the initial neutral value contract
+  is implemented by `usdgeo::cache::SourceIdentity`, and local filesystem
+  identity construction is shared by authoring and conversion;
 - document cache invalidation and compatibility rules;
 - accept stable resolver metadata such as resolved identifiers, sizes,
   validation tokens, modification times, or digests through a neutral source

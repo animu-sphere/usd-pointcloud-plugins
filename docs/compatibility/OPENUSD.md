@@ -5,15 +5,17 @@ and what they require from a host application.
 
 ## Declared Contract
 
-All three plugin manifests declare:
+All plugin manifests declare:
 
 ```yaml
 runtime:
   openusd: ">=26.08,<27.0"
 ```
 
-`pointcloud-las`, `pointcloud-laz`, and `pointcloud-copc` are `usd-fileformat`
-bundles and require the `usd-stage-read` capability.
+`pointcloud-las`, `pointcloud-laz`, `pointcloud-copc`, and `pointcloud-ply` are
+`usd-fileformat` bundles and require the `usd-stage-read` capability.
+`httpresolver` is a `usd-asset-resolver` test-double bundle for the resolver
+path used by COPC integration tests.
 
 | Item | Value |
 | --- | --- |

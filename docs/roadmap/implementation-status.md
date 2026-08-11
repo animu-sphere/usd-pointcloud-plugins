@@ -211,7 +211,11 @@ The ordered plan and acceptance priorities are in the
 
 #### `v0.6.0` - cache and source identity
 
-- [ ] Define a format- and transport-independent source identity contract
+- [x] Define a format- and transport-independent source identity contract
+-     `usdgeo::cache::SourceIdentity` accepts a stable identifier and
+      validation token, with optional size and modification metadata;
+      local filesystem identity construction is shared by authoring and the
+      conversion tool
 - [ ] Document cache invalidation and compatibility rules
 - [ ] Add cache statistics and stable diagnostics
 - [ ] Harden corrupt-entry and interrupted-publication recovery

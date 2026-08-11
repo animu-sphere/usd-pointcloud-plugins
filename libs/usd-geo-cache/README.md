@@ -19,5 +19,10 @@ an arbitrary layout path, so it cannot delete an unrelated sibling directory.
 CMake target `usdgeo::cache` and namespace `usdgeo::cache`.
 
 The module owns identity, layout, lookup, and invalidation only. It does not
-open or author USD, calculate source hashes, or decide reader-specific cache
-arguments. Callers must supply a canonical source path and content identity.
+open or author USD, or decide reader-specific cache arguments. `SourceIdentity`
+accepts a neutral identifier and validation token, so local paths, resolver
+identifiers, ETags, and digests can participate without transport-specific
+types entering the cache contract. `TryBuildLocalSourceIdentity` is the
+filesystem convenience helper for local callers; it supplies a canonical
+identifier and an `fnv1a64` validation token. The legacy `canonicalPath` and
+`contentIdentity` fields remain accepted as compatibility aliases.

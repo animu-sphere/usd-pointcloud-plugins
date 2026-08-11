@@ -30,6 +30,29 @@ usdgeo::cache::Descriptor MakeDescriptor() {
     return descriptor;
 }
 
+void TestLocalSourceIdentity() {
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("usdgeo-source-identity-" +
+                       std::to_string(std::chrono::steady_clock::now()
+                                          .time_since_epoch()
+                                          .count()));
+    const auto source = root / "source.las";
+    std::filesystem::create_directories(root);
+    std::ofstream(source) << "source identity";
+
+    usdgeo::cache::SourceIdentity identity;
+    std::string errorMessage;
+    Check(usdgeo::cache::TryBuildLocalSourceIdentity(
+        source, identity, errorMessage));
+    Check(errorMessage.empty());
+    Check(identity.IsValid());
+    Check(identity.identifier ==
+          std::filesystem::weakly_canonical(source).generic_string());
+    Check(identity.validationToken.rfind("fnv1a64:", 0) == 0);
+
+    std::filesystem::remove_all(root);
+}
+
 void TestStableDescriptorKey() {
     const auto first = MakeDescriptor();
     auto equivalent = first;
@@ -41,6 +64,24 @@ void TestStableDescriptorKey() {
     equivalent.source.modifiedTime++;
     Check(usdgeo::cache::StableCacheKey(first) !=
           usdgeo::cache::StableCacheKey(equivalent));
+
+    const usdgeo::cache::SourceIdentity resolverIdentity{
+        "resolver://survey/sample.las", 0, 0, "etag:abc"};
+    Check(resolverIdentity.IsValid());
+    const usdgeo::cache::SourceIdentity unstableIdentity{
+        "resolver://survey/sample.las", 0, 0, ""};
+    Check(!unstableIdentity.IsValid());
+
+    usdgeo::cache::SourceIdentity legacyIdentity;
+    legacyIdentity.canonicalPath = "C:/data/sample.las";
+    legacyIdentity.sizeBytes = 1024;
+    legacyIdentity.modifiedTime = 12345;
+    legacyIdentity.contentIdentity = "sha256:abc";
+    Check(legacyIdentity.IsValid());
+    usdgeo::cache::Descriptor legacyDescriptor = first;
+    legacyDescriptor.source = legacyIdentity;
+    Check(usdgeo::cache::StableCacheKey(legacyDescriptor) ==
+          usdgeo::cache::StableCacheKey(first));
 }
 
 void TestLayoutAndInvalidation() {
@@ -73,6 +114,7 @@ void TestLayoutAndInvalidation() {
 } // namespace
 
 int main() {
+    TestLocalSourceIdentity();
     TestStableDescriptorKey();
     TestLayoutAndInvalidation();
     return 0;
