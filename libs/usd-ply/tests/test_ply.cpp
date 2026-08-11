@@ -338,6 +338,60 @@ void TestPointStreamValidationFailures() {
     Check(diagnostics.front().code ==
           usdgeo::DiagnosticCode::InvalidFormatArgument);
     std::filesystem::remove(budgetFixture);
+
+    options = {};
+    const auto invalidUcharColor = WriteAsciiFixture(
+        "usdply-invalid-uchar-color-test.ply",
+        "property float x\n"
+        "property float y\n"
+        "property float z\n"
+        "property uchar red\n"
+        "property uchar green\n"
+        "property uchar blue\n",
+        "0 0 0 256 0 0\n",
+        1);
+    auto invalidUcharStream = usdply::OpenPointStream(
+        invalidUcharColor.string(), options, header, diagnostics);
+    Check(invalidUcharStream != nullptr);
+    Check(invalidUcharStream->ReadNext(chunk, data, diagnostic) ==
+          usdpointcloud::PointStreamStatus::Error);
+    Check(diagnostic.message.find("red") != std::string::npos);
+    invalidUcharStream.reset();
+    std::filesystem::remove(invalidUcharColor);
+
+    const auto nonFiniteExtra = WriteAsciiFixture(
+        "usdply-nonfinite-extra-test.ply",
+        "property float x\n"
+        "property float y\n"
+        "property float z\n"
+        "property float temperature\n",
+        "0 0 0 nan\n",
+        1);
+    auto nonFiniteStream = usdply::OpenPointStream(
+        nonFiniteExtra.string(), options, header, diagnostics);
+    Check(nonFiniteStream != nullptr);
+    Check(nonFiniteStream->ReadNext(chunk, data, diagnostic) ==
+          usdpointcloud::PointStreamStatus::Error);
+    Check(diagnostic.message.find("temperature") != std::string::npos);
+    nonFiniteStream.reset();
+    std::filesystem::remove(nonFiniteExtra);
+
+    const auto mixedColor = WriteAsciiFixture(
+        "usdply-mixed-color-test.ply",
+        "property float x\n"
+        "property float y\n"
+        "property float z\n"
+        "property uchar red\n"
+        "property ushort green\n"
+        "property ushort blue\n",
+        "0 0 0 1 2 3\n",
+        1);
+    const auto mixedColorStream = usdply::OpenPointStream(
+        mixedColor.string(), options, header, diagnostics);
+    Check(mixedColorStream == nullptr);
+    Check(diagnostics.front().message.find("consistent bit depth") !=
+          std::string::npos);
+    std::filesystem::remove(mixedColor);
 }
 
 } // namespace

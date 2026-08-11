@@ -245,6 +245,24 @@ std::uint8_t ColorBitDepth(const std::vector<tinyply::PlyProperty>& properties) 
     return hasColor ? 8 : 16;
 }
 
+bool HasMixedColorBitDepth(
+    const std::vector<tinyply::PlyProperty>& properties) {
+    bool hasEightBit = false;
+    bool hasSixteenBit = false;
+    for (const auto& property : properties) {
+        if (property.name != "red" && property.name != "green" &&
+            property.name != "blue") {
+            continue;
+        }
+        if (property.propertyType == tinyply::Type::UINT8) {
+            hasEightBit = true;
+        } else {
+            hasSixteenBit = true;
+        }
+    }
+    return hasEightBit && hasSixteenBit;
+}
+
 struct StreamProperty {
     std::string name;
     PlyScalarType type = PlyScalarType::Float32;
@@ -296,6 +314,44 @@ bool ParseAsciiScalar(std::istream& input,
     }
     value = static_cast<double>(parsed);
     return true;
+}
+
+bool IsValidScalarValue(PlyScalarType type, double value) {
+    if (!std::isfinite(value)) {
+        return false;
+    }
+    switch (type) {
+    case PlyScalarType::Int8:
+        return value >= (std::numeric_limits<std::int8_t>::min)() &&
+               value <= (std::numeric_limits<std::int8_t>::max)() &&
+               std::floor(value) == value;
+    case PlyScalarType::UInt8:
+        return value >= 0.0 &&
+               value <= (std::numeric_limits<std::uint8_t>::max)() &&
+               std::floor(value) == value;
+    case PlyScalarType::Int16:
+        return value >= (std::numeric_limits<std::int16_t>::min)() &&
+               value <= (std::numeric_limits<std::int16_t>::max)() &&
+               std::floor(value) == value;
+    case PlyScalarType::UInt16:
+        return value >= 0.0 &&
+               value <= (std::numeric_limits<std::uint16_t>::max)() &&
+               std::floor(value) == value;
+    case PlyScalarType::Int32:
+        return value >= (std::numeric_limits<std::int32_t>::min)() &&
+               value <= (std::numeric_limits<std::int32_t>::max)() &&
+               std::floor(value) == value;
+    case PlyScalarType::UInt32:
+        return value >= 0.0 &&
+               value <= (std::numeric_limits<std::uint32_t>::max)() &&
+               std::floor(value) == value;
+    case PlyScalarType::Float32:
+        return std::abs(value) <=
+               static_cast<double>((std::numeric_limits<float>::max)());
+    case PlyScalarType::Float64:
+        return true;
+    }
+    return false;
 }
 
 bool ReadBinaryScalar(std::istream& input,
@@ -355,7 +411,8 @@ bool ReadListCount(std::istream& input,
                    PlyScalarType type,
                    std::uint64_t& count) {
     double value = 0.0;
-    if (!ReadScalar(input, format, type, value) || !std::isfinite(value) ||
+    if (!ReadScalar(input, format, type, value) ||
+        !IsValidScalarValue(type, value) ||
         value < 0.0 || value > static_cast<double>((std::numeric_limits<std::uint64_t>::max)()) ||
         std::floor(value) != value) {
         return false;
@@ -370,7 +427,9 @@ bool SkipProperties(std::istream& input,
     for (const auto& property : properties) {
         if (!property.isList) {
             double value = 0.0;
-            if (!ReadScalar(input, format, ConvertType(property.propertyType), value)) {
+            const auto type = ConvertType(property.propertyType);
+            if (!ReadScalar(input, format, type, value) ||
+                !IsValidScalarValue(type, value)) {
                 return false;
             }
             continue;
@@ -381,7 +440,9 @@ bool SkipProperties(std::istream& input,
         }
         for (std::uint64_t index = 0; index < count; ++index) {
             double value = 0.0;
-            if (!ReadScalar(input, format, ConvertType(property.propertyType), value)) {
+                const auto type = ConvertType(property.propertyType);
+                if (!ReadScalar(input, format, type, value) ||
+                    !IsValidScalarValue(type, value)) {
                 return false;
             }
         }
@@ -511,6 +572,24 @@ usdpointcloud::PointStreamStatus PlyPointStream::ReadNext(
                     diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
                                   usdgeo::Severity::Error,
                                   "PLY payload is truncated or unreadable",
+                                  std::nullopt, sourceIndex};
+                    return usdpointcloud::PointStreamStatus::Error;
+                }
+            }
+            for (std::size_t propertyIndex = 0;
+                 propertyIndex < impl_->properties.size(); ++propertyIndex) {
+                const auto& property = impl_->properties[propertyIndex];
+                if (property.name == "x" || property.name == "y" ||
+                    property.name == "z") {
+                    if (!std::isfinite(values[propertyIndex])) {
+                        continue;
+                    }
+                }
+                if (!IsValidScalarValue(property.type, values[propertyIndex])) {
+                    diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                                  usdgeo::Severity::Error,
+                                  "PLY " + property.name +
+                                      " value is outside its declared scalar range",
                                   std::nullopt, sourceIndex};
                     return usdpointcloud::PointStreamStatus::Error;
                 }
@@ -659,6 +738,12 @@ std::unique_ptr<PlyPointStream> OpenPointStream(
                 return nullptr;
             }
             propertyNames.push_back(property.name);
+        }
+        if (HasMixedColorBitDepth(vertex->properties)) {
+            AddDecodeDiagnostic(
+                diagnostics,
+                "PLY red, green, and blue properties must use a consistent bit depth");
+            return nullptr;
         }
         if (names.find("x") == names.end() || names.find("y") == names.end() ||
             names.find("z") == names.end()) {

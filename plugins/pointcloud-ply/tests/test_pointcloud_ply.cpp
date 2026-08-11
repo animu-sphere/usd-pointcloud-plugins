@@ -71,6 +71,16 @@ void TestFileFormatIntegration() {
                                              20.0f / 255.0f,
                                              30.0f / 255.0f));
 
+    const pxr::SdfLayer::FileFormatArguments selectedArguments = {
+        {"attributes", "temperature"}, {"epsg", "4978"}};
+    const auto selectedLayer = pxr::SdfLayer::FindOrOpen(
+        source.string(), selectedArguments);
+    Check(selectedLayer);
+    Check(selectedLayer->GetAttributeAtPath(
+              pxr::SdfPath("/PointCloud.geo:temperature")) != nullptr);
+    Check(selectedLayer->GetAttributeAtPath(
+              pxr::SdfPath("/PointCloud.geo:red")) == nullptr);
+
     TestCorpusAsset(
         std::filesystem::path("stanford-bunny") /
             "stanford-bunny-thinned-4096.ply",
