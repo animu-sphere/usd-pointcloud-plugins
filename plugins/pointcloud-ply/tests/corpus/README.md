@@ -1,6 +1,6 @@
 # PLY corpus
 
-This directory contains small, checked-in subsets of public point-cloud data.
+This directory contains small, checked-in subsets of point-cloud data.
 The exact conformance coverage remains in `../fixtures`; these corpus assets
 exercise ASCII and binary PLY vertex decoding with realistic scalar attributes.
 

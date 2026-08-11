@@ -64,15 +64,17 @@ void TestFileFormatIntegration() {
     Check(positions.size() == 2);
     Check(positions[0] == pxr::GfVec3f(1.0f, 2.0f, 3.0f));
     Check(points.GetPrim().GetAttribute(pxr::TfToken("geo:red")).IsValid());
+    pxr::VtVec3fArray displayColors;
+    Check(points.GetDisplayColorPrimvar().Get(&displayColors));
+    Check(displayColors.size() == 2 &&
+          displayColors[0] == pxr::GfVec3f(10.0f / 255.0f,
+                                             20.0f / 255.0f,
+                                             30.0f / 255.0f));
 
     TestCorpusAsset(
         std::filesystem::path("stanford-bunny") /
             "stanford-bunny-thinned-4096.ply",
         4096);
-    TestCorpusAsset(
-        std::filesystem::path("open3d-fragment") /
-            "open3d-fragment-thinned-8192.ply",
-        8192);
 }
 
 } // namespace

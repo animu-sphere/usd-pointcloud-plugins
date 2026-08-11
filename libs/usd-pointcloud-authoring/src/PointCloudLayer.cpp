@@ -79,14 +79,7 @@ bool HasPointColors(const PointCloudLayer::Data& data,
 }
 
 float PointColorScale(const PointCloudLayer::Data& data) {
-    const auto maximum = [](const std::vector<std::uint16_t>& values) {
-        return values.empty()
-                   ? std::uint16_t{0}
-                   : *std::max_element(values.begin(), values.end());
-    };
-    const auto maximumValue = (std::max)({maximum(data.red), maximum(data.green),
-                                          maximum(data.blue)});
-    return maximumValue > 255 ? 65535.0f : 255.0f;
+    return data.colorBitDepth <= 8 ? 255.0f : 65535.0f;
 }
 
 pxr::VtIntArray ToIntArray(const std::vector<std::uint16_t>& values) {

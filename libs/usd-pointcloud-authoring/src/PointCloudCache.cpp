@@ -90,7 +90,7 @@ bool BuildDescriptor(const std::filesystem::path& sourcePath,
         canonicalPath.generic_string(), size,
         static_cast<std::int64_t>(modified.time_since_epoch().count()),
         contentIdentity};
-    descriptor.pluginVersion = "usd-pointcloud-plugins-0.3.0";
+    descriptor.pluginVersion = "usd-pointcloud-plugins-0.3.0-display-v2";
     descriptor.parserVersion = parserVersion;
     descriptor.openUsdVersion = "26.08";
     descriptor.coordinateTransform = {

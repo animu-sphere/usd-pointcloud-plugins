@@ -23,7 +23,7 @@ uses the same reader and authoring contracts for long-running generation.
 | --- | --- | --- |
 | PLY 1.0 header inspection | Supported | ASCII, binary little-endian, and binary big-endian headers are parsed through vendored tinyply; declared elements and scalar/list properties are retained |
 | Scalar vertex decoding | Supported | `usdply::OpenPointStream` decodes scalar `x`, `y`, `z`, intensity, RGB, and generic scalar vertex properties into shared point chunks and applies source bounds, classification, range, cancellation, chunk, and memory controls; tinyply currently reads the payload before chunking |
-| PLY FileFormat Plugin | Supported | Thin `pointcloud-ply` adapter requires an explicit `epsg` argument, applies optional unit and axis arguments, authors shared `UsdGeomPoints`, reads committed generated-USDC cache entries, and is exercised by thinned Stanford Bunny and Open3D fragment corpora; tiled reads are not yet connected |
+| PLY FileFormat Plugin | Supported | Thin `pointcloud-ply` adapter requires an explicit `epsg` argument, applies optional unit and axis arguments, authors shared `UsdGeomPoints`, reads committed generated-USDC cache entries, and is exercised by a thinned Stanford Bunny corpus; tiled reads are not yet connected |
 
 ## COPC
 

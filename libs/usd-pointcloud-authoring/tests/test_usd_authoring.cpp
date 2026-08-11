@@ -196,9 +196,10 @@ void TestPointCloudRoundTrip() {
     usdgeo::PointCloudLayer::Data data;
     data.positions = positions;
     data.intensity = {42, 84};
-    data.red = {255, 128};
-    data.green = {64, 192};
-    data.blue = {0, 255};
+    data.colorBitDepth = 16;
+    data.red = {65535, 32768};
+    data.green = {16384, 49152};
+    data.blue = {0, 65535};
     data.classification = {2, 5};
     data.classificationFlags = {1, 3};
     data.scannerChannel = {0, 2};
@@ -245,9 +246,10 @@ void TestPointCloudRoundTrip() {
     pxr::VtVec3fArray authoredColors;
     Check(points.GetDisplayColorPrimvar().Get(&authoredColors));
     Check(authoredColors.size() == 2 &&
-          authoredColors[0] == pxr::GfVec3f(1.0f, 64.0f / 255.0f, 0.0f) &&
-          authoredColors[1] == pxr::GfVec3f(128.0f / 255.0f, 192.0f / 255.0f,
-                                             1.0f));
+          authoredColors[0] == pxr::GfVec3f(1.0f, 16384.0f / 65535.0f,
+                             0.0f) &&
+          authoredColors[1] == pxr::GfVec3f(32768.0f / 65535.0f,
+                             49152.0f / 65535.0f, 1.0f));
     pxr::VtIntArray authoredIntensity;
     Check(points.GetPrim()
               .GetAttribute(pxr::TfToken("geo:intensity"))
