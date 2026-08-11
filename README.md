@@ -270,10 +270,9 @@ See the [implementation status](docs/roadmap/implementation-status.md) and
 ## Status
 
 Latest release: **v0.4.0** — bounded PLY point streaming, shared authoring,
-and payload-backed tiled reads. The v0.3.0
-module and bundle rename is recorded in
-[MIGRATION.md](docs/compatibility/MIGRATION.md). See the
-[release record](docs/releases/v0.3.0.md) and [CHANGELOG.md](CHANGELOG.md).
+and payload-backed tiled reads. The v0.3.0 module and bundle rename is
+recorded in [MIGRATION.md](docs/compatibility/MIGRATION.md). See the
+[release record](docs/releases/v0.4.0.md) and [CHANGELOG.md](CHANGELOG.md).
 
 Direction is fixed in the [design policy](docs/design/DESIGN_POLICY.md); the
 structure is fixed in the

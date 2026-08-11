@@ -17,6 +17,20 @@ All notable changes to this project are documented here.
 - PLY integration coverage using the checked-in Stanford Bunny corpus and a
   tiled conformance fixture.
 
+### Changed
+
+- Shared point authoring now emits adaptive point widths and `displayColor`
+  when RGB data is available, with explicit 8-bit PLY and 16-bit LAS color
+  normalization.
+- PLY intensity values that are not integral are retained as generic scalar
+  attributes without rescanning the source stream for every chunk.
+
+### Fixed
+
+- Tiled payload identifiers and LOD extent validation now remain consistent
+  across COPC and PLY authoring.
+- Missing LAS sources retain the source-open diagnostic classification.
+
 ### Compatibility
 
 - Existing LAS, LAZ, and local COPC format ids, arguments, authored stage shape,
@@ -297,3 +311,4 @@ libraries directly. The complete before/after table and checklist are in
 [0.2.1]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.2.1
 [0.2.2]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.2.2
 [0.3.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.3.0
+[0.4.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.4.0
