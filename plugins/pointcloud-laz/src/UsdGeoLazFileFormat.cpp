@@ -153,7 +153,8 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
     usdpointcloud::PointReadRequest request;
     std::vector<usdgeo::Diagnostic> diagnostics;
         if (!usdpointcloud::MakeReadRequest(
-            layer->GetFileFormatArguments(), request, diagnostics)) {
+            layer->GetFileFormatArguments(), request, diagnostics,
+            usdpointcloud::PointReadFormat::Laz)) {
         TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
                                   usdgeolaz::diagnostics::FormatArgumentInvalid,
                                   "Invalid LAZ file-format arguments: " +

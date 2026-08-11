@@ -283,6 +283,16 @@ void TestFileFormatArgumentNormalization() {
         arguments, request, diagnostics));
     Check(diagnostics.size() == 1 &&
           diagnostics.front().code == usdgeo::DiagnosticCode::UnknownFormatArgument);
+
+    arguments = {{"epsg", "4978"}};
+    Check(!usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics, usdpointcloud::PointReadFormat::Las));
+    Check(diagnostics.size() == 1 &&
+          diagnostics.front().code == usdgeo::DiagnosticCode::UnknownFormatArgument);
+    Check(usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics, usdpointcloud::PointReadFormat::Ply));
+    Check(request.epsgCode && *request.epsgCode == 4978 &&
+          request.normalizedArguments == "epsg=4978");
 }
 
 void TestAttributeSelection() {

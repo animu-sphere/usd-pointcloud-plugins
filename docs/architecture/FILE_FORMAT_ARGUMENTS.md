@@ -5,10 +5,13 @@ LOD generation, and the [workspace contract](WORKSPACE.md)
 requires arguments to be normalized before any reader or cache lookup. This
 document defines that contract.
 
-Status: **implemented for LAS and LAZ**. LAS and LAZ normalize chunk,
+Status: **implemented for LAS, LAZ, and PLY**. LAS and LAZ normalize chunk,
 point-range, attribute, bounds, classification, and spatial tiled-payload
 options before the shared reader and authoring path. The compact `lod` profile
 is parsed and canonicalized, and single-root LOD authoring is available.
+PLY uses the same read controls and accepts explicit `epsg`, `linearUnit`,
+`sourceUpAxis`, and `stageUpAxis` values; PLY requires `epsg` because it has no
+embedded georeference.
 
 ## Why Arguments Exist
 
@@ -58,6 +61,10 @@ The plugins do not invent a second argument syntax.
 | `bounds` | Spatial filter | Yes |
 | `originMode` | Local-origin policy | No |
 | `upAxis` | Stage up-axis conversion | No |
+| `epsg` | Explicit source CRS identifier for formats without embedded CRS | No |
+| `linearUnit` | Source linear unit | No |
+| `sourceUpAxis` | Source coordinate up axis (`X`, `Y`, or `Z`) | No |
+| `stageUpAxis` | Authored stage up axis (`X`, `Y`, or `Z`) | No |
 
 "Alters topology" means the authored namespace or point count changes, not just
 attribute values. An argument in that column must never reuse a cached layer

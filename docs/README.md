@@ -17,6 +17,7 @@ workspace contract wins; structural changes must update that contract first.
 | [compatibility/](compatibility/) | Which OpenUSD and OpenStrata versions are supported, and how to migrate across renames. | [OPENUSD.md](compatibility/OPENUSD.md), [MIGRATION.md](compatibility/MIGRATION.md) |
 | [roadmap/](roadmap/) | What remains incomplete and in what order it lands. | [README.md](roadmap/README.md) |
 | [releases/](releases/) | Immutable records for tagged releases. | [README.md](releases/README.md) |
+| [reports/ost/](reports/ost/) | Append-only OpenStrata adoption, CI evidence, and upstream asks. | [README.md](reports/ost/README.md) |
 | [design/](design/) | Why the project is built this way. | [DESIGN_POLICY.md](design/DESIGN_POLICY.md) |
 | [adr/](adr/) | Numbered, immutable architecture decision records. | [0001-coordinate-model.md](adr/0001-coordinate-model.md) |
 | [contributing/](contributing/) | Contributor procedures that a code change must satisfy. | [MODULE_README_CONTRACT.md](contributing/MODULE_README_CONTRACT.md) |

@@ -161,6 +161,9 @@ transaction state creation and retrying the same output workspace.
 
 ### Remaining open work
 
+- [x] Complete PLY scalar vertex decoding and the thin `pointcloud-ply`
+      FileFormat adapter with explicit CRS arguments
+
 - [x] Integrate deterministic USDC cache generation and lookup into the
       conversion tool through `--cache-root`
 - [ ] Integrate cache lookup into direct FileFormat and authoring paths. The
@@ -175,9 +178,9 @@ transaction state creation and retrying the same output workspace.
 
 - [ ] Complete the v0.3.x documentation consolidation: concise root README
       and synchronized workspace, capability, and implementation documents.
-- [ ] Complete v0.4.0 PLY point-cloud read support from the implemented PLY 1.0
-      header and scalar vertex decoding foundation through a thin
-      `pointcloud-ply` adapter.
+- [ ] Complete v0.4.0 PLY point-cloud read support with bounded source
+      streaming, direct cache integration, and tiled authoring follow-up work
+      after the shipped scalar direct-read slice.
 - [ ] Complete v0.5.0 COPC random access through a project-owned source
       interface and an OpenUSD `ArAsset` adapter, with resolver-dependent HTTP
       support and conservative generated-cache identity.

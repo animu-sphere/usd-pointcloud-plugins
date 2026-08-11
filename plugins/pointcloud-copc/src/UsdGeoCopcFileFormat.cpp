@@ -272,7 +272,8 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
     usdpointcloud::PointReadRequest request;
     std::vector<usdgeo::Diagnostic> diagnostics;
         if (!usdpointcloud::MakeReadRequest(
-            layer->GetFileFormatArguments(), request, diagnostics)) {
+            layer->GetFileFormatArguments(), request, diagnostics,
+            usdpointcloud::PointReadFormat::Copc)) {
         TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(
                                   usdgeocopc::diagnostics::FormatArgumentInvalid,
                                   "Invalid COPC file-format arguments: " +

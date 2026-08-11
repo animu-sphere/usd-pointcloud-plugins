@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -19,8 +20,20 @@ enum class LodProfile {
     Quality,
 };
 
+enum class PointReadFormat {
+    Generic,
+    Las,
+    Laz,
+    Copc,
+    Ply,
+};
+
 struct PointReadRequest {
     PointReadOptions readOptions;
+    std::optional<int> epsgCode;
+    std::string linearUnit = "metre";
+    std::string sourceUpAxis = "Z";
+    std::string stageUpAxis = "Z";
     LodProfile lodProfile = LodProfile::Off;
     bool tiled = false;
     double tileSize = 0.0;
@@ -39,12 +52,14 @@ bool ParseFileFormatArgumentString(
 bool NormalizeFileFormatArguments(
     const std::map<std::string, std::string>& arguments,
     PointReadRequest& request,
-    std::vector<usdgeo::Diagnostic>& diagnostics);
+    std::vector<usdgeo::Diagnostic>& diagnostics,
+    PointReadFormat format = PointReadFormat::Generic);
 
 bool MakeReadRequest(
     const std::map<std::string, std::string>& arguments,
     PointReadRequest& request,
-    std::vector<usdgeo::Diagnostic>& diagnostics);
+    std::vector<usdgeo::Diagnostic>& diagnostics,
+    PointReadFormat format = PointReadFormat::Generic);
 
 bool SelectPointDataAttributes(PointData& data,
                                const std::vector<std::string>& attributes,

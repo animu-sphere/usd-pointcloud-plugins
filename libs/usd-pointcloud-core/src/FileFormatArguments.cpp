@@ -68,6 +68,11 @@ bool ParseFiniteDouble(std::string_view value, double& result) {
     return end != text.c_str() && *end == '\0' && std::isfinite(result);
 }
 
+bool ParseAxis(std::string_view value, std::string& axis) {
+    axis = Trim(value);
+    return axis == "X" || axis == "Y" || axis == "Z";
+}
+
 bool ParseBounds(std::string_view value,
                  usdgeo::SpatialBounds& bounds) {
     std::array<double, 6> coordinates{};
@@ -221,7 +226,8 @@ bool ParseFileFormatArgumentString(
 bool NormalizeFileFormatArguments(
     const std::map<std::string, std::string>& arguments,
     PointReadRequest& request,
-    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    std::vector<usdgeo::Diagnostic>& diagnostics,
+    PointReadFormat format) {
     request = {};
     diagnostics.clear();
     std::set<std::string> selectedAttributes;
@@ -243,6 +249,54 @@ bool NormalizeFileFormatArguments(
             } else {
                 AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
                               "invalid lod profile: " + value, diagnostics);
+                return false;
+            }
+        } else if (key == "epsg") {
+            if (format != PointReadFormat::Ply) {
+                AddDiagnostic(usdgeo::DiagnosticCode::UnknownFormatArgument,
+                              "unknown format argument: " + key, diagnostics);
+                return false;
+            }
+            if (!ParseUnsigned(value, parsed, error) || parsed == 0 ||
+                parsed > static_cast<std::uint64_t>(
+                             (std::numeric_limits<int>::max)())) {
+                AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                              "invalid epsg code: " + value, diagnostics);
+                return false;
+            }
+            request.epsgCode = static_cast<int>(parsed);
+        } else if (key == "linearUnit") {
+            if (format != PointReadFormat::Ply) {
+                AddDiagnostic(usdgeo::DiagnosticCode::UnknownFormatArgument,
+                              "unknown format argument: " + key, diagnostics);
+                return false;
+            }
+            request.linearUnit = Trim(value);
+            if (request.linearUnit.empty()) {
+                AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                              "linearUnit must not be empty", diagnostics);
+                return false;
+            }
+        } else if (key == "sourceUpAxis") {
+            if (format != PointReadFormat::Ply) {
+                AddDiagnostic(usdgeo::DiagnosticCode::UnknownFormatArgument,
+                              "unknown format argument: " + key, diagnostics);
+                return false;
+            }
+            if (!ParseAxis(value, request.sourceUpAxis)) {
+                AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                              "invalid sourceUpAxis: " + value, diagnostics);
+                return false;
+            }
+        } else if (key == "stageUpAxis") {
+            if (format != PointReadFormat::Ply) {
+                AddDiagnostic(usdgeo::DiagnosticCode::UnknownFormatArgument,
+                              "unknown format argument: " + key, diagnostics);
+                return false;
+            }
+            if (!ParseAxis(value, request.stageUpAxis)) {
+                AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                              "invalid stageUpAxis: " + value, diagnostics);
                 return false;
             }
         } else if (key == "tile") {
@@ -411,6 +465,18 @@ bool NormalizeFileFormatArguments(
         }
         normalized.emplace_back("classification", value);
     }
+    if (request.epsgCode) {
+        normalized.emplace_back("epsg", std::to_string(*request.epsgCode));
+    }
+    if (request.linearUnit != "metre") {
+        normalized.emplace_back("linearUnit", request.linearUnit);
+    }
+    if (request.sourceUpAxis != "Z") {
+        normalized.emplace_back("sourceUpAxis", request.sourceUpAxis);
+    }
+    if (request.stageUpAxis != "Z") {
+        normalized.emplace_back("stageUpAxis", request.stageUpAxis);
+    }
     if (request.lodProfile != LodProfile::Off) {
         const char* profile = request.lodProfile == LodProfile::Preview
                                   ? "preview"
@@ -444,8 +510,9 @@ bool NormalizeFileFormatArguments(
 bool MakeReadRequest(
     const std::map<std::string, std::string>& arguments,
     PointReadRequest& request,
-    std::vector<usdgeo::Diagnostic>& diagnostics) {
-    return NormalizeFileFormatArguments(arguments, request, diagnostics);
+    std::vector<usdgeo::Diagnostic>& diagnostics,
+    PointReadFormat format) {
+    return NormalizeFileFormatArguments(arguments, request, diagnostics, format);
 }
 
 bool SelectPointDataAttributes(PointData& data,
