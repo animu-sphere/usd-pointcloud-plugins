@@ -13,6 +13,8 @@
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/pcp/dynamicFileFormatContext.h>
 
+#include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -57,6 +59,37 @@ usdgeo::GeoReference MakeReference(const usdpointcloud::PointReadRequest& reques
     reference.stageUpAxis = request.stageUpAxis;
     return reference;
 }
+
+class SelectedPointStream final : public usdpointcloud::PointStream {
+public:
+    SelectedPointStream(std::unique_ptr<usdpointcloud::PointStream> stream,
+                        std::vector<std::string> attributes)
+        : stream_(std::move(stream)), attributes_(std::move(attributes)) {}
+
+    usdpointcloud::PointStreamStatus ReadNext(
+        usdpointcloud::PointChunk& chunk,
+        usdpointcloud::PointData& data,
+        usdgeo::Diagnostic& diagnostic) override {
+        const auto status = stream_->ReadNext(chunk, data, diagnostic);
+        if (status != usdpointcloud::PointStreamStatus::Chunk ||
+            attributes_.empty()) {
+            return status;
+        }
+        std::string error;
+        if (!usdpointcloud::SelectPointDataAttributes(data, attributes_, error)) {
+            diagnostic = {usdgeo::DiagnosticCode::InvalidFormatArgument,
+                          usdgeo::Severity::Error, error, std::nullopt,
+                          std::nullopt};
+            return usdpointcloud::PointStreamStatus::Error;
+        }
+        chunk = usdpointcloud::MakePointChunk(data, chunk.bounds);
+        return usdpointcloud::PointStreamStatus::Chunk;
+    }
+
+private:
+    std::unique_ptr<usdpointcloud::PointStream> stream_;
+    std::vector<std::string> attributes_;
+};
 
 } // namespace
 
@@ -134,14 +167,6 @@ bool UsdGeoPlyFileFormat::Read(SdfLayer* layer,
                                   .c_str());
         return false;
     }
-    if (request.tiled) {
-        TF_RUNTIME_ERROR("%s", usdgeoply::diagnostics::Message(
-                                  usdgeoply::diagnostics::FormatArgumentInvalid,
-                                  "PLY tiled reads are not implemented")
-                                  .c_str());
-        return false;
-    }
-
     usdpointcloud::PointCloudAsset asset;
     const auto reference = MakeReference(request);
     if (!usdgeo::PointCloudCacheRootFromEnvironment().empty()) {
@@ -159,6 +184,41 @@ bool UsdGeoPlyFileFormat::Read(SdfLayer* layer,
         if (cacheHit) {
             return true;
         }
+    }
+    if (request.tiled) {
+        usdply::PlyHeader header;
+        auto stream = usdply::OpenPointStream(
+            resolvedPath, request.readOptions, header, diagnostics);
+        if (!stream) {
+            TF_RUNTIME_ERROR("%s", usdgeoply::diagnostics::Message(
+                                      usdgeoply::diagnostics::DecodeFailed,
+                                      "Unable to open PLY point stream: " +
+                                          DiagnosticDetail(diagnostics,
+                                                           "stream open failed"))
+                                      .c_str());
+            return false;
+        }
+        auto payloadDirectory = std::filesystem::path(request.payloadDirectory);
+        if (payloadDirectory.is_relative()) {
+            payloadDirectory = std::filesystem::path(resolvedPath).parent_path() /
+                               payloadDirectory;
+        }
+        SelectedPointStream selected(std::move(stream), request.attributes);
+        usdgeo::PointCloudPayloadOptions payloadOptions{
+            payloadDirectory.string(), resolvedPath,
+            request.tileMemoryLimitBytes};
+        if (!usdgeo::AuthorPointCloudTiledAssetFromStream(
+            layer, "/PointCloud", selected, reference,
+                {request.tileSize, 0}, payloadOptions, diagnostics)) {
+            TF_RUNTIME_ERROR("%s", usdgeoply::diagnostics::Message(
+                                      usdgeoply::diagnostics::PointCloudAuthorFailed,
+                                      DiagnosticDetail(
+                                          diagnostics,
+                                          "Unable to author tiled PLY point cloud"))
+                                      .c_str());
+            return false;
+        }
+        return true;
     }
     if (!usdply::ReadPointCloud(resolvedPath, request.readOptions, reference,
                                 asset, diagnostics)) {

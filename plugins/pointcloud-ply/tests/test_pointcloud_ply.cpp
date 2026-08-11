@@ -75,6 +75,27 @@ void TestFileFormatIntegration() {
         std::filesystem::path("stanford-bunny") /
             "stanford-bunny-thinned-4096.ply",
         4096);
+
+    const auto tiledPayloadDirectory =
+        std::filesystem::temp_directory_path() / "usd_geo_ply_tiled_payloads";
+    std::filesystem::remove_all(tiledPayloadDirectory);
+    const pxr::SdfLayer::FileFormatArguments tiledArguments = {
+        {"epsg", "4978"},
+        {"payloadDirectory", tiledPayloadDirectory.string()},
+        {"tile", "true"},
+        {"tileMemoryLimit", "1"},
+        {"tileSize", "10"}};
+    const auto tiledLayer = pxr::SdfLayer::FindOrOpen(source.string(),
+                                                       tiledArguments);
+    Check(tiledLayer);
+    const auto tiledStage = pxr::UsdStage::Open(tiledLayer);
+    Check(tiledStage);
+    Check(tiledStage->GetPrimAtPath(pxr::SdfPath(
+              "/PointCloud/Tiles/Tile_L0_p0_p0_p0/LOD0"))
+              .IsValid());
+    Check(std::filesystem::exists(
+        tiledPayloadDirectory / "Tile_L0_p0_p0_p0_LOD0.usdc"));
+    std::filesystem::remove_all(tiledPayloadDirectory);
 }
 
 } // namespace

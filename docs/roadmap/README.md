@@ -86,12 +86,12 @@ introducing LAS types into shared APIs.
 for ASCII, binary little-endian, and binary big-endian inputs. v0.4.0 completes
 the point-focused reader and adds a thin `plugins/pointcloud-ply` adapter.
 
-Initial scope is ASCII and binary little-endian vertex data; `x`, `y`, `z`,
-RGB/RGBA, normals, and deterministic generic attributes for additional scalar
-vertex properties; metadata-only inspection where practical; `PLYxxx`
-diagnostics; plugin discovery and stage-open smoke tests; and shared
-PointStream, LOD, tiled authoring, and cross-format equivalence tests. Binary
-big-endian support is welcome when it does not delay the milestone.
+The shipped scope is scalar ASCII and binary vertex data, including binary
+big-endian input; `x`, `y`, `z`, RGB, intensity, classification, and generic
+scalar attributes; `PLYxxx` diagnostics; plugin discovery and stage-open smoke
+tests; and shared PointStream and payload-backed tiled authoring. Metadata-only
+inspection, faces, mesh authoring, PLY writing, and renderer-specific behavior
+remain out of scope.
 
 Faces, arbitrary non-vertex elements, mesh authoring, PLY writing, and
 renderer-specific behavior are out of scope. PLY files without reliable
@@ -141,7 +141,7 @@ sufficiently stable rather than risking stale generated output.
 | 2 | Direct LAS loading and `UsdGeomPoints` | Complete | LAS 1.2-1.4, formats 0-10, CRS, waveform metadata, and Extra Bytes are shipped |
 | 3 | LAZ, arguments, streaming, and derived-USDC cache | Complete | Chunk decoding, normalized arguments, cache lookup, and conversion integration are shipped |
 | 4 | Tiling, LOD, and local COPC | Complete in `v0.3.0` | Spill-backed tiled authoring and local COPC hierarchy reads share the common contracts |
-| 5 | PLY point-cloud read support | In progress | PLY 1.0 header inspection is implemented; decoding and plugin integration are next |
+| 5 | PLY point-cloud read support | Complete in `v0.4.0` | Bounded scalar decoding and payload-backed tiled plugin reads share the common contracts |
 | 6 | Resolver-backed COPC random access | In progress for `v0.5.0` | Project-owned source interface and local COPC migration are shipped; `ArAsset` adapter remains |
 | 7 | Delimited text and E57 | Not started | Follow PLY after generic property mapping is proven |
 
@@ -156,8 +156,8 @@ maps onto the phases above.
 | W2 | LAS, LAZ, CRS, Extra Bytes, filters, streaming, and cache | 2, 3 | Complete |
 | W3 | Shared tile/LOD contracts, spill-backed tiling, and conversion | 4 | Complete |
 | W4 | Local COPC hierarchy, partial reads, and FileFormat integration | 4 | Complete in `v0.3.0` |
-| W5 | Documentation consolidation | `v0.3.x` | In progress |
-| W6 | PLY decoding and plugin integration | 5 | In progress from header inspection |
+| W5 | Documentation consolidation | `v0.3.x` | Complete |
+| W6 | PLY decoding and plugin integration | 5 | Complete in `v0.4.0` |
 | W7 | Random-access source and resolver-backed COPC | 6 | In progress for `v0.5.0` |
 
 The completed workstreams established the shared point schema, streaming reader

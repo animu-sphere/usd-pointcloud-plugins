@@ -11,6 +11,7 @@ Release records are history and are not rewritten after publication.
 | v0.2.1 | 2026-08-06 | [v0.2.1.md](v0.2.1.md) — point filters, EPSG/CRS resolution, conversion manifests, and tiled cleanup validation |
 | v0.2.2 | 2026-08-06 | [v0.2.2.md](v0.2.2.md) — corrected package and product version metadata; no runtime behavior changes |
 | v0.3.0 | 2026-08-11 | [v0.3.0.md](v0.3.0.md) — local COPC reading, native hierarchy LOD authoring, and deterministic cache reuse |
+| v0.4.0 | 2026-08-12 | [v0.4.0.md](v0.4.0.md) — bounded PLY point streaming, shared authoring, and payload-backed tiled reads |
 
 Prepare the record in the release commit immediately before creating its tag.
 The tag pins the source commit and the record pins the release scope; runtime
@@ -61,8 +62,10 @@ Run these steps from the repository root before creating the release tag:
    `plugins/pointcloud-las/CMakeLists.txt`,
    `plugins/pointcloud-laz/openstrata.plugin.yaml`, and
    `plugins/pointcloud-laz/CMakeLists.txt`,
-   `plugins/pointcloud-copc/openstrata.plugin.yaml`, and
-   `plugins/pointcloud-copc/CMakeLists.txt`.
+   `plugins/pointcloud-copc/openstrata.plugin.yaml`,
+   `plugins/pointcloud-copc/CMakeLists.txt`,
+   `plugins/pointcloud-ply/openstrata.plugin.yaml`, and
+   `plugins/pointcloud-ply/CMakeLists.txt`.
 2. Run `python tools/check_release_metadata.py` to verify that all package
    version declarations match `VERSION`.
 3. Update `CHANGELOG.md`, the release record, and any capability or
