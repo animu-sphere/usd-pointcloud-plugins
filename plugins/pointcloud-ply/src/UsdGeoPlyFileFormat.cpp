@@ -116,7 +116,8 @@ bool UsdGeoPlyFileFormat::Read(SdfLayer* layer,
     usdpointcloud::PointReadRequest request;
     std::vector<usdgeo::Diagnostic> diagnostics;
     if (!usdpointcloud::MakeReadRequest(
-            layer->GetFileFormatArguments(), request, diagnostics)) {
+            layer->GetFileFormatArguments(), request, diagnostics,
+            usdpointcloud::PointReadFormat::Ply)) {
         TF_RUNTIME_ERROR("%s", usdgeoply::diagnostics::Message(
                                   usdgeoply::diagnostics::FormatArgumentInvalid,
                                   "Invalid PLY file-format arguments: " +

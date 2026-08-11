@@ -185,7 +185,8 @@ bool UsdGeoLasFileFormat::Read(SdfLayer* layer,
     usdpointcloud::PointReadRequest request;
     std::vector<usdgeo::Diagnostic> diagnostics;
         if (!usdpointcloud::MakeReadRequest(
-            layer->GetFileFormatArguments(), request, diagnostics)) {
+            layer->GetFileFormatArguments(), request, diagnostics,
+            usdpointcloud::PointReadFormat::Las)) {
         TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::Message(
                                   usdgeolas::diagnostics::FormatArgumentInvalid,
                                   "Invalid LAS file-format arguments: " +

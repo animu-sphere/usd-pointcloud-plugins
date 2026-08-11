@@ -226,7 +226,8 @@ bool ParseFileFormatArgumentString(
 bool NormalizeFileFormatArguments(
     const std::map<std::string, std::string>& arguments,
     PointReadRequest& request,
-    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    std::vector<usdgeo::Diagnostic>& diagnostics,
+    PointReadFormat format) {
     request = {};
     diagnostics.clear();
     std::set<std::string> selectedAttributes;
@@ -251,6 +252,11 @@ bool NormalizeFileFormatArguments(
                 return false;
             }
         } else if (key == "epsg") {
+            if (format != PointReadFormat::Ply) {
+                AddDiagnostic(usdgeo::DiagnosticCode::UnknownFormatArgument,
+                              "unknown format argument: " + key, diagnostics);
+                return false;
+            }
             if (!ParseUnsigned(value, parsed, error) || parsed == 0 ||
                 parsed > static_cast<std::uint64_t>(
                              (std::numeric_limits<int>::max)())) {
@@ -260,6 +266,11 @@ bool NormalizeFileFormatArguments(
             }
             request.epsgCode = static_cast<int>(parsed);
         } else if (key == "linearUnit") {
+            if (format != PointReadFormat::Ply) {
+                AddDiagnostic(usdgeo::DiagnosticCode::UnknownFormatArgument,
+                              "unknown format argument: " + key, diagnostics);
+                return false;
+            }
             request.linearUnit = Trim(value);
             if (request.linearUnit.empty()) {
                 AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
@@ -267,12 +278,22 @@ bool NormalizeFileFormatArguments(
                 return false;
             }
         } else if (key == "sourceUpAxis") {
+            if (format != PointReadFormat::Ply) {
+                AddDiagnostic(usdgeo::DiagnosticCode::UnknownFormatArgument,
+                              "unknown format argument: " + key, diagnostics);
+                return false;
+            }
             if (!ParseAxis(value, request.sourceUpAxis)) {
                 AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
                               "invalid sourceUpAxis: " + value, diagnostics);
                 return false;
             }
         } else if (key == "stageUpAxis") {
+            if (format != PointReadFormat::Ply) {
+                AddDiagnostic(usdgeo::DiagnosticCode::UnknownFormatArgument,
+                              "unknown format argument: " + key, diagnostics);
+                return false;
+            }
             if (!ParseAxis(value, request.stageUpAxis)) {
                 AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
                               "invalid stageUpAxis: " + value, diagnostics);
@@ -489,8 +510,9 @@ bool NormalizeFileFormatArguments(
 bool MakeReadRequest(
     const std::map<std::string, std::string>& arguments,
     PointReadRequest& request,
-    std::vector<usdgeo::Diagnostic>& diagnostics) {
-    return NormalizeFileFormatArguments(arguments, request, diagnostics);
+    std::vector<usdgeo::Diagnostic>& diagnostics,
+    PointReadFormat format) {
+    return NormalizeFileFormatArguments(arguments, request, diagnostics, format);
 }
 
 bool SelectPointDataAttributes(PointData& data,

@@ -20,6 +20,14 @@ enum class LodProfile {
     Quality,
 };
 
+enum class PointReadFormat {
+    Generic,
+    Las,
+    Laz,
+    Copc,
+    Ply,
+};
+
 struct PointReadRequest {
     PointReadOptions readOptions;
     std::optional<int> epsgCode;
@@ -44,12 +52,14 @@ bool ParseFileFormatArgumentString(
 bool NormalizeFileFormatArguments(
     const std::map<std::string, std::string>& arguments,
     PointReadRequest& request,
-    std::vector<usdgeo::Diagnostic>& diagnostics);
+    std::vector<usdgeo::Diagnostic>& diagnostics,
+    PointReadFormat format = PointReadFormat::Generic);
 
 bool MakeReadRequest(
     const std::map<std::string, std::string>& arguments,
     PointReadRequest& request,
-    std::vector<usdgeo::Diagnostic>& diagnostics);
+    std::vector<usdgeo::Diagnostic>& diagnostics,
+    PointReadFormat format = PointReadFormat::Generic);
 
 bool SelectPointDataAttributes(PointData& data,
                                const std::vector<std::string>& attributes,
