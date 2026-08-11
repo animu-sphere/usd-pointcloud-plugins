@@ -144,6 +144,36 @@ bool CopyValues(tinyply::PlyData& data,
     return true;
 }
 
+template <typename T>
+void AppendValues(const std::vector<T>& source, std::vector<T>& target) {
+    target.insert(target.end(), source.begin(), source.end());
+}
+
+bool AppendPointData(const usdpointcloud::PointData& source,
+                     usdpointcloud::PointData& target,
+                     std::string& error) {
+    if (target.positions.empty()) {
+        target.extraByteNames = source.extraByteNames;
+        target.extraByteComponentCounts = source.extraByteComponentCounts;
+        target.extraBytes.resize(source.extraBytes.size());
+    } else if (target.extraByteNames != source.extraByteNames ||
+               target.extraByteComponentCounts != source.extraByteComponentCounts ||
+               target.extraBytes.size() != source.extraBytes.size()) {
+        error = "PLY chunks contain inconsistent extra properties";
+        return false;
+    }
+    AppendValues(source.positions, target.positions);
+    AppendValues(source.intensity, target.intensity);
+    AppendValues(source.classification, target.classification);
+    AppendValues(source.red, target.red);
+    AppendValues(source.green, target.green);
+    AppendValues(source.blue, target.blue);
+    for (std::size_t index = 0; index < source.extraBytes.size(); ++index) {
+        AppendValues(source.extraBytes[index], target.extraBytes[index]);
+    }
+    return true;
+}
+
 void AddDecodeDiagnostic(std::vector<usdgeo::Diagnostic>& diagnostics,
                          const std::string& message) {
     AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure, message);
@@ -596,6 +626,75 @@ std::unique_ptr<PlyPointStream> OpenPointStream(
                                 exception.what());
         return nullptr;
     }
+}
+
+bool ReadPointCloud(
+    const std::string& filename,
+    const usdpointcloud::PointReadOptions& options,
+    const usdgeo::GeoReference& reference,
+    usdpointcloud::PointCloudAsset& asset,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    asset = {};
+    diagnostics.clear();
+    if (!reference.IsValid()) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidCrs,
+                      "PLY point cloud requires a valid CRS argument");
+        return false;
+    }
+
+    PlyHeader header;
+    auto stream = OpenPointStream(filename, options, header, diagnostics);
+    if (!stream) {
+        return false;
+    }
+
+    usdpointcloud::PointData data;
+    usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+    usdpointcloud::PointChunk chunk;
+    usdgeo::Diagnostic diagnostic;
+    while (true) {
+        const auto status = stream->ReadNext(chunk, data, diagnostic);
+        if (status == usdpointcloud::PointStreamStatus::End) {
+            break;
+        }
+        if (status == usdpointcloud::PointStreamStatus::Error) {
+            diagnostics.push_back(diagnostic);
+            return false;
+        }
+
+        usdpointcloud::PointData localData = data;
+        for (auto& position : localData.positions) {
+            usdgeo::Vec3d local;
+            if (!reference.TryToLocal(position, local)) {
+                AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidCrs,
+                              "PLY coordinate could not be transformed");
+                return false;
+            }
+            position = local;
+            bounds.Expand(local);
+        }
+        std::string appendError;
+        if (!AppendPointData(localData, asset.data, appendError)) {
+            AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                          appendError);
+            return false;
+        }
+    }
+    if (asset.data.positions.empty() || !bounds.IsValid()) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                      "PLY point cloud contains no selected points");
+        return false;
+    }
+    asset.reference = reference;
+    asset.bounds = bounds;
+    asset.chunk = usdpointcloud::MakePointChunk(asset.data, bounds);
+    if (!asset.IsValid()) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                      "PLY point cloud asset is invalid");
+        asset = {};
+        return false;
+    }
+    return true;
 }
 
 } // namespace usdply

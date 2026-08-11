@@ -1,0 +1,32 @@
+{
+    "Plugins": [
+        {
+            "Type": "library",
+            "Name": "UsdGeoPlyFileFormat",
+            "Root": ".",
+            "LibraryPath": "../../../lib/libUsdGeoPlyFileFormat.dll",
+            "ResourcePath": ".",
+            "Info": {
+                "SdfMetadata": {
+                    "pc_ply_lod": {
+                        "appliesTo": ["prims"],
+                        "default": "off",
+                        "displayGroup": "Point Cloud",
+                        "documentation": "LOD profile used to generate this point cloud payload",
+                        "type": "token"
+                    }
+                },
+                "Types": {
+                    "UsdGeoPlyFileFormat": {
+                        "bases": ["SdfFileFormat"],
+                        "displayName": "PLY File Format",
+                        "extensions": ["ply"],
+                        "formatId": "ply",
+                        "primary": true,
+                        "target": "usd"
+                    }
+                }
+            }
+        }
+    ]
+}

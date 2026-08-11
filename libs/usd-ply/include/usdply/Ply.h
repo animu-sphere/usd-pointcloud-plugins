@@ -86,4 +86,11 @@ std::unique_ptr<PlyPointStream> OpenPointStream(
     PlyHeader& header,
     std::vector<usdgeo::Diagnostic>& diagnostics);
 
+bool ReadPointCloud(
+    const std::string& filename,
+    const usdpointcloud::PointReadOptions& options,
+    const usdgeo::GeoReference& reference,
+    usdpointcloud::PointCloudAsset& asset,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
+
 } // namespace usdply

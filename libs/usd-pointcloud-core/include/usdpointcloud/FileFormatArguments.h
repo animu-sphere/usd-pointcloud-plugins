@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -21,6 +22,10 @@ enum class LodProfile {
 
 struct PointReadRequest {
     PointReadOptions readOptions;
+    std::optional<int> epsgCode;
+    std::string linearUnit = "metre";
+    std::string sourceUpAxis = "Z";
+    std::string stageUpAxis = "Z";
     LodProfile lodProfile = LodProfile::Off;
     bool tiled = false;
     double tileSize = 0.0;

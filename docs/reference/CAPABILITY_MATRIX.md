@@ -21,9 +21,9 @@ uses the same reader and authoring contracts for long-running generation.
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| PLY 1.0 header inspection | Foundation | ASCII, binary little-endian, and binary big-endian headers are parsed through vendored tinyply; declared elements and scalar/list properties are retained |
-| Scalar vertex decoding | Foundation | `usdply::OpenPointStream` decodes scalar `x`, `y`, `z`, intensity, RGB, and generic scalar vertex properties into shared point chunks and applies source bounds, classification, range, cancellation, chunk, and memory controls; tinyply currently reads the payload before chunking |
-| PLY FileFormat Plugin | Planned | Thin `pointcloud-ply` adapter, CRS arguments, authoring, and cache integration remain in the v0.4.0 roadmap |
+| PLY 1.0 header inspection | Supported | ASCII, binary little-endian, and binary big-endian headers are parsed through vendored tinyply; declared elements and scalar/list properties are retained |
+| Scalar vertex decoding | Supported | `usdply::OpenPointStream` decodes scalar `x`, `y`, `z`, intensity, RGB, and generic scalar vertex properties into shared point chunks and applies source bounds, classification, range, cancellation, chunk, and memory controls; tinyply currently reads the payload before chunking |
+| PLY FileFormat Plugin | Supported | Thin `pointcloud-ply` adapter requires an explicit `epsg` argument, applies optional unit and axis arguments, and authors shared `UsdGeomPoints`; direct cache and tiled reads are not yet connected |
 
 ## COPC
 

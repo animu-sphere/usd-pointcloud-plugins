@@ -6,10 +6,10 @@ change invariants. A structural change that contradicts this document must
 change this document first.
 
 Status: `usdGeoCore`, `usdGeoCache`, `usdPointCloudCore`,
-`usdPointCloudTiling`, `usdPointCloudAuthoring`, `usdLas`, `usdLaz`, and
-`usdCopc` are implemented, as are the `pointcloud-las`, `pointcloud-laz`, and
-`pointcloud-copc` bundles. `usdPly` has a tested header-inspection foundation;
-its point decoder and plugin are future work.
+`usdPointCloudTiling`, `usdPointCloudAuthoring`, `usdLas`, `usdLaz`, `usdCopc`,
+and `usdPly` are implemented, as are the `pointcloud-las`, `pointcloud-laz`,
+`pointcloud-copc`, and `pointcloud-ply` bundles. PLY source streaming remains
+a follow-up limitation.
 
 ## 1. Components
 
@@ -26,9 +26,10 @@ its point decoder and plugin are future work.
 | `pointcloud-copc` | `plugins/pointcloud-copc` | OpenStrata plugin bundle (`usd-fileformat`) | implemented (local read) | Local metadata-only, non-tiled, and native hierarchy tiled COPC adapter. Tiled output uses payload-backed shared `usdLod` authoring; source point ranges remain unsupported. |
 | `usdPointCloudTiling` | `libs/usd-pointcloud-tiling` | plain CMake/OpenStrata static library | implemented | Format-independent fixed-grid partitioning, spill-backed bounded-memory routing, deterministic tile and LOD ordering, spool validation, and cleanup contracts. Tile manifests remain a follow-up contract. See the [streaming and tiling plan](../roadmap/streaming-and-tiling.md). |
 | `usdGeoCache` | `libs/usd-geo-cache` | plain CMake/OpenStrata static library | implemented | Descriptor-based stable cache keys, deterministic USDC root/payload layout, hit lookup, and entry invalidation. The conversion tool owns generation and atomic publication; FileFormat lookup is not implemented. |
-| `usdPly` | `libs/usd-ply` | plain CMake/OpenStrata static library | foundation implemented | Tested PLY 1.0 header inspection for ASCII and binary encodings. Vertex decoding and shared point-cloud integration are planned for v0.4.0. |
+| `usdPly` | `libs/usd-ply` | plain CMake/OpenStrata static library | implemented | PLY 1.0 header inspection, scalar vertex decoding, source filters, and explicit georeference conversion into shared point-cloud assets. |
 | `usdAsciiPoints`, `usdE57` | `libs/` | plain libraries | reserved, not implemented | Additional point-cloud readers targeting the same shared contracts. |
-| `pointcloud-ply`, `pointcloud-points-text`, `pointcloud-e57` | `plugins/` | reserved, not implemented | Future point-cloud FileFormat Plugin adapters, in the order fixed by [format support order](../roadmap/format-support-order.md). |
+| `pointcloud-ply` | `plugins/pointcloud-ply` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | Thin `.ply` adapter requiring an explicit `epsg` argument and authoring through shared point-cloud contracts. |
+| `pointcloud-points-text`, `pointcloud-e57` | `plugins/` | reserved, not implemented | Future point-cloud FileFormat Plugin adapters, in the order fixed by [format support order](../roadmap/format-support-order.md). |
 
 Terrain, raster, and vector contracts belong to future repository candidates:
 `usd-terrain-plugins` and `usd-vector-plugins`. They are not reserved modules
