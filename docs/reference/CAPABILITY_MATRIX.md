@@ -17,6 +17,14 @@ The tiled, payload-backed authoring path is connected to direct LAS and LAZ
 reads through the spatial file-format arguments. The explicit conversion tool
 uses the same reader and authoring contracts for long-running generation.
 
+## PLY
+
+| Capability | Status | Notes |
+| --- | --- | --- |
+| PLY 1.0 header inspection | Foundation | ASCII, binary little-endian, and binary big-endian headers are parsed through vendored tinyply; declared elements and scalar/list properties are retained |
+| Scalar vertex decoding | Foundation | `usdply::OpenPointStream` decodes scalar `x`, `y`, `z`, intensity, RGB, and generic scalar vertex properties into shared point chunks; tinyply currently reads the payload before chunking |
+| PLY FileFormat Plugin | Planned | Thin `pointcloud-ply` adapter, CRS arguments, authoring, and cache integration remain in the v0.4.0 roadmap |
+
 ## COPC
 
 | Capability | Status | Notes |

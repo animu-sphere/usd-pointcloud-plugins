@@ -1,9 +1,11 @@
 #pragma once
 
 #include "usdgeo/Diagnostic.h"
+#include "usdpointcloud/PointCloud.h"
 
 #include <cstdint>
 #include <iosfwd>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -48,5 +50,40 @@ struct PlyHeader {
 bool InspectHeader(std::istream& input,
                    PlyHeader& header,
                    std::vector<usdgeo::Diagnostic>& diagnostics);
+
+class PlyPointStream final : public usdpointcloud::PointStream {
+public:
+    ~PlyPointStream() override;
+
+    usdpointcloud::PointStreamStatus ReadNext(
+        usdpointcloud::PointChunk& chunk,
+        usdpointcloud::PointData& data,
+        usdgeo::Diagnostic& diagnostic) override;
+
+private:
+    friend std::unique_ptr<PlyPointStream> OpenPointStream(
+        const std::string&,
+        const usdpointcloud::PointReadOptions&,
+        PlyHeader&,
+        std::vector<usdgeo::Diagnostic>&);
+
+    PlyPointStream(std::vector<std::string> propertyNames,
+                   std::vector<std::vector<double>> propertyValues,
+                   std::uint64_t firstPoint,
+                   std::uint64_t endPoint,
+                   usdpointcloud::PointReadOptions options);
+
+    std::vector<std::string> propertyNames_;
+    std::vector<std::vector<double>> propertyValues_;
+    std::uint64_t nextPoint_ = 0;
+    std::uint64_t endPoint_ = 0;
+    usdpointcloud::PointReadOptions options_;
+};
+
+std::unique_ptr<PlyPointStream> OpenPointStream(
+    const std::string& filename,
+    const usdpointcloud::PointReadOptions& options,
+    PlyHeader& header,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
 
 } // namespace usdply
