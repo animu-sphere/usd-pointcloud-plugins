@@ -1,0 +1,7 @@
+#usda 1.0
+
+def "PointCloud" (
+    references = @./conformance.ply:SDF_FORMAT_ARGS:epsg=4978@
+)
+{
+}

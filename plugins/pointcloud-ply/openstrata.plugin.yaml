@@ -13,4 +13,4 @@ usd:
   plug_info: plugin/resources/pointcloud-ply/plugInfo.json
 tests:
   smoke:
-    - tests/fixtures/conformance.ply
+    - tests/fixtures/conformance.usda
