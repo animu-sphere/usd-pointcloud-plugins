@@ -186,21 +186,28 @@ std::filesystem::path TilePayloadPath(const Layout& layout,
         (TileName(tile) + "_LOD" + std::to_string(lodLevel) + ".usdc");
 }
 
-bool IsCacheHit(const Layout& layout) noexcept {
+LookupResult Inspect(const Layout& layout) noexcept {
     if (!layout.IsValid()) {
-        return false;
+        return {LookupStatus::InvalidLayout};
     }
     std::error_code rootError;
     const auto rootExists =
         std::filesystem::is_regular_file(layout.rootLayer, rootError);
-    if (rootError || !rootExists) {
-        return false;
-    }
 
     std::error_code manifestError;
     const auto manifestExists =
         std::filesystem::is_regular_file(layout.manifest, manifestError);
-    return !manifestError && manifestExists;
+    if (!rootExists && !manifestExists) {
+        return {LookupStatus::Missing};
+    }
+    if (rootError || manifestError || !rootExists || !manifestExists) {
+        return {LookupStatus::Incomplete};
+    }
+    return {LookupStatus::Hit};
+}
+
+bool IsCacheHit(const Layout& layout) noexcept {
+    return Inspect(layout).IsHit();
 }
 
 bool Invalidate(const std::filesystem::path& cacheRoot,

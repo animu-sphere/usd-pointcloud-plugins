@@ -9,9 +9,9 @@
 
 namespace {
 
-void Check(bool condition) {
+void Check(bool condition, const char* message = "check failed") {
     if (!condition) {
-        std::cerr << "check failed\n";
+        std::cerr << message << "\n";
         std::exit(1);
     }
 }
@@ -90,18 +90,30 @@ void TestLayoutAndInvalidation() {
     const auto root = std::filesystem::temp_directory_path() /
                       ("usdgeo-cache-test-" + std::to_string(uniqueSuffix));
     usdgeo::cache::Layout layout;
+    Check(usdgeo::cache::Inspect(layout).status ==
+              usdgeo::cache::LookupStatus::InvalidLayout,
+          "invalid lookup status");
     Check(usdgeo::cache::TryBuildLayout(root, MakeDescriptor(), layout));
     Check(layout.IsValid());
 
     const usdgeo::TileId tile{2, -3, 4, 0};
     Check(usdgeo::cache::TilePayloadPath(layout, tile, 1).filename() ==
           "Tile_L2_n3_p4_p0_LOD1.usdc");
+    Check(usdgeo::cache::Inspect(layout).status ==
+              usdgeo::cache::LookupStatus::Missing,
+          "missing lookup status");
     Check(!usdgeo::cache::IsCacheHit(layout));
 
     std::filesystem::create_directories(layout.payloadDirectory);
     std::ofstream(layout.rootLayer) << "cache";
+    Check(usdgeo::cache::Inspect(layout).status ==
+              usdgeo::cache::LookupStatus::Incomplete,
+          "incomplete lookup status");
     Check(!usdgeo::cache::IsCacheHit(layout));
     std::ofstream(layout.manifest) << "committed";
+    Check(usdgeo::cache::Inspect(layout).status ==
+              usdgeo::cache::LookupStatus::Hit,
+          "hit lookup status");
     Check(usdgeo::cache::IsCacheHit(layout));
     const auto unrelatedDirectory = root / "unrelated";
     std::filesystem::create_directories(unrelatedDirectory);

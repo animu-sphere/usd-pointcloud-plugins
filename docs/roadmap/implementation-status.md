@@ -216,7 +216,10 @@ The ordered plan and acceptance priorities are in the
       validation token, with optional size and modification metadata;
       local filesystem identity construction is shared by authoring and the
       conversion tool
-- [ ] Document cache invalidation and compatibility rules
+- [x] Define machine-readable cache lookup states for missing, incomplete,
+      hit, and invalid layouts while preserving the `IsCacheHit` API
+- [x] Document cache invalidation and compatibility rules in the
+      `usdGeoCache` module README
 - [ ] Add cache statistics and stable diagnostics
 - [x] Harden corrupt-entry and interrupted-publication recovery
       committed cache roots are opened and payload references are validated

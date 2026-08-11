@@ -42,6 +42,19 @@ struct Layout {
     bool IsValid() const noexcept;
 };
 
+enum class LookupStatus {
+    InvalidLayout,
+    Missing,
+    Incomplete,
+    Hit,
+};
+
+struct LookupResult {
+    LookupStatus status = LookupStatus::InvalidLayout;
+
+    bool IsHit() const noexcept { return status == LookupStatus::Hit; }
+};
+
 usdgeo::CacheArguments MakeCacheArguments(const Descriptor& descriptor);
 std::string StableCacheKey(const Descriptor& descriptor);
 
@@ -57,6 +70,7 @@ std::filesystem::path TilePayloadPath(const Layout& layout,
                                       const usdgeo::TileId& tile,
                                       int lodLevel);
 
+LookupResult Inspect(const Layout& layout) noexcept;
 bool IsCacheHit(const Layout& layout) noexcept;
 bool Invalidate(const std::filesystem::path& cacheRoot,
                 const Descriptor& descriptor) noexcept;
