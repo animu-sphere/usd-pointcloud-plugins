@@ -110,6 +110,11 @@ void TestLayoutAndInvalidation() {
               usdgeo::cache::LookupStatus::Incomplete,
           "incomplete lookup status");
     Check(!usdgeo::cache::IsCacheHit(layout));
+    std::filesystem::create_directory(layout.manifest);
+    Check(usdgeo::cache::Inspect(layout).status ==
+              usdgeo::cache::LookupStatus::Incomplete,
+          "non-regular marker status");
+    std::filesystem::remove_all(layout.manifest);
     std::ofstream(layout.manifest) << "committed";
     Check(usdgeo::cache::Inspect(layout).status ==
               usdgeo::cache::LookupStatus::Hit,

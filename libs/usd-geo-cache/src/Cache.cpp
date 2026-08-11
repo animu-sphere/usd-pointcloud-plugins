@@ -33,6 +33,28 @@ std::string TileName(const usdgeo::TileId& tile) {
            "_" + AxisName(tile.y) + "_" + AxisName(tile.z);
 }
 
+struct MarkerStatus {
+    bool exists = false;
+    bool regular = false;
+    bool error = false;
+};
+
+MarkerStatus InspectMarker(const std::filesystem::path& path) noexcept {
+    std::error_code error;
+    const auto status = std::filesystem::status(path, error);
+    if (error) {
+        if (error == std::errc::no_such_file_or_directory) {
+            return {};
+        }
+        return {false, false, true};
+    }
+    if (status.type() == std::filesystem::file_type::not_found) {
+        return {};
+    }
+    return {true, status.type() == std::filesystem::file_type::regular,
+            false};
+}
+
 } // namespace
 
 bool SourceIdentity::IsValid() const noexcept {
@@ -190,17 +212,15 @@ LookupResult Inspect(const Layout& layout) noexcept {
     if (!layout.IsValid()) {
         return {LookupStatus::InvalidLayout};
     }
-    std::error_code rootError;
-    const auto rootExists =
-        std::filesystem::is_regular_file(layout.rootLayer, rootError);
-
-    std::error_code manifestError;
-    const auto manifestExists =
-        std::filesystem::is_regular_file(layout.manifest, manifestError);
-    if (!rootExists && !manifestExists) {
+    const auto root = InspectMarker(layout.rootLayer);
+    const auto manifest = InspectMarker(layout.manifest);
+    if (root.error || manifest.error) {
+        return {LookupStatus::Incomplete};
+    }
+    if (!root.exists && !manifest.exists) {
         return {LookupStatus::Missing};
     }
-    if (rootError || manifestError || !rootExists || !manifestExists) {
+    if (!root.regular || !manifest.regular) {
         return {LookupStatus::Incomplete};
     }
     return {LookupStatus::Hit};
