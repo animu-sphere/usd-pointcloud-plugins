@@ -55,6 +55,15 @@ void PrintDiagnostics(const std::vector<usdgeo::Diagnostic>& diagnostics) {
     }
 }
 
+void PrintCacheStatistics() {
+    const auto statistics = usdgeo::cache::GetLookupStatistics();
+    std::cout << "Cache lookups: " << statistics.lookups
+              << ", hits: " << statistics.hits
+              << ", misses: " << statistics.misses
+              << ", incomplete: " << statistics.incomplete
+              << ", invalid-layout: " << statistics.invalidLayouts << "\n";
+}
+
 bool IsExtension(const std::filesystem::path& path, const char* extension) {
     auto value = path.extension().string();
     for (auto& character : value) {
@@ -495,6 +504,7 @@ private:
 } // namespace
 
 int main(int argc, char** argv) {
+    usdgeo::cache::ResetLookupStatistics();
     if (argc >= 2 && std::string(argv[1]) == "--help") {
         PrintUsage();
         return 0;
@@ -773,6 +783,7 @@ int main(int argc, char** argv) {
                   << "\n";
         std::cout << "Generated " << outputPath.string() << "\n";
         std::cout << "Payloads: " << payloadDirectory.string() << "\n";
+        PrintCacheStatistics();
         return 0;
     }
 
@@ -875,6 +886,7 @@ int main(int argc, char** argv) {
                   << "\n";
         std::cout << "Generated " << outputPath.string() << "\n";
         std::cout << "Payloads: " << payloadDirectory.string() << "\n";
+        PrintCacheStatistics();
         return 0;
     }
     if (interrupted != 0) {

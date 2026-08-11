@@ -88,7 +88,10 @@ execute_process(
     RESULT_VARIABLE cache_first_result
     OUTPUT_VARIABLE cache_first_output
     ERROR_VARIABLE cache_first_error)
-if(NOT cache_first_result EQUAL 0 OR NOT cache_first_error STREQUAL "")
+string(FIND "${cache_first_output}"
+    "Cache lookups: 1, hits: 0, misses: 1" cache_first_stats_position)
+if(NOT cache_first_result EQUAL 0 OR NOT cache_first_error STREQUAL "" OR
+   cache_first_stats_position EQUAL -1)
     message(FATAL_ERROR
         "cached first conversion failed: ${cache_first_output}${cache_first_error}")
 endif()
@@ -110,8 +113,11 @@ execute_process(
     OUTPUT_VARIABLE cache_second_output
     ERROR_VARIABLE cache_second_error)
 string(FIND "${cache_second_output}" "Cache hit " cache_hit_position)
+string(FIND "${cache_second_output}"
+    "Cache lookups: 1, hits: 1, misses: 0" cache_hit_stats_position)
 if(NOT cache_second_result EQUAL 0 OR NOT cache_second_error STREQUAL "" OR
    cache_hit_position EQUAL -1 OR
+   cache_hit_stats_position EQUAL -1 OR
    NOT EXISTS "${cache_second_root}/PointCloud.usda" OR
    NOT EXISTS "${cache_second_root}/PointCloud.usda.manifest" OR
    NOT EXISTS "${cache_second_root}/payloads")

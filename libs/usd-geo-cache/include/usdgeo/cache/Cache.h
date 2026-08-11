@@ -49,10 +49,22 @@ enum class LookupStatus {
     Hit,
 };
 
+const char* LookupStatusName(LookupStatus status) noexcept;
+
 struct LookupResult {
     LookupStatus status = LookupStatus::InvalidLayout;
 
     bool IsHit() const noexcept { return status == LookupStatus::Hit; }
+};
+
+struct LookupStatistics {
+    std::uint64_t lookups = 0;
+    std::uint64_t hits = 0;
+    std::uint64_t misses = 0;
+    std::uint64_t incomplete = 0;
+    std::uint64_t invalidLayouts = 0;
+
+    double HitRatio() const noexcept;
 };
 
 usdgeo::CacheArguments MakeCacheArguments(const Descriptor& descriptor);
@@ -72,6 +84,8 @@ std::filesystem::path TilePayloadPath(const Layout& layout,
 
 LookupResult Inspect(const Layout& layout) noexcept;
 bool IsCacheHit(const Layout& layout) noexcept;
+LookupStatistics GetLookupStatistics() noexcept;
+void ResetLookupStatistics() noexcept;
 bool Invalidate(const std::filesystem::path& cacheRoot,
                 const Descriptor& descriptor) noexcept;
 
