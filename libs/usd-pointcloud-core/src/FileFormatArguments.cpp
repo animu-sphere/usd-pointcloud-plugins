@@ -441,6 +441,13 @@ bool NormalizeFileFormatArguments(
     return true;
 }
 
+bool MakeReadRequest(
+    const std::map<std::string, std::string>& arguments,
+    PointReadRequest& request,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    return NormalizeFileFormatArguments(arguments, request, diagnostics);
+}
+
 bool SelectPointDataAttributes(PointData& data,
                                const std::vector<std::string>& attributes,
                                std::string& error) {

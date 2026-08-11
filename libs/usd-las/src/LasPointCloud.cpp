@@ -1,5 +1,7 @@
 #include "LasInternal.h"
 
+#include "usdpointcloud/FileFormatArguments.h"
+
 #include <filesystem>
 
 namespace usdlas {
@@ -174,6 +176,51 @@ bool BuildPointCloudAsset(const LasHeader& header,
     asset.chunk = usdpointcloud::MakePointChunk(asset.data, asset.bounds);
     if (!asset.IsValid()) {
         error = "LAS point cloud asset is invalid";
+        return false;
+    }
+    return true;
+}
+
+bool ReadPointCloud(const std::string& filename,
+                    const LasReadOptions& options,
+                    const std::vector<std::string>& attributes,
+                    const std::string& missingCrsMessage,
+                    usdpointcloud::PointCloudAsset& asset,
+                    LasReadFailure& failure,
+                    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    asset = {};
+    failure = LasReadFailure::None;
+    usdpointcloud::PointData pointData;
+    LasHeader header;
+    LasReader reader(filename);
+    const auto consume = [&](const LasHeader& chunkHeader,
+                             const std::vector<LasPoint>& points,
+                             std::string& error) {
+        return AppendPointData(chunkHeader, points, filename, pointData, error);
+    };
+    if (!reader.Read(options, consume, header, diagnostics)) {
+        failure = reader.FailureKind();
+        return false;
+    }
+
+    std::string selectionError;
+    if (!usdpointcloud::SelectPointDataAttributes(
+            pointData, attributes, selectionError)) {
+        diagnostics.clear();
+        diagnostics.push_back({usdgeo::DiagnosticCode::InvalidFormatArgument,
+                               usdgeo::Severity::Error, selectionError,
+                               std::nullopt, std::nullopt});
+        failure = LasReadFailure::InvalidRequest;
+        return false;
+    }
+    std::string assetError;
+    if (!BuildPointCloudAsset(header, pointData, missingCrsMessage, asset,
+                              assetError)) {
+        diagnostics.clear();
+        diagnostics.push_back({usdgeo::DiagnosticCode::DecodeFailure,
+                               usdgeo::Severity::Error, assetError,
+                               std::nullopt, std::nullopt});
+        failure = LasReadFailure::Asset;
         return false;
     }
     return true;

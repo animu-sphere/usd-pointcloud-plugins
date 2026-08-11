@@ -85,34 +85,41 @@ bool UsdGeoLasFileFormat::Read(
     const std::string& resolvedPath,
     bool metadataOnly) const
 {
-    const auto request =
-        usdlas::MakeReadRequest(resolvedPath, metadataOnly);
+  usdpointcloud::PointReadRequest request;
+  std::vector<usdgeo::Diagnostic> diagnostics;
+  if (!usdpointcloud::MakeReadRequest(
+      layer->GetFileFormatArguments(), request, diagnostics)) {
+    ReportDiagnostics(diagnostics);
+    return false;
+  }
 
-    auto result = usdlas::ReadPointCloud(request);
-    if (!result) {
-        ReportDiagnostics(result.diagnostics);
-        return false;
-    }
+  usdpointcloud::PointCloudAsset asset;
+  usdlas::LasReadFailure failure = usdlas::LasReadFailure::None;
+  if (!usdlas::ReadPointCloud(
+      resolvedPath, request.readOptions, request.attributes,
+      "LAS CRS unavailable; inspect VLR metadata", asset, failure,
+      diagnostics)) {
+    ReportDiagnostics(diagnostics);
+    return false;
+  }
 
-    return usdgeo::AuthorPointCloudAsset(
-        layer,
-        result.metadata,
-        result.tiles,
-        result.diagnostics);
+  return usdgeo::AuthorPointCloudAsset(
+      layer, "/PointCloud", asset);
 }
 ```
 
 Two new pieces carry the work the plugins hold today:
 
-- a reader entry point per format that takes a normalized request and returns
-  validated metadata plus tiles, with typed diagnostics;
+- a reader entry point per format that takes normalized read controls and
+  returns a validated point-cloud asset with typed diagnostics;
 - `usdgeo::AuthorPointCloudAsset`, which owns the attribute fan-out, the
   attribute schema, `GeoReference` and bounds, stage metrics, prim authoring,
   and later the `usdLod` hierarchy.
 
 `AuthorPointCloudAsset` is the single authoring entry point every present and
-future bundle shares. When LOD lands, tiles arrive through the same `result`
-and the plugin code above does not change; see the
+future bundle shares. Tiled streams and LOD assets use adjacent shared
+authoring entry points; the plugin keeps the same reader-to-authoring boundary.
+See the
 [tile and LOD contract](LOD.md).
 
 The plugin keeps only argument normalization, the reader call, the authoring
@@ -138,10 +145,11 @@ call, and the projection of typed diagnostics onto its stable `LASxxx` /
   metadata namespace through `usdgeo::AuthorPointCloudMetadata`.
 5. [x] Author LOD through the same authoring call. Compact `lod` profiles reach
   `usdgeo::AuthorPointCloudLodAsset` for both plugins.
-6. [ ] Add the request/result entry points (`MakeReadRequest`,
+6. [x] Add the request/result entry points (`MakeReadRequest`,
   `ReadPointCloud`) so the plugin body reduces to the target contract above.
-  This is cosmetic relative to steps 1-5: the duplication is already gone, and
-  what remains is collapsing the per-plugin call sequence into one call.
+  The LAS and LAZ readers now own point accumulation, attribute selection, and
+  point-cloud asset construction; the adapters retain argument normalization,
+  metadata or tiled orchestration, USD authoring, and diagnostic projection.
 7. [x] Route a `PointStream` through spatial tiling and payload authoring when
   the [streaming and tiling](../roadmap/streaming-and-tiling.md) work lands.
   The plugin body does not grow: tiles arrive through the same result and are
