@@ -7,7 +7,7 @@ listed below.
 
 ## laz-perf 2.0.0
 
-The LAZ reader incorporates the upstream `laz-perf` source from:
+The LAZ and COPC readers incorporate the upstream `laz-perf` source from:
 
 - Upstream: https://github.com/hobu/laz-perf
 - Version: 2.0.0
@@ -20,11 +20,11 @@ version 2.1 (LGPL-2.1). The complete license text is retained at
 components are described in `third_party/laz-perf/VENDORING.md`.
 
 The laz-perf sources are compiled into the static library `usdLaz`, which is
-linked into the `pointcloud-laz` plugin binary. The `pointcloud-las` plugin contains no
-laz-perf code.
+linked into the `pointcloud-laz` and `pointcloud-copc` plugin binaries. The
+`pointcloud-las` plugin contains no laz-perf code.
 
-When distributing binaries that include the LAZ adapter, preserve this notice
-and the LGPL-2.1 terms. The project does not relicense the upstream
+When distributing binaries that include the LAZ or COPC adapter, preserve this
+notice and the LGPL-2.1 terms. The project does not relicense the upstream
 `laz-perf` source under Apache-2.0. The concrete obligations for a binary
 release are recorded in [docs/guides/DISTRIBUTION.md](docs/guides/DISTRIBUTION.md).
 

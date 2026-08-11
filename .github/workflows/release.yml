@@ -1,4 +1,4 @@
-# Cross-platform release workflow. Tag pushes build both USD FileFormat
+# Cross-platform release workflow. Tag pushes build all USD FileFormat
 # Plugins on Windows, Linux, and macOS, then assemble a draft release.
 name: release
 
@@ -165,11 +165,11 @@ jobs:
             --from-artifact "$OST_CI_RUNTIME_ARTIFACT" --force
           ost runtime validate "$OST_PLATFORM" --profile "$OST_PROFILE" --json
 
-      - name: Build and test LAS and LAZ plugins
+      - name: Build and test LAS, LAZ, and COPC plugins
         shell: bash
         run: |
           set -euo pipefail
-          for bundle in plugins/pointcloud-las plugins/pointcloud-laz; do
+          for bundle in plugins/pointcloud-las plugins/pointcloud-laz plugins/pointcloud-copc; do
             ost plugin build "$bundle" --target "$OST_PLATFORM" --profile "$OST_PROFILE"
             ost plugin test "$bundle" --target "$OST_PLATFORM" --profile "$OST_PROFILE" --up-to "${{ matrix.up_to }}" --json
           done

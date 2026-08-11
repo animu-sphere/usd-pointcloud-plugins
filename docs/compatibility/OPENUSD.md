@@ -5,15 +5,15 @@ and what they require from a host application.
 
 ## Declared Contract
 
-Both plugin manifests declare:
+All three plugin manifests declare:
 
 ```yaml
 runtime:
   openusd: ">=26.08,<27.0"
 ```
 
-`pointcloud-las` and `pointcloud-laz` are `usd-fileformat` bundles and require the
-`usd-stage-read` capability.
+`pointcloud-las`, `pointcloud-laz`, and `pointcloud-copc` are `usd-fileformat`
+bundles and require the `usd-stage-read` capability.
 
 | Item | Value |
 | --- | --- |
@@ -35,7 +35,8 @@ rebuilding and re-running the plugin integration tests against that runtime.
 | Linux x86_64 | `ubuntu-24.04` | Plugin build and integration tests |
 | macOS arm64 | `macos-15` | Plugin build and integration tests |
 
-The core libraries (`usdGeoCore`, `usdPointCloudCore`, `usdLas`, `usdLaz`)
+The core libraries (`usdGeoCore`, `usdPointCloudCore`, `usdLas`, `usdLaz`,
+`usdCopc`)
 build and test with plain CMake and no OpenUSD runtime. Only `usdPointCloudAuthoring` and
 the plugin bundles require OpenUSD.
 
@@ -67,7 +68,7 @@ Tile and LOD authoring binds to the OpenUSD 26.08 `usdLod` schemas, inside
 The exact property names are taken from the schema definitions in the build and
 are verified against the pinned runtime.
 
-The compact `lod` profiles reachable from a LAS or LAZ read author a single
+The compact `lod` profiles reachable from a LAS, LAZ, or COPC read author a single
 non-tiled `usdLod` root. The authoring library additionally supports per-tile
 roots and payload-backed LOD children, which no file-format argument reaches
 yet; see [LOD.md](../architecture/LOD.md) and

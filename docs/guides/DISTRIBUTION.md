@@ -12,11 +12,12 @@ confirms the interpretation before the first public binary release.
 | Component | License | Distributed as |
 | --- | --- | --- |
 | Project code (`libs/`, `plugins/`) | Apache-2.0 | Source and binaries |
-| `laz-perf 2.0.0` | LGPL-2.1 | Vendored source, compiled into `pointcloud-laz` |
+| `laz-perf 2.0.0` | LGPL-2.1 | Vendored source, compiled into `pointcloud-laz` and `pointcloud-copc` |
 | OpenUSD | Apache-2.0 (per distribution) | Not vendored; runtime dependency |
 | Test corpus | Per-dataset terms | Not shipped in plugin bundles |
 
-`pointcloud-las` contains no laz-perf code. Only `pointcloud-laz` is affected by LGPL-2.1.
+`pointcloud-las` contains no laz-perf code. `pointcloud-laz` and
+`pointcloud-copc` are affected by LGPL-2.1.
 
 ## Link Model
 
@@ -27,13 +28,14 @@ directly into the static library `usdLaz`, which is then linked into the
 ```text
 third_party/laz-perf/cpp/lazperf/*.cpp
   -> usdLaz (STATIC)
-    -> pointcloud-laz plugin (SHARED)
+    -> pointcloud-laz and pointcloud-copc plugins (SHARED)
 ```
 
 Consequences:
 
-- The shipped `pointcloud-laz` binary is a combined work that contains LGPL-2.1 object
-  code, so LGPL-2.1 section 6 applies to its distribution.
+- The shipped `pointcloud-laz` and `pointcloud-copc` binaries are combined
+  works that contain LGPL-2.1 object code, so LGPL-2.1 section 6 applies to
+  their distribution.
 - laz-perf headers are not exposed through the public `usdLaz` include path,
   and no laz-perf type appears in a public API.
 - The upstream source under `cpp/lazperf` is unmodified. Omitted upstream
@@ -46,7 +48,7 @@ files, described in `VENDORING.md`, and reflected in
 
 ## Compliance Requirements
 
-Every distribution that includes `pointcloud-laz` binaries provides:
+Every distribution that includes `pointcloud-laz` or `pointcloud-copc` binaries provides:
 
 1. The complete LGPL-2.1 text (`third_party/laz-perf/COPYING`).
 2. `LICENSE` and `NOTICE` for the project code.
@@ -56,12 +58,13 @@ Every distribution that includes `pointcloud-laz` binaries provides:
    covered by LGPL-2.1.
 5. The complete corresponding source for laz-perf, matching the exact version
    built.
-6. A means for the recipient to relink `pointcloud-laz` against a modified laz-perf.
+6. A means for the recipient to relink `pointcloud-laz` and `pointcloud-copc`
+  against a modified laz-perf.
 
 Requirement 6 is what static linking adds. It is satisfied by publishing, in
 the same release, the complete source archive of this repository together with
 build instructions that reproduce the shipped binary, so a recipient can
-rebuild `pointcloud-laz` with their own laz-perf. Shipping the intermediate object
+rebuild `pointcloud-laz` and `pointcloud-copc` with their own laz-perf. Shipping the intermediate object
 files or the static `usdLaz` archive is the fallback if a build from source
 ever stops being reproducible.
 
@@ -76,7 +79,7 @@ A published release contains, per platform:
 
 | Artifact | Purpose |
 | --- | --- |
-| Plugin product bundle | `pointcloud-las` and `pointcloud-laz` libraries and `plugInfo.json` |
+| Plugin product bundle | `pointcloud-las`, `pointcloud-laz`, and `pointcloud-copc` libraries and `plugInfo.json` |
 | `*.manifest.json` | Bundle manifest emitted by `ost plugin package` |
 | `*.sbom.spdx.json` | SBOM for the packaged bundle |
 | Source archive | Corresponding source for the tag, including laz-perf |
@@ -100,6 +103,7 @@ covered by the published checksum file.
 - [ ] `THIRD_PARTY_NOTICES.md` matches the vendored laz-perf commit.
 - [ ] `VENDORING.md` matches the vendored tree, including any modification.
 - [ ] LGPL-2.1 text is present in the assets.
-- [ ] The source archive builds `pointcloud-laz` on every published platform.
+- [ ] The source archive builds `pointcloud-laz` and `pointcloud-copc` on every
+  published platform.
 - [ ] Checksums verify.
 - [ ] A qualified reviewer has confirmed the licensing statement.

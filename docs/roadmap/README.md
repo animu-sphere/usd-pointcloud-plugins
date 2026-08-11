@@ -83,7 +83,7 @@ the LAS and LAZ implementation shipped in `v0.2.0`:
 measurements, no known resource-leak or cleanup issue remains in the tested
 failure paths, and the release documentation matches the shipped behavior.
 
-### `v0.3.0` — COPC read support
+### `v0.3.0` — COPC read support (shipped)
 
 The first COPC release is deliberately read-first and local-first:
 
@@ -102,7 +102,7 @@ The first COPC release is deliberately read-first and local-first:
   attributes, metadata, LOD, and diagnostics on equivalent fixtures.
 
 COPC writing, conversion to COPC, HTTP byte-range sources, network caching,
-and COPC-specific public USD schemas are deferred until the local read path
+and COPC-specific public USD schemas remain deferred until the local read path
 and its resource behavior are proven. COPC-specific parsing stays out of
 `usd-laz`; only genuinely shared LAZ decoding or byte-range primitives may be
 factored into a common implementation.
@@ -117,7 +117,7 @@ factored into a common implementation.
 | 3 | LAZ, attribute selection, and USDC caching | In progress | LAZ chunk decoding, normalized attribute selection, and the cache contract shipped; cache generation and reader/tool integration remain open |
 | 4a | Shared tile and LOD contracts and `usdLod` authoring | Complete | `usdLod` authoring, compact LOD profiles, deterministic sampling, per-tile roots, and payload-backed tile assets are available through the authoring library |
 | 4b | Bounded-memory streaming, spatial tiling, and explicit conversion tooling | Stabilization in `v0.2.x` | `PointStream`, spill-backed routing, payload authoring, and the `tile` argument are connected; the converter becomes the production path while the FileFormat path remains compatible |
-| 4c | COPC read support | Planned for `v0.3.0` | Local read-only support first; reuse the `v0.2.x` contracts and preserve the native hierarchy; no writer or remote range source initially |
+| 4c | COPC read support | Complete in `v0.3.0` | Local read-only support, native hierarchy streaming, shared LOD authoring, and FileFormat integration; no writer or remote range source |
 | 5 | PLY and delimited text point clouds (XYZ, PTS, CSV) | Not started | Needs the generic attribute model and file-format arguments |
 | 6 | E57 and multi-scan point clouds | Not started | Extends the point-cloud contracts to several scans per file |
 
@@ -134,7 +134,7 @@ maps onto the phases above.
 | W4 | Chunked and range-based reader API, memory budget, filtering | 3 | Reader API and memory budget complete; bounds and classification filters open |
 | W5 | Shared tile and LOD contracts, deterministic sampling, OpenUSD 26.08 `usdLod` authoring | 4a | Complete |
 | W6 | `PointStream`, spill-backed spatial tiling, explicit conversion tooling, spatial tile arguments, and LAS/LAZ stabilization | 4b | `v0.2.x` stabilization in progress |
-| W7 | COPC hierarchy, partial reads, and local COPC FileFormat integration | 4c | Foundation in progress for `v0.3.0` |
+| W7 | COPC hierarchy, partial reads, and local COPC FileFormat integration | 4c | Complete in `v0.3.0` |
 | W8 | USDC cache, remote byte-range sources, PLY, delimited text, and E57 | 3-6 | Deferred until the `v0.3.0` COPC boundary is stable |
 
 W1 through W5 stabilized the shared point schema, the streaming reader API, and

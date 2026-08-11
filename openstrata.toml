@@ -1,6 +1,6 @@
 [project]
 name = "usd-pointcloud-plugins"
-version = "0.2.2"
+version = "0.3.0"
 
 [requires]
 platform = "cy2026"

@@ -134,7 +134,7 @@ GeoTIFF keys when available and is `0` when no EPSG code can be resolved.
 
 ## Authored USD
 
-Both plugins produce the same layer shape.
+All three plugins produce the same layer shape.
 
 | Item | Value |
 | --- | --- |
@@ -165,10 +165,10 @@ axis is `Z` and the stage up axis is `Y`, so
 
 ## Tile and LOD
 
-Authoring-library capability and what a direct LAS or LAZ read reaches are
+Authoring-library capability and what a direct LAS, LAZ, or COPC read reaches are
 reported separately, because they differ.
 
-| Item | Authoring library | LAS/LAZ FileFormat read |
+| Item | Authoring library | LAS/LAZ/COPC FileFormat read |
 | --- | --- | --- |
 | `usdLod` hierarchy authoring | Supported | Supported via `lod` profiles |
 | `UsdLodRootAPI` | Supported | Authored when `lod` is not `off` |
@@ -185,7 +185,7 @@ With `lod=off` every read authors one `UsdGeomPoints` prim at `/PointCloud`.
 The other profiles author a single non-tiled `usdLod` root with fixed-stride
 levels and a screen-size heuristic.
 
-Direct LAS and LAZ FileFormat reads now stream decoded chunks into tile
+Direct LAS, LAZ, and COPC FileFormat reads now stream decoded chunks into tile
 spools and author one payload tile at a time. A Windows baseline against a
 14.6-million-point Shizuoka LAS input, including payload working-set
 measurement, is documented in [streaming and
@@ -219,7 +219,7 @@ in the [tile and LOD contract](../architecture/LOD.md).
   parameters, external-data flag, and sibling `.wdp` reference are retained
   for deferred loading.
 - Reader errors expose shared typed diagnostics and remain projected to stable
-  `LASxxx` or `LAZxxx` plugin prefixes. See
+  `LASxxx`, `LAZxxx`, or `COPCxxx` plugin prefixes. See
   [diagnostics](../architecture/DIAGNOSTICS.md).
 - Advanced tile planning such as adaptive depth and point-budget splitting is
   not exposed through LAS/LAZ file-format arguments. The current interface
@@ -228,4 +228,5 @@ in the [tile and LOD contract](../architecture/LOD.md).
   Direct LAS, LAZ, and COPC FileFormat reads can reuse committed entries via
   `USDGEO_CACHE_ROOT`.
 - Point decoding assumes a little-endian host.
-- Writing LAS or LAZ is out of scope; both plugins export as `usda`.
+- Writing LAS, LAZ, or COPC is out of scope; all three plugins export as
+  `usda`.

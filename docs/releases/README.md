@@ -10,6 +10,7 @@ Release records are history and are not rewritten after publication.
 | v0.2.0 | 2026-08-05 | [v0.2.0.md](v0.2.0.md) — LAS 1.4 and Extra Bytes coverage, LOD authoring, metadata-only reads, and bounded-memory tiled streaming |
 | v0.2.1 | 2026-08-06 | [v0.2.1.md](v0.2.1.md) — point filters, EPSG/CRS resolution, conversion manifests, and tiled cleanup validation |
 | v0.2.2 | 2026-08-06 | [v0.2.2.md](v0.2.2.md) — corrected package and product version metadata; no runtime behavior changes |
+| v0.3.0 | 2026-08-11 | [v0.3.0.md](v0.3.0.md) — local COPC reading, native hierarchy LOD authoring, and deterministic cache reuse |
 
 Prepare the record in the release commit immediately before creating its tag.
 The tag pins the source commit and the record pins the release scope; runtime
@@ -25,17 +26,19 @@ Unreleased work on `main` is tracked in the root
 
 A release record is created only after:
 
-1. `VERSION`, `openstrata.toml`, both plugin manifests, both plugin CMake
+1. `VERSION`, `openstrata.toml`, all plugin manifests, all plugin CMake
    projects, the tag, and the finalized changelog version agree;
 2. every declared hosted CI cell in `openstrata.ci.yaml` passes;
 3. package digests are reproducible for an unchanged build;
 4. notices, SBOM/provenance policy, and target metadata are verified —
-   including the LGPL-2.1 obligations that apply to `pointcloud-laz`, per
+   including the LGPL-2.1 obligations that apply to `pointcloud-laz` and
+   `pointcloud-copc`, per
    [DISTRIBUTION.md](../guides/DISTRIBUTION.md);
 5. the release is assembled as a draft for human review.
 
-Item 4's document-staging half is not yet machine-enforced and blocks the first
-public binary release; see
+The workflow stages and existence-checks the required documents before
+generating `SHA256SUMS`; a qualified reviewer still confirms the licensing
+interpretation before publication. See
 [DISTRIBUTION.md](../guides/DISTRIBUTION.md).
 
 ## How the gate runs
@@ -57,13 +60,15 @@ Run these steps from the repository root before creating the release tag:
    `plugins/pointcloud-las/openstrata.plugin.yaml`,
    `plugins/pointcloud-las/CMakeLists.txt`,
    `plugins/pointcloud-laz/openstrata.plugin.yaml`, and
-   `plugins/pointcloud-laz/CMakeLists.txt`.
+   `plugins/pointcloud-laz/CMakeLists.txt`,
+   `plugins/pointcloud-copc/openstrata.plugin.yaml`, and
+   `plugins/pointcloud-copc/CMakeLists.txt`.
 2. Run `python tools/check_release_metadata.py` to verify that all package
    version declarations match `VERSION`.
 3. Update `CHANGELOG.md`, the release record, and any capability or
    compatibility documentation that changed for the release.
 4. Run `ost ci validate`, `ost configure`, `ost build`, and `ost test`.
-5. Package both plugins with `ost plugin package --workspace --product
+5. Package all plugins with `ost plugin package --workspace --product
    --target cy2026 --profile usd --json`, then inspect the generated product,
    manifest, and SBOM names for the expected version.
 6. Commit the complete release preparation change and create `vX.Y.Z` on that

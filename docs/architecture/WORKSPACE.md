@@ -240,13 +240,14 @@ Every structural or format change preserves these invariants:
 - Keep large dependencies optional and scoped to the owning target.
 - Test pure libraries without requiring an OpenUSD runtime where possible.
   `usdGeoCore`, `usdPointCloudCore`, `usdLas`, and `usdLaz` build and test with
-  no OpenUSD runtime; `usdPointCloudAuthoring` and both bundles require one.
+    no OpenUSD runtime; `usdPointCloudAuthoring` and all three bundles require
+    one.
 - Validate plugin bundles with the pinned OpenStrata `cy2026` / `usd` runtime.
 
 ## 9. CI and verification contract
 
 `openstrata.ci.yaml` is the source of truth; the GitHub workflow is generated
-by `ost ci generate github`. The declared PR matrix runs both bundles on every
+by `ost ci generate github`. The declared PR matrix runs all three bundles on every
 host:
 
 | Host | Target | OST level |

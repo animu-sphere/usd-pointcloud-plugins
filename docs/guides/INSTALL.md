@@ -1,6 +1,6 @@
 # Installing and registering the plugins
 
-The latest tagged release is v0.2.2
+The latest tagged release is v0.3.0
 ([release records](../releases/README.md)); `main` carries unreleased work.
 Building from source is in [BUILDING.md](BUILDING.md), and redistribution
 obligations — which matter for `pointcloud-laz` — are in
@@ -28,6 +28,9 @@ An installed bundle has this layout:
 
 The LAZ bundle is the same shape with `UsdGeoLazFileFormat` and
 `plugin/resources/pointcloud-laz/`.
+
+The COPC bundle uses `UsdGeoCopcFileFormat` and
+`plugin/resources/pointcloud-copc/`.
 
 ## Registering with OpenUSD
 
@@ -59,6 +62,7 @@ LAZ path directly:
 ```bash
 usdview sample.las
 usdcat sample.laz
+usdcat sample.copc
 usdcat --flatten sample.las -o sample.usda
 ```
 

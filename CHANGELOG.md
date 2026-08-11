@@ -2,6 +2,40 @@
 
 All notable changes to this project are documented here.
 
+## [0.3.0] - 2026-08-11
+
+### Added
+
+- Local, read-only COPC metadata and hierarchy validation, selective point-data
+  range reads, and native hierarchy point streaming through the shared LAZ
+  decoder.
+- The `pointcloud-copc` OpenUSD FileFormat Plugin for `.copc` inputs, including
+  metadata-only, non-tiled, and hierarchy-backed tiled reads.
+- Equivalence coverage across LAS, LAZ, and COPC point streams and authored LOD
+  representations.
+- Deterministic USDC cache generation for the conversion tool and cache lookup
+  for direct LAS, LAZ, and COPC FileFormat reads through `USDGEO_CACHE_ROOT`.
+
+### Changed
+
+- Release products now include the LAS, LAZ, and COPC plugin bundles.
+- COPC native hierarchy metadata is mapped to the shared tile and `usdLod`
+  authoring contracts.
+
+### Compatibility
+
+- Existing LAS and LAZ format ids, file-format arguments, and authored stage
+  shape remain compatible with v0.2.2.
+- COPC support is local-only and requires OpenUSD 26.08 through the existing
+  `cy2026` / `usd` runtime contract.
+
+### Known limitations
+
+- COPC writing, HTTP range sources, network caching, and new public USD schemas
+  remain deferred.
+- Writing LAS, LAZ, or COPC is out of scope; all three plugins export as
+  `usda`.
+
 ## [0.2.2] - 2026-08-06
 
 ### Fixed
@@ -234,3 +268,4 @@ libraries directly. The complete before/after table and checklist are in
 [0.2.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.2.0
 [0.2.1]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.2.1
 [0.2.2]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.2.2
+[0.3.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.3.0

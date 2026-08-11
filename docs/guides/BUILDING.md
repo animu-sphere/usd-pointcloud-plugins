@@ -43,7 +43,7 @@ pointcloudLaz_integration
 pointcloudCopc_integration
 ```
 
-The two `*_integration` tests load the built plugin through OpenUSD and check
+The three `*_integration` tests load the built plugin through OpenUSD and check
 the authored stage, so they require the OpenUSD runtime. The five `*_unit`
 tests cover the libraries; only `usdPointCloudAuthoring_unit` needs OpenUSD.
 
@@ -137,7 +137,7 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-`USDGEO_BUILD_USD` controls whether the OpenUSD authoring library and the two
+`USDGEO_BUILD_USD` controls whether the OpenUSD authoring library and the three
 plugin bundles are added. It defaults to `ON` when `pxr_ROOT` or
 `OpenUSD_ROOT` is defined and `OFF` otherwise, so a bare configure builds and
 tests only `usdGeoCore`, `usdPointCloudCore`, `usdLas`, and `usdLaz`. Keeping
@@ -162,7 +162,7 @@ ost plugin view `
   --with .\plugins\pointcloud-laz
 ```
 
-`--with` makes one session discover both bundles. File-format arguments use
+`--with` makes one session discover the selected bundles. File-format arguments use
 the standard USD suffix:
 
 ```powershell

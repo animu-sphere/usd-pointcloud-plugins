@@ -20,8 +20,8 @@ for surveying, mapping, scanning, and 3D data-exchange workflows.
   headers alone through `metadataOnly`.
 - Keeps format-independent validation and coordinate handling outside the USD
   plugin layer, so the core libraries test without an OpenUSD runtime.
-- Reports stable, machine-readable `LASxxx` / `LAZxxx` diagnostics for invalid
-  or unsupported input.
+- Reports stable, machine-readable `LASxxx` / `LAZxxx` / `COPCxxx` diagnostics
+  for invalid or unsupported input.
 
 Rendering is the consuming application's responsibility. These plugins provide
 import and USD authoring, not a point-cloud renderer, and LOD selection stays
@@ -34,7 +34,7 @@ with the host application. See the
 | --- | --- | --- |
 | `.las` | `pointcloud-las` | LAS 1.2-1.4 headers, VLR/EVLR metadata, WKT CRS, GeoTIFF keys, point formats 0-10 |
 | `.laz` | `pointcloud-laz` | Point formats 0-3 and 6-8 through the bundled `laz-perf` adapter |
-| `.copc` | `pointcloud-copc` | Local COPC metadata and non-tiled reads; source point ranges and tiled reads are currently rejected |
+| `.copc` | `pointcloud-copc` | Local metadata-only, non-tiled, and native hierarchy tiled reads |
 
 Point formats 4 and 5 require LAS 1.3 or newer; formats 6-10 require LAS 1.4.
 The LAZ adapter rejects waveform formats because the bundled `laz-perf` codec
@@ -60,7 +60,7 @@ to ASCII USD identifiers; original names remain in header metadata. See the
 The complete matrix, including VLR, CRS, and authored USD attributes, is in
 the [capability matrix](docs/reference/CAPABILITY_MATRIX.md).
 
-COPC local read support is in progress; PLY, delimited text point files (XYZ, PTS,
+COPC local read support is shipped in v0.3.0; PLY, delimited text point files (XYZ, PTS,
 CSV), and E57 follow in that order. Terrain, raster, and vector formats are
 future repository candidates. See
 [format support order](docs/roadmap/format-support-order.md).
@@ -259,21 +259,22 @@ dataset coverage remains open.
 - CRS WKT is retained and EPSG is inferred from explicit WKT or GeoTIFF
   horizontal CRS keys. Conflicting definitions are rejected with a typed
   `ConflictingCrs` diagnostic.
-- A deterministic USDC cache is not implemented. Payload working-set
-  measurements are available for the checked-in real-data processing paths;
-  broader dataset coverage remains open.
-- Writing LAS or LAZ is out of scope; both plugins export as `usda`.
+- The deterministic USDC cache is available to the conversion tool and direct
+  FileFormat reads through `--cache-root` and `USDGEO_CACHE_ROOT`. Broader
+  real-world dataset coverage remains open.
+- Writing LAS, LAZ, or COPC is out of scope; all three plugins export as
+  `usda`.
 
 See the [implementation status](docs/roadmap/implementation-status.md) and
 [roadmap](docs/roadmap/README.md) for the planned work.
 
 ## Status
 
-Latest release: **v0.2.2** — corrected package and product version metadata;
-runtime behavior is unchanged from v0.2.1. The v0.2.0
+Latest release: **v0.3.0** — local COPC reading, native hierarchy LOD
+authoring, and deterministic cache reuse. The v0.2.0
 module and bundle rename is recorded in
 [MIGRATION.md](docs/compatibility/MIGRATION.md). See the
-[release record](docs/releases/v0.2.2.md) and [CHANGELOG.md](CHANGELOG.md).
+[release record](docs/releases/v0.3.0.md) and [CHANGELOG.md](CHANGELOG.md).
 
 Direction is fixed in the [design policy](docs/design/DESIGN_POLICY.md); the
 structure is fixed in the
