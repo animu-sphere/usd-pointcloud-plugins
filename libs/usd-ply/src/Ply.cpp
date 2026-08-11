@@ -149,18 +149,19 @@ void AddDecodeDiagnostic(std::vector<usdgeo::Diagnostic>& diagnostics,
     AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure, message);
 }
 
-bool DetectDeclaredFormat(std::istream& input,
-                          PlyFormat& format,
-                          std::vector<usdgeo::Diagnostic>& diagnostics) {
-    const auto originalPosition = input.tellg();
-    input.clear();
-    input.seekg(0, std::ios::beg);
+bool ReadHeaderText(std::istream& input,
+                    std::string& headerText,
+                    PlyFormat& format,
+                    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    headerText.clear();
     std::string line;
     if (!std::getline(input, line)) {
         AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidSignature,
                       "PLY header must begin with the ply signature", 0);
         return false;
     }
+    headerText = line;
+    headerText.push_back('\n');
     if (!line.empty() && line.back() == '\r') {
         line.pop_back();
     }
@@ -172,6 +173,8 @@ bool DetectDeclaredFormat(std::istream& input,
     bool sawFormat = false;
     bool sawEndHeader = false;
     while (std::getline(input, line)) {
+        headerText += line;
+        headerText.push_back('\n');
         if (!line.empty() && line.back() == '\r') {
             line.pop_back();
         }
@@ -211,9 +214,73 @@ bool DetectDeclaredFormat(std::istream& input,
                       "PLY header ended before end_header");
         return false;
     }
-    input.clear();
-    input.seekg(originalPosition, std::ios::beg);
     return true;
+}
+
+std::size_t ScalarSize(tinyply::Type type) {
+    switch (type) {
+    case tinyply::Type::INT8:
+    case tinyply::Type::UINT8: return 1;
+    case tinyply::Type::INT16:
+    case tinyply::Type::UINT16: return 2;
+    case tinyply::Type::INT32:
+    case tinyply::Type::UINT32:
+    case tinyply::Type::FLOAT32: return 4;
+    case tinyply::Type::FLOAT64: return 8;
+    default: return 0;
+    }
+}
+
+bool FitsMemoryBudget(const tinyply::PlyElement& vertex,
+                      std::size_t memoryBudgetBytes,
+                      std::string& error) {
+    std::uint64_t bytesPerPoint = 0;
+    for (const auto& property : vertex.properties) {
+        const auto scalarSize = ScalarSize(property.propertyType);
+        if (property.isList || scalarSize == 0 ||
+            bytesPerPoint > (std::numeric_limits<std::uint64_t>::max)() -
+                                scalarSize - sizeof(double)) {
+            error = "PLY vertex payload size cannot be represented";
+            return false;
+        }
+        bytesPerPoint += scalarSize + sizeof(double);
+    }
+    if (vertex.size != 0 &&
+        bytesPerPoint > (std::numeric_limits<std::uint64_t>::max)() /
+                            vertex.size) {
+        error = "PLY vertex payload size cannot be represented";
+        return false;
+    }
+    const auto requiredBytes = bytesPerPoint * vertex.size;
+    if (requiredBytes > memoryBudgetBytes) {
+        error = "PLY vertex payload exceeds the configured memory budget";
+        return false;
+    }
+    return true;
+}
+
+std::size_t FindPropertyIndex(const std::vector<std::string>& names,
+                              const std::string& name) {
+    const auto found = std::find(names.begin(), names.end(), name);
+    return found == names.end() ? names.size()
+                                : static_cast<std::size_t>(found - names.begin());
+}
+
+bool AssignUnsigned8(double value, std::uint8_t& target) {
+    if (!std::isfinite(value) || value < 0.0 || value > 255.0 ||
+        static_cast<double>(static_cast<std::uint8_t>(value)) != value) {
+        return false;
+    }
+    target = static_cast<std::uint8_t>(value);
+    return true;
+}
+
+bool IsInside(const usdgeo::Vec3d& point,
+              const std::optional<usdgeo::SpatialBounds>& bounds) {
+    return !bounds ||
+           (point.x >= bounds->minimum.x && point.x <= bounds->maximum.x &&
+            point.y >= bounds->minimum.y && point.y <= bounds->maximum.y &&
+            point.z >= bounds->minimum.z && point.z <= bounds->maximum.z);
 }
 
 bool AssignUnsigned16(double value, std::uint16_t& target) {
@@ -233,22 +300,20 @@ bool InspectHeader(std::istream& input,
     header = {};
     diagnostics.clear();
     try {
+        std::string headerText;
         PlyFormat declaredFormat = PlyFormat::Ascii;
-        if (!DetectDeclaredFormat(input, declaredFormat, diagnostics)) {
+        if (!ReadHeaderText(input, headerText, declaredFormat, diagnostics)) {
             return false;
         }
+        std::istringstream headerInput(headerText);
         tinyply::PlyFile file;
-        if (!file.parse_header(input)) {
+        if (!file.parse_header(headerInput)) {
             AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
                           "PLY header could not be parsed");
             return false;
         }
-        const auto position = input.tellg();
-        const auto dataOffset = position < 0
-                                    ? std::uint64_t{0}
-                                    : static_cast<std::uint64_t>(position);
         std::string error;
-        if (!BuildHeader(file, dataOffset, header, error)) {
+        if (!BuildHeader(file, headerText.size(), header, error)) {
             AddDecodeDiagnostic(diagnostics, error);
             return false;
         }
@@ -282,75 +347,132 @@ usdpointcloud::PointStreamStatus PlyPointStream::ReadNext(
     chunk = {};
     data = {};
     diagnostic = {};
-    if (nextPoint_ >= endPoint_) {
-        return usdpointcloud::PointStreamStatus::End;
-    }
-
-    const auto count = static_cast<std::size_t>(
-        (std::min)(static_cast<std::uint64_t>(options_.chunkPointLimit),
-                   endPoint_ - nextPoint_));
-    data.positions.resize(count);
-    const auto addStorage = [&](const std::string& name) {
-        if (name == "intensity") data.intensity.resize(count);
-        else if (name == "red") data.red.resize(count);
-        else if (name == "green") data.green.resize(count);
-        else if (name == "blue") data.blue.resize(count);
-        else if (name != "x" && name != "y" && name != "z") {
-            data.extraByteNames.push_back(name);
-            data.extraByteComponentCounts.push_back(1);
-            data.extraBytes.emplace_back(count);
-        }
-    };
-    for (const auto& name : propertyNames_) addStorage(name);
-
-    usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
-    for (std::size_t index = 0; index < count; ++index) {
-        const auto sourceIndex = nextPoint_ + index;
-        for (std::size_t propertyIndex = 0;
-             propertyIndex < propertyNames_.size(); ++propertyIndex) {
-            const auto& name = propertyNames_[propertyIndex];
-            const auto value = propertyValues_[propertyIndex][sourceIndex];
-            if (name == "x") data.positions[index].x = value;
-            else if (name == "y") data.positions[index].y = value;
-            else if (name == "z") data.positions[index].z = value;
-            else if (name == "intensity" &&
-                     !AssignUnsigned16(value, data.intensity[index])) {
-                diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
-                              usdgeo::Severity::Error,
-                              "PLY intensity value is outside uint16 range",
-                              std::nullopt, sourceIndex};
-                return usdpointcloud::PointStreamStatus::Error;
-            } else if (name == "red" &&
-                       !AssignUnsigned16(value, data.red[index])) {
-                return usdpointcloud::PointStreamStatus::Error;
-            } else if (name == "green" &&
-                       !AssignUnsigned16(value, data.green[index])) {
-                return usdpointcloud::PointStreamStatus::Error;
-            } else if (name == "blue" &&
-                       !AssignUnsigned16(value, data.blue[index])) {
-                return usdpointcloud::PointStreamStatus::Error;
-            } else if (name != "x" && name != "y" && name != "z" &&
-                       name != "intensity" && name != "red" &&
-                       name != "green" && name != "blue") {
-                const auto extraIndex = static_cast<std::size_t>(
-                    std::find(data.extraByteNames.begin(),
-                              data.extraByteNames.end(), name) -
-                    data.extraByteNames.begin());
-                data.extraBytes[extraIndex][index] = value;
-            }
-        }
-        if (!data.positions[index].IsFinite()) {
-            diagnostic = {usdgeo::DiagnosticCode::NonFiniteCoordinate,
-                          usdgeo::Severity::Error,
-                          "PLY vertex coordinates must be finite", std::nullopt,
-                          sourceIndex};
+    const auto xIndex = FindPropertyIndex(propertyNames_, "x");
+    const auto yIndex = FindPropertyIndex(propertyNames_, "y");
+    const auto zIndex = FindPropertyIndex(propertyNames_, "z");
+    const auto classificationIndex =
+        FindPropertyIndex(propertyNames_, "classification");
+    while (nextPoint_ < endPoint_) {
+        if (options_.isCancelled && options_.isCancelled()) {
+            diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                          usdgeo::Severity::Error, "PLY read cancelled",
+                          std::nullopt, nextPoint_};
             return usdpointcloud::PointStreamStatus::Error;
         }
-        bounds.Expand(data.positions[index]);
+
+        const auto count = static_cast<std::size_t>(
+            (std::min)(static_cast<std::uint64_t>(options_.chunkPointLimit),
+                       endPoint_ - nextPoint_));
+        const auto sourceStart = nextPoint_;
+        nextPoint_ += count;
+        data.positions.reserve(count);
+        data.intensity.reserve(count);
+        data.classification.reserve(count);
+        data.red.reserve(count);
+        data.green.reserve(count);
+        data.blue.reserve(count);
+        for (const auto& name : propertyNames_) {
+            if (name != "x" && name != "y" && name != "z" &&
+                name != "intensity" && name != "classification" &&
+                name != "red" && name != "green" && name != "blue") {
+                data.extraByteNames.push_back(name);
+                data.extraByteComponentCounts.push_back(1);
+                data.extraBytes.emplace_back();
+                data.extraBytes.back().reserve(count);
+            }
+        }
+
+        usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+        for (std::size_t index = 0; index < count; ++index) {
+            const auto sourceIndex = sourceStart + index;
+            const usdgeo::Vec3d position{
+                propertyValues_[xIndex][sourceIndex],
+                propertyValues_[yIndex][sourceIndex],
+                propertyValues_[zIndex][sourceIndex]};
+            if (!position.IsFinite()) {
+                diagnostic = {usdgeo::DiagnosticCode::NonFiniteCoordinate,
+                              usdgeo::Severity::Error,
+                              "PLY vertex coordinates must be finite",
+                              std::nullopt, sourceIndex};
+                return usdpointcloud::PointStreamStatus::Error;
+            }
+            std::uint8_t classification = 0;
+            if (classificationIndex != propertyNames_.size() &&
+                !AssignUnsigned8(propertyValues_[classificationIndex][sourceIndex],
+                                 classification)) {
+                diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                              usdgeo::Severity::Error,
+                              "PLY classification value is outside uint8 range",
+                              std::nullopt, sourceIndex};
+                return usdpointcloud::PointStreamStatus::Error;
+            }
+            if (!IsInside(position, options_.bounds) ||
+                (!options_.classifications.empty() &&
+                 std::find(options_.classifications.begin(),
+                           options_.classifications.end(),
+                           classification) == options_.classifications.end())) {
+                continue;
+            }
+
+            data.positions.push_back(position);
+            for (std::size_t propertyIndex = 0;
+                 propertyIndex < propertyNames_.size(); ++propertyIndex) {
+                const auto& name = propertyNames_[propertyIndex];
+                const auto value = propertyValues_[propertyIndex][sourceIndex];
+                if (name == "x" || name == "y" || name == "z") {
+                    continue;
+                }
+                if (name == "intensity") {
+                    std::uint16_t converted = 0;
+                    if (!AssignUnsigned16(value, converted)) {
+                        diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                                      usdgeo::Severity::Error,
+                                      "PLY intensity value is outside uint16 range",
+                                      std::nullopt, sourceIndex};
+                        return usdpointcloud::PointStreamStatus::Error;
+                    }
+                    data.intensity.push_back(converted);
+                } else if (name == "classification") {
+                    data.classification.push_back(classification);
+                } else if (name == "red" || name == "green" ||
+                           name == "blue") {
+                    std::uint16_t converted = 0;
+                    if (!AssignUnsigned16(value, converted)) {
+                        diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                                      usdgeo::Severity::Error,
+                                      "PLY " + name +
+                                          " value is outside uint16 range",
+                                      std::nullopt, sourceIndex};
+                        return usdpointcloud::PointStreamStatus::Error;
+                    }
+                    if (name == "red") data.red.push_back(converted);
+                    else if (name == "green") data.green.push_back(converted);
+                    else data.blue.push_back(converted);
+                } else {
+                    const auto extraIndex = static_cast<std::size_t>(
+                        std::find(data.extraByteNames.begin(),
+                                  data.extraByteNames.end(), name) -
+                        data.extraByteNames.begin());
+                    data.extraBytes[extraIndex].push_back(value);
+                }
+            }
+            bounds.Expand(position);
+        }
+        if (data.positions.empty()) {
+            data = {};
+            continue;
+        }
+        chunk = usdpointcloud::MakePointChunk(data, bounds);
+        if (!chunk.IsValid()) {
+            diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                          usdgeo::Severity::Error,
+                          "PLY stream produced an invalid point chunk",
+                          std::nullopt, sourceStart};
+            return usdpointcloud::PointStreamStatus::Error;
+        }
+        return usdpointcloud::PointStreamStatus::Chunk;
     }
-    nextPoint_ += count;
-    chunk = usdpointcloud::MakePointChunk(data, bounds);
-    return usdpointcloud::PointStreamStatus::Chunk;
+    return usdpointcloud::PointStreamStatus::End;
 }
 
 std::unique_ptr<PlyPointStream> OpenPointStream(
@@ -371,21 +493,19 @@ std::unique_ptr<PlyPointStream> OpenPointStream(
         return nullptr;
     }
     try {
+        std::string headerText;
         PlyFormat declaredFormat = PlyFormat::Ascii;
-        if (!DetectDeclaredFormat(stream, declaredFormat, diagnostics)) {
+        if (!ReadHeaderText(stream, headerText, declaredFormat, diagnostics)) {
             return nullptr;
         }
+        std::istringstream headerInput(headerText);
         tinyply::PlyFile file;
-        if (!file.parse_header(stream)) {
+        if (!file.parse_header(headerInput)) {
             AddDecodeDiagnostic(diagnostics, "PLY header could not be parsed");
             return nullptr;
         }
-        const auto position = stream.tellg();
-        const auto dataOffset = position < 0
-                                    ? std::uint64_t{0}
-                                    : static_cast<std::uint64_t>(position);
         std::string error;
-        if (!BuildHeader(file, dataOffset, header, error)) {
+        if (!BuildHeader(file, headerText.size(), header, error)) {
             AddDecodeDiagnostic(diagnostics, error);
             return nullptr;
         }
@@ -418,6 +538,18 @@ std::unique_ptr<PlyPointStream> OpenPointStream(
                                 "PLY vertex element must contain x, y, and z");
             return nullptr;
         }
+        if (!options.classifications.empty() &&
+            names.find("classification") == names.end()) {
+            AddDiagnostic(
+                diagnostics, usdgeo::DiagnosticCode::InvalidFormatArgument,
+                "PLY classification filter requires a classification property");
+            return nullptr;
+        }
+        if (!FitsMemoryBudget(*vertex, options.memoryBudgetBytes, error)) {
+            AddDiagnostic(diagnostics,
+                          usdgeo::DiagnosticCode::InvalidFormatArgument, error);
+            return nullptr;
+        }
 
         std::map<std::string, std::shared_ptr<tinyply::PlyData>> requested;
         for (const auto& name : propertyNames) {
@@ -442,6 +574,7 @@ std::unique_ptr<PlyPointStream> OpenPointStream(
                                                   : error);
                 return nullptr;
             }
+            property->buffer = tinyply::Buffer();
             propertyValues.push_back(std::move(values));
         }
 

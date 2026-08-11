@@ -22,7 +22,7 @@ uses the same reader and authoring contracts for long-running generation.
 | Capability | Status | Notes |
 | --- | --- | --- |
 | PLY 1.0 header inspection | Foundation | ASCII, binary little-endian, and binary big-endian headers are parsed through vendored tinyply; declared elements and scalar/list properties are retained |
-| Scalar vertex decoding | Foundation | `usdply::OpenPointStream` decodes scalar `x`, `y`, `z`, intensity, RGB, and generic scalar vertex properties into shared point chunks; tinyply currently reads the payload before chunking |
+| Scalar vertex decoding | Foundation | `usdply::OpenPointStream` decodes scalar `x`, `y`, `z`, intensity, RGB, and generic scalar vertex properties into shared point chunks and applies source bounds, classification, range, cancellation, chunk, and memory controls; tinyply currently reads the payload before chunking |
 | PLY FileFormat Plugin | Planned | Thin `pointcloud-ply` adapter, CRS arguments, authoring, and cache integration remain in the v0.4.0 roadmap |
 
 ## COPC

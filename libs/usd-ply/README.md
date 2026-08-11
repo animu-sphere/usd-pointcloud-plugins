@@ -20,7 +20,10 @@ elements, and the first byte after `end_header`. Failures append an anchored
 big-endian input, and decodes scalar `x`, `y`, `z`, `intensity`, RGB, and generic
 scalar vertex properties into shared point-cloud chunks. The current adapter
 uses tinyply's complete payload read and chunks the decoded columns for the
-consumer; bounded streaming and source CRS arguments remain follow-up work.
+consumer. It applies source bounds, classification filters, cancellation, point
+ranges, chunk limits, and the configured memory budget before delivering a
+chunk; true bounded source streaming and source CRS arguments remain follow-up
+work.
 
 ## Scope
 
