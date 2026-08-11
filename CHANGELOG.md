@@ -2,6 +2,39 @@
 
 All notable changes to this project are documented here.
 
+## [0.6.0] - 2026-08-12
+
+### Added
+
+- Machine-readable generated-cache lookup states for missing, incomplete, hit,
+  and invalid layouts, with stable lookup statistics and diagnostics.
+- Cache recovery coverage for corrupt entries and interrupted publications,
+  including committed-root and payload validation before reuse.
+- Local and resolver-backed cache reuse baselines covering local miss-to-hit
+  reuse and conservative resolver behavior when stable identity is absent.
+
+### Changed
+
+- Generated-cache identity now has explicit invalidation and compatibility
+  behavior through the transport-independent `SourceIdentity` contract.
+- Invalid cache entries are invalidated through the descriptor-derived entry
+  path, while resolver-backed reuse remains disabled without a stable
+  validation token.
+
+### Compatibility
+
+- Existing LAS, LAZ, COPC, and PLY format ids, arguments, authored stage shape,
+  and plugin behavior remain compatible with v0.5.0.
+- The generated-USDC cache remains separate from resolver or transport byte
+  caches; cache reuse is opt-in through the existing cache configuration.
+
+### Known limitations
+
+- Remote generated-cache reuse requires stable resolver identity metadata and
+  remains disabled when that metadata is unavailable.
+- Range-cache ownership, adaptive tiling, and new public USD schemas remain
+  out of scope.
+
 ## [0.5.0] - 2026-08-12
 
 ### Added
@@ -349,3 +382,5 @@ libraries directly. The complete before/after table and checklist are in
 [0.2.2]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.2.2
 [0.3.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.3.0
 [0.4.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.4.0
+[0.5.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.5.0
+[0.6.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.6.0

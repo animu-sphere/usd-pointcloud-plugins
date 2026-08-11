@@ -296,8 +296,9 @@ matrix as LAS and LAZ.
 | v0.2.1 | bounded-memory streaming, spill-backed tile routing, conversion tooling, cache generation and lookup in the conversion tool | released |
 | v0.3.0 | local COPC reader and FileFormat integration, native hierarchy streaming, shared LOD authoring, and all-bundle CI smoke coverage | released |
 | v0.4.0 | PLY point decoding, adaptive display attributes, shared authoring, and payload-backed tiled reads | released 2026-08-12 |
-| v0.5.0 | project-owned random access and resolver-backed COPC without transport coupling | implemented on `main`; release pending |
-| v0.6.0-v0.7.0 | source identity, cache hardening, then point-budget-aware adaptive tiling | tracked in [infrastructure maturity roadmap](../roadmap/infrastructure-maturity.md) |
+| v0.5.0 | project-owned random access and resolver-backed COPC without transport coupling | released 2026-08-12 |
+| v0.6.0 | source identity, cache hardening, diagnostics, recovery, and reuse baselines | released 2026-08-12 |
+| v0.7.0 | point-budget-aware adaptive tiling | planned |
 
 Current work and acceptance gaps are tracked in
 [roadmap/implementation-status.md](../roadmap/implementation-status.md).

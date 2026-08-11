@@ -56,8 +56,8 @@ schema is deferred until the plain-attribute metadata contract is stable.
 | Release | Theme | Primary outcome | Status |
 | --- | --- | --- | --- |
 | `v0.4.0` | PLY read support | Prove the shared contracts outside the LAS family | Released |
-| `v0.5.0` | Remote source architecture | Resolver-backed COPC through a project-owned random-access source | Implemented on `main`; release pending |
-| `v0.6.0` | Cache and source identity | Deterministic local reuse and conservative remote identity | In progress |
+| `v0.5.0` | Remote source architecture | Resolver-backed COPC through a project-owned random-access source | Released 2026-08-12 |
+| `v0.6.0` | Cache and source identity | Deterministic local reuse and conservative remote identity | Released 2026-08-12 |
 | `v0.7.0` | Adaptive tiling | Predictable payload density and memory through point-budget planning | Planned |
 | Later | Format expansion | E57 and other point-cloud formats through `PointStream` | Deferred |
 

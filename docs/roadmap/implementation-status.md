@@ -209,7 +209,7 @@ transaction state creation and retrying the same output workspace.
 The ordered plan and acceptance priorities are in the
 [infrastructure maturity roadmap](infrastructure-maturity.md).
 
-#### `v0.6.0` - cache and source identity
+#### `v0.6.0` - cache and source identity (shipped)
 
 - [x] Define a format- and transport-independent source identity contract
 -     `usdgeo::cache::SourceIdentity` accepts a stable identifier and

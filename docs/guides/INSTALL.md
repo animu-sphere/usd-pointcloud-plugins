@@ -1,6 +1,6 @@
 # Installing and registering the plugins
 
-The latest tagged release is v0.3.0
+The latest tagged release is v0.6.0
 ([release records](../releases/README.md)); `main` carries unreleased work.
 Building from source is in [BUILDING.md](BUILDING.md), and redistribution
 obligations — which matter for `pointcloud-laz` — are in
@@ -10,11 +10,11 @@ Check [OPENUSD.md](../compatibility/OPENUSD.md) before reusing a binary:
 OpenUSD plugin binaries must match the target platform, compiler ABI, and
 OpenUSD build of the host application.
 
-The workspace ships three independent bundles: `pointcloud-las` for `.las`,
-`pointcloud-laz` for `.laz`, and `pointcloud-copc` for local `.copc` reads.
-Neither depends on the other; install only what you need. `pointcloud-laz` and
-`pointcloud-copc` use the shared LGPL-2.1 laz-perf code while
-`pointcloud-las` does not.
+The workspace ships four independent bundles: `pointcloud-las` for `.las`,
+`pointcloud-laz` for `.laz`, `pointcloud-copc` for `.copc` reads, and
+`pointcloud-ply` for `.ply` reads. Neither depends on the other; install only
+what you need. `pointcloud-laz` and `pointcloud-copc` use the shared LGPL-2.1
+laz-perf code while `pointcloud-las` and `pointcloud-ply` do not.
 
 ## Bundle layout
 

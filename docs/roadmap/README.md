@@ -34,8 +34,8 @@ detailed rationale, scope, tests, and performance indicators are in the
 | Release | Theme | Outcome |
 | --- | --- | --- |
 | `v0.4.0` | PLY read support | Validate shared contracts outside the LAS family; released |
-| `v0.5.0` | Resolver-backed COPC random access | Remote-capable COPC without coupling `usdCopc` to HTTP; implemented on `main` |
-| `v0.6.0` | Cache and source identity | Deterministic local and remote generated-output reuse |
+| `v0.5.0` | Resolver-backed COPC random access | Remote-capable COPC without coupling `usdCopc` to HTTP; released |
+| `v0.6.0` | Cache and source identity | Deterministic local and conservative remote generated-output reuse; released |
 | `v0.7.0` | Adaptive tiling | Point-budget-aware payload density and memory use |
 | Later | Format expansion | E57 and other point-cloud adapters after infrastructure maturity |
 
@@ -134,7 +134,9 @@ resolver or transport may cache bytes; `usdGeoCache` caches generated USD.
 Resolver-backed cache identity is conservative: it requires stable
 resolver-provided identity inputs such as a resolved identifier, size,
 validation token, or digest. Cache reuse is disabled when that identity is not
-sufficiently stable rather than risking stale generated output.
+sufficiently stable rather than risking stale generated output. v0.6.0 adds
+explicit lookup states, statistics, diagnostics, and recovery for corrupt or
+interrupted generated-cache entries.
 
 ## Phases
 
@@ -146,8 +148,8 @@ sufficiently stable rather than risking stale generated output.
 | 3 | LAZ, arguments, streaming, and derived-USDC cache | Complete | Chunk decoding, normalized arguments, cache lookup, and conversion integration are shipped |
 | 4 | Tiling, LOD, and local COPC | Complete in `v0.3.0` | Spill-backed tiled authoring and local COPC hierarchy reads share the common contracts |
 | 5 | PLY point-cloud read support | Complete in `v0.4.0` | Bounded scalar decoding and payload-backed tiled plugin reads share the common contracts |
-| 6 | Resolver-backed COPC random access | Implemented for `v0.5.0` | The plugin adapts resolver-opened `ArAsset` values to the project-owned source interface; remote cache reuse is conservative |
-| 7 | Source identity and cache hardening | In progress for `v0.6.0` | Keep generated-output cache identity format- and transport-independent |
+| 6 | Resolver-backed COPC random access | Released in `v0.5.0` | The plugin adapts resolver-opened `ArAsset` values to the project-owned source interface; remote cache reuse is conservative |
+| 7 | Source identity and cache hardening | Released in `v0.6.0` | Keep generated-output cache identity format- and transport-independent |
 | 8 | Point-budget-aware adaptive tiling | Planned for `v0.7.0` | Preserve fixed-grid behavior while adding deterministic adaptive planning |
 | 9 | E57 and other point-cloud formats | Deferred | Reuse `PointStream`, processing, authoring, and cache contracts |
 
@@ -164,8 +166,8 @@ maps onto the phases above.
 | W4 | Local COPC hierarchy, partial reads, and FileFormat integration | 4 | Complete in `v0.3.0` |
 | W5 | Documentation consolidation | `v0.3.x` | Complete |
 | W6 | PLY decoding and plugin integration | 5 | Complete in `v0.4.0` |
-| W7 | Random-access source and resolver-backed COPC | 6 | Implemented for `v0.5.0` |
-| W8 | Source identity and generated-cache hardening | 7 | In progress for `v0.6.0` |
+| W7 | Random-access source and resolver-backed COPC | 6 | Released in `v0.5.0` |
+| W8 | Source identity and generated-cache hardening | 7 | Released in `v0.6.0` |
 | W9 | Point-budget-aware adaptive tiling | 8 | Planned for `v0.7.0` |
 
 The completed workstreams established the shared point schema, streaming reader

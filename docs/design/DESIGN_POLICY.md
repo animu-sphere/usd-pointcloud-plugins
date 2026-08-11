@@ -32,8 +32,8 @@ production path for long-running deterministic payload and cache generation.
 
 ## 2. Current Assessment
 
-v0.4.0 is released and resolver-backed COPC for v0.5.0 is implemented on
-`main`. The properties to preserve are:
+v0.6.0 is released and the cache/source-identity work is complete. The
+properties to preserve are:
 
 - Format parsing is separated from OpenUSD API usage.
 - LAS, LAZ, COPC, and PLY share point-stream and authoring contracts.
@@ -665,10 +665,6 @@ A point format counts as supported only when all of the following hold:
 
 ## 18. Immediate Actions
 
-1. Finish v0.5.0 verification and release documentation for resolver-backed
-  COPC.
-2. Specify source identity and generated-cache invalidation for v0.6.0.
-3. Add cache diagnostics, statistics, recovery tests, and performance evidence.
-4. Define and benchmark deterministic point-budget-aware tiling for v0.7.0.
-5. Keep `geo:*` metadata documented as a provisional plain-attribute contract.
-6. Reassess E57 and other format entry gates after v0.7.0.
+1. Define and benchmark deterministic point-budget-aware tiling for v0.7.0.
+2. Keep `geo:*` metadata documented as a provisional plain-attribute contract.
+3. Reassess E57 and other format entry gates after v0.7.0.

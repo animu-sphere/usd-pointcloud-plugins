@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.23)
 
 project(httpResolver
-    VERSION 0.5.0
+    VERSION 0.6.0
     DESCRIPTION "OpenUSD HTTP resolver test double for point-cloud integration"
     LANGUAGES CXX)
 
