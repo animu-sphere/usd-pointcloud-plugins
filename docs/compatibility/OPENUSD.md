@@ -124,3 +124,5 @@ remain static `SDF_FORMAT_ARGS`. See [ADR-0003](../adr/0003-dynamic-file-format.
   reads. HTTP support, authentication, retries, and transport caching remain
   resolver responsibilities. Generated-USDC cache reuse is disabled unless a
   stable local filesystem identity is available.
+- The repository's `httpresolver` bundle is an integration-test double only;
+  it does not provide network transport or production HTTP behavior.

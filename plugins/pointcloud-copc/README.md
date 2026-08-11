@@ -6,6 +6,11 @@ LAZ chunk decoding to `usdCopc`, then uses the shared point-cloud authoring
 path. The plugin opens the resolved asset through the active `ArResolver` and
 adapts its `ArAsset` to the project-owned random-access source contract.
 
+The repository's resolver-backed integration test uses the independent
+`plugins/httpresolver` bundle. That bundle is a test double which serves a
+local fixture as an in-memory asset; a production HTTP resolver can replace it
+without changing this plugin or `usdCopc`.
+
 The adapter supports metadata-only reads, non-tiled reads, and native
 hierarchy tiles authored as payload-backed `usdLod` roots. Each COPC
 point-data node becomes one shared tile with its native spacing preserved.
