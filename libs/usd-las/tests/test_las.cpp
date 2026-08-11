@@ -8,7 +8,9 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -18,6 +20,44 @@ void Check(bool condition) {
         std::abort();
     }
 }
+
+class TestSource final : public usdgeo::RandomAccessSource {
+public:
+    explicit TestSource(std::vector<std::uint8_t> bytes)
+        : bytes_(std::move(bytes)) {}
+
+    bool GetSize(std::uint64_t& size,
+                 std::vector<usdgeo::Diagnostic>& diagnostics) const override {
+        diagnostics.clear();
+        size = bytes_.size();
+        return true;
+    }
+
+    bool Read(std::uint64_t offset,
+              std::size_t size,
+              std::vector<std::uint8_t>& bytes,
+              std::vector<usdgeo::Diagnostic>& diagnostics) override {
+        diagnostics.clear();
+        if (fail_) {
+            diagnostics.push_back(
+                {usdgeo::DiagnosticCode::InvalidOffset,
+                 usdgeo::Severity::Error, "test source rejected the range",
+                 offset, std::nullopt});
+            return false;
+        }
+        const auto resultSize = shortRead_ && size > 0 ? size - 1 : size;
+        bytes.assign(bytes_.begin() + static_cast<std::ptrdiff_t>(offset),
+                     bytes_.begin() + static_cast<std::ptrdiff_t>(offset +
+                                                                   resultSize));
+        return true;
+    }
+
+    bool fail_ = false;
+    bool shortRead_ = false;
+
+private:
+    std::vector<std::uint8_t> bytes_;
+};
 
 template <typename T>
 void Write(std::vector<std::uint8_t>& bytes, std::size_t offset, T value) {
@@ -326,6 +366,27 @@ void TestRangeReader() {
           diagnostics.pointIndex == 0 && diagnostics.byteOffset == 227);
     Check(reader.FailureKind() == usdlas::LasReadFailure::PointDecode);
     Check(std::remove(filename.string().c_str()) == 0);
+}
+
+void TestRandomAccessSourceDiagnostics() {
+    usdlas::LasHeader header;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+
+    auto failingSource = std::make_shared<TestSource>(MakeHeader(2, 0));
+    failingSource->fail_ = true;
+    usdlas::LasReader failingReader(failingSource);
+    Check(!failingReader.ReadMetadata(header, diagnostics));
+    Check(diagnostics.size() == 1 &&
+        diagnostics.front().code == usdgeo::DiagnosticCode::InvalidOffset &&
+        diagnostics.front().byteOffset == 0);
+
+    auto shortSource = std::make_shared<TestSource>(MakeHeader(2, 0));
+    shortSource->shortRead_ = true;
+    usdlas::LasReader shortReader(shortSource);
+    Check(!shortReader.ReadMetadata(header, diagnostics));
+    Check(diagnostics.size() == 1 &&
+        diagnostics.front().code == usdgeo::DiagnosticCode::TruncatedRecord &&
+        diagnostics.front().byteOffset == 0);
 }
 
 void TestRawReaderRejectsCompressedPointData() {
@@ -655,6 +716,7 @@ int main() {
     TestPointCloudAssetHelpers();
     TestValidation();
     TestRangeReader();
+    TestRandomAccessSourceDiagnostics();
     TestRawReaderRejectsCompressedPointData();
     TestPointStream();
     TestPointStreamDiagnostics();

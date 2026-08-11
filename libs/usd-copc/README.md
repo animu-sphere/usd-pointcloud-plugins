@@ -6,6 +6,11 @@ local hierarchy pages into format-independent hierarchy entries, decodes
 selected local point-data chunks through the shared LAZ codec, and exposes a
 pull-based point stream over the native hierarchy order.
 
+All byte access goes through the project-owned `usdgeo::RandomAccessSource`
+contract. Local files use `usdgeo::LocalRandomAccessSource`; resolver-backed
+adapters can provide the same deterministic size and offset-read behavior
+without adding transport policy to this library.
+
 The module deliberately does not make network requests, write COPC, or depend
 on OpenUSD. The thin FileFormat Plugin lives in `plugins/pointcloud-copc`.
 
@@ -22,8 +27,13 @@ usdcopc/Copc.h
 | `CopcHeader` | Validated `usdlas::LasHeader`, COPC Info, and file size |
 | `CopcNode` / `CopcHierarchy` | Validated native hierarchy nodes and spatial bounds |
 | `CopcPointTile` | A shared point tile paired with its COPC point-data byte range |
-| `CopcReader` | Local metadata, hierarchy-page, and selected point-chunk reader |
+| `CopcReader` | Metadata, hierarchy-page, and selected point-chunk reader over a random-access source |
 | `CopcPointStream` | Pull-based traversal of native point-data nodes |
+
+`CopcReader` and `OpenCopcPointStream` retain filename overloads for local
+files and also accept a shared `usdgeo::RandomAccessSource`. The source
+contract is defined in `usdgeo/RandomAccessSource.h` and provides source-size
+discovery plus explicit offset and short-read diagnostics.
 
 `CopcReader::ReadMetadata` delegates LAS header, VLR, EVLR, and CRS parsing to
 `usdlas::LasReader::ReadMetadata`. It then requires LAS 1.4 point formats 6
@@ -44,18 +54,19 @@ point counts, native spacing, and the source `pointDataOffset` /
 `pointDataSize` in `CopcPointTile`. Hierarchy-page entries are indexing nodes
 and are compressed out of the shared tile list.
 
-The reader is local and read-only. `OpenCopcPointStream` validates metadata and
-the complete local hierarchy before delivery, then applies bounds,
+The reader is read-only. `OpenCopcPointStream` validates metadata and the
+complete hierarchy before delivery, then applies bounds,
 classification, memory, chunk, and cancellation options while traversing
 point-data nodes. COPC hierarchy order is spatial rather than LAS source
 order, so source point ranges are rejected. HTTP range sources, network
 caching, COPC writing, hierarchy optimization, and OpenUSD authoring remain
-outside this module. The OpenUSD adapter lives in `plugins/pointcloud-copc`.
+outside this module. The `ArAsset` adapter and resolver-dependent cache
+identity remain plugin-layer work. The OpenUSD adapter lives in
+`plugins/pointcloud-copc`.
 
 ## Build and test
 
 ```powershell
-cmake -S . -B build -DUSDGEO_BUILD_TESTS=ON
-cmake --build build --config Release --target usdCopc_tests
-ctest --test-dir build -C Release -R usdCopc_unit --output-on-failure
+ost build
+ost test --filter '^usdCopc_unit$' --jobs 1
 ```

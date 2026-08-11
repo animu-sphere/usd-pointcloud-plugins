@@ -6,7 +6,6 @@
 #include <array>
 #include <cmath>
 #include <cstring>
-#include <fstream>
 #include <functional>
 #include <limits>
 #include <map>
@@ -62,27 +61,13 @@ void AddStreamDiagnostic(usdgeo::DiagnosticCode code,
         {code, usdgeo::Severity::Error, message, std::nullopt, std::nullopt});
 }
 
-bool GetFileSize(const std::string& filename, std::uint64_t& size) {
-    std::ifstream file(filename, std::ios::binary);
-    if (!file) {
-        return false;
-    }
-    file.seekg(0, std::ios::end);
-    const auto end = file.tellg();
-    if (end < 0) {
-        return false;
-    }
-    size = static_cast<std::uint64_t>(end);
-    return true;
-}
-
 bool IsFileRangeValid(std::uint64_t fileSize,
                       std::uint64_t offset,
                       std::uint64_t size) {
     return offset <= fileSize && size <= fileSize - offset;
 }
 
-bool ReadFileRange(const std::string& filename,
+bool ReadFileRange(usdgeo::RandomAccessSource& source,
                    std::uint64_t fileSize,
                    std::uint64_t offset,
                    std::uint64_t size,
@@ -96,32 +81,12 @@ bool ReadFileRange(const std::string& filename,
         return false;
     }
 
-    std::ifstream file(filename, std::ios::binary);
-    if (!file) {
-        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
-                      "cannot open COPC file");
-        return false;
-    }
-    file.seekg(static_cast<std::streamoff>(offset), std::ios::beg);
-    if (!file) {
-        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidOffset,
-                      "cannot seek to COPC file range", offset);
-        return false;
-    }
-
-    bytes.assign(static_cast<std::size_t>(size), 0);
-    if (size != 0 &&
-        !file.read(reinterpret_cast<char*>(bytes.data()),
-                   static_cast<std::streamsize>(size))) {
-        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::TruncatedRecord,
-                      "COPC file range is truncated", offset);
-        return false;
-    }
-    return true;
+    return source.Read(offset, static_cast<std::size_t>(size), bytes,
+                       diagnostics);
 }
 
 std::unique_ptr<usdlaz::LazChunkDecoder> OpenLazChunkDecoder(
-    const std::string& filename,
+    const std::shared_ptr<usdgeo::RandomAccessSource>& source,
     const usdcopc::CopcHeader& header,
     const usdcopc::CopcHierarchyEntry& entry,
     std::vector<usdgeo::Diagnostic>& diagnostics) {
@@ -136,35 +101,32 @@ std::unique_ptr<usdlaz::LazChunkDecoder> OpenLazChunkDecoder(
         return nullptr;
     }
 
-    auto file = std::make_shared<std::ifstream>(filename, std::ios::binary);
-    if (!*file) {
+    if (!source) {
         AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
-                      "cannot open COPC file");
-        return nullptr;
-    }
-    file->seekg(static_cast<std::streamoff>(entry.offset), std::ios::beg);
-    if (!*file) {
-        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidOffset,
-                      "cannot seek to COPC point data", entry.offset);
+                      "COPC random-access source is missing");
         return nullptr;
     }
 
-    const auto streamSize = static_cast<std::size_t>(
-        (std::numeric_limits<std::streamsize>::max)());
-    auto remaining = static_cast<std::uint64_t>(entry.byteSize);
+    auto offset = std::make_shared<std::uint64_t>(entry.offset);
+    auto remaining = std::make_shared<std::uint64_t>(entry.byteSize);
     const usdlaz::LazInput input =
-        [file, remaining, streamSize](unsigned char* output,
-                                      std::size_t size) mutable {
-            if (size > streamSize ||
-                size > remaining) {
+        [source, offset, remaining](unsigned char* output,
+                                    std::size_t size) mutable {
+            if (static_cast<std::uint64_t>(size) > *remaining) {
                 throw std::runtime_error("COPC point data range is truncated");
             }
-            file->read(reinterpret_cast<char*>(output),
-                       static_cast<std::streamsize>(size));
-            if (!*file) {
-                throw std::runtime_error("COPC point data range is truncated");
+            std::vector<std::uint8_t> bytes;
+            std::vector<usdgeo::Diagnostic> diagnostics;
+            if (!source->Read(*offset, size, bytes, diagnostics) ||
+                bytes.size() != size) {
+                throw std::runtime_error(
+                    diagnostics.empty()
+                        ? "COPC point data range is truncated"
+                        : diagnostics.front().message);
             }
-            remaining -= size;
+            std::memcpy(output, bytes.data(), size);
+            *offset += static_cast<std::uint64_t>(size);
+            *remaining -= static_cast<std::uint64_t>(size);
         };
     return usdlaz::CreateLazChunkDecoder(
         header.las, static_cast<std::uint64_t>(entry.pointCount), input,
@@ -344,15 +306,22 @@ bool CopcPointTile::IsValid() const noexcept {
 }
 
 CopcReader::CopcReader(std::string filename)
-    : filename_(std::move(filename)) {}
+    : filename_(std::move(filename)),
+      source_(std::make_shared<usdgeo::LocalRandomAccessSource>(filename_)) {}
+
+CopcReader::CopcReader(
+    std::shared_ptr<usdgeo::RandomAccessSource> source)
+    : source_(std::move(source)) {}
 
 CopcPointStream::CopcPointStream(
-    std::string filename,
+    std::shared_ptr<usdgeo::RandomAccessSource> source,
+    std::string sourceName,
     usdpointcloud::PointReadOptions options,
     CopcHeader header,
     std::vector<CopcHierarchyEntry> entries,
     std::size_t maximumPoints)
-    : filename_(std::move(filename)),
+        : source_(std::move(source)),
+            sourceName_(std::move(sourceName)),
       options_(std::move(options)),
       header_(std::move(header)),
       entries_(std::move(entries)),
@@ -383,7 +352,7 @@ usdpointcloud::PointStreamStatus CopcPointStream::ReadNext(
             pendingIndex_ += count;
 
             std::string error;
-            if (!usdlas::AppendPointData(header_.las, points, filename_, data,
+            if (!usdlas::AppendPointData(header_.las, points, sourceName_, data,
                                          error)) {
                 failureKind_ = CopcReadFailure::Hierarchy;
                 diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
@@ -476,7 +445,7 @@ usdpointcloud::PointStreamStatus CopcPointStream::ReadNext(
             continue;
         }
         std::vector<usdgeo::Diagnostic> diagnostics;
-        decoder_ = OpenLazChunkDecoder(filename_, header_, entry, diagnostics);
+        decoder_ = OpenLazChunkDecoder(source_, header_, entry, diagnostics);
         if (!decoder_) {
             diagnostic = diagnostics.empty()
                              ? usdgeo::Diagnostic{
@@ -505,6 +474,17 @@ std::unique_ptr<CopcPointStream> OpenCopcPointStream(
     const usdpointcloud::PointReadOptions& options,
     CopcHeader& header,
     std::vector<usdgeo::Diagnostic>& diagnostics) {
+    return OpenCopcPointStream(
+        std::make_shared<usdgeo::LocalRandomAccessSource>(filename), options,
+        header, diagnostics, filename);
+}
+
+std::unique_ptr<CopcPointStream> OpenCopcPointStream(
+    std::shared_ptr<usdgeo::RandomAccessSource> source,
+    const usdpointcloud::PointReadOptions& options,
+    CopcHeader& header,
+    std::vector<usdgeo::Diagnostic>& diagnostics,
+    std::string sourceName) {
     diagnostics.clear();
     header = {};
     if (!options.IsValid()) {
@@ -519,7 +499,7 @@ std::unique_ptr<CopcPointStream> OpenCopcPointStream(
         return nullptr;
     }
 
-    CopcReader reader(filename);
+    CopcReader reader(source);
     if (!reader.ReadMetadata(header, diagnostics)) {
         return nullptr;
     }
@@ -548,8 +528,8 @@ std::unique_ptr<CopcPointStream> OpenCopcPointStream(
         return nullptr;
     }
     return std::unique_ptr<CopcPointStream>(new CopcPointStream(
-        filename, options, std::move(header), std::move(entries),
-        maximumPoints));
+        std::move(source), std::move(sourceName), options, std::move(header),
+        std::move(entries), maximumPoints));
 }
 
 bool CopcReader::ReadMetadata(
@@ -558,7 +538,13 @@ bool CopcReader::ReadMetadata(
     failureKind_ = CopcReadFailure::None;
     header = {};
 
-    usdlas::LasReader lasReader(filename_);
+    if (!source_) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                      "COPC random-access source is missing");
+        failureKind_ = CopcReadFailure::FileOpen;
+        return false;
+    }
+    usdlas::LasReader lasReader(source_);
     if (!lasReader.ReadMetadata(header.las, diagnostics)) {
         failureKind_ = CopcReadFailure::LasMetadata;
         return false;
@@ -604,9 +590,11 @@ bool CopcReader::ReadMetadata(
         return false;
     }
 
-    if (!GetFileSize(filename_, header.fileSize)) {
-        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
-                      "cannot determine COPC file size");
+    if (!source_->GetSize(header.fileSize, diagnostics)) {
+        if (diagnostics.empty()) {
+            AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                          "cannot determine COPC source size");
+        }
         failureKind_ = CopcReadFailure::FileOpen;
         return false;
     }
@@ -666,7 +654,8 @@ bool CopcReader::ReadHierarchy(
         }
 
         std::vector<std::uint8_t> page;
-        if (!ReadFileRange(filename_, header.fileSize, offset, size, page,
+        if (!source_ ||
+            !ReadFileRange(*source_, header.fileSize, offset, size, page,
                            diagnostics)) {
             return false;
         }
@@ -910,7 +899,8 @@ bool CopcReader::ReadPointData(
         failureKind_ = CopcReadFailure::Hierarchy;
         return false;
     }
-    if (!ReadFileRange(filename_, header.fileSize, entry.offset,
+    if (!source_ ||
+        !ReadFileRange(*source_, header.fileSize, entry.offset,
                        static_cast<std::uint64_t>(entry.byteSize), bytes,
                        diagnostics)) {
         failureKind_ = CopcReadFailure::Hierarchy;
@@ -946,7 +936,7 @@ bool CopcReader::ReadPoints(const CopcHeader& header,
         return false;
     }
 
-    auto decoder = OpenLazChunkDecoder(filename_, header, entry, diagnostics);
+    auto decoder = OpenLazChunkDecoder(source_, header, entry, diagnostics);
     if (!decoder) {
         failureKind_ = CopcReadFailure::Hierarchy;
         return false;
