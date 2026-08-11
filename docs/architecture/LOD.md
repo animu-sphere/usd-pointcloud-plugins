@@ -69,7 +69,10 @@ Each spatial tile is normally one LOD root.
 ```text
 /PointCloud
     /LodHeuristics
-        /ScreenSize
+        /Tile_0_0
+            /ScreenSize
+        /Tile_0_1
+            /ScreenSize
     /Tiles
         /Tile_0_0
             /LOD0
@@ -91,10 +94,14 @@ def Xform "PointCloud"
 {
     def Scope "LodHeuristics"
     {
-        def LodScreenSizeHeuristic "ScreenSize"
+        def Scope "Tile_0_0"
         {
-            uniform token lod:domain = "imaging"
-            uniform float[] thresholds = [0.25, 0.10]
+            def LodScreenSizeHeuristic "ScreenSize"
+            {
+                uniform token lod:domain = "imaging"
+                uniform float[] thresholds = [0.25, 0.10]
+                float3[] extent = [(-1, -1, -1), (1, 1, 1)]
+            }
         }
     }
 
@@ -105,7 +112,8 @@ def Xform "PointCloud"
         )
         {
             uniform int lod:default:index = 1
-            rel lod:heuristics = </PointCloud/LodHeuristics/ScreenSize>
+            rel lod:heuristics =
+                </PointCloud/LodHeuristics/Tile_0_0/ScreenSize>
 
             def Points "LOD0"
             {
@@ -155,7 +163,8 @@ def Xform "Tile_0_0" (
     prepend apiSchemas = ["LodRootAPI"]
 )
 {
-    rel lod:heuristics = </PointCloud/LodHeuristics/ScreenSize>
+    rel lod:heuristics =
+        </PointCloud/LodHeuristics/Tile_0_0/ScreenSize>
     uniform int lod:default:index = 2
 
     def Xform "LOD0" (
