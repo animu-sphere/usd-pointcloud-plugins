@@ -259,6 +259,18 @@ void RebasePayloads(pxr::SdfLayer* layer,
     });
 }
 
+std::filesystem::path LayerBaseDirectory(
+    const pxr::SdfLayer* layer,
+    const std::filesystem::path& fallbackDirectory) {
+    if (layer && !layer->IsAnonymous()) {
+        const auto realPath = layer->GetRealPath();
+        if (!realPath.empty()) {
+            return std::filesystem::path(realPath).parent_path();
+        }
+    }
+    return fallbackDirectory;
+}
+
 } // namespace
 
 std::filesystem::path PointCloudCacheRootFromEnvironment() {
@@ -324,11 +336,13 @@ bool TryLoadPointCloudCache(
         }
     }
     layer->TransferContent(cachedLayer);
+    const auto layerBaseDirectory =
+        LayerBaseDirectory(layer, sourcePath.parent_path());
     RebasePayloads(
         layer, layout.entryDirectory,
         targetPayloadDirectory.empty() ? layout.payloadDirectory
                                        : targetPayloadDirectory,
-        sourcePath.parent_path());
+        layerBaseDirectory);
     hit = true;
     return true;
 }

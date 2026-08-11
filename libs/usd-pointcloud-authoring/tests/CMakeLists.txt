@@ -1,3 +1,7 @@
 add_executable(usdPointCloudAuthoring_tests test_usd_authoring.cpp)
 target_link_libraries(usdPointCloudAuthoring_tests PRIVATE usdpointcloud::authoring)
 add_test(NAME usdPointCloudAuthoring_unit COMMAND usdPointCloudAuthoring_tests)
+
+add_executable(usdPointCloudCache_tests test_pointcloud_cache.cpp)
+target_link_libraries(usdPointCloudCache_tests PRIVATE usdpointcloud::authoring)
+add_test(NAME usdPointCloudCache_unit COMMAND usdPointCloudCache_tests)
