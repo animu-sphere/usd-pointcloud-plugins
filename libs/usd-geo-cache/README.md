@@ -19,6 +19,10 @@ for an invalid layout. `IsCacheHit` remains the compatibility boolean wrapper
 around this status contract. `Invalidate` recomputes the descriptor entry
 below the supplied cache root and never accepts an arbitrary layout path, so it
 cannot delete an unrelated sibling directory.
+`LookupStatusName` exposes stable machine-readable status names, and the
+process-local `GetLookupStatistics` snapshot counts every `Inspect` call by
+status. `ResetLookupStatistics` clears the counters for a new measurement;
+`LookupStatistics::HitRatio` returns zero when no lookup has been recorded.
 The shared authoring cache loader also opens the committed root and validates
 every payload reference before reuse. A root that cannot be opened, a missing
 payload, or a payload outside the entry is treated as a corrupt entry and

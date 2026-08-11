@@ -1,6 +1,7 @@
 #include "usdgeo/cache/Cache.h"
 
 #include <array>
+#include <atomic>
 #include <fstream>
 #include <filesystem>
 #include <iomanip>
@@ -9,6 +10,30 @@
 
 namespace usdgeo::cache {
 namespace {
+
+std::atomic<std::uint64_t> lookupCount{0};
+std::atomic<std::uint64_t> hitCount{0};
+std::atomic<std::uint64_t> missCount{0};
+std::atomic<std::uint64_t> incompleteCount{0};
+std::atomic<std::uint64_t> invalidLayoutCount{0};
+
+void RecordLookup(LookupStatus status) noexcept {
+    lookupCount.fetch_add(1, std::memory_order_relaxed);
+    switch (status) {
+    case LookupStatus::Hit:
+        hitCount.fetch_add(1, std::memory_order_relaxed);
+        break;
+    case LookupStatus::Missing:
+        missCount.fetch_add(1, std::memory_order_relaxed);
+        break;
+    case LookupStatus::Incomplete:
+        incompleteCount.fetch_add(1, std::memory_order_relaxed);
+        break;
+    case LookupStatus::InvalidLayout:
+        invalidLayoutCount.fetch_add(1, std::memory_order_relaxed);
+        break;
+    }
+}
 
 bool HasArgumentsWithEmptyNames(const usdgeo::CacheArguments& arguments) {
     for (const auto& [name, value] : arguments) {
@@ -56,6 +81,26 @@ MarkerStatus InspectMarker(const std::filesystem::path& path) noexcept {
 }
 
 } // namespace
+
+const char* LookupStatusName(LookupStatus status) noexcept {
+    switch (status) {
+    case LookupStatus::InvalidLayout:
+        return "invalid-layout";
+    case LookupStatus::Missing:
+        return "missing";
+    case LookupStatus::Incomplete:
+        return "incomplete";
+    case LookupStatus::Hit:
+        return "hit";
+    }
+    return "invalid-layout";
+}
+
+double LookupStatistics::HitRatio() const noexcept {
+    return lookups == 0 ? 0.0
+                        : static_cast<double>(hits) /
+                              static_cast<double>(lookups);
+}
 
 bool SourceIdentity::IsValid() const noexcept {
     return (!identifier.empty() || !canonicalPath.empty()) &&
@@ -209,25 +254,44 @@ std::filesystem::path TilePayloadPath(const Layout& layout,
 }
 
 LookupResult Inspect(const Layout& layout) noexcept {
+    LookupStatus status = LookupStatus::InvalidLayout;
     if (!layout.IsValid()) {
-        return {LookupStatus::InvalidLayout};
+        RecordLookup(status);
+        return {status};
     }
     const auto root = InspectMarker(layout.rootLayer);
     const auto manifest = InspectMarker(layout.manifest);
     if (root.error || manifest.error) {
-        return {LookupStatus::Incomplete};
+        status = LookupStatus::Incomplete;
+    } else if (!root.exists && !manifest.exists) {
+        status = LookupStatus::Missing;
+    } else if (!root.regular || !manifest.regular) {
+        status = LookupStatus::Incomplete;
+    } else {
+        status = LookupStatus::Hit;
     }
-    if (!root.exists && !manifest.exists) {
-        return {LookupStatus::Missing};
-    }
-    if (!root.regular || !manifest.regular) {
-        return {LookupStatus::Incomplete};
-    }
-    return {LookupStatus::Hit};
+    RecordLookup(status);
+    return {status};
 }
 
 bool IsCacheHit(const Layout& layout) noexcept {
     return Inspect(layout).IsHit();
+}
+
+LookupStatistics GetLookupStatistics() noexcept {
+    return {lookupCount.load(std::memory_order_relaxed),
+            hitCount.load(std::memory_order_relaxed),
+            missCount.load(std::memory_order_relaxed),
+            incompleteCount.load(std::memory_order_relaxed),
+            invalidLayoutCount.load(std::memory_order_relaxed)};
+}
+
+void ResetLookupStatistics() noexcept {
+    lookupCount.store(0, std::memory_order_relaxed);
+    hitCount.store(0, std::memory_order_relaxed);
+    missCount.store(0, std::memory_order_relaxed);
+    incompleteCount.store(0, std::memory_order_relaxed);
+    invalidLayoutCount.store(0, std::memory_order_relaxed);
 }
 
 bool Invalidate(const std::filesystem::path& cacheRoot,

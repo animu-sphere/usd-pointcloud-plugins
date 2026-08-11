@@ -220,7 +220,9 @@ The ordered plan and acceptance priorities are in the
       hit, and invalid layouts while preserving the `IsCacheHit` API
 - [x] Document cache invalidation and compatibility rules in the
       `usdGeoCache` module README
-- [ ] Add cache statistics and stable diagnostics
+- [x] Add cache statistics and stable diagnostics. `usdgeo::cache` exposes
+      stable lookup status names and process-local hit, miss, incomplete, and
+      invalid-layout counters through `LookupStatistics`.
 - [x] Harden corrupt-entry and interrupted-publication recovery
       committed cache roots are opened and payload references are validated
       before reuse; unreadable roots and invalid or missing payloads are

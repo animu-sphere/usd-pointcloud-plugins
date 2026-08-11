@@ -128,11 +128,59 @@ void TestLayoutAndInvalidation() {
     Check(std::filesystem::exists(unrelatedDirectory / "source.las"));
 }
 
+    void TestLookupStatistics() {
+        Check(std::string(usdgeo::cache::LookupStatusName(
+              usdgeo::cache::LookupStatus::InvalidLayout)) ==
+            "invalid-layout");
+        Check(std::string(usdgeo::cache::LookupStatusName(
+              usdgeo::cache::LookupStatus::Missing)) == "missing");
+        Check(std::string(usdgeo::cache::LookupStatusName(
+              usdgeo::cache::LookupStatus::Incomplete)) == "incomplete");
+        Check(std::string(usdgeo::cache::LookupStatusName(
+              usdgeo::cache::LookupStatus::Hit)) == "hit");
+
+        usdgeo::cache::ResetLookupStatistics();
+        usdgeo::cache::Layout invalidLayout;
+        Check(usdgeo::cache::Inspect(invalidLayout).status ==
+            usdgeo::cache::LookupStatus::InvalidLayout);
+
+        const auto root = std::filesystem::temp_directory_path() /
+                    ("usdgeo-cache-statistics-" +
+                     std::to_string(std::chrono::steady_clock::now()
+                                .time_since_epoch()
+                                .count()));
+        usdgeo::cache::Layout layout;
+        Check(usdgeo::cache::TryBuildLayout(root, MakeDescriptor(), layout));
+        Check(usdgeo::cache::Inspect(layout).status ==
+            usdgeo::cache::LookupStatus::Missing);
+        std::filesystem::create_directories(layout.entryDirectory);
+        std::ofstream(layout.rootLayer) << "cache";
+        Check(usdgeo::cache::Inspect(layout).status ==
+            usdgeo::cache::LookupStatus::Incomplete);
+        std::ofstream(layout.manifest) << "committed";
+        Check(usdgeo::cache::Inspect(layout).status ==
+            usdgeo::cache::LookupStatus::Hit);
+
+        const auto statistics = usdgeo::cache::GetLookupStatistics();
+        Check(statistics.lookups == 4);
+        Check(statistics.invalidLayouts == 1);
+        Check(statistics.misses == 1);
+        Check(statistics.incomplete == 1);
+        Check(statistics.hits == 1);
+        Check(statistics.HitRatio() == 0.25);
+
+        usdgeo::cache::ResetLookupStatistics();
+        const auto resetStatistics = usdgeo::cache::GetLookupStatistics();
+        Check(resetStatistics.lookups == 0 && resetStatistics.HitRatio() == 0.0);
+        std::filesystem::remove_all(root);
+    }
+
 } // namespace
 
 int main() {
     TestLocalSourceIdentity();
     TestStableDescriptorKey();
     TestLayoutAndInvalidation();
+    TestLookupStatistics();
     return 0;
 }
