@@ -131,7 +131,10 @@ bool IsUnsupportedArgument(const std::string& key) {
     return keys.find(key) != keys.end();
 }
 
-bool IsAttributeName(const std::string& name) {
+bool IsAttributeName(const std::string& name, PointReadFormat format) {
+    if (format == PointReadFormat::Ply) {
+        return !name.empty();
+    }
     static const std::set<std::string> names = {
         "xyz", "intensity", "returnNumber", "numberOfReturns",
         "classification", "classificationFlags", "scannerChannel",
@@ -381,7 +384,7 @@ bool NormalizeFileFormatArguments(
                 const auto name = Trim(value.substr(
                     start, end == std::string::npos ? value.size() - start
                                                      : end - start));
-                if (name.empty() || !IsAttributeName(name)) {
+                if (name.empty() || !IsAttributeName(name, format)) {
                     AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
                                   "unknown point attribute: " + name,
                                   diagnostics);

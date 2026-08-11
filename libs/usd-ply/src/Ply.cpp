@@ -9,7 +9,6 @@
 #include <exception>
 #include <fstream>
 #include <limits>
-#include <map>
 #include <set>
 #include <sstream>
 #include <utility>
@@ -88,57 +87,6 @@ bool BuildHeader(const tinyply::PlyFile& file,
     if (header.elements.empty()) {
         error = "PLY header does not contain any elements";
         header = {};
-        return false;
-    }
-    return true;
-}
-
-template <typename T>
-std::vector<double> CopyValues(tinyply::PlyData& data) {
-    std::vector<double> values(data.count);
-    const auto* bytes = data.buffer.get_const();
-    for (std::size_t index = 0; index < data.count; ++index) {
-        T value{};
-        std::memcpy(&value, bytes + index * sizeof(T), sizeof(T));
-        values[index] = static_cast<double>(value);
-    }
-    return values;
-}
-
-bool CopyValues(tinyply::PlyData& data,
-                std::vector<double>& values,
-                std::string& error) {
-    if (data.isList) {
-        error = "PLY vertex list properties are unsupported";
-        return false;
-    }
-    switch (data.t) {
-    case tinyply::Type::INT8:
-        values = CopyValues<std::int8_t>(data);
-        break;
-    case tinyply::Type::UINT8:
-        values = CopyValues<std::uint8_t>(data);
-        break;
-    case tinyply::Type::INT16:
-        values = CopyValues<std::int16_t>(data);
-        break;
-    case tinyply::Type::UINT16:
-        values = CopyValues<std::uint16_t>(data);
-        break;
-    case tinyply::Type::INT32:
-        values = CopyValues<std::int32_t>(data);
-        break;
-    case tinyply::Type::UINT32:
-        values = CopyValues<std::uint32_t>(data);
-        break;
-    case tinyply::Type::FLOAT32:
-        values = CopyValues<float>(data);
-        break;
-    case tinyply::Type::FLOAT64:
-        values = CopyValues<double>(data);
-        break;
-    default:
-        error = "PLY vertex property has an unsupported scalar type";
         return false;
     }
     return true;
@@ -249,48 +197,6 @@ bool ReadHeaderText(std::istream& input,
     return true;
 }
 
-std::size_t ScalarSize(tinyply::Type type) {
-    switch (type) {
-    case tinyply::Type::INT8:
-    case tinyply::Type::UINT8: return 1;
-    case tinyply::Type::INT16:
-    case tinyply::Type::UINT16: return 2;
-    case tinyply::Type::INT32:
-    case tinyply::Type::UINT32:
-    case tinyply::Type::FLOAT32: return 4;
-    case tinyply::Type::FLOAT64: return 8;
-    default: return 0;
-    }
-}
-
-bool FitsMemoryBudget(const tinyply::PlyElement& vertex,
-                      std::size_t memoryBudgetBytes,
-                      std::string& error) {
-    std::uint64_t bytesPerPoint = 0;
-    for (const auto& property : vertex.properties) {
-        const auto scalarSize = ScalarSize(property.propertyType);
-        if (property.isList || scalarSize == 0 ||
-            bytesPerPoint > (std::numeric_limits<std::uint64_t>::max)() -
-                                scalarSize - sizeof(double)) {
-            error = "PLY vertex payload size cannot be represented";
-            return false;
-        }
-        bytesPerPoint += scalarSize + sizeof(double);
-    }
-    if (vertex.size != 0 &&
-        bytesPerPoint > (std::numeric_limits<std::uint64_t>::max)() /
-                            vertex.size) {
-        error = "PLY vertex payload size cannot be represented";
-        return false;
-    }
-    const auto requiredBytes = bytesPerPoint * vertex.size;
-    if (requiredBytes > memoryBudgetBytes) {
-        error = "PLY vertex payload exceeds the configured memory budget";
-        return false;
-    }
-    return true;
-}
-
 std::size_t FindPropertyIndex(const std::vector<std::string>& names,
                               const std::string& name) {
     const auto found = std::find(names.begin(), names.end(), name);
@@ -324,23 +230,9 @@ bool AssignUnsigned16(double value, std::uint16_t& target) {
     return true;
 }
 
-bool HasTypedIntensity(const std::vector<std::string>& propertyNames,
-                       const std::vector<std::vector<double>>& propertyValues) {
-    const auto intensityIndex = FindPropertyIndex(propertyNames, "intensity");
-    if (intensityIndex == propertyNames.size()) {
-        return false;
-    }
-    std::uint16_t converted = 0;
-    return std::all_of(propertyValues[intensityIndex].begin(),
-                       propertyValues[intensityIndex].end(),
-                       [&](double value) {
-                           return AssignUnsigned16(value, converted);
-                       });
-}
-
-std::uint8_t ColorBitDepth(const tinyply::PlyElement& vertex) {
+std::uint8_t ColorBitDepth(const std::vector<tinyply::PlyProperty>& properties) {
     bool hasColor = false;
-    for (const auto& property : vertex.properties) {
+    for (const auto& property : properties) {
         if (property.name != "red" && property.name != "green" &&
             property.name != "blue") {
             continue;
@@ -351,6 +243,222 @@ std::uint8_t ColorBitDepth(const tinyply::PlyElement& vertex) {
         }
     }
     return hasColor ? 8 : 16;
+}
+
+bool HasMixedColorBitDepth(
+    const std::vector<tinyply::PlyProperty>& properties) {
+    bool hasEightBit = false;
+    bool hasSixteenBit = false;
+    for (const auto& property : properties) {
+        if (property.name != "red" && property.name != "green" &&
+            property.name != "blue") {
+            continue;
+        }
+        if (property.propertyType == tinyply::Type::UINT8) {
+            hasEightBit = true;
+        } else {
+            hasSixteenBit = true;
+        }
+    }
+    return hasEightBit && hasSixteenBit;
+}
+
+struct StreamProperty {
+    std::string name;
+    PlyScalarType type = PlyScalarType::Float32;
+};
+
+std::size_t ScalarSize(PlyScalarType type) {
+    switch (type) {
+    case PlyScalarType::Int8:
+    case PlyScalarType::UInt8: return 1;
+    case PlyScalarType::Int16:
+    case PlyScalarType::UInt16: return 2;
+    case PlyScalarType::Int32:
+    case PlyScalarType::UInt32:
+    case PlyScalarType::Float32: return 4;
+    case PlyScalarType::Float64: return 8;
+    }
+    return 0;
+}
+
+bool IsTypedIntensity(PlyScalarType type) {
+    return type == PlyScalarType::Int8 || type == PlyScalarType::UInt8 ||
+           type == PlyScalarType::Int16 || type == PlyScalarType::UInt16;
+}
+
+bool ParseAsciiScalar(std::istream& input,
+                      PlyScalarType type,
+                      double& value) {
+    std::string token;
+    if (!(input >> token)) {
+        return false;
+    }
+    char* end = nullptr;
+    if (type == PlyScalarType::Float32 || type == PlyScalarType::Float64) {
+        value = std::strtod(token.c_str(), &end);
+        return end != token.c_str() && *end == '\0';
+    }
+    if (type == PlyScalarType::Int8 || type == PlyScalarType::Int16 ||
+        type == PlyScalarType::Int32) {
+        const auto parsed = std::strtoll(token.c_str(), &end, 10);
+        if (end == token.c_str() || *end != '\0') {
+            return false;
+        }
+        value = static_cast<double>(parsed);
+        return true;
+    }
+    const auto parsed = std::strtoull(token.c_str(), &end, 10);
+    if (end == token.c_str() || *end != '\0') {
+        return false;
+    }
+    value = static_cast<double>(parsed);
+    return true;
+}
+
+bool IsValidScalarValue(PlyScalarType type, double value) {
+    if (!std::isfinite(value)) {
+        return false;
+    }
+    switch (type) {
+    case PlyScalarType::Int8:
+        return value >= (std::numeric_limits<std::int8_t>::min)() &&
+               value <= (std::numeric_limits<std::int8_t>::max)() &&
+               std::floor(value) == value;
+    case PlyScalarType::UInt8:
+        return value >= 0.0 &&
+               value <= (std::numeric_limits<std::uint8_t>::max)() &&
+               std::floor(value) == value;
+    case PlyScalarType::Int16:
+        return value >= (std::numeric_limits<std::int16_t>::min)() &&
+               value <= (std::numeric_limits<std::int16_t>::max)() &&
+               std::floor(value) == value;
+    case PlyScalarType::UInt16:
+        return value >= 0.0 &&
+               value <= (std::numeric_limits<std::uint16_t>::max)() &&
+               std::floor(value) == value;
+    case PlyScalarType::Int32:
+        return value >= (std::numeric_limits<std::int32_t>::min)() &&
+               value <= (std::numeric_limits<std::int32_t>::max)() &&
+               std::floor(value) == value;
+    case PlyScalarType::UInt32:
+        return value >= 0.0 &&
+               value <= (std::numeric_limits<std::uint32_t>::max)() &&
+               std::floor(value) == value;
+    case PlyScalarType::Float32:
+        return std::abs(value) <=
+               static_cast<double>((std::numeric_limits<float>::max)());
+    case PlyScalarType::Float64:
+        return true;
+    }
+    return false;
+}
+
+bool ReadBinaryScalar(std::istream& input,
+                      PlyScalarType type,
+                      bool bigEndian,
+                      double& value) {
+    const auto size = ScalarSize(type);
+    std::uint8_t bytes[sizeof(double)]{};
+    input.read(reinterpret_cast<char*>(bytes), static_cast<std::streamsize>(size));
+    if (!input) {
+        return false;
+    }
+    std::uint64_t bits = 0;
+    if (bigEndian) {
+        for (std::size_t index = 0; index < size; ++index) {
+            bits = (bits << 8) | bytes[index];
+        }
+    } else {
+        for (std::size_t index = 0; index < size; ++index) {
+            bits |= static_cast<std::uint64_t>(bytes[index]) << (index * 8);
+        }
+    }
+    switch (type) {
+    case PlyScalarType::Int8: value = static_cast<double>(static_cast<std::int8_t>(bits)); break;
+    case PlyScalarType::UInt8: value = static_cast<double>(static_cast<std::uint8_t>(bits)); break;
+    case PlyScalarType::Int16: value = static_cast<double>(static_cast<std::int16_t>(bits)); break;
+    case PlyScalarType::UInt16: value = static_cast<double>(static_cast<std::uint16_t>(bits)); break;
+    case PlyScalarType::Int32: value = static_cast<double>(static_cast<std::int32_t>(bits)); break;
+    case PlyScalarType::UInt32: value = static_cast<double>(static_cast<std::uint32_t>(bits)); break;
+    case PlyScalarType::Float32: {
+        const auto narrowed = static_cast<std::uint32_t>(bits);
+        float converted = 0.0f;
+        std::memcpy(&converted, &narrowed, sizeof(converted));
+        value = converted;
+        break;
+    }
+    case PlyScalarType::Float64: {
+        std::memcpy(&value, &bits, sizeof(value));
+        break;
+    }
+    }
+    return true;
+}
+
+bool ReadScalar(std::istream& input,
+                PlyFormat format,
+                PlyScalarType type,
+                double& value) {
+    return format == PlyFormat::Ascii
+               ? ParseAsciiScalar(input, type, value)
+               : ReadBinaryScalar(input, type,
+                                  format == PlyFormat::BinaryBigEndian, value);
+}
+
+bool ReadListCount(std::istream& input,
+                   PlyFormat format,
+                   PlyScalarType type,
+                   std::uint64_t& count) {
+    double value = 0.0;
+    if (!ReadScalar(input, format, type, value) ||
+        !IsValidScalarValue(type, value) ||
+        value < 0.0 || value > static_cast<double>((std::numeric_limits<std::uint64_t>::max)()) ||
+        std::floor(value) != value) {
+        return false;
+    }
+    count = static_cast<std::uint64_t>(value);
+    return true;
+}
+
+bool SkipProperties(std::istream& input,
+                    PlyFormat format,
+                    const std::vector<tinyply::PlyProperty>& properties) {
+    for (const auto& property : properties) {
+        if (!property.isList) {
+            double value = 0.0;
+            const auto type = ConvertType(property.propertyType);
+            if (!ReadScalar(input, format, type, value) ||
+                !IsValidScalarValue(type, value)) {
+                return false;
+            }
+            continue;
+        }
+        std::uint64_t count = 0;
+        if (!ReadListCount(input, format, ConvertType(property.listType), count)) {
+            return false;
+        }
+        for (std::uint64_t index = 0; index < count; ++index) {
+            double value = 0.0;
+                const auto type = ConvertType(property.propertyType);
+                if (!ReadScalar(input, format, type, value) ||
+                    !IsValidScalarValue(type, value)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool SkipElement(std::istream& input,
+                 PlyFormat format,
+                 const tinyply::PlyElement& element) {
+    for (std::size_t row = 0; row < element.size; ++row) {
+        if (!SkipProperties(input, format, element.properties)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 } // namespace
@@ -387,21 +495,19 @@ bool InspectHeader(std::istream& input,
     }
 }
 
-PlyPointStream::PlyPointStream(
-    std::vector<std::string> propertyNames,
-    std::vector<std::vector<double>> propertyValues,
-    std::uint64_t firstPoint,
-    std::uint64_t endPoint,
-    bool typedIntensity,
-    std::uint8_t colorBitDepth,
-    usdpointcloud::PointReadOptions options)
-    : propertyNames_(std::move(propertyNames)),
-      propertyValues_(std::move(propertyValues)),
-      nextPoint_(firstPoint),
-      endPoint_(endPoint),
-    typedIntensity_(typedIntensity),
-    colorBitDepth_(colorBitDepth),
-      options_(std::move(options)) {}
+struct PlyPointStream::Impl {
+        std::ifstream input;
+        PlyFormat format = PlyFormat::Ascii;
+        std::vector<StreamProperty> properties;
+        std::uint64_t nextPoint = 0;
+        std::uint64_t endPoint = 0;
+        bool typedIntensity = false;
+        std::uint8_t colorBitDepth = 16;
+        usdpointcloud::PointReadOptions options;
+};
+
+PlyPointStream::PlyPointStream(std::unique_ptr<Impl> impl)
+        : impl_(std::move(impl)) {}
 
 PlyPointStream::~PlyPointStream() = default;
 
@@ -412,34 +518,39 @@ usdpointcloud::PointStreamStatus PlyPointStream::ReadNext(
     chunk = {};
     data = {};
     diagnostic = {};
-    const auto xIndex = FindPropertyIndex(propertyNames_, "x");
-    const auto yIndex = FindPropertyIndex(propertyNames_, "y");
-    const auto zIndex = FindPropertyIndex(propertyNames_, "z");
+    std::vector<std::string> propertyNames;
+    propertyNames.reserve(impl_->properties.size());
+    for (const auto& property : impl_->properties) {
+        propertyNames.push_back(property.name);
+    }
+    const auto xIndex = FindPropertyIndex(propertyNames, "x");
+    const auto yIndex = FindPropertyIndex(propertyNames, "y");
+    const auto zIndex = FindPropertyIndex(propertyNames, "z");
     const auto classificationIndex =
-        FindPropertyIndex(propertyNames_, "classification");
-    while (nextPoint_ < endPoint_) {
-        if (options_.isCancelled && options_.isCancelled()) {
+        FindPropertyIndex(propertyNames, "classification");
+    while (impl_->nextPoint < impl_->endPoint) {
+        if (impl_->options.isCancelled && impl_->options.isCancelled()) {
             diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
                           usdgeo::Severity::Error, "PLY read cancelled",
-                          std::nullopt, nextPoint_};
+                          std::nullopt, impl_->nextPoint};
             return usdpointcloud::PointStreamStatus::Error;
         }
 
         const auto count = static_cast<std::size_t>(
-            (std::min)(static_cast<std::uint64_t>(options_.chunkPointLimit),
-                       endPoint_ - nextPoint_));
-        const auto sourceStart = nextPoint_;
-        nextPoint_ += count;
+            (std::min)(static_cast<std::uint64_t>(impl_->options.chunkPointLimit),
+                       impl_->endPoint - impl_->nextPoint));
+        const auto sourceStart = impl_->nextPoint;
+        impl_->nextPoint += count;
         data.positions.reserve(count);
         data.intensity.reserve(count);
         data.classification.reserve(count);
         data.red.reserve(count);
         data.green.reserve(count);
         data.blue.reserve(count);
-        data.colorBitDepth = colorBitDepth_;
-        for (const auto& name : propertyNames_) {
+        data.colorBitDepth = impl_->colorBitDepth;
+        for (const auto& name : propertyNames) {
             if (name != "x" && name != "y" && name != "z" &&
-                (name != "intensity" || !typedIntensity_) &&
+                (name != "intensity" || !impl_->typedIntensity) &&
                 name != "classification" &&
                 name != "red" && name != "green" && name != "blue") {
                 data.extraByteNames.push_back(name);
@@ -452,10 +563,39 @@ usdpointcloud::PointStreamStatus PlyPointStream::ReadNext(
         usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
         for (std::size_t index = 0; index < count; ++index) {
             const auto sourceIndex = sourceStart + index;
+            std::vector<double> values(impl_->properties.size());
+            for (std::size_t propertyIndex = 0;
+                 propertyIndex < impl_->properties.size(); ++propertyIndex) {
+                if (!ReadScalar(impl_->input, impl_->format,
+                                impl_->properties[propertyIndex].type,
+                                values[propertyIndex])) {
+                    diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                                  usdgeo::Severity::Error,
+                                  "PLY payload is truncated or unreadable",
+                                  std::nullopt, sourceIndex};
+                    return usdpointcloud::PointStreamStatus::Error;
+                }
+            }
+            for (std::size_t propertyIndex = 0;
+                 propertyIndex < impl_->properties.size(); ++propertyIndex) {
+                const auto& property = impl_->properties[propertyIndex];
+                if (property.name == "x" || property.name == "y" ||
+                    property.name == "z") {
+                    if (!std::isfinite(values[propertyIndex])) {
+                        continue;
+                    }
+                }
+                if (!IsValidScalarValue(property.type, values[propertyIndex])) {
+                    diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
+                                  usdgeo::Severity::Error,
+                                  "PLY " + property.name +
+                                      " value is outside its declared scalar range",
+                                  std::nullopt, sourceIndex};
+                    return usdpointcloud::PointStreamStatus::Error;
+                }
+            }
             const usdgeo::Vec3d position{
-                propertyValues_[xIndex][sourceIndex],
-                propertyValues_[yIndex][sourceIndex],
-                propertyValues_[zIndex][sourceIndex]};
+                values[xIndex], values[yIndex], values[zIndex]};
             if (!position.IsFinite()) {
                 diagnostic = {usdgeo::DiagnosticCode::NonFiniteCoordinate,
                               usdgeo::Severity::Error,
@@ -464,32 +604,32 @@ usdpointcloud::PointStreamStatus PlyPointStream::ReadNext(
                 return usdpointcloud::PointStreamStatus::Error;
             }
             std::uint8_t classification = 0;
-            if (classificationIndex != propertyNames_.size() &&
-                !AssignUnsigned8(propertyValues_[classificationIndex][sourceIndex],
-                                 classification)) {
+            if (classificationIndex != propertyNames.size() &&
+                !AssignUnsigned8(values[classificationIndex], classification)) {
                 diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
                               usdgeo::Severity::Error,
                               "PLY classification value is outside uint8 range",
                               std::nullopt, sourceIndex};
                 return usdpointcloud::PointStreamStatus::Error;
             }
-            if (!IsInside(position, options_.bounds) ||
-                (!options_.classifications.empty() &&
-                 std::find(options_.classifications.begin(),
-                           options_.classifications.end(),
-                           classification) == options_.classifications.end())) {
+            if (!IsInside(position, impl_->options.bounds) ||
+                (!impl_->options.classifications.empty() &&
+                 std::find(impl_->options.classifications.begin(),
+                           impl_->options.classifications.end(),
+                           classification) ==
+                       impl_->options.classifications.end())) {
                 continue;
             }
 
             data.positions.push_back(position);
             for (std::size_t propertyIndex = 0;
-                 propertyIndex < propertyNames_.size(); ++propertyIndex) {
-                const auto& name = propertyNames_[propertyIndex];
-                const auto value = propertyValues_[propertyIndex][sourceIndex];
+                 propertyIndex < propertyNames.size(); ++propertyIndex) {
+                const auto& name = propertyNames[propertyIndex];
+                const auto value = values[propertyIndex];
                 if (name == "x" || name == "y" || name == "z") {
                     continue;
                 }
-                if (name == "intensity" && typedIntensity_) {
+                if (name == "intensity" && impl_->typedIntensity) {
                     std::uint16_t converted = 0;
                     if (!AssignUnsigned16(value, converted)) {
                         diagnostic = {usdgeo::DiagnosticCode::DecodeFailure,
@@ -599,6 +739,12 @@ std::unique_ptr<PlyPointStream> OpenPointStream(
             }
             propertyNames.push_back(property.name);
         }
+        if (HasMixedColorBitDepth(vertex->properties)) {
+            AddDecodeDiagnostic(
+                diagnostics,
+                "PLY red, green, and blue properties must use a consistent bit depth");
+            return nullptr;
+        }
         if (names.find("x") == names.end() || names.find("y") == names.end() ||
             names.find("z") == names.end()) {
             AddDecodeDiagnostic(diagnostics,
@@ -612,39 +758,6 @@ std::unique_ptr<PlyPointStream> OpenPointStream(
                 "PLY classification filter requires a classification property");
             return nullptr;
         }
-        if (!FitsMemoryBudget(*vertex, options.memoryBudgetBytes, error)) {
-            AddDiagnostic(diagnostics,
-                          usdgeo::DiagnosticCode::InvalidFormatArgument, error);
-            return nullptr;
-        }
-
-        std::map<std::string, std::shared_ptr<tinyply::PlyData>> requested;
-        for (const auto& name : propertyNames) {
-            requested.emplace(
-                name, file.request_properties_from_element("vertex", {name}));
-        }
-        file.read(stream);
-        if (stream.fail() || stream.bad()) {
-            AddDecodeDiagnostic(diagnostics,
-                                "PLY payload is truncated or unreadable");
-            return nullptr;
-        }
-        std::vector<std::vector<double>> propertyValues;
-        propertyValues.reserve(propertyNames.size());
-        for (const auto& name : propertyNames) {
-            const auto& property = requested.at(name);
-            std::vector<double> values;
-            if (!property || !CopyValues(*property, values, error) ||
-                values.size() != vertex->size) {
-                AddDecodeDiagnostic(diagnostics,
-                                    error.empty() ? "PLY property count mismatch"
-                                                  : error);
-                return nullptr;
-            }
-            property->buffer = tinyply::Buffer();
-            propertyValues.push_back(std::move(values));
-        }
-
         const auto firstPoint = options.range.firstPoint;
         if (firstPoint > vertex->size ||
             options.range.pointCount > vertex->size - firstPoint) {
@@ -654,11 +767,57 @@ std::unique_ptr<PlyPointStream> OpenPointStream(
         const auto endPoint = options.range.pointCount == 0
                                   ? vertex->size
                                   : firstPoint + options.range.pointCount;
-        const auto typedIntensity = HasTypedIntensity(propertyNames, propertyValues);
-        const auto colorBitDepth = ColorBitDepth(*vertex);
-        return std::unique_ptr<PlyPointStream>(new PlyPointStream(
-            std::move(propertyNames), std::move(propertyValues), firstPoint,
-            endPoint, typedIntensity, colorBitDepth, options));
+        std::uint64_t bytesPerPoint = sizeof(usdgeo::Vec3d) +
+                                      propertyNames.size() * sizeof(double);
+        if (bytesPerPoint == 0 ||
+            bytesPerPoint > options.memoryBudgetBytes) {
+            AddDiagnostic(diagnostics,
+                          usdgeo::DiagnosticCode::InvalidFormatArgument,
+                          "PLY chunk cannot fit in the configured memory budget");
+            return nullptr;
+        }
+        auto impl = std::make_unique<PlyPointStream::Impl>();
+        impl->format = declaredFormat;
+        impl->input = std::move(stream);
+        impl->nextPoint = firstPoint;
+        impl->endPoint = endPoint;
+        impl->typedIntensity = false;
+        impl->colorBitDepth = ColorBitDepth(vertex->properties);
+        impl->options = options;
+        const auto budgetChunkLimit = static_cast<std::size_t>(
+            options.memoryBudgetBytes / bytesPerPoint);
+        impl->options.chunkPointLimit =
+            (std::min)(impl->options.chunkPointLimit, budgetChunkLimit);
+        for (const auto& property : vertex->properties) {
+            impl->properties.push_back(
+                {property.name, ConvertType(property.propertyType)});
+            if (property.name == "intensity") {
+                impl->typedIntensity = IsTypedIntensity(
+                    ConvertType(property.propertyType));
+            }
+        }
+        const auto vertexIndex = static_cast<std::size_t>(
+            std::find_if(elements.begin(), elements.end(),
+                         [](const tinyply::PlyElement& element) {
+                             return element.name == "vertex";
+                         }) - elements.begin());
+        for (std::size_t index = 0; index < vertexIndex; ++index) {
+            if (!SkipElement(impl->input, declaredFormat, elements[index])) {
+                AddDecodeDiagnostic(diagnostics,
+                                    "PLY payload is truncated or unreadable");
+                return nullptr;
+            }
+        }
+        for (std::uint64_t index = 0; index < firstPoint; ++index) {
+            if (!SkipProperties(impl->input, declaredFormat,
+                                vertex->properties)) {
+                AddDecodeDiagnostic(diagnostics,
+                                    "PLY payload is truncated or unreadable");
+                return nullptr;
+            }
+        }
+        return std::unique_ptr<PlyPointStream>(
+            new PlyPointStream(std::move(impl)));
     } catch (const std::exception& exception) {
         AddDecodeDiagnostic(diagnostics,
                             std::string("PLY payload read failed: ") +

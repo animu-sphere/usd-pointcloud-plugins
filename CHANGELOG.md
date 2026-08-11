@@ -2,6 +2,34 @@
 
 All notable changes to this project are documented here.
 
+## [0.4.0] - 2026-08-12
+
+### Added
+
+- PLY 1.0 scalar vertex decoding for ASCII, binary little-endian, and binary
+  big-endian sources through the shared `PointStream` contract.
+- Bounded source streaming for PLY with chunk limits, memory budgets, point
+  ranges, bounds, classification filters, cancellation, RGB, intensity,
+  classification, and generic scalar vertex attributes.
+- The `pointcloud-ply` OpenUSD FileFormat Plugin with explicit EPSG input,
+  shared point authoring, deterministic cache lookup, and payload-backed fixed-
+  grid tiled authoring.
+- PLY integration coverage using the checked-in Stanford Bunny corpus and a
+  tiled conformance fixture.
+
+### Compatibility
+
+- Existing LAS, LAZ, and local COPC format ids, arguments, authored stage shape,
+  and plugin behavior remain compatible with v0.3.0.
+- PLY sources have no embedded CRS contract and require an explicit `epsg`
+  file-format argument. PLY writing and metadata-only reads remain unsupported.
+
+### Known limitations
+
+- PLY faces and non-vertex mesh authoring are out of scope.
+- PLY tiled planning uses the shared fixed-grid `tileSize` and
+  `tileMemoryLimit` arguments; adaptive planning is deferred.
+
 ## [0.3.0] - 2026-08-11
 
 ### Added

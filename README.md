@@ -3,13 +3,14 @@
 [![ost source ci](https://github.com/animu-sphere/usd-pointcloud-plugins/actions/workflows/ost-source-ci.yml/badge.svg?branch=main)](https://github.com/animu-sphere/usd-pointcloud-plugins/actions/workflows/ost-source-ci.yml)
 
 OpenUSD FileFormat Plugins and libraries for point-cloud data. The project
-opens LAS, LAZ, and local COPC sources through shared point-cloud contracts for
+opens LAS, LAZ, local COPC, and PLY sources through shared point-cloud contracts for
 surveying, mapping, scanning, and 3D data-exchange workflows.
 
 **What it does**
 
 - Reads LAS 1.2-1.4 and LAZ point records through format-specific plugins.
 - Reads local COPC metadata, hierarchy, and selected point ranges.
+- Reads scalar PLY vertex properties through ASCII and binary point streams.
 - Authors `UsdGeomPoints`, metadata, OpenUSD 26.08 `usdLod` roots, and
   payload-backed spatial tiles through shared authoring.
 - Supports metadata-only inspection, bounded-memory tiled generation, stable
@@ -28,6 +29,7 @@ with the host application. See the
 | `.las` | `pointcloud-las` | LAS 1.2-1.4, point formats 0-10, CRS, waveform metadata, and Extra Bytes |
 | `.laz` | `pointcloud-laz` | Compressed point formats supported by the bundled `laz-perf` adapter |
 | `.copc` | `pointcloud-copc` | Local metadata-only, direct, and native-hierarchy tiled reads |
+| `.ply` | `pointcloud-ply` | Scalar vertex reads, explicit CRS, bounded streaming, and payload-backed tiled reads |
 
 Point formats 4 and 5 require LAS 1.3 or newer; formats 6-10 require LAS 1.4.
 The LAZ adapter rejects waveform formats because the bundled `laz-perf` codec
@@ -55,9 +57,9 @@ the [capability matrix](docs/reference/CAPABILITY_MATRIX.md).
 
 The [capability matrix](docs/reference/CAPABILITY_MATRIX.md) is the canonical
 source for point formats, attributes, CRS, metadata, and authored USD details.
-PLY point reading is the next format milestone, followed by resolver-backed
-remote COPC. Delimited text and E57 remain later work; terrain, raster, and
-vector formats are future repository candidates.
+Resolver-backed remote COPC is the next format milestone. Delimited text and
+E57 remain later work; terrain, raster, and vector formats are future repository
+candidates.
 
 ## Quick Start
 
@@ -95,8 +97,8 @@ publishes the root layer and a deterministic `PointCloud.usda.manifest`
 sidecar after generation completes; static FileFormat tiled reads remain
 available for preview and small inputs. The sidecar records normalized
 generation arguments and relative payload asset paths. The converter can reuse
-committed deterministic USDC cache entries through `--cache-root`; FileFormat
-cache lookup is not currently supported.
+committed deterministic USDC cache entries through `--cache-root`; direct
+LAS, LAZ, COPC, and PLY FileFormat cache lookup uses `USDGEO_CACHE_ROOT`.
 
 Build and test the libraries with plain CMake — without an OpenUSD runtime,
 this covers `usdGeoCore`, `usdPointCloudCore`, `usdLas`, and `usdLaz`:
@@ -139,7 +141,7 @@ def "Survey" (
 ```
 
 The supported compact profiles are `off`, `preview`, `balanced`, and
-`quality`. `tile=true` connects the LAS/LAZ stream to spill-backed,
+`quality`. `tile=true` connects the LAS/LAZ/COPC/PLY stream to spill-backed,
 payload-backed spatial tiling. `tileSize`, `tileMemoryLimit`, and
 `payloadDirectory` control the tiled output. Registration details are in
 [INSTALL.md](docs/guides/INSTALL.md); the full argument surface is in the
@@ -222,12 +224,13 @@ Authoring library (`usdPointCloudAuthoring`):
 - spatial tiled authoring: implemented
 - payload-backed tile output: implemented
 
-LAS/LAZ FileFormat read path:
+LAS/LAZ/COPC/PLY FileFormat read path:
 
 - compact non-spatial LOD profiles (`lod=preview|balanced|quality`):
   implemented
 - spatial `tile` argument: implemented
 - bounded-memory payload generation during file open: implemented
+- PLY scalar point reads and payload-backed fixed-grid tiling: implemented
 
 The read path consumes bounded pull-stream chunks, spools points by
 source-coordinate tile, and authors one payload-backed level per tile. A
@@ -256,8 +259,8 @@ dataset coverage remains open.
   horizontal CRS keys. Conflicting definitions are rejected with a typed
   `ConflictingCrs` diagnostic.
 - The deterministic USDC cache is available to the conversion tool through
-  `--cache-root`. Direct FileFormat cache lookup and resolver-backed source
-  identity remain future work.
+  `--cache-root`; direct FileFormat lookup reuses committed entries through
+  `USDGEO_CACHE_ROOT`.
 - Writing LAS, LAZ, or COPC is out of scope; all three plugins export as
   `usda`.
 
@@ -266,8 +269,8 @@ See the [implementation status](docs/roadmap/implementation-status.md) and
 
 ## Status
 
-Latest release: **v0.3.0** — local COPC reading, native hierarchy LOD
-authoring, and deterministic cache reuse in the conversion tool. The v0.2.0
+Latest release: **v0.4.0** — bounded PLY point streaming, shared authoring,
+and payload-backed tiled reads. The v0.3.0
 module and bundle rename is recorded in
 [MIGRATION.md](docs/compatibility/MIGRATION.md). See the
 [release record](docs/releases/v0.3.0.md) and [CHANGELOG.md](CHANGELOG.md).

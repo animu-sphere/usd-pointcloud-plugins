@@ -18,13 +18,12 @@ elements, and the first byte after `end_header`. Failures append an anchored
 
 `OpenPointStream` accepts ASCII and binary PLY sources, including binary
 big-endian input, and decodes scalar `x`, `y`, `z`, `intensity`, RGB, and generic
-scalar vertex properties into shared point-cloud chunks. The current adapter
-uses tinyply's complete payload read and chunks the decoded columns for the
-consumer. It applies source bounds, classification filters, cancellation, point
-ranges, chunk limits, and the configured memory budget before delivering a
-chunk; true bounded source streaming remains follow-up work. `ReadPointCloud`
-aggregates the stream into a validated `PointCloudAsset` and applies an explicit
-`GeoReference` before authoring.
+scalar vertex properties into shared point-cloud chunks. It reads vertex records
+incrementally from the source and applies source bounds, classification filters,
+cancellation, point ranges, chunk limits, and the configured memory budget
+before delivering a chunk. `ReadPointCloud` aggregates the stream into a
+validated `PointCloudAsset` and applies an explicit `GeoReference` before
+authoring.
 
 ## Scope
 

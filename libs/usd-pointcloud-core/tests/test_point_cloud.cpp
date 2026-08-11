@@ -293,6 +293,14 @@ void TestFileFormatArgumentNormalization() {
         arguments, request, diagnostics, usdpointcloud::PointReadFormat::Ply));
     Check(request.epsgCode && *request.epsgCode == 4978 &&
           request.normalizedArguments == "epsg=4978");
+
+    arguments = {{"attributes", "temperature"}, {"epsg", "4978"}};
+    Check(usdpointcloud::NormalizeFileFormatArguments(
+        arguments, request, diagnostics, usdpointcloud::PointReadFormat::Ply));
+    Check(request.attributes ==
+              std::vector<std::string>{"temperature", "xyz"} &&
+          request.normalizedArguments ==
+              "epsg=4978&attributes=temperature,xyz");
 }
 
 void TestAttributeSelection() {

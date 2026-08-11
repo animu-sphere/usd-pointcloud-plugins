@@ -67,21 +67,11 @@ private:
         PlyHeader&,
         std::vector<usdgeo::Diagnostic>&);
 
-    PlyPointStream(std::vector<std::string> propertyNames,
-                   std::vector<std::vector<double>> propertyValues,
-                   std::uint64_t firstPoint,
-                   std::uint64_t endPoint,
-                   bool typedIntensity,
-                   std::uint8_t colorBitDepth,
-                   usdpointcloud::PointReadOptions options);
+    struct Impl;
 
-    std::vector<std::string> propertyNames_;
-    std::vector<std::vector<double>> propertyValues_;
-    std::uint64_t nextPoint_ = 0;
-    std::uint64_t endPoint_ = 0;
-    bool typedIntensity_ = false;
-    std::uint8_t colorBitDepth_ = 16;
-    usdpointcloud::PointReadOptions options_;
+    explicit PlyPointStream(std::unique_ptr<Impl> impl);
+
+    std::unique_ptr<Impl> impl_;
 };
 
 std::unique_ptr<PlyPointStream> OpenPointStream(

@@ -122,6 +122,19 @@ tiling, diagnostics, and `usdLod` contracts.
 - [x] Keep COPC writing, HTTP range sources, network caching, and new public
       USD schemas out of the local-read release
 
+### `v0.4.0` — PLY read support (shipped)
+
+- [x] Decode scalar PLY vertex properties through the shared PointStream
+      contract with bounded source reads
+- [x] Support ASCII, binary little-endian, and binary big-endian scalar vertex
+      records, including range and filter controls
+- [x] Add the thin `pointcloud-ply` FileFormat Plugin with explicit CRS
+      arguments and shared authoring
+- [x] Connect PLY reads to payload-backed fixed-grid tiled authoring
+- [x] Add PLY plugin discovery, stage-open, corpus, and tiled integration tests
+- [x] Keep faces, mesh authoring, PLY writing, and metadata-only reads out of
+      scope
+
 ## Follow-up Status
 
 ### Completed: bounded-memory streaming and spatial tiling stabilization
@@ -179,9 +192,9 @@ transaction state creation and retrying the same output workspace.
 
 ### Next release direction
 
-- [ ] Complete the v0.3.x documentation consolidation: concise root README
+- [x] Complete the v0.3.x documentation consolidation: concise root README
       and synchronized workspace, capability, and implementation documents.
-- [ ] Complete v0.4.0 PLY point-cloud read support with bounded source
+- [x] Complete v0.4.0 PLY point-cloud read support with bounded source
       streaming and tiled authoring follow-up work after the shipped scalar
       direct-read and cache-lookup slice.
 - [ ] Complete v0.5.0 COPC random access with an OpenUSD `ArAsset` adapter,

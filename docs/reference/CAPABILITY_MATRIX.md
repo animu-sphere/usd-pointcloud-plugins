@@ -22,8 +22,8 @@ uses the same reader and authoring contracts for long-running generation.
 | Capability | Status | Notes |
 | --- | --- | --- |
 | PLY 1.0 header inspection | Supported | ASCII, binary little-endian, and binary big-endian headers are parsed through vendored tinyply; declared elements and scalar/list properties are retained |
-| Scalar vertex decoding | Supported | `usdply::OpenPointStream` decodes scalar `x`, `y`, `z`, intensity, RGB, and generic scalar vertex properties into shared point chunks and applies source bounds, classification, range, cancellation, chunk, and memory controls; tinyply currently reads the payload before chunking |
-| PLY FileFormat Plugin | Supported | Thin `pointcloud-ply` adapter requires an explicit `epsg` argument, applies optional unit and axis arguments, authors shared `UsdGeomPoints`, reads committed generated-USDC cache entries, and is exercised by a thinned Stanford Bunny corpus; tiled reads are not yet connected |
+| Scalar vertex decoding | Supported | `usdply::OpenPointStream` decodes scalar `x`, `y`, `z`, intensity, RGB, and generic scalar vertex properties into shared point chunks and applies source bounds, classification, range, cancellation, chunk, and memory controls with bounded source reads |
+| PLY FileFormat Plugin | Supported | Thin `pointcloud-ply` adapter requires an explicit `epsg` argument, applies optional unit and axis arguments, authors shared `UsdGeomPoints`, reads committed generated-USDC cache entries, and connects payload-backed fixed-grid tiled reads; coverage includes a thinned Stanford Bunny corpus |
 
 ## COPC
 
@@ -187,9 +187,9 @@ reported separately, because they differ.
 | Deterministic fixed-stride sampling | Supported | Supported |
 | Spatial tiling into per-tile `usdLod` roots | Supported | Supported |
 | Payload-backed tile assets (one USDC payload per tile/LOD) | Supported | Supported |
-| Bounded-memory generation during file open | Implemented for tiled reads; generated-corpus benchmark available | Spool buffers and one-tile reconstruction are bounded; generated-corpus and checked-in real-data measurements are available |
+| Bounded-memory generation during file open | Implemented for LAS, LAZ, COPC, and PLY tiled reads; generated-corpus benchmark available | Source streams, spool buffers, and one-tile reconstruction are bounded; generated-corpus and checked-in real-data measurements are available |
 | LOD file-format arguments | n/a | `lod=off\|preview\|balanced\|quality` |
-| Spatial tile file-format arguments | n/a | `tile=true`, `tileSize`, `tileMemoryLimit`, `payloadDirectory` |
+| Spatial tile file-format arguments | n/a | `tile=true`, `tileSize`, `tileMemoryLimit`, `payloadDirectory` for LAS, LAZ, COPC, and PLY |
 
 With `lod=off` every read authors one `UsdGeomPoints` prim at `/PointCloud`.
 The other profiles author a single non-tiled `usdLod` root with fixed-stride

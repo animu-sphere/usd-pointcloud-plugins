@@ -169,7 +169,8 @@ void TestAsciiPointStream() {
     std::vector<usdgeo::Diagnostic> diagnostics;
     usdpointcloud::PointReadOptions options;
     options.chunkPointLimit = 1;
-    const auto stream = usdply::OpenPointStream(
+    options.memoryBudgetBytes = 80;
+    auto stream = usdply::OpenPointStream(
         path.string(), options, header, diagnostics);
     Check(stream != nullptr);
     Check(diagnostics.empty());
@@ -188,6 +189,20 @@ void TestAsciiPointStream() {
     Check(data.positions[0].x == -1.0 && data.extraBytes.front().front() == 5.5);
     Check(stream->ReadNext(chunk, data, diagnostic) ==
           usdpointcloud::PointStreamStatus::End);
+    stream.reset();
+
+        options = {};
+        options.range.firstPoint = 1;
+        options.range.pointCount = 1;
+        auto ranged = usdply::OpenPointStream(
+          path.string(), options, header, diagnostics);
+        Check(ranged != nullptr);
+        Check(ranged->ReadNext(chunk, data, diagnostic) ==
+            usdpointcloud::PointStreamStatus::Chunk);
+        Check(data.positions.size() == 1 && data.positions[0].x == -1.0);
+        Check(ranged->ReadNext(chunk, data, diagnostic) ==
+            usdpointcloud::PointStreamStatus::End);
+        ranged.reset();
     std::filesystem::remove(path);
 }
 
@@ -210,7 +225,7 @@ void TestBinaryLittleEndianPointStream() {
     usdply::PlyHeader header;
     std::vector<usdgeo::Diagnostic> diagnostics;
     usdpointcloud::PointReadOptions options;
-    const auto stream = usdply::OpenPointStream(
+    auto stream = usdply::OpenPointStream(
         path.string(), options, header, diagnostics);
     Check(stream != nullptr);
     usdpointcloud::PointChunk chunk;
@@ -220,6 +235,7 @@ void TestBinaryLittleEndianPointStream() {
           usdpointcloud::PointStreamStatus::Chunk);
     Check(data.positions.size() == 1 && data.positions[0].x == 1.25 &&
           data.positions[0].y == -2.5 && data.positions[0].z == 3.75);
+        stream.reset();
     std::filesystem::remove(path);
 }
 
@@ -256,7 +272,7 @@ void TestPointStreamFiltersAndCancellation() {
     options.classifications = {2};
     usdply::PlyHeader header;
     std::vector<usdgeo::Diagnostic> diagnostics;
-    const auto stream = usdply::OpenPointStream(
+    auto stream = usdply::OpenPointStream(
         path.string(), options, header, diagnostics);
     Check(stream != nullptr);
     usdpointcloud::PointChunk chunk;
@@ -271,13 +287,15 @@ void TestPointStreamFiltersAndCancellation() {
 
     options = {};
     options.isCancelled = [] { return true; };
-    const auto cancelled = usdply::OpenPointStream(
+    auto cancelled = usdply::OpenPointStream(
         path.string(), options, header, diagnostics);
     Check(cancelled != nullptr);
     Check(cancelled->ReadNext(chunk, data, diagnostic) ==
           usdpointcloud::PointStreamStatus::Error);
     Check(diagnostic.code == usdgeo::DiagnosticCode::DecodeFailure);
     Check(diagnostic.message == "PLY read cancelled");
+    stream.reset();
+    cancelled.reset();
     std::filesystem::remove(path);
 }
 
@@ -293,7 +311,7 @@ void TestPointStreamValidationFailures() {
     usdply::PlyHeader header;
     std::vector<usdgeo::Diagnostic> diagnostics;
     usdpointcloud::PointReadOptions options;
-    const auto colorStream = usdply::OpenPointStream(
+    auto colorStream = usdply::OpenPointStream(
         invalidColor.string(), options, header, diagnostics);
     Check(colorStream != nullptr);
     usdpointcloud::PointChunk chunk;
@@ -303,6 +321,7 @@ void TestPointStreamValidationFailures() {
           usdpointcloud::PointStreamStatus::Error);
     Check(diagnostic.code == usdgeo::DiagnosticCode::DecodeFailure);
     Check(diagnostic.message == "PLY red value is outside uint16 range");
+    colorStream.reset();
     std::filesystem::remove(invalidColor);
 
     const auto budgetFixture = WriteAsciiFixture(
@@ -319,6 +338,60 @@ void TestPointStreamValidationFailures() {
     Check(diagnostics.front().code ==
           usdgeo::DiagnosticCode::InvalidFormatArgument);
     std::filesystem::remove(budgetFixture);
+
+    options = {};
+    const auto invalidUcharColor = WriteAsciiFixture(
+        "usdply-invalid-uchar-color-test.ply",
+        "property float x\n"
+        "property float y\n"
+        "property float z\n"
+        "property uchar red\n"
+        "property uchar green\n"
+        "property uchar blue\n",
+        "0 0 0 256 0 0\n",
+        1);
+    auto invalidUcharStream = usdply::OpenPointStream(
+        invalidUcharColor.string(), options, header, diagnostics);
+    Check(invalidUcharStream != nullptr);
+    Check(invalidUcharStream->ReadNext(chunk, data, diagnostic) ==
+          usdpointcloud::PointStreamStatus::Error);
+    Check(diagnostic.message.find("red") != std::string::npos);
+    invalidUcharStream.reset();
+    std::filesystem::remove(invalidUcharColor);
+
+    const auto nonFiniteExtra = WriteAsciiFixture(
+        "usdply-nonfinite-extra-test.ply",
+        "property float x\n"
+        "property float y\n"
+        "property float z\n"
+        "property float temperature\n",
+        "0 0 0 nan\n",
+        1);
+    auto nonFiniteStream = usdply::OpenPointStream(
+        nonFiniteExtra.string(), options, header, diagnostics);
+    Check(nonFiniteStream != nullptr);
+    Check(nonFiniteStream->ReadNext(chunk, data, diagnostic) ==
+          usdpointcloud::PointStreamStatus::Error);
+    Check(diagnostic.message.find("temperature") != std::string::npos);
+    nonFiniteStream.reset();
+    std::filesystem::remove(nonFiniteExtra);
+
+    const auto mixedColor = WriteAsciiFixture(
+        "usdply-mixed-color-test.ply",
+        "property float x\n"
+        "property float y\n"
+        "property float z\n"
+        "property uchar red\n"
+        "property ushort green\n"
+        "property ushort blue\n",
+        "0 0 0 1 2 3\n",
+        1);
+    const auto mixedColorStream = usdply::OpenPointStream(
+        mixedColor.string(), options, header, diagnostics);
+    Check(mixedColorStream == nullptr);
+    Check(diagnostics.front().message.find("consistent bit depth") !=
+          std::string::npos);
+    std::filesystem::remove(mixedColor);
 }
 
 } // namespace
