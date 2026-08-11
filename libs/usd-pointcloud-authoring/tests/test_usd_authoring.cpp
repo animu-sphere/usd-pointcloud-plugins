@@ -7,9 +7,11 @@
 #include <pxr/usd/usdGeom/points.h>
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/usdLod/rootAPI.h>
+#include <pxr/usd/usdLod/screenSizeHeuristic.h>
 #include <pxr/usd/usd/payloads.h>
 
 #include <cstdlib>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <limits>
@@ -399,8 +401,9 @@ void TestLodAuthoring() {
     std::vector<usdpointcloud::PointCloudAsset> levels(2);
     for (auto& level : levels) {
         level.reference = reference;
-        level.data.positions = {{0.0, 0.0, 0.0}};
-        level.bounds.Expand({0.0, 0.0, 0.0});
+        level.data.positions = {{1.0, 2.0, 3.0}};
+        level.bounds.Expand({0.0, 1.0, 2.0});
+        level.bounds.Expand({4.0, 5.0, 6.0});
         level.chunk = usdpointcloud::MakePointChunk(level.data, level.bounds);
     }
     usdpointcloud::PointLodHierarchy hierarchy;
@@ -416,9 +419,30 @@ void TestLodAuthoring() {
     Check(prim.GetAttribute(pxr::TfToken("lod:default:index")).IsValid());
     Check(stage->GetPrimAtPath(pxr::SdfPath("/PointCloud/LOD0")).IsValid());
     Check(stage->GetPrimAtPath(pxr::SdfPath("/PointCloud/LOD1")).IsValid());
-    Check(stage->GetPrimAtPath(
-              pxr::SdfPath("/PointCloud/LodHeuristics/ScreenSize"))
+    const auto children = prim.GetChildren();
+    auto child = children.begin();
+    Check(child != children.end() && child->GetName() == "LOD0");
+    ++child;
+    Check(child != children.end() && child->GetName() == "LOD1");
+    ++child;
+    Check(child == children.end());
+    Check(!stage->GetPrimAtPath(pxr::SdfPath("/PointCloud/LodHeuristics"))
               .IsValid());
+    pxr::SdfPathVector heuristicTargets;
+    Check(pxr::UsdLodRootAPI(prim)
+              .GetLodHeuristicsRel()
+              .GetTargets(&heuristicTargets));
+    Check(heuristicTargets.size() == 1 &&
+          heuristicTargets[0] ==
+              pxr::SdfPath("/LodHeuristics/PointCloudScreenSize"));
+    const auto heuristic = pxr::UsdLodScreenSizeHeuristic::Get(
+        stage, heuristicTargets[0]);
+    Check(heuristic.GetPrim().IsValid());
+    pxr::VtArray<pxr::GfVec3f> extent;
+    Check(heuristic.GetExtentAttr().Get(&extent));
+    Check(extent.size() == 2 &&
+          extent[0] == pxr::GfVec3f(0.0f, 1.0f, 2.0f) &&
+          extent[1] == pxr::GfVec3f(4.0f, 5.0f, 6.0f));
 }
 
 void TestLodAuthoringRejectsMismatchedMetadata() {
@@ -501,9 +525,32 @@ void TestTiledLodAuthoring() {
     Check(stage->GetPrimAtPath(pxr::SdfPath(
               "/PointCloud/Tiles/Tile_L0_p1_p0_p0/LOD1"))
               .IsValid());
-    Check(stage->GetPrimAtPath(pxr::SdfPath(
-              "/PointCloud/LodHeuristics/ScreenSize"))
-              .IsValid());
+    const auto firstTile = stage->GetPrimAtPath(pxr::SdfPath(
+        "/PointCloud/Tiles/Tile_L0_p0_p0_p0"));
+    const auto secondTile = stage->GetPrimAtPath(pxr::SdfPath(
+        "/PointCloud/Tiles/Tile_L0_p1_p0_p0"));
+    pxr::SdfPathVector firstTargets;
+    pxr::SdfPathVector secondTargets;
+    Check(pxr::UsdLodRootAPI(firstTile)
+              .GetLodHeuristicsRel()
+              .GetTargets(&firstTargets));
+    Check(pxr::UsdLodRootAPI(secondTile)
+              .GetLodHeuristicsRel()
+              .GetTargets(&secondTargets));
+    Check(firstTargets.size() == 1 && secondTargets.size() == 1 &&
+          firstTargets[0] != secondTargets[0]);
+    const auto firstHeuristic = pxr::UsdLodScreenSizeHeuristic::Get(
+        stage, firstTargets[0]);
+    const auto secondHeuristic = pxr::UsdLodScreenSizeHeuristic::Get(
+        stage, secondTargets[0]);
+    Check(firstHeuristic.GetPrim().IsValid() &&
+          secondHeuristic.GetPrim().IsValid());
+    pxr::VtArray<pxr::GfVec3f> firstExtent;
+    pxr::VtArray<pxr::GfVec3f> secondExtent;
+    Check(firstHeuristic.GetExtentAttr().Get(&firstExtent));
+    Check(secondHeuristic.GetExtentAttr().Get(&secondExtent));
+    Check(firstExtent.size() == 2 && secondExtent.size() == 2 &&
+          firstExtent != secondExtent);
 }
 
 void TestTiledLodAuthoringSupportsNegativeTileCoordinates() {
@@ -528,7 +575,7 @@ void TestTiledLodAuthoringSupportsNegativeTileCoordinates() {
               .IsValid());
 }
 
-void TestTiledLodAuthoringRejectsMismatchedThresholds() {
+void TestTiledLodAuthoringSupportsMismatchedThresholds() {
     const auto stage = usdgeo::PointCloudLayer::CreateStage();
     usdgeo::GeoReference reference;
     reference.epsgCode = 26910;
@@ -536,20 +583,29 @@ void TestTiledLodAuthoringRejectsMismatchedThresholds() {
     tile.tile.id = {0, 0, 0, 0};
     tile.tile.bounds.Expand({0.0, 0.0, 0.0});
     tile.tile.lod.bounds = tile.tile.bounds;
-    tile.tile.lod.items = {{0, 1, tile.tile.bounds, {0, 1}}};
+    tile.tile.lod.screenSizeThresholds = {0.2F};
+    tile.tile.lod.items = {{0, 1, tile.tile.bounds, {0, 1}},
+                           {1, 1, tile.tile.bounds, {0, 1}}};
     usdpointcloud::PointCloudAsset level;
     level.reference = reference;
     level.bounds = tile.tile.bounds;
     level.data.positions = {{0.0, 0.0, 0.0}};
     level.chunk = usdpointcloud::MakePointChunk(level.data, level.bounds);
     tile.levels.push_back(level);
+    tile.levels.push_back(level);
     auto secondTile = tile;
     secondTile.tile.id.x = 1;
     secondTile.tile.lod.screenSizeThresholds = {0.1F};
 
-    Check(!usdgeo::AuthorPointCloudTiledAsset(
-        stage, "/PointCloud", {tile, secondTile}));
-    Check(!stage->GetPrimAtPath(pxr::SdfPath("/PointCloud")).IsValid());
+    const auto authored = usdgeo::AuthorPointCloudTiledAsset(
+        stage, "/PointCloud", {tile, secondTile});
+    Check(authored);
+    Check(stage->GetPrimAtPath(pxr::SdfPath(
+              "/PointCloud/LodHeuristics/Tile_L0_p0_p0_p0/ScreenSize"))
+              .IsValid());
+    Check(stage->GetPrimAtPath(pxr::SdfPath(
+              "/PointCloud/LodHeuristics/Tile_L0_p1_p0_p0/ScreenSize"))
+              .IsValid());
 }
 
 void TestTiledLodPayloadAuthoring() {
@@ -574,16 +630,18 @@ void TestTiledLodPayloadAuthoring() {
         std::filesystem::temp_directory_path() / "usd_geo_payloads";
     const auto rootLayerPath = payloadDirectory / "PointCloud.usda";
     std::filesystem::remove_all(payloadDirectory);
+    const auto originalIdentifier = stage->GetRootLayer()->GetIdentifier();
     Check(usdgeo::AuthorPointCloudTiledAssetWithPayloads(
         stage, "/PointCloud", {tile},
         {payloadDirectory.string(), rootLayerPath.string()}));
-    Check(stage->GetRootLayer()->GetIdentifier() == rootLayerPath.generic_string());
+    Check(stage->GetRootLayer()->GetIdentifier() == originalIdentifier);
 
     const auto lodPrim = stage->GetPrimAtPath(pxr::SdfPath(
         "/PointCloud/Tiles/Tile_L0_p0_p0_p0/LOD0"));
     Check(lodPrim.IsValid());
     Check(std::filesystem::exists(
         payloadDirectory / "Tile_L0_p0_p0_p0_LOD0.usdc"));
+    stage->GetRootLayer()->SetIdentifier(rootLayerPath.generic_string());
     Check(stage->GetRootLayer()->Export(rootLayerPath.string()));
     const auto reopenedStage = pxr::UsdStage::Open(rootLayerPath.string());
     Check(reopenedStage);
@@ -868,7 +926,7 @@ int main() {
     TestTiledLodAuthoring();
     TestTiledLodAuthoringSupportsNegativeTileCoordinates();
     TestInvalidExtraByteNameDoesNotAuthor();
-    TestTiledLodAuthoringRejectsMismatchedThresholds();
+    TestTiledLodAuthoringSupportsMismatchedThresholds();
     TestTiledLodPayloadAuthoring();
     TestStreamTiledPayloadAuthoring();
     TestGeneratedStreamTiledPayloadAuthoring();

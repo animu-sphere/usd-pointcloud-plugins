@@ -1,6 +1,7 @@
 #include "usdgeo/PointCloudLayer.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <cmath>
 #include <filesystem>
@@ -29,6 +30,37 @@ namespace {
 bool IsValidPrimPath(const std::string& primPath) {
     return !primPath.empty() && primPath.front() == '/';
 }
+
+class ScopedLayerIdentifier final {
+public:
+    ScopedLayerIdentifier(const pxr::SdfLayerHandle& layer,
+                          const std::string& identifier)
+        : layer_(layer),
+          originalIdentifier_(layer ? layer->GetIdentifier() : std::string()),
+          changed_(layer_ && !layer_->IsAnonymous()) {
+        if (changed_) {
+                        const auto temporaryIdentifier =
+                                identifier + ".usdgeo-authoring-" +
+                                std::to_string(++sequence_);
+                        layer_->SetIdentifier(temporaryIdentifier);
+        }
+    }
+
+    ~ScopedLayerIdentifier() {
+        if (changed_) {
+            layer_->SetIdentifier(originalIdentifier_);
+        }
+    }
+
+    ScopedLayerIdentifier(const ScopedLayerIdentifier&) = delete;
+    ScopedLayerIdentifier& operator=(const ScopedLayerIdentifier&) = delete;
+
+private:
+    pxr::SdfLayerHandle layer_;
+    std::string originalIdentifier_;
+    bool changed_ = false;
+    inline static std::atomic_uint64_t sequence_{0};
+};
 
 bool SameBounds(const usdgeo::SpatialBounds& left,
                 const usdgeo::SpatialBounds& right) {
@@ -118,7 +150,6 @@ bool AuthorLodRoot(
     const std::vector<usdpointcloud::PointCloudAsset>& levels,
     const usdpointcloud::PointLodHierarchy& hierarchy,
     const pxr::SdfPath& heuristicPath,
-    bool defineHeuristic,
     const std::filesystem::path* payloadDirectory = nullptr,
     const std::filesystem::path* rootLayerPath = nullptr) {
     if (!stage || !IsValidPrimPath(primPath) ||
@@ -135,17 +166,7 @@ bool AuthorLodRoot(
         return false;
     }
     if (!hierarchy.screenSizeThresholds.empty()) {
-        const auto heuristic =
-            defineHeuristic
-                ? pxr::UsdLodScreenSizeHeuristic::Define(stage, heuristicPath)
-                : pxr::UsdLodScreenSizeHeuristic::Get(stage, heuristicPath);
-        if (!heuristic ||
-            (defineHeuristic &&
-             (!heuristic.CreateLodDomainAttr().Set(pxr::UsdLodTokens->imaging) ||
-              !heuristic.CreateThresholdsAttr().Set(pxr::VtArray<float>(
-                  hierarchy.screenSizeThresholds.begin(),
-                  hierarchy.screenSizeThresholds.end())))) ||
-            !lodRoot.CreateLodHeuristicsRel().AddTarget(heuristicPath)) {
+        if (!lodRoot.CreateLodHeuristicsRel().AddTarget(heuristicPath)) {
             return false;
         }
     }
@@ -189,6 +210,37 @@ bool AuthorLodRoot(
         }
     }
     return true;
+}
+
+bool AuthorScreenSizeHeuristic(
+    const pxr::UsdStageRefPtr& stage,
+    const pxr::SdfPath& heuristicPath,
+    const GeoReference& reference,
+    const SpatialBounds& bounds,
+    const std::vector<float>& thresholds) {
+    SpatialBounds localBounds;
+    if (!stage || !reference.TryToLocal(bounds, localBounds)) {
+        return false;
+    }
+    if (!pxr::UsdGeomScope::Define(stage, heuristicPath.GetParentPath())) {
+        return false;
+    }
+    const auto heuristic =
+        pxr::UsdLodScreenSizeHeuristic::Define(stage, heuristicPath);
+    if (!heuristic) {
+        return false;
+    }
+    const pxr::VtArray<pxr::GfVec3f> extent = {
+        pxr::GfVec3f(static_cast<float>(localBounds.minimum.x),
+                     static_cast<float>(localBounds.minimum.y),
+                     static_cast<float>(localBounds.minimum.z)),
+        pxr::GfVec3f(static_cast<float>(localBounds.maximum.x),
+                     static_cast<float>(localBounds.maximum.y),
+                     static_cast<float>(localBounds.maximum.z))};
+    return heuristic.CreateLodDomainAttr().Set(pxr::UsdLodTokens->imaging) &&
+           heuristic.CreateThresholdsAttr().Set(
+               pxr::VtArray<float>(thresholds.begin(), thresholds.end())) &&
+           heuristic.CreateExtentAttr().Set(extent);
 }
 
 } // namespace
@@ -666,9 +718,19 @@ bool AuthorPointCloudLodAsset(
         }
     }
 
+    const auto heuristicPath =
+        pxr::SdfPath(primPath).GetParentPath().AppendChild(
+            pxr::TfToken("LodHeuristics"))
+            .AppendChild(pxr::TfToken(
+                pxr::SdfPath(primPath).GetName() + "ScreenSize"));
+    if (!hierarchy.screenSizeThresholds.empty() &&
+        !AuthorScreenSizeHeuristic(stage, heuristicPath,
+                                   levels.front().reference, hierarchy.bounds,
+                                   hierarchy.screenSizeThresholds)) {
+        return false;
+    }
     return AuthorLodRoot(
-        stage, primPath, levels, hierarchy,
-        pxr::SdfPath(primPath + "/LodHeuristics/ScreenSize"), true);
+        stage, primPath, levels, hierarchy, heuristicPath);
 }
 
 bool AuthorPointCloudLodAsset(
@@ -698,8 +760,6 @@ bool AuthorPointCloudTiledAsset(
         return false;
     }
     std::set<std::string> tileNames;
-    std::vector<float> sharedThresholds;
-    bool thresholdsInitialized = false;
     for (const auto& tile : tiles) {
         std::vector<usdgeo::Diagnostic> diagnostics;
         if (!usdpointcloud::ValidatePointTile(tile.tile, diagnostics) ||
@@ -715,12 +775,6 @@ bool AuthorPointCloudTiledAsset(
                 return false;
             }
         }
-        if (!thresholdsInitialized) {
-            sharedThresholds = tile.tile.lod.screenSizeThresholds;
-            thresholdsInitialized = true;
-        } else if (tile.tile.lod.screenSizeThresholds != sharedThresholds) {
-            return false;
-        }
     }
 
     if (!pxr::UsdGeomXform::Define(stage, pxr::SdfPath(primPath)) ||
@@ -730,16 +784,23 @@ bool AuthorPointCloudTiledAsset(
         return false;
     }
     const auto heuristicPath =
-        pxr::SdfPath(primPath + "/LodHeuristics/ScreenSize");
-    bool defineHeuristic = true;
+        pxr::SdfPath(primPath + "/LodHeuristics");
     for (const auto& tile : tiles) {
         const auto tilePath = pxr::SdfPath(
             primPath + "/Tiles/" + TilePrimName(tile.tile.id));
-        if (!AuthorLodRoot(stage, tilePath.GetString(), tile.levels,
-                           tile.tile.lod, heuristicPath, defineHeuristic)) {
+        const auto tileHeuristicPath =
+            heuristicPath.AppendChild(pxr::TfToken(TilePrimName(tile.tile.id)))
+                .AppendChild(pxr::TfToken("ScreenSize"));
+        if (!tile.tile.lod.screenSizeThresholds.empty() &&
+            !AuthorScreenSizeHeuristic(
+                stage, tileHeuristicPath, tile.levels.front().reference,
+                tile.tile.bounds, tile.tile.lod.screenSizeThresholds)) {
             return false;
         }
-        defineHeuristic = false;
+        if (!AuthorLodRoot(stage, tilePath.GetString(), tile.levels,
+                           tile.tile.lod, tileHeuristicPath)) {
+            return false;
+        }
     }
     return true;
 }
@@ -813,20 +874,11 @@ bool AuthorPointCloudTiledAssetWithPayloads(
     }
 
     std::set<std::string> tileNames;
-    std::vector<float> sharedThresholds;
-    bool thresholdsInitialized = false;
     for (const auto& tile : tiles) {
         std::vector<usdgeo::Diagnostic> diagnostics;
         if (!usdpointcloud::ValidatePointTile(tile.tile, diagnostics) ||
             tile.levels.size() != tile.tile.lod.items.size() ||
             !tileNames.insert(tile.tile.id.ToString()).second) {
-            cleanup();
-            return false;
-        }
-        if (!thresholdsInitialized) {
-            sharedThresholds = tile.tile.lod.screenSizeThresholds;
-            thresholdsInitialized = true;
-        } else if (tile.tile.lod.screenSizeThresholds != sharedThresholds) {
             cleanup();
             return false;
         }
@@ -841,35 +893,38 @@ bool AuthorPointCloudTiledAssetWithPayloads(
         }
     }
 
-    const auto originalRootLayerIdentifier = rootLayer->GetIdentifier();
-    const auto restoreRootLayerIdentifier = [&]() {
-        rootLayer->SetIdentifier(originalRootLayerIdentifier);
-    };
-    rootLayer->SetIdentifier(rootLayerPath.generic_string());
+    const ScopedLayerIdentifier scopedRootIdentifier(
+        rootLayer, rootLayerPath.generic_string());
     if (!pxr::UsdGeomXform::Define(stage, pxr::SdfPath(primPath)) ||
         !pxr::UsdGeomScope::Define(
             stage, pxr::SdfPath(primPath + "/LodHeuristics")) ||
         !pxr::UsdGeomScope::Define(
             stage, pxr::SdfPath(primPath + "/Tiles"))) {
         cleanup();
-        restoreRootLayerIdentifier();
         return false;
     }
 
     const auto heuristicPath =
-        pxr::SdfPath(primPath + "/LodHeuristics/ScreenSize");
-    bool defineHeuristic = true;
+        pxr::SdfPath(primPath + "/LodHeuristics");
     for (const auto& tile : tiles) {
         const auto tilePath = pxr::SdfPath(
             primPath + "/Tiles/" + TilePrimName(tile.tile.id));
-        if (!AuthorLodRoot(stage, tilePath.GetString(), tile.levels,
-                           tile.tile.lod, heuristicPath, defineHeuristic,
-                           &payloadDirectory, &rootLayerPath)) {
+        const auto tileHeuristicPath =
+            heuristicPath.AppendChild(pxr::TfToken(TilePrimName(tile.tile.id)))
+                .AppendChild(pxr::TfToken("ScreenSize"));
+        if (!tile.tile.lod.screenSizeThresholds.empty() &&
+            !AuthorScreenSizeHeuristic(
+                stage, tileHeuristicPath, tile.levels.front().reference,
+                tile.tile.bounds, tile.tile.lod.screenSizeThresholds)) {
             cleanup();
-            restoreRootLayerIdentifier();
             return false;
         }
-        defineHeuristic = false;
+        if (!AuthorLodRoot(stage, tilePath.GetString(), tile.levels,
+                           tile.tile.lod, tileHeuristicPath,
+                           &payloadDirectory, &rootLayerPath)) {
+            cleanup();
+            return false;
+        }
     }
     generatedPayloads.insert(generatedPayloads.end(), payloadPaths.begin(),
                              payloadPaths.end());

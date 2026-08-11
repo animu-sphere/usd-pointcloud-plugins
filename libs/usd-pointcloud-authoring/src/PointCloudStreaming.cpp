@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -230,6 +232,8 @@ struct TileSpool {
     std::unique_ptr<usdpointcloud::TileSpoolWriter> writer;
 };
 
+std::atomic_uint64_t streamLayerSequence{0};
+
 } // namespace
 
 bool AuthorPointCloudTiledAssetFromStream(
@@ -406,6 +410,10 @@ bool AuthorPointCloudTiledAssetFromStream(
         cleanup();
         return false;
     }
+    const auto streamLayerIdentifier =
+        options.rootLayerPath + ".usdgeo-stream-" +
+        std::to_string(++streamLayerSequence);
+    stage->GetRootLayer()->SetIdentifier(streamLayerIdentifier);
 
     std::size_t tileCount = 0;
     for (const auto& entry : spools) {
