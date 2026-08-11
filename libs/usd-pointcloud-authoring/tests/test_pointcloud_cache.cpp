@@ -1,0 +1,259 @@
+#include "usdgeo/PointCloudCache.h"
+
+#include "usdgeo/cache/Cache.h"
+#include "usdpointcloud/FileFormatArguments.h"
+
+#include <pxr/base/gf/vec3f.h>
+#include <pxr/base/vt/array.h>
+#include <pxr/usd/sdf/layer.h>
+#include <pxr/usd/sdf/payload.h>
+#include <pxr/usd/usd/payloads.h>
+#include <pxr/usd/usdGeom/points.h>
+#include <pxr/usd/usdGeom/xform.h>
+#include <pxr/usd/usd/stage.h>
+
+#include <array>
+#include <chrono>
+#include <cstdint>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
+
+namespace {
+
+void Check(bool condition) {
+    if (!condition) {
+        std::abort();
+    }
+}
+
+std::string HashFile(const std::filesystem::path& path) {
+    std::ifstream input(path, std::ios::binary);
+    Check(input.good());
+
+    constexpr std::uint64_t offsetBasis = 14695981039346656037ull;
+    constexpr std::uint64_t prime = 1099511628211ull;
+    std::uint64_t hash = offsetBasis;
+    std::array<char, 64 * 1024> buffer{};
+    while (input) {
+        input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        const auto count = input.gcount();
+        for (std::streamsize index = 0; index < count; ++index) {
+            hash ^= static_cast<unsigned char>(
+                buffer[static_cast<std::size_t>(index)]);
+            hash *= prime;
+        }
+    }
+    Check(input.eof());
+
+    std::ostringstream result;
+    result << "fnv1a64:" << std::hex << std::setfill('0') << std::setw(16)
+           << hash;
+    return result.str();
+}
+
+std::string FormatDouble(double value) {
+    std::ostringstream result;
+    result << std::setprecision(17) << value;
+    return result.str();
+}
+
+usdgeo::cache::Descriptor MakeDescriptor(
+    const std::filesystem::path& sourcePath,
+    const usdgeo::GeoReference& reference,
+    const usdpointcloud::PointReadRequest& request) {
+    std::error_code error;
+    const auto canonicalPath =
+        std::filesystem::weakly_canonical(sourcePath, error);
+    Check(!error);
+    const auto modified = std::filesystem::last_write_time(sourcePath, error);
+    Check(!error);
+
+    usdgeo::cache::Descriptor descriptor;
+    descriptor.source = {
+        canonicalPath.generic_string(),
+        std::filesystem::file_size(sourcePath),
+        static_cast<std::int64_t>(modified.time_since_epoch().count()),
+        HashFile(sourcePath)};
+    descriptor.pluginVersion = "usd-pointcloud-plugins-0.2.2";
+    descriptor.parserVersion = "las-reader-1";
+    descriptor.openUsdVersion = "26.08";
+    descriptor.coordinateTransform = {
+        {"epsg", reference.epsgCode ? std::to_string(*reference.epsgCode) : "0"},
+        {"linearUnit", reference.linearUnit},
+        {"sourceUpAxis", reference.sourceUpAxis},
+        {"stageUpAxis", reference.stageUpAxis},
+        {"origin.x", FormatDouble(reference.localOrigin.x)},
+        {"origin.y", FormatDouble(reference.localOrigin.y)},
+        {"origin.z", FormatDouble(reference.localOrigin.z)}};
+    for (const auto& [key, value] : request.canonicalArguments) {
+        if (key == "attributes") {
+            descriptor.attributes.emplace_back(key, value);
+        } else if (key != "payloadDirectory" && key != "chunkPointLimit" &&
+                   key != "memoryBudgetBytes") {
+            descriptor.tileAndLod.emplace_back(key, value);
+        }
+    }
+    descriptor.downsampling = {{"algorithm", "fixed-stride"},
+                               {"version", "1"}};
+    Check(descriptor.IsValid());
+    return descriptor;
+}
+
+void SetCacheRoot(const std::filesystem::path& root) {
+#if defined(_WIN32)
+    Check(_putenv_s("USDGEO_CACHE_ROOT", root.string().c_str()) == 0);
+#else
+    Check(setenv("USDGEO_CACHE_ROOT", root.string().c_str(), 1) == 0);
+#endif
+}
+
+void ClearCacheRoot() {
+#if defined(_WIN32)
+    Check(_putenv_s("USDGEO_CACHE_ROOT", "") == 0);
+#else
+    Check(unsetenv("USDGEO_CACHE_ROOT") == 0);
+#endif
+}
+
+void TestPointCloudCacheMissAndMaterialization() {
+    const auto suffix = std::to_string(
+        std::chrono::steady_clock::now().time_since_epoch().count());
+    const auto testRoot = std::filesystem::temp_directory_path() /
+                          ("usdgeo-pointcloud-cache-" + suffix);
+    std::filesystem::remove_all(testRoot);
+    std::filesystem::create_directories(testRoot);
+
+    const auto sourcePath = testRoot / "source.las";
+    {
+        std::ofstream source(sourcePath, std::ios::binary);
+        source << "cache identity source";
+    }
+
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+    reference.localOrigin = {1000.0, 2000.0, 3000.0};
+    const std::map<std::string, std::string> arguments = {
+        {"attributes", "intensity"},
+        {"payloadDirectory", "requested_payloads"},
+        {"tile", "true"},
+        {"tileSize", "1"}};
+    usdpointcloud::PointReadRequest request;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(usdpointcloud::MakeReadRequest(arguments, request, diagnostics));
+    Check(diagnostics.empty());
+
+    const auto cacheRoot = testRoot / "cache";
+    usdgeo::cache::Layout layout;
+    Check(usdgeo::cache::TryBuildLayout(
+        cacheRoot, MakeDescriptor(sourcePath, reference, request), layout));
+    Check(!usdgeo::cache::IsCacheHit(layout));
+
+    const auto previousCacheRoot = std::getenv("USDGEO_CACHE_ROOT");
+    const bool hadPreviousCacheRoot = previousCacheRoot != nullptr;
+    const std::string previousCacheRootValue =
+        hadPreviousCacheRoot ? previousCacheRoot : "";
+    SetCacheRoot(cacheRoot);
+
+    const auto missLayer = pxr::SdfLayer::CreateNew(
+        (testRoot / "miss.usda").string());
+    Check(missLayer);
+    bool hit = true;
+    std::string errorMessage;
+    Check(usdgeo::TryLoadPointCloudCache(
+        missLayer.operator->(), sourcePath, reference, request,
+        "las-reader-1", hit, errorMessage));
+    Check(!hit);
+    Check(errorMessage.empty());
+
+    std::filesystem::create_directories(layout.payloadDirectory);
+    const auto payloadPath = layout.payloadDirectory / "tile.usdc";
+    const auto payloadStage = pxr::UsdStage::CreateNew(payloadPath.string());
+    Check(payloadStage);
+    const auto payloadPoints = pxr::UsdGeomPoints::Define(
+        payloadStage, pxr::SdfPath("/CachedTile/Points"));
+    Check(payloadPoints.GetPrim().IsValid());
+    pxr::VtVec3fArray positions(1);
+    positions[0] = pxr::GfVec3f(1.0f, 2.0f, 3.0f);
+    Check(payloadPoints.GetPointsAttr().Set(positions));
+    Check(payloadStage->GetRootLayer()->Save());
+
+    const auto rootStage = pxr::UsdStage::CreateNew(layout.rootLayer.string());
+    Check(rootStage);
+    const auto payloadPrim = pxr::UsdGeomXform::Define(
+        rootStage, pxr::SdfPath("/PointCloud/Tile"));
+    Check(payloadPrim.GetPrim().IsValid());
+    Check(payloadPrim.GetPrim().GetPayloads().AddPayload(
+        pxr::SdfPayload("payloads/tile.usdc",
+                        pxr::SdfPath("/CachedTile"))));
+    Check(rootStage->GetRootLayer()->Save());
+    {
+        std::ofstream manifest(layout.manifest);
+        manifest << "committed\n";
+    }
+    Check(usdgeo::cache::IsCacheHit(layout));
+
+    const auto requestedRoot = testRoot / "requested.usda";
+    const auto requestedLayer = pxr::SdfLayer::CreateNew(requestedRoot.string());
+    Check(requestedLayer);
+    hit = false;
+    errorMessage.clear();
+    Check(usdgeo::TryLoadPointCloudCache(
+        requestedLayer.operator->(), sourcePath, reference, request,
+        "las-reader-1", hit, errorMessage));
+    Check(hit);
+    Check(errorMessage.empty());
+    const auto requestedPayload = testRoot / "requested_payloads" / "tile.usdc";
+    Check(std::filesystem::exists(requestedPayload));
+
+    const auto cachedPrim = requestedLayer->GetPrimAtPath(
+        pxr::SdfPath("/PointCloud/Tile"));
+    Check(cachedPrim != nullptr);
+    const auto payloadItems = cachedPrim->GetPayloadList().GetExplicitItems();
+    Check(payloadItems.size() == 1);
+    Check(payloadItems.front().GetAssetPath() ==
+          "requested_payloads/tile.usdc");
+
+    const auto requestedStage = pxr::UsdStage::Open(requestedLayer);
+    Check(requestedStage);
+    const auto requestedPoints = pxr::UsdGeomPoints::Get(
+        requestedStage, pxr::SdfPath("/PointCloud/Tile/Points"));
+    Check(requestedPoints.GetPrim().IsValid());
+    pxr::VtVec3fArray requestedPositions;
+    Check(requestedPoints.GetPointsAttr().Get(&requestedPositions));
+    Check(requestedPositions.size() == 1 &&
+          requestedPositions[0] == pxr::GfVec3f(1.0f, 2.0f, 3.0f));
+
+    std::error_code error;
+    std::filesystem::remove(layout.manifest, error);
+    Check(!error);
+    const auto invalidLayer = pxr::SdfLayer::CreateNew(
+        (testRoot / "invalid.usda").string());
+    Check(invalidLayer);
+    hit = true;
+    errorMessage.clear();
+    Check(usdgeo::TryLoadPointCloudCache(
+        invalidLayer.operator->(), sourcePath, reference, request,
+        "las-reader-1", hit, errorMessage));
+    Check(!hit);
+    Check(errorMessage.empty());
+
+    if (hadPreviousCacheRoot) {
+        SetCacheRoot(previousCacheRootValue);
+    } else {
+        ClearCacheRoot();
+    }
+    std::filesystem::remove_all(testRoot);
+}
+
+} // namespace
+
+int main() {
+    TestPointCloudCacheMissAndMaterialization();
+    return 0;
+}
