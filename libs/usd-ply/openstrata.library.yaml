@@ -1,0 +1,7 @@
+schema: openstrata.library/v1alpha1
+library:
+  id: usdPly
+  version: 0.1.0
+cmake:
+  package: usdPly
+  target: usdply::core
