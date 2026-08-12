@@ -83,6 +83,7 @@ bool BuildPointBudgetPlan(
     if (!ValidatePointBudgetConfig(config, diagnostics)) return false;
 
     if (sourcePositions.empty()) return true;
+    plan.pointCount = sourcePositions.size();
     for (const auto& position : sourcePositions) {
         if (!std::isfinite(position.x) || !std::isfinite(position.y)) {
             AddError(diagnostics, usdgeo::DiagnosticCode::NonFiniteCoordinate,
@@ -124,6 +125,12 @@ bool BuildPointBudgetPlan(
                                   bounds.minY != bounds.maxY;
             if (!canSplit) {
                 ++plan.tileCount;
+                if (plan.minimumPointsPerTile == 0) {
+                    plan.minimumPointsPerTile = indices.size();
+                } else {
+                    plan.minimumPointsPerTile =
+                        std::min(plan.minimumPointsPerTile, indices.size());
+                }
                 plan.maximumPointsPerTile =
                     std::max(plan.maximumPointsPerTile, indices.size());
                 if (indices.size() > config.maxPointsPerTile) {
@@ -155,11 +162,18 @@ bool BuildPointBudgetPlan(
             }
             if (nonEmptyChildren < 2 || !childrenMeetMinimum) {
                 ++plan.tileCount;
+                if (plan.minimumPointsPerTile == 0) {
+                    plan.minimumPointsPerTile = indices.size();
+                } else {
+                    plan.minimumPointsPerTile =
+                        std::min(plan.minimumPointsPerTile, indices.size());
+                }
                 plan.maximumPointsPerTile =
                     std::max(plan.maximumPointsPerTile, indices.size());
                 budgetSatisfied = false;
                 return;
             }
+            ++plan.splitCount;
             for (const auto& child : children) {
                 if (!child.empty()) visit(child, depth + 1);
             }
@@ -168,6 +182,11 @@ bool BuildPointBudgetPlan(
     std::vector<std::size_t> indices(sourcePositions.size());
     std::iota(indices.begin(), indices.end(), 0);
     visit(indices, 0);
+    if (plan.tileCount > 0) {
+        plan.averagePointsPerTile =
+            static_cast<double>(plan.pointCount) /
+            static_cast<double>(plan.tileCount);
+    }
     if (!budgetSatisfied) {
         AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
                  "point budget cannot be satisfied for the source distribution");

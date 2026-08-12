@@ -47,7 +47,9 @@ void TestPointBudgetPlanning() {
     Check(usdpointcloud::ValidatePointBudgetConfig(config, diagnostics));
     Check(usdpointcloud::BuildPointBudgetPlan(positions, config, plan, diagnostics));
     Check(plan.depth == 2 && plan.tileCount == 16 &&
-          plan.maximumPointsPerTile == 64);
+            plan.maximumPointsPerTile == 64 && plan.minimumPointsPerTile == 64 &&
+            plan.pointCount == 1024 && plan.splitCount == 5 &&
+            plan.averagePointsPerTile == 64.0);
     Check(diagnostics.empty());
 
     diagnostics.clear();
