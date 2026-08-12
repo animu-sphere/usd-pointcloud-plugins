@@ -35,6 +35,10 @@ void TestConfigValidation() {
 }
 
 void TestPointBudgetPlanning() {
+    const usdpointcloud::PointBudgetPlan legacyPlan{3, 100, 2};
+    Check(legacyPlan.tileCount == 3 && legacyPlan.maximumPointsPerTile == 100 &&
+          legacyPlan.depth == 2);
+
     usdpointcloud::PointBudgetConfig config{100, 10, 3};
     std::vector<usdgeo::Vec3d> positions;
     for (int y = 0; y < 32; ++y) {
@@ -47,7 +51,9 @@ void TestPointBudgetPlanning() {
     Check(usdpointcloud::ValidatePointBudgetConfig(config, diagnostics));
     Check(usdpointcloud::BuildPointBudgetPlan(positions, config, plan, diagnostics));
     Check(plan.depth == 2 && plan.tileCount == 16 &&
-          plan.maximumPointsPerTile == 64);
+            plan.maximumPointsPerTile == 64 && plan.minimumPointsPerTile == 64 &&
+            plan.pointCount == 1024 && plan.splitCount == 5 &&
+            plan.averagePointsPerTile == 64.0);
     Check(diagnostics.empty());
 
     diagnostics.clear();

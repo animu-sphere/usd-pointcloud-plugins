@@ -235,9 +235,9 @@ The ordered plan and acceptance priorities are in the
 
 #### `v0.7.0` - adaptive tiling
 
-- [ ] Define deterministic point-budget planning and limits
+- [x] Define deterministic point-budget planning and limits
 - [ ] Preserve fixed-grid `tileSize` and `tileMemoryLimit` behavior
-- [ ] Add tile statistics and planning diagnostics
+- [x] Add tile statistics and planning diagnostics
 - [ ] Compare LAS, LAZ, COPC, and PLY payload and memory behavior
 
 E57, delimited text, and other point-cloud formats follow these infrastructure
