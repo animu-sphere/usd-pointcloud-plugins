@@ -363,8 +363,10 @@ must include an explicit EPSG code:
     --chunk-points 65536 --tile-size 128 --memory-limit 1048576
 ```
 
-The checked-in benchmark test covers PLY. A COPC baseline remains dataset
-dependent because the repository does not ship a large COPC corpus; use the
+The checked-in benchmark tests cover LAS, LAZ, PLY, and a generated COPC
+fixture. The generated COPC case validates the shared authoring path with
+compressed point data; a larger real-world COPC baseline remains dataset
+dependent because the repository does not ship a large COPC corpus. Use the
 same command shape with a representative local source when collecting the
 cross-format comparison matrix.
 

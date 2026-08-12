@@ -282,7 +282,9 @@ std::vector<std::uint8_t> WriteEquivalentLaz(
 }
 
 std::filesystem::path WriteEquivalentCopc(
-    const std::vector<std::uint8_t>& compressedPoints) {
+    const std::vector<std::uint8_t>& compressedPoints,
+    const std::filesystem::path& outputPath =
+        std::filesystem::temp_directory_path() / "usd_copc_equivalent.copc") {
     constexpr std::size_t headerSize = 375;
     constexpr std::size_t infoVlrOffset = headerSize;
     constexpr std::size_t hierarchyVlrOffset = infoVlrOffset + 54 + 160;
@@ -316,7 +318,12 @@ std::filesystem::path WriteEquivalentCopc(
                         static_cast<std::int32_t>(compressedPoints.size()));
     std::copy(compressedPoints.begin(), compressedPoints.end(),
               bytes.begin() + pointDataOffset);
-    return WriteFixture(bytes, "usd_copc_equivalent.copc");
+    std::ofstream output(outputPath, std::ios::binary | std::ios::trunc);
+    Check(static_cast<bool>(output));
+    output.write(reinterpret_cast<const char*>(bytes.data()),
+                 static_cast<std::streamsize>(bytes.size()));
+    Check(static_cast<bool>(output));
+    return outputPath;
 }
 
 struct StreamResult {
@@ -716,7 +723,17 @@ void TestPointStreamChecksCancellation() {
 
 } // namespace
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc == 3 && std::string(argv[1]) == "--write-fixture") {
+        const auto outputPath = std::filesystem::path(argv[2]);
+        const auto lazPath = outputPath.string() + ".laz";
+        const auto compressedPoints = WriteEquivalentLaz(
+            MakeEquivalentRecords(), lazPath, 6, 4);
+        WriteEquivalentCopc(compressedPoints, outputPath);
+        std::error_code error;
+        std::filesystem::remove(lazPath, error);
+        return 0;
+    }
     TestMetadataAndHierarchy();
     TestReaderAcceptsRandomAccessSource();
     TestCompressedPointFormatMetadata();
