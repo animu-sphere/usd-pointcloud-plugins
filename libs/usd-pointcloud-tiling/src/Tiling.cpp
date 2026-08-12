@@ -1,7 +1,10 @@
 #include "usdpointcloud/Tiling.h"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
-#include <limits>
+#include <functional>
+#include <numeric>
 
 namespace usdpointcloud {
 namespace {
@@ -72,34 +75,104 @@ bool ValidatePointBudgetConfig(
 }
 
 bool BuildPointBudgetPlan(
-    std::size_t sourcePointCount,
+    const std::vector<usdgeo::Vec3d>& sourcePositions,
     const PointBudgetConfig& config,
     PointBudgetPlan& plan,
     std::vector<usdgeo::Diagnostic>& diagnostics) {
     plan = {};
     if (!ValidatePointBudgetConfig(config, diagnostics)) return false;
 
-    plan.sourcePointCount = sourcePointCount;
-    if (sourcePointCount == 0) return true;
-
-    std::size_t tileCount = 1;
-    for (std::int32_t depth = 0; depth <= config.maxDepth; ++depth) {
-        plan.depth = depth;
-        plan.tileCount = tileCount;
-        plan.maximumPointsPerTile = sourcePointCount / tileCount;
-        if (sourcePointCount % tileCount != 0) ++plan.maximumPointsPerTile;
-        if (plan.maximumPointsPerTile <= config.maxPointsPerTile ||
-            plan.maximumPointsPerTile <= config.minPointsPerTile) {
-            return true;
+    if (sourcePositions.empty()) return true;
+    for (const auto& position : sourcePositions) {
+        if (!std::isfinite(position.x) || !std::isfinite(position.y)) {
+            AddError(diagnostics, usdgeo::DiagnosticCode::NonFiniteCoordinate,
+                     "point-budget planning requires finite horizontal coordinates");
+            return false;
         }
-        if (tileCount > std::numeric_limits<std::size_t>::max() / 4) break;
-        tileCount *= 4;
     }
 
-    AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
-             "point budget cannot be satisfied within maximum tile depth");
-    plan = {};
-    return false;
+    struct Bounds {
+        double minX;
+        double maxX;
+        double minY;
+        double maxY;
+    };
+    const auto makeBounds = [&](const std::vector<std::size_t>& indices) {
+        Bounds bounds{sourcePositions[indices.front()].x,
+                      sourcePositions[indices.front()].x,
+                      sourcePositions[indices.front()].y,
+                      sourcePositions[indices.front()].y};
+        for (const auto index : indices) {
+            const auto& position = sourcePositions[index];
+            bounds.minX = std::min(bounds.minX, position.x);
+            bounds.maxX = std::max(bounds.maxX, position.x);
+            bounds.minY = std::min(bounds.minY, position.y);
+            bounds.maxY = std::max(bounds.maxY, position.y);
+        }
+        return bounds;
+    };
+
+    bool budgetSatisfied = true;
+    const std::function<void(const std::vector<std::size_t>&, std::int32_t)>
+        visit = [&](const std::vector<std::size_t>& indices,
+                    std::int32_t depth) {
+            plan.depth = std::max(plan.depth, depth);
+            const auto bounds = makeBounds(indices);
+            const bool canSplit = indices.size() > config.maxPointsPerTile &&
+                                  depth < config.maxDepth &&
+                                  bounds.minX != bounds.maxX &&
+                                  bounds.minY != bounds.maxY;
+            if (!canSplit) {
+                ++plan.tileCount;
+                plan.maximumPointsPerTile =
+                    std::max(plan.maximumPointsPerTile, indices.size());
+                if (indices.size() > config.maxPointsPerTile) {
+                    budgetSatisfied = false;
+                }
+                return;
+            }
+
+            const double splitX = bounds.minX +
+                                  (bounds.maxX - bounds.minX) * 0.5;
+            const double splitY = bounds.minY +
+                                  (bounds.maxY - bounds.minY) * 0.5;
+            std::array<std::vector<std::size_t>, 4> children;
+            for (const auto index : indices) {
+                const auto& position = sourcePositions[index];
+                const std::size_t child = (position.x >= splitX ? 1 : 0) +
+                                          (position.y >= splitY ? 2 : 0);
+                children[child].push_back(index);
+            }
+            std::size_t nonEmptyChildren = 0;
+            bool childrenMeetMinimum = true;
+            for (const auto& child : children) {
+                if (!child.empty()) {
+                    ++nonEmptyChildren;
+                    childrenMeetMinimum =
+                        childrenMeetMinimum &&
+                        child.size() >= config.minPointsPerTile;
+                }
+            }
+            if (nonEmptyChildren < 2 || !childrenMeetMinimum) {
+                ++plan.tileCount;
+                plan.maximumPointsPerTile =
+                    std::max(plan.maximumPointsPerTile, indices.size());
+                budgetSatisfied = false;
+                return;
+            }
+            for (const auto& child : children) {
+                if (!child.empty()) visit(child, depth + 1);
+            }
+        };
+
+    std::vector<std::size_t> indices(sourcePositions.size());
+    std::iota(indices.begin(), indices.end(), 0);
+    visit(indices, 0);
+    if (!budgetSatisfied) {
+        AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                 "point budget cannot be satisfied for the source distribution");
+    }
+    return budgetSatisfied;
 }
 
 FixedGridTileRouter::FixedGridTileRouter(TileGridConfig config) noexcept

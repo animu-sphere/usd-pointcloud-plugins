@@ -30,7 +30,6 @@ struct PointBudgetConfig {
 };
 
 struct PointBudgetPlan {
-    std::size_t sourcePointCount = 0;
     std::size_t tileCount = 0;
     std::size_t maximumPointsPerTile = 0;
     std::int32_t depth = 0;
@@ -41,7 +40,7 @@ bool ValidatePointBudgetConfig(
     std::vector<usdgeo::Diagnostic>& diagnostics);
 
 bool BuildPointBudgetPlan(
-    std::size_t sourcePointCount,
+    const std::vector<usdgeo::Vec3d>& sourcePositions,
     const PointBudgetConfig& config,
     PointBudgetPlan& plan,
     std::vector<usdgeo::Diagnostic>& diagnostics);
