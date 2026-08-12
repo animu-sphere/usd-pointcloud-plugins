@@ -48,6 +48,60 @@ bool ValidateTileGridConfig(const TileGridConfig& config,
     return config.IsValid();
 }
 
+bool PointBudgetConfig::IsValid() const noexcept {
+    return maxPointsPerTile > 0 && minPointsPerTile <= maxPointsPerTile &&
+           maxDepth >= 0;
+}
+
+bool ValidatePointBudgetConfig(
+    const PointBudgetConfig& config,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    if (config.maxPointsPerTile == 0) {
+        AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                 "maximum points per tile must be greater than zero");
+    }
+    if (config.minPointsPerTile > config.maxPointsPerTile) {
+        AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                 "minimum points per tile must not exceed the maximum");
+    }
+    if (config.maxDepth < 0) {
+        AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTileId,
+                 "maximum tile depth must not be negative");
+    }
+    return config.IsValid();
+}
+
+bool BuildPointBudgetPlan(
+    std::size_t sourcePointCount,
+    const PointBudgetConfig& config,
+    PointBudgetPlan& plan,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    plan = {};
+    if (!ValidatePointBudgetConfig(config, diagnostics)) return false;
+
+    plan.sourcePointCount = sourcePointCount;
+    if (sourcePointCount == 0) return true;
+
+    std::size_t tileCount = 1;
+    for (std::int32_t depth = 0; depth <= config.maxDepth; ++depth) {
+        plan.depth = depth;
+        plan.tileCount = tileCount;
+        plan.maximumPointsPerTile = sourcePointCount / tileCount;
+        if (sourcePointCount % tileCount != 0) ++plan.maximumPointsPerTile;
+        if (plan.maximumPointsPerTile <= config.maxPointsPerTile ||
+            plan.maximumPointsPerTile <= config.minPointsPerTile) {
+            return true;
+        }
+        if (tileCount > std::numeric_limits<std::size_t>::max() / 4) break;
+        tileCount *= 4;
+    }
+
+    AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+             "point budget cannot be satisfied within maximum tile depth");
+    plan = {};
+    return false;
+}
+
 FixedGridTileRouter::FixedGridTileRouter(TileGridConfig config) noexcept
     : config_(config) {}
 

@@ -33,6 +33,27 @@ void TestConfigValidation() {
     Check(diagnostics.size() == 1);
 }
 
+void TestPointBudgetPlanning() {
+    usdpointcloud::PointBudgetConfig config{100, 10, 3};
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    usdpointcloud::PointBudgetPlan plan;
+    Check(usdpointcloud::ValidatePointBudgetConfig(config, diagnostics));
+    Check(usdpointcloud::BuildPointBudgetPlan(1000, config, plan, diagnostics));
+    Check(plan.depth == 2 && plan.tileCount == 16 &&
+          plan.maximumPointsPerTile == 63);
+    Check(diagnostics.empty());
+
+    diagnostics.clear();
+    config.maxDepth = 1;
+    Check(!usdpointcloud::BuildPointBudgetPlan(1000, config, plan, diagnostics));
+    Check(!diagnostics.empty());
+
+    diagnostics.clear();
+    config = {100, 101, 3};
+    Check(!usdpointcloud::ValidatePointBudgetConfig(config, diagnostics));
+    Check(!diagnostics.empty());
+}
+
 void TestFixedGridRouting() {
     const usdpointcloud::FixedGridTileRouter router({10.0, 0});
     Check(router.IsValid());
@@ -126,6 +147,7 @@ void TestIncompleteSpool() {
 
 int main() {
     TestConfigValidation();
+    TestPointBudgetPlanning();
     TestFixedGridRouting();
     TestInvalidRouting();
     TestSpoolRoundTrip();

@@ -5,6 +5,7 @@
 #include "usdgeo/SpatialBounds.h"
 #include "usdpointcloud/Lod.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -19,6 +20,31 @@ struct TileGridConfig {
 
 bool ValidateTileGridConfig(const TileGridConfig& config,
                             std::vector<usdgeo::Diagnostic>& diagnostics);
+
+struct PointBudgetConfig {
+    std::size_t maxPointsPerTile = 0;
+    std::size_t minPointsPerTile = 0;
+    std::int32_t maxDepth = 0;
+
+    bool IsValid() const noexcept;
+};
+
+struct PointBudgetPlan {
+    std::size_t sourcePointCount = 0;
+    std::size_t tileCount = 0;
+    std::size_t maximumPointsPerTile = 0;
+    std::int32_t depth = 0;
+};
+
+bool ValidatePointBudgetConfig(
+    const PointBudgetConfig& config,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
+
+bool BuildPointBudgetPlan(
+    std::size_t sourcePointCount,
+    const PointBudgetConfig& config,
+    PointBudgetPlan& plan,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
 
 class TileRouter {
 public:
