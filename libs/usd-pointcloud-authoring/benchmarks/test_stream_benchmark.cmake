@@ -4,9 +4,26 @@ endif()
 
 file(REMOVE_RECURSE "${test_root}")
 
+if(DEFINED fixture_generator AND NOT fixture_generator STREQUAL "")
+    execute_process(
+        COMMAND "${fixture_generator}" "--write-fixture" "${fixture}"
+        RESULT_VARIABLE fixture_result
+        ERROR_VARIABLE fixture_error)
+    if(NOT fixture_result EQUAL 0)
+        message(FATAL_ERROR
+            "fixture generation failed with ${fixture_result}: ${fixture_error}")
+    endif()
+endif()
+
+set(epsg_arguments)
+if(DEFINED epsg AND NOT epsg STREQUAL "")
+    list(APPEND epsg_arguments "--epsg" "${epsg}")
+endif()
+
 execute_process(
     COMMAND "${benchmark}" "--input" "${fixture}"
             "--chunk-points" "2" "--tile-size" "1" "--memory-limit" "1024"
+            ${epsg_arguments}
     RESULT_VARIABLE benchmark_result
     OUTPUT_VARIABLE benchmark_output
     ERROR_VARIABLE benchmark_error)

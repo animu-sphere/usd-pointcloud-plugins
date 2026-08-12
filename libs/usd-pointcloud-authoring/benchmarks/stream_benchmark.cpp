@@ -1,6 +1,8 @@
 #include "usdgeo/PointCloudLayer.h"
+#include "usdcopc/Copc.h"
 #include "usdlas/Las.h"
 #include "usdlaz/Laz.h"
+#include "usdply/Ply.h"
 
 #include <pxr/usd/sdf/layer.h>
 
@@ -36,6 +38,8 @@ namespace {
 struct BenchmarkOptions {
     std::string inputPath;
     std::string inputFormat;
+    int epsgCode = 0;
+    bool epsgSpecified = false;
     std::size_t pointCount = 1'000'000;
     std::size_t chunkPointCount = 65'536;
     double tileSize = 128.0;
@@ -67,12 +71,26 @@ bool ParseDouble(const std::string& text, double& value) {
     }
 }
 
+bool ParseEpsg(const std::string& text, int& value) {
+    try {
+        const auto parsed = std::stoll(text);
+        if (parsed <= 0 || parsed > std::numeric_limits<int>::max()) {
+            return false;
+        }
+        value = static_cast<int>(parsed);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
 bool ParseOptions(int argc, char** argv, BenchmarkOptions& options) {
     for (int index = 1; index < argc; ++index) {
         if (std::string(argv[index]) == "--help") {
             std::cout
                 << "Usage: usdPointCloudAuthoring_stream_benchmark"
-                   " [--input PATH] [--format las|laz] [--points N]"
+                   " [--input PATH] [--format las|laz|copc|ply] [--epsg CODE]"
+                   " [--points N]"
                    " [--chunk-points N] [--tile-size N]"
                    " [--memory-limit BYTES]\n";
             return false;
@@ -84,6 +102,9 @@ bool ParseOptions(int argc, char** argv, BenchmarkOptions& options) {
             options.inputPath = value;
         } else if (argument == "--format") {
             options.inputFormat = value;
+        } else if (argument == "--epsg") {
+            if (!ParseEpsg(value, options.epsgCode)) return false;
+            options.epsgSpecified = true;
         } else if (argument == "--points") {
             if (!ParseSize(value, options.pointCount)) return false;
         } else if (argument == "--chunk-points") {
@@ -356,25 +377,55 @@ int main(int argc, char** argv) {
         usdpointcloud::PointReadOptions readOptions;
         readOptions.chunkPointLimit = options.chunkPointCount;
         readOptions.memoryBudgetBytes = options.memoryLimitBytes;
-        usdlas::LasHeader header;
         std::vector<usdgeo::Diagnostic> openDiagnostics;
-        if (format == "las") {
-            stream = usdlas::OpenLasPointStream(
-                options.inputPath, readOptions, header, openDiagnostics);
-        } else if (format == "laz") {
-            stream = usdlaz::OpenLazPointStream(
-                options.inputPath, readOptions, header, openDiagnostics);
-        } else {
-            std::cerr << "unsupported input format: " << format << '\n';
-        }
         usdpointcloud::PointChunk metadataChunk;
         usdgeo::SpatialBounds metadataBounds;
         std::string metadataError;
-        const auto metadataValid =
-            usdlas::BuildPointCloudMetadata(
-                header, metadataChunk, reference, metadataBounds,
-                metadataError);
-        if (!stream || !metadataValid) {
+        bool metadataValid = true;
+        std::uint64_t sourcePointCount = 0;
+        if (format == "las") {
+            usdlas::LasHeader header;
+            stream = usdlas::OpenLasPointStream(
+                options.inputPath, readOptions, header, openDiagnostics);
+            sourcePointCount = header.pointCount;
+            metadataValid = usdlas::BuildPointCloudMetadata(
+                header, metadataChunk, reference, metadataBounds, metadataError);
+        } else if (format == "laz") {
+            usdlas::LasHeader header;
+            stream = usdlaz::OpenLazPointStream(
+                options.inputPath, readOptions, header, openDiagnostics);
+            sourcePointCount = header.pointCount;
+            metadataValid = usdlas::BuildPointCloudMetadata(
+                header, metadataChunk, reference, metadataBounds, metadataError);
+        } else if (format == "copc") {
+            usdcopc::CopcHeader header;
+            stream = usdcopc::OpenCopcPointStream(
+                options.inputPath, readOptions, header, openDiagnostics);
+            sourcePointCount = header.las.pointCount;
+            metadataValid = usdlas::BuildPointCloudMetadata(
+                header.las, metadataChunk, reference, metadataBounds, metadataError);
+        } else if (format == "ply") {
+            if (!options.epsgSpecified) {
+                std::cerr << "--epsg is required for PLY input\n";
+                sampling.store(false, std::memory_order_relaxed);
+                sampler.join();
+                std::filesystem::remove_all(outputDirectory, error);
+                return 2;
+            }
+            usdply::PlyHeader header;
+            stream = usdply::OpenPointStream(
+                options.inputPath, readOptions, header, openDiagnostics);
+            reference.epsgCode = options.epsgCode;
+            for (const auto& element : header.elements) {
+                if (element.name == "vertex") {
+                    sourcePointCount = element.count;
+                    break;
+                }
+            }
+        } else {
+            std::cerr << "unsupported input format: " << format << '\n';
+        }
+        if (!stream || !metadataValid || sourcePointCount == 0) {
             for (const auto& diagnostic : openDiagnostics) {
                 std::cerr << diagnostic.message << '\n';
             }
@@ -384,7 +435,7 @@ int main(int argc, char** argv) {
             std::filesystem::remove_all(outputDirectory, error);
             return 1;
         }
-        pointCount = header.pointCount;
+        pointCount = sourcePointCount;
     }
     std::vector<usdgeo::Diagnostic> diagnostics;
     const auto authored = usdgeo::AuthorPointCloudTiledAssetFromStream(
@@ -414,7 +465,11 @@ int main(int argc, char** argv) {
     const auto outputBytes = DirectoryBytesRecursive(outputDirectory);
     const auto payloadBytes = PayloadBytes(outputDirectory);
     const auto writeBytesAfter = ProcessWriteBytes();
-    std::cout << "input=" << (options.inputPath.empty() ? "generated" : options.inputPath)
+    std::cout << "format=" << (options.inputPath.empty()
+                                   ? "generated"
+                                   : InputFormat(options))
+              << " input="
+              << (options.inputPath.empty() ? "generated" : options.inputPath)
               << " points=" << pointCount
               << " chunk_points=" << options.chunkPointCount
               << " tile_size=" << options.tileSize
