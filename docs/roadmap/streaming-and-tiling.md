@@ -348,6 +348,26 @@ on that derived file processed 14,574,030 points in 35.5156 seconds, produced
 root output, and process write bytes were respectively 1,078,481,220,
 441,114,026, 441,117,880, and 1,519,604,759.
 
+The same benchmark executable accepts `las`, `laz`, `copc`, and `ply` input and
+reports a machine-readable `format=` field alongside the shared tile, memory,
+spool, and payload metrics. PLY has no embedded CRS contract, so its command
+must include an explicit EPSG code:
+
+```powershell
+& '.\\build\\cy2026-windows-x86_64-py313-usd\\libs\\usd-pointcloud-authoring\\benchmarks\\usdPointCloudAuthoring_stream_benchmark.exe' `
+    --input '.\\plugins\\pointcloud-ply\\tests\\fixtures\\conformance.ply' `
+    --format ply --epsg 26910 --chunk-points 2 --tile-size 1 --memory-limit 1024
+
+& '.\\build\\cy2026-windows-x86_64-py313-usd\\libs\\usd-pointcloud-authoring\\benchmarks\\usdPointCloudAuthoring_stream_benchmark.exe' `
+    --input 'C:\\path\\to\\source.copc' --format copc `
+    --chunk-points 65536 --tile-size 128 --memory-limit 1048576
+```
+
+The checked-in benchmark test covers PLY. A COPC baseline remains dataset
+dependent because the repository does not ship a large COPC corpus; use the
+same command shape with a representative local source when collecting the
+cross-format comparison matrix.
+
 #### Payload working-set measurement through OST plugin view
 
 The pinned OpenUSD runtime exposes `Storm` as its Hydra renderer. The available
