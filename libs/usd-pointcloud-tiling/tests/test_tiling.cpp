@@ -35,6 +35,10 @@ void TestConfigValidation() {
 }
 
 void TestPointBudgetPlanning() {
+    const usdpointcloud::PointBudgetPlan legacyPlan{3, 100, 2};
+    Check(legacyPlan.tileCount == 3 && legacyPlan.maximumPointsPerTile == 100 &&
+          legacyPlan.depth == 2);
+
     usdpointcloud::PointBudgetConfig config{100, 10, 3};
     std::vector<usdgeo::Vec3d> positions;
     for (int y = 0; y < 32; ++y) {

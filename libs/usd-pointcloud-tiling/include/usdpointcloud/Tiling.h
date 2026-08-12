@@ -30,13 +30,13 @@ struct PointBudgetConfig {
 };
 
 struct PointBudgetPlan {
-    std::size_t pointCount = 0;
     std::size_t tileCount = 0;
-    std::size_t minimumPointsPerTile = 0;
     std::size_t maximumPointsPerTile = 0;
+    std::int32_t depth = 0;
+    std::size_t pointCount = 0;
+    std::size_t minimumPointsPerTile = 0;
     double averagePointsPerTile = 0.0;
     std::size_t splitCount = 0;
-    std::int32_t depth = 0;
 };
 
 bool ValidatePointBudgetConfig(
