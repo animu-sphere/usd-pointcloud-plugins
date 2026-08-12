@@ -5,6 +5,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <numeric>
 #include <limits>
 #include <vector>
 
@@ -31,6 +32,38 @@ void TestConfigValidation() {
     config = {10.0, -1};
     Check(!usdpointcloud::ValidateTileGridConfig(config, diagnostics));
     Check(diagnostics.size() == 1);
+}
+
+void TestPointBudgetPlanning() {
+    usdpointcloud::PointBudgetConfig config{100, 10, 3};
+    std::vector<usdgeo::Vec3d> positions;
+    for (int y = 0; y < 32; ++y) {
+        for (int x = 0; x < 32; ++x) {
+            positions.push_back({static_cast<double>(x), static_cast<double>(y), 0.0});
+        }
+    }
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    usdpointcloud::PointBudgetPlan plan;
+    Check(usdpointcloud::ValidatePointBudgetConfig(config, diagnostics));
+    Check(usdpointcloud::BuildPointBudgetPlan(positions, config, plan, diagnostics));
+    Check(plan.depth == 2 && plan.tileCount == 16 &&
+          plan.maximumPointsPerTile == 64);
+    Check(diagnostics.empty());
+
+    diagnostics.clear();
+    config.maxDepth = 1;
+    Check(!usdpointcloud::BuildPointBudgetPlan(positions, config, plan, diagnostics));
+    Check(!diagnostics.empty());
+
+    diagnostics.clear();
+    config = {100, 101, 3};
+    Check(!usdpointcloud::ValidatePointBudgetConfig(config, diagnostics));
+    Check(!diagnostics.empty());
+
+    diagnostics.clear();
+    config = {100, 70, 3};
+    Check(!usdpointcloud::BuildPointBudgetPlan(positions, config, plan, diagnostics));
+    Check(!diagnostics.empty());
 }
 
 void TestFixedGridRouting() {
@@ -126,6 +159,7 @@ void TestIncompleteSpool() {
 
 int main() {
     TestConfigValidation();
+    TestPointBudgetPlanning();
     TestFixedGridRouting();
     TestInvalidRouting();
     TestSpoolRoundTrip();
