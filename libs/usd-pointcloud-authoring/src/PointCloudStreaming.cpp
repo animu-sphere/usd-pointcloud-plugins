@@ -381,6 +381,9 @@ bool AuthorPointCloudTiledAssetFromStream(
             } else {
                 bufferedBytes -= bufferedBefore - bufferedAfter;
             }
+            if (options.onBufferedBytes) {
+                options.onBufferedBytes(bufferedBytes);
+            }
             if (bufferedBytes >= options.tileMemoryLimitBytes &&
                 !flushSpools()) {
                 cleanup();

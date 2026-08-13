@@ -10,6 +10,7 @@
 #include <pxr/usd/usdLod/screenSizeHeuristic.h>
 #include <pxr/usd/usd/payloads.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <cstdio>
@@ -786,11 +787,17 @@ void TestFixedGridTilingPreservesBoundariesAndMemoryLimit() {
         std::filesystem::temp_directory_path() / "usd_geo_fixed_grid_payloads";
     const auto rootLayerPath = payloadDirectory / "PointCloud.usda";
     std::filesystem::remove_all(payloadDirectory);
+    std::size_t peakBufferedBytes = 0;
     std::vector<usdgeo::Diagnostic> diagnostics;
     Check(usdgeo::AuthorPointCloudTiledAssetFromStream(
         layer.operator->(), "/PointCloud", stream, reference, {1.0, 0},
-        {payloadDirectory.string(), rootLayerPath.string(), 1}, diagnostics));
+        {payloadDirectory.string(), rootLayerPath.string(), 1, {},
+         [&peakBufferedBytes](std::size_t bufferedBytes) {
+             peakBufferedBytes = std::max(peakBufferedBytes, bufferedBytes);
+         }},
+        diagnostics));
     Check(diagnostics.empty());
+    Check(peakBufferedBytes <= 1);
 
     const std::array<std::string, 4> tileNames = {
         "Tile_L0_p0_p0_p0", "Tile_L0_p1_p0_p0", "Tile_L0_p0_p1_p0",
