@@ -523,6 +523,35 @@ for provenance-preserving archival. Repeat the command with the corresponding
 harness does not claim that a fixture or a single real source closes the
 broader uneven-density baseline gate.
 
+For a four-format run, `tools/compare_real_world_matrix.ps1` accepts the
+checked-in `tools/real-world-tiling.example.json` manifest. Paths in that
+manifest are build-local and the source files must first be prepared from the
+provenance records above and the Stanford Bunny provenance record. Use:
+
+```powershell
+& '.\\tools\\compare_real_world_matrix.ps1' `
+    -Benchmark '.\\build\\cy2026-windows-x86_64-py313-usd\\libs\\usd-pointcloud-authoring\\benchmarks\\usdPointCloudAuthoring_stream_benchmark.exe' `
+    -Manifest '.\\tools\\real-world-tiling.example.json' `
+    -Report '.\\build\\real-data-source\\real-world-tiling-matrix.tsv'
+```
+
+The runner writes one report per manifest entry and aggregate TSV/JSON output.
+With `-ContinueOnError`, an input failure is preserved in the JSON `failures`
+array instead of being mistaken for a successful comparison.
+
+The first local matrix run on 2026-08-14 completed for the 14,574,030-point
+Shizuoka LAS and its 118,588,494-byte derived LAZ, and for the 35,947-vertex
+Stanford Bunny PLY. The public 10,653,336-point Autzen COPC source was
+metadata-readable but the vendored laz-perf point-format-7 decoder terminated
+with a Windows access violation on the first point-data chunk. It is therefore
+recorded as a reproducible reader blocker, not as a successful COPC baseline;
+the broader four-format gate remains open until a native real COPC run passes.
+The Autzen file is obtained from the public `PDAL/data` distribution, whose
+repository license is CC BY 4.0; preserve the source URL, the PDAL repository
+license, and the upstream attribution recorded in the example manifest before
+redistributing the data or derived assets. This repository does not check in
+the file or include it in plugin bundles.
+
 #### Payload working-set measurement through OST plugin view
 
 The pinned OpenUSD runtime exposes `Storm` as its Hydra renderer. The available
