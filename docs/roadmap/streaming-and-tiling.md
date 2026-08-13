@@ -14,8 +14,9 @@ deterministic `<root>.manifest` sidecar containing normalized generation
 arguments and the relative payload asset list.
 Generated-corpus RSS measurement and explicit benchmark paths are implemented.
 Real-input and payload working-set baselines are recorded below; a broader
-real-world matrix remains open. Adaptive point-budget planning is a later
-milestone in the
+real-world matrix remains open. Adaptive point-budget planning, tile
+statistics, and fixed-grid compatibility coverage are implemented; the
+cross-format payload and memory comparison remains open in the
 [infrastructure maturity roadmap](infrastructure-maturity.md). What `main`
 implements today is in
 [implementation status](implementation-status.md) and

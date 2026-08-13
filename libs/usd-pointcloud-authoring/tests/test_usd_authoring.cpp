@@ -10,6 +10,7 @@
 #include <pxr/usd/usdLod/screenSizeHeuristic.h>
 #include <pxr/usd/usd/payloads.h>
 
+#include <array>
 #include <cstdlib>
 #include <cstdio>
 #include <filesystem>
@@ -765,6 +766,44 @@ void TestStreamTiledPayloadAuthoring() {
     std::filesystem::remove_all(payloadDirectory);
 }
 
+void TestFixedGridTilingPreservesBoundariesAndMemoryLimit() {
+    const auto layer = pxr::SdfLayer::CreateAnonymous("fixed_grid_stream.usda");
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    usdpointcloud::PointData data;
+    data.positions = {{0.25, 0.25, 0.0},
+                      {1.0, 0.25, 0.0},
+                      {0.25, 1.0, 0.0},
+                      {-0.25, -0.25, 0.0}};
+    data.intensity = {10, 20, 30, 40};
+    usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+    for (const auto& position : data.positions) bounds.Expand(position);
+    TestPointStream stream({{
+        usdpointcloud::MakePointChunk(data, bounds), data}});
+
+    const auto payloadDirectory =
+        std::filesystem::temp_directory_path() / "usd_geo_fixed_grid_payloads";
+    const auto rootLayerPath = payloadDirectory / "PointCloud.usda";
+    std::filesystem::remove_all(payloadDirectory);
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(usdgeo::AuthorPointCloudTiledAssetFromStream(
+        layer.operator->(), "/PointCloud", stream, reference, {1.0, 0},
+        {payloadDirectory.string(), rootLayerPath.string(), 1}, diagnostics));
+    Check(diagnostics.empty());
+
+    const std::array<std::string, 4> tileNames = {
+        "Tile_L0_p0_p0_p0", "Tile_L0_p1_p0_p0", "Tile_L0_p0_p1_p0",
+        "Tile_L0_n1_n1_p0"};
+    for (const auto& tileName : tileNames) {
+        Check(layer->GetPrimAtPath(pxr::SdfPath(
+                  "/PointCloud/Tiles/" + tileName)) != nullptr);
+        Check(std::filesystem::exists(
+            payloadDirectory / (tileName + "_LOD0.usdc")));
+    }
+    std::filesystem::remove_all(payloadDirectory);
+}
+
 void TestGeneratedStreamTiledPayloadAuthoring() {
     const auto layer = pxr::SdfLayer::CreateAnonymous("generated_stream.usda");
     usdgeo::GeoReference reference;
@@ -953,6 +992,7 @@ int main() {
     TestTiledLodAuthoringSupportsMismatchedThresholds();
     TestTiledLodPayloadAuthoring();
     TestStreamTiledPayloadAuthoring();
+    TestFixedGridTilingPreservesBoundariesAndMemoryLimit();
     TestGeneratedStreamTiledPayloadAuthoring();
     TestStreamCancellationCleansSpools();
     TestStreamCancellationDuringSpoolReadCleansSpools();
