@@ -41,7 +41,7 @@ performance indicators are in the
 | `v0.6.0` | Cache and source identity | Deterministic local and conservative remote generated-output reuse; released |
 | `v0.7.0` | Adaptive tiling | Point-budget-aware payload density and memory use; released |
 | `v0.8.0` | Measurement and I/O observability | Real-world fixed-grid and adaptive baselines, and visible I/O amplification; released 2026-08-14 |
-| `v0.9.0` | TilePlan convergence | Sequential planning and COPC native hierarchy reach authoring through one representation |
+| `v0.9.0` | TilePlan convergence and interactive validation | Sequential planning and COPC native hierarchy reach authoring through one representation, with a host-responsiveness baseline |
 | `v0.10.0` | Resolver-backed source identity | Generated-cache reuse for resolver-provided sources where identity is sufficient |
 | Research | Runtime streaming | Host-driven partial loading investigated without complicating the conversion pipeline |
 | Later | Format expansion | E57 and other point-cloud adapters after infrastructure maturity |
@@ -171,8 +171,8 @@ interrupted generated-cache entries.
 | 6 | Resolver-backed COPC random access | Released in `v0.5.0` | The plugin adapts resolver-opened `ArAsset` values to the project-owned source interface; remote cache reuse is conservative |
 | 7 | Source identity and cache hardening | Released in `v0.6.0` | Keep generated-output cache identity format- and transport-independent |
 | 8 | Point-budget-aware adaptive tiling | Released in `v0.7.0` | Deterministic planning, tile statistics, fixed-grid compatibility, and a fixture-based cross-format baseline are implemented; broader real-world baselines remain |
-| 9 | Real-world measurement and I/O observability | Released in `v0.8.0` | Compare fixed-grid and adaptive on uneven real data, and make source, spool, and payload I/O visible |
-| 10 | TilePlan convergence and COPC fast path | Planned for `v0.9.0` | One plan representation for sequential planning and COPC native hierarchy, contract before implementation |
+| 9 | Real-world measurement and I/O observability | Released in `v0.8.0`; host responsiveness carried to `v0.9.0` | Compare fixed-grid and adaptive on uneven real data, and make source, spool, and payload I/O visible |
+| 10 | TilePlan convergence and interactive validation | Planned for `v0.9.0` | One plan representation for sequential planning and COPC native hierarchy, plus a reproducible host-responsiveness baseline |
 | 11 | Resolver-backed source identity | Planned for `v0.10.0` | Enable generated-cache reuse where a resolver supplies sufficient identity, keeping transport out of the repository |
 | 12 | E57 and other point-cloud formats | Deferred | Reuse `PointStream`, processing, authoring, and cache contracts |
 
@@ -196,8 +196,8 @@ maps onto the phases above.
 | W7 | Random-access source and resolver-backed COPC | 6 | Released in `v0.5.0` |
 | W8 | Source identity and generated-cache hardening | 7 | Released in `v0.6.0` |
 | W9 | Point-budget-aware adaptive tiling | 8 | Released in `v0.7.0` |
-| W10 | Real-world tiling baselines and I/O instrumentation | 9 | Released in `v0.8.0` |
-| W11 | `TilePlan` contract, adaptive migration, and COPC native fast path | 10 | Planned for `v0.9.0` |
+| W10 | Real-world tiling baselines and I/O instrumentation | 9 | Released in `v0.8.0`; host responsiveness carried to `v0.9.0` |
+| W11 | `TilePlan` contract, adaptive migration, COPC native fast path, and interactive validation | 10 | Planned for `v0.9.0` |
 | W12 | Resolver source identity, range-cache ownership, and remote baselines | 11 | Planned for `v0.10.0` |
 | W13 | Runtime streaming research | Parallel | Ongoing, no release gate |
 
