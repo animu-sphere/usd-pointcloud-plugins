@@ -397,6 +397,18 @@ bool BuildTilePlan(
         }
     }
 
+    for (auto& entry : children) {
+        std::sort(entry.second.begin(), entry.second.end(),
+                  [](const auto& left, const auto& right) {
+                      if (left.level != right.level) {
+                          return left.level < right.level;
+                      }
+                      if (left.x != right.x) return left.x < right.x;
+                      if (left.y != right.y) return left.y < right.y;
+                      return left.z < right.z;
+                  });
+    }
+
     plan.plannerId = kCopcNativeHierarchyPlannerId;
     plan.plannerVersion = kCopcNativeHierarchyPlannerVersion;
     plan.nodes.reserve(order.size());

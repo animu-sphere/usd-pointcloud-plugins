@@ -39,12 +39,12 @@ if(NOT TARGET usdlaz::core)
         "${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-laz"
         "${CMAKE_CURRENT_BINARY_DIR}/usd-laz")
 endif()
+if(NOT TARGET usdpointcloud::tiling)
+    add_subdirectory(
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-pointcloud-tiling"
+        "${CMAKE_CURRENT_BINARY_DIR}/usd-pointcloud-tiling")
+endif()
 if(NOT TARGET usdcopc::core)
-    if(NOT TARGET usdpointcloud::tiling)
-        add_subdirectory(
-            "${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-pointcloud-tiling"
-            "${CMAKE_CURRENT_BINARY_DIR}/usd-pointcloud-tiling")
-    endif()
     add_subdirectory(
         "${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-copc"
         "${CMAKE_CURRENT_BINARY_DIR}/usd-copc")

@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <limits>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -125,12 +126,66 @@ bool BuildTiledAssets(
         return false;
     }
 
-    std::vector<usdcopc::CopcPointTile> pointTiles;
-    if (!reader.BuildPointTiles(hierarchy, pointTiles, diagnostics)) {
+    usdpointcloud::TilePlan tilePlan;
+    if (!usdcopc::BuildTilePlan(hierarchy, tilePlan, diagnostics)) {
         return false;
     }
-    assets.reserve(pointTiles.size());
-    for (const auto& pointTile : pointTiles) {
+
+    std::map<std::string, const usdcopc::CopcNode*> hierarchyNodes;
+    for (const auto& node : hierarchy.nodes) {
+        hierarchyNodes.emplace(node.tile.ToString(), &node);
+    }
+    std::map<std::string, const usdpointcloud::TilePlanNode*> planNodes;
+    std::vector<const usdpointcloud::TilePlanNode*> pointDataNodes;
+    for (const auto& node : tilePlan.nodes) {
+        planNodes.emplace(node.id.ToString(), &node);
+        if (!node.sourceRanges.empty()) {
+            if (node.sourceRanges.size() != 1) {
+                diagnostics.push_back(
+                    {usdgeo::DiagnosticCode::InvalidPointTile,
+                     usdgeo::Severity::Error,
+                     "COPC tile plan contains multiple source ranges for a point-data node",
+                     std::nullopt, std::nullopt});
+                return false;
+            }
+            pointDataNodes.push_back(&node);
+        }
+    }
+
+    std::map<std::string, std::vector<usdgeo::TileId>> authoredChildren;
+    for (const auto* node : pointDataNodes) {
+        auto parent = node->parent;
+        while (parent.level >= 0) {
+            const auto parentNode = planNodes.find(parent.ToString());
+            if (parentNode == planNodes.end()) {
+                diagnostics.push_back(
+                    {usdgeo::DiagnosticCode::InvalidPointTile,
+                     usdgeo::Severity::Error,
+                     "COPC tile plan contains a missing point-data ancestor",
+                     std::nullopt, std::nullopt});
+                return false;
+            }
+            if (!parentNode->second->sourceRanges.empty()) {
+                authoredChildren[parent.ToString()].push_back(node->id);
+                break;
+            }
+            parent = parentNode->second->parent;
+        }
+    }
+    for (auto& entry : authoredChildren) {
+        std::sort(entry.second.begin(), entry.second.end(),
+                  [](const auto& left, const auto& right) {
+                      if (left.level != right.level) {
+                          return left.level < right.level;
+                      }
+                      if (left.x != right.x) return left.x < right.x;
+                      if (left.y != right.y) return left.y < right.y;
+                      return left.z < right.z;
+                  });
+    }
+
+    assets.reserve(pointDataNodes.size());
+    for (const auto* planNode : pointDataNodes) {
         if (request.readOptions.isCancelled &&
             request.readOptions.isCancelled()) {
             diagnostics.push_back(
@@ -140,10 +195,22 @@ bool BuildTiledAssets(
                  std::nullopt});
             return false;
         }
-        const auto nativePointCount =
-            pointTile.tile.lod.items.front().pointCount;
+        const auto hierarchyNode = hierarchyNodes.find(planNode->id.ToString());
+        if (hierarchyNode == hierarchyNodes.end() ||
+            !hierarchyNode->second->hasPointData) {
+            diagnostics.push_back(
+                {usdgeo::DiagnosticCode::InvalidPointTile,
+                 usdgeo::Severity::Error,
+                 "COPC tile plan references a missing point-data node",
+                 std::nullopt, std::nullopt});
+            return false;
+        }
+        const auto nativePointCount = hierarchyNode->second->pointCount;
+        const auto sourceRange = planNode->sourceRanges.front();
         if (nativePointCount > budgetPointLimit ||
             nativePointCount >
+                static_cast<std::uint64_t>((std::numeric_limits<std::int32_t>::max)()) ||
+            sourceRange.length >
                 static_cast<std::uint64_t>((std::numeric_limits<std::int32_t>::max)())) {
             diagnostics.push_back(
                 {usdgeo::DiagnosticCode::InvalidFormatArgument,
@@ -153,15 +220,15 @@ bool BuildTiledAssets(
             return false;
         }
 
-        const auto tileId = pointTile.tile.id;
+        const auto tileId = planNode->id;
         const usdcopc::CopcHierarchyEntry entry{
             tileId.level,
             static_cast<std::int32_t>(tileId.x),
             static_cast<std::int32_t>(tileId.y),
             static_cast<std::int32_t>(tileId.z),
             static_cast<std::int32_t>(nativePointCount),
-            pointTile.pointDataOffset,
-            static_cast<std::int32_t>(pointTile.pointDataSize)};
+            sourceRange.offset,
+            static_cast<std::int32_t>(sourceRange.length)};
         std::vector<usdlas::LasPoint> points;
         if (!reader.ReadPoints(header, entry, points, diagnostics)) {
             return false;
@@ -212,7 +279,7 @@ bool BuildTiledAssets(
         }
 
         usdgeo::SpatialBounds localBounds;
-        if (!reference.TryToLocal(pointTile.tile.bounds, localBounds)) {
+        if (!reference.TryToLocal(planNode->bounds, localBounds)) {
             diagnostics.push_back(
                 {usdgeo::DiagnosticCode::DecodeFailure,
                  usdgeo::Severity::Error,
@@ -221,12 +288,13 @@ bool BuildTiledAssets(
             return false;
         }
         usdgeo::PointCloudTileAsset asset;
-        asset.tile = pointTile.tile;
+        asset.tile.id = tileId;
         asset.tile.bounds = localBounds;
+        asset.tile.children = authoredChildren[planNode->id.ToString()];
         asset.tile.lod.bounds = localBounds;
-        asset.tile.lod.items[0].pointCount = data.positions.size();
-        asset.tile.lod.items[0].bounds = localBounds;
-        asset.tile.lod.items[0].sourceRange = {0, data.positions.size()};
+        asset.tile.lod.items.push_back({
+            0, data.positions.size(), localBounds,
+            {0, data.positions.size()}, hierarchyNode->second->spacing});
         asset.levels.push_back({
             reference, localBounds,
             usdpointcloud::MakePointChunk(data, localBounds), std::move(data)});
