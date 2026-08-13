@@ -27,8 +27,11 @@ support, in [capability matrix](../reference/CAPABILITY_MATRIX.md).
 
 LAS, LAZ, local COPC, PLY, bounded-memory tiling, generated-USDC caching, and
 the conversion tool validate the shared point-cloud architecture. The next
-release sequence prioritizes infrastructure maturity over adding formats. The
-detailed rationale, scope, tests, and performance indicators are in the
+release sequence prioritizes infrastructure maturity over adding formats: the
+adaptive tiling shipped in `v0.7.0` is measured on real data before more tiling
+design is added, and the tile-plan representation is unified before another
+format is connected to it. The detailed rationale, scope, tests, and
+performance indicators are in the
 [infrastructure maturity roadmap](infrastructure-maturity.md).
 
 | Release | Theme | Outcome |
@@ -37,23 +40,40 @@ detailed rationale, scope, tests, and performance indicators are in the
 | `v0.5.0` | Resolver-backed COPC random access | Remote-capable COPC without coupling `usdCopc` to HTTP; released |
 | `v0.6.0` | Cache and source identity | Deterministic local and conservative remote generated-output reuse; released |
 | `v0.7.0` | Adaptive tiling | Point-budget-aware payload density and memory use; released |
+| `v0.8.0` | Measurement and I/O observability | Real-world fixed-grid and adaptive baselines, and visible I/O amplification |
+| `v0.9.0` | TilePlan convergence | Sequential planning and COPC native hierarchy reach authoring through one representation |
+| `v0.10.0` | Resolver-backed source identity | Generated-cache reuse for resolver-provided sources where identity is sufficient |
+| Research | Runtime streaming | Host-driven partial loading investigated without complicating the conversion pipeline |
 | Later | Format expansion | E57 and other point-cloud adapters after infrastructure maturity |
 
-The core architecture remains format-independent:
+The core architecture remains format-independent, and `v0.9.0` converges the
+two planning routes onto one tile-plan representation:
 
 ```text
-LAS  -> usdLas  ----\
-LAZ  -> usdLaz  -----+--> PointStream / usdPointCloudCore
-COPC -> usdCopc -----/              |
-                                   v
-                         optional tiling / LOD
-                                   |
-                                   v
-                      usdPointCloudAuthoring
-                                   |
-                                   v
-                              OpenUSD stage
+LAS  -> usdLas  ---\
+LAZ  -> usdLaz  ----+--> PointStream / usdPointCloudCore
+PLY  -> usdPly  ---/                |
+COPC -> usdCopc ---/                v
+          |                  sequential planner
+          | native                  |
+          | hierarchy               |
+          v                         v
+   hierarchy planner ----------> TilePlan  (v0.9.0)
+                                    |
+                                    v
+                          optional tiling / LOD
+                                    |
+                                    v
+                        usdPointCloudAuthoring
+                                    |
+                                    v
+                               OpenUSD stage
 ```
+
+The two kinds of streaming stay separate. Conversion streaming makes memory use
+independent of input size and is the mature path this sequence completes.
+Runtime streaming depends on OpenUSD composition, payload loading, the host,
+and the renderer, so it stays a research track rather than a release gate.
 
 ### `v0.3.x` — documentation and contract stabilization
 
@@ -151,7 +171,14 @@ interrupted generated-cache entries.
 | 6 | Resolver-backed COPC random access | Released in `v0.5.0` | The plugin adapts resolver-opened `ArAsset` values to the project-owned source interface; remote cache reuse is conservative |
 | 7 | Source identity and cache hardening | Released in `v0.6.0` | Keep generated-output cache identity format- and transport-independent |
 | 8 | Point-budget-aware adaptive tiling | Released in `v0.7.0` | Deterministic planning, tile statistics, fixed-grid compatibility, and a fixture-based cross-format baseline are implemented; broader real-world baselines remain |
-| 9 | E57 and other point-cloud formats | Deferred | Reuse `PointStream`, processing, authoring, and cache contracts |
+| 9 | Real-world measurement and I/O observability | Planned for `v0.8.0` | Compare fixed-grid and adaptive on uneven real data, and make source, spool, and payload I/O visible |
+| 10 | TilePlan convergence and COPC fast path | Planned for `v0.9.0` | One plan representation for sequential planning and COPC native hierarchy, contract before implementation |
+| 11 | Resolver-backed source identity | Planned for `v0.10.0` | Enable generated-cache reuse where a resolver supplies sufficient identity, keeping transport out of the repository |
+| 12 | E57 and other point-cloud formats | Deferred | Reuse `PointStream`, processing, authoring, and cache contracts |
+
+Runtime streaming is investigated in parallel with these phases and is not a
+phase gate; see the
+[infrastructure maturity roadmap](infrastructure-maturity.md).
 
 ## Workstreams
 
@@ -169,12 +196,23 @@ maps onto the phases above.
 | W7 | Random-access source and resolver-backed COPC | 6 | Released in `v0.5.0` |
 | W8 | Source identity and generated-cache hardening | 7 | Released in `v0.6.0` |
 | W9 | Point-budget-aware adaptive tiling | 8 | Released in `v0.7.0` |
+| W10 | Real-world tiling baselines and I/O instrumentation | 9 | Planned for `v0.8.0` |
+| W11 | `TilePlan` contract, adaptive migration, and COPC native fast path | 10 | Planned for `v0.9.0` |
+| W12 | Resolver source identity, range-cache ownership, and remote baselines | 11 | Planned for `v0.10.0` |
+| W13 | Runtime streaming research | Parallel | Ongoing, no release gate |
 
 The completed workstreams established the shared point schema, streaming reader
 API, tile/LOD representation, and local COPC path. PLY must consume those
 contracts rather than create a second point authoring route. Remote COPC then
 extends only the source boundary; it must not make transport part of COPC
 parsing.
+
+W10 through W12 keep that discipline while deepening it. Measurement precedes
+redesign: the spool and the adaptive planner are evaluated on real data before
+either is changed. Contract precedes implementation: the `TilePlan`
+representation is agreed before the COPC fast path is written against it. And
+the transport boundary holds: resolver identity may inform cache reuse without
+moving HTTP, authentication, or retry policy into this repository.
 
 ## Documents
 

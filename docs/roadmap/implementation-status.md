@@ -244,6 +244,57 @@ The ordered plan and acceptance priorities are in the
       reproducible cross-format benchmark report; larger real-world datasets
       remain dataset-dependent
 
+#### Unreleased on `main`
+
+- [x] Publish a deterministic `tiles.manifest` beside the payload assets with
+      tile ID, LOD level, source bounds, point count, and portable payload path
+- [x] Invalidate cached entries whose tile manifest is incomplete
+
+#### `v0.8.0` - measurement and I/O observability (planned)
+
+- [ ] Compare fixed-grid and adaptive tiling on real-world LAS, LAZ, COPC, and
+      PLY inputs with uneven density
+- [ ] Record points per tile distribution, payload bytes per tile, total
+      payload bytes, tile count, and tree depth
+- [ ] Record peak RSS, spool bytes, source read bytes, and total processing
+      time for both strategies
+- [ ] Record `usdview` open time and host responsiveness for the generated
+      output
+- [ ] Add source bytes read, spool bytes written, spool bytes read, payload
+      bytes written, and effective I/O amplification to the streaming benchmark
+- [ ] Publish the commands and corpus provenance needed to reproduce each
+      baseline
+
+#### `v0.9.0` - TilePlan convergence (planned)
+
+- [ ] Define the `TilePlan` contract: tile identity, bounds, point counts,
+      parent and child relationships, source ranges, depth, and planner
+      identity and version
+- [ ] Define how cache identity derives from a tile plan, and treat planner
+      algorithm changes as a versioned compatibility concern
+- [ ] Move the existing adaptive planner onto the contract without changing its
+      output
+- [ ] Map COPC native hierarchy nodes and byte ranges onto a tile plan instead
+      of re-deriving the partition
+- [ ] Verify equivalent authored output from a sequential plan and a
+      COPC-native plan describing the same partition
+
+#### `v0.10.0` - resolver-backed source identity (planned)
+
+- [ ] Define what a resolver must supply for generated-cache identity to be
+      trusted, and what a partial answer permits
+- [ ] Separate source byte-range caching from generated-USDC caching, with an
+      explicit owner for each
+- [ ] Enable reuse exactly where resolver identity is sufficient, keeping
+      transport implementation outside this repository
+- [ ] Record remote hit ratios and `bytes fetched / source size` baselines
+
+#### Research - runtime streaming (no release gate)
+
+- [ ] Experiment with host LOD decision, COPC node identity, range reads, and
+      payload loading without adding runtime abstractions to the conversion
+      pipeline
+
 E57, delimited text, and other point-cloud formats follow these infrastructure
 milestones. A public custom USD schema remains deferred until the documented
 plain-attribute metadata contract is stable across formats.

@@ -26,11 +26,24 @@ Infrastructure gates before the next format addition:
 | 1 | Resolver-backed COPC | `v0.5.0` | Project-owned random access, `ArAsset` adaptation, selective reads, and conservative identity are verified |
 | 2 | Source identity and cache hardening | `v0.6.0` | Local and remote generated-output reuse has explicit invalidation and recovery rules |
 | 3 | Point-budget-aware adaptive tiling | `v0.7.0` | Deterministic planning, memory limits, tile statistics, and cross-format baselines are available |
+| 4 | Measurement and I/O observability | `v0.8.0` | Fixed-grid and adaptive are compared on uneven real data, and source, spool, and payload I/O are visible in benchmark output |
+| 5 | TilePlan convergence | `v0.9.0` | Sequential planning and COPC native hierarchy reach payload authoring through one plan representation |
+| 6 | Resolver-backed source identity | `v0.10.0` | Generated-cache reuse is enabled exactly where a resolver supplies sufficient identity, with transport still owned by the resolver |
 
 The format sequence below resumes only after those infrastructure gates. E57
 is the preferred substantial format extension; delimited text and other
 point-cloud formats remain candidates whose order may be driven by concrete
 workflows and test data.
+
+Gate 5 is the one that most affects later formats. Once a tile plan is a single
+representation, a new format supplies points and, where it has one, a native
+hierarchy; tiling, filtering, sampling, caching, and authoring are reused
+rather than re-implemented. The intended responsibility of a new format
+shrinks to:
+
+```text
+new format -> PointStream / RandomAccessSource
+```
 
 | Order | Format | Initial scope | Why this position | Entry gate |
 | --- | --- | --- | --- | --- |
@@ -50,6 +63,20 @@ scans only after the infrastructure roadmap is complete.
 Formats without embedded georeferencing (PLY, XYZ, PTS, CSV, and some E57
 files) never guess a CRS or unit. Missing georeferencing is reported as a
 diagnostic and can only be supplied explicitly through file-format arguments.
+
+Every added reader is held to the same boundaries:
+
+- USD authoring does not enter the reader;
+- tiling does not enter the reader;
+- caching does not enter the reader;
+- an OpenUSD dependency does not enter the reader where it can be avoided;
+- the reader connects through the `PointStream` or `RandomAccessSource`
+  contract.
+
+XYZ, PTS, PCD, and similar formats have comparatively light readers, which
+makes them useful for checking that the shared pipeline is genuinely generic
+rather than LAS-shaped. E57 remains the higher-value extension because scanner
+and survey workflows depend on it.
 
 Terrain, raster, and vector formats are intentionally excluded from this
 sequence. They are future repository candidates with different storage,
