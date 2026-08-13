@@ -127,6 +127,7 @@ struct PointCloudPayloadOptions {
     std::string rootLayerPath;
     std::size_t tileMemoryLimitBytes = 64 * 1024 * 1024;
     std::function<bool()> isCancelled;
+    std::function<void(std::size_t)> onBufferedBytes;
 };
 
 bool AuthorPointCloudTiledAssetFromStream(
