@@ -536,6 +536,28 @@ void TestMetadataAndHierarchy() {
               tiles[1].pointDataSize ==
                   static_cast<std::uint64_t>(entries[2].byteSize));
 
+          usdpointcloud::TilePlan tilePlan;
+          Check(usdcopc::BuildTilePlan(hierarchy, tilePlan, diagnostics));
+          Check(diagnostics.empty() && tilePlan.IsValid() &&
+                tilePlan.plannerId == "copc-native-hierarchy" &&
+                tilePlan.nodes.size() == 3);
+          Check(tilePlan.nodes[0].id.ToString() == "L0/0/0/0" &&
+                tilePlan.nodes[0].pointCount == 2 &&
+                tilePlan.nodes[0].children.size() == 1 &&
+                tilePlan.nodes[0].sourceRanges.size() == 1);
+            Check(tilePlan.nodes[1].id.ToString() == "L1/1/0/0" &&
+                tilePlan.nodes[1].parent.ToString() == "L0/0/0/0" &&
+                tilePlan.nodes[1].children.size() == 1 &&
+                tilePlan.nodes[1].sourceRanges.empty());
+            Check(tilePlan.nodes[2].id.ToString() == "L2/2/0/0" &&
+                tilePlan.nodes[2].parent.ToString() == "L1/1/0/0" &&
+                tilePlan.nodes[2].sourceRanges.size() == 1 &&
+                tilePlan.nodes[2].sourceRanges[0].offset ==
+                    entries[2].offset &&
+                tilePlan.nodes[2].sourceRanges[0].length ==
+                    static_cast<std::uint64_t>(entries[2].byteSize));
+          Check(usdpointcloud::StableTilePlanKey(tilePlan).size() == 16);
+
           auto reorderedEntries = entries;
           std::swap(reorderedEntries[0], reorderedEntries[1]);
           usdcopc::CopcHierarchy reorderedHierarchy;

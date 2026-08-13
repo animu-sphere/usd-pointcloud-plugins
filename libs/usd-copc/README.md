@@ -29,6 +29,7 @@ usdcopc/Copc.h
 | `CopcPointTile` | A shared point tile paired with its COPC point-data byte range |
 | `CopcReader` | Metadata, hierarchy-page, and selected point-chunk reader over a random-access source |
 | `CopcPointStream` | Pull-based traversal of native point-data nodes |
+| `BuildTilePlan` | Adapt the native hierarchy and point-data ranges to the shared `TilePlan` contract |
 
 `CopcReader` and `OpenCopcPointStream` retain filename overloads for local
 files and also accept a shared `usdgeo::RandomAccessSource`. The source
@@ -53,6 +54,11 @@ shared `PointTile` contract, preserving node IDs, bounds, child relationships,
 point counts, native spacing, and the source `pointDataOffset` /
 `pointDataSize` in `CopcPointTile`. Hierarchy-page entries are indexing nodes
 and are compressed out of the shared tile list.
+
+`BuildTilePlan` preserves native tile identities and bounds, retains the
+hierarchy-page nodes required for adjacent parent levels, aggregates point
+counts through the hierarchy, and records point-data byte ranges on the
+corresponding nodes. It does not run a sequential point scan.
 
 The reader is read-only. `OpenCopcPointStream` validates metadata and the
 complete hierarchy before delivery, then applies bounds,

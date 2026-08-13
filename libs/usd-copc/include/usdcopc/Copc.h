@@ -4,6 +4,7 @@
 #include "usdgeo/SpatialBounds.h"
 #include "usdgeo/TileId.h"
 #include "usdpointcloud/Lod.h"
+#include "usdpointcloud/Tiling.h"
 #include "usdlas/Las.h"
 #include "usdlaz/Laz.h"
 
@@ -84,6 +85,15 @@ struct CopcPointTile {
 
     bool IsValid() const noexcept;
 };
+
+constexpr const char* kCopcNativeHierarchyPlannerId =
+    "copc-native-hierarchy";
+constexpr std::uint32_t kCopcNativeHierarchyPlannerVersion = 1;
+
+bool BuildTilePlan(
+    const CopcHierarchy& hierarchy,
+    usdpointcloud::TilePlan& plan,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
 
 enum class CopcReadFailure {
     None,

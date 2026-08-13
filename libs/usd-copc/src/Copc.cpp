@@ -305,6 +305,137 @@ bool CopcPointTile::IsValid() const noexcept {
     return tile.IsValid() && pointDataOffset > 0 && pointDataSize > 0;
 }
 
+bool BuildTilePlan(
+    const CopcHierarchy& hierarchy,
+    usdpointcloud::TilePlan& plan,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    plan = {};
+    diagnostics.clear();
+    if (!hierarchy.IsValid()) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                      "COPC tile planning requires a valid hierarchy");
+        return false;
+    }
+
+    std::map<std::string, std::size_t> nodeIndices;
+    for (std::size_t index = 0; index < hierarchy.nodes.size(); ++index) {
+        if (!nodeIndices.emplace(hierarchy.nodes[index].tile.ToString(), index)
+                 .second) {
+            AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                          "COPC hierarchy contains a duplicate tile identity");
+            return false;
+        }
+    }
+
+    std::vector<bool> required(hierarchy.nodes.size(), false);
+    for (const auto& node : hierarchy.nodes) {
+        if (!node.hasPointData) continue;
+
+        auto current = node.tile;
+        for (;;) {
+            const auto found = nodeIndices.find(current.ToString());
+            if (found == nodeIndices.end()) {
+                AddDiagnostic(
+                    diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                    "COPC point-data node has a missing hierarchy ancestor");
+                return false;
+            }
+            required[found->second] = true;
+            if (current.level == 0) break;
+            current = {current.level - 1, current.x / 2, current.y / 2,
+                       current.z / 2};
+        }
+    }
+
+    const auto root = nodeIndices.find("L0/0/0/0");
+    if (root == nodeIndices.end() || !required[root->second]) {
+        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                      "COPC hierarchy has no point-data path from its root");
+        return false;
+    }
+
+    std::vector<std::size_t> order;
+    order.reserve(hierarchy.nodes.size());
+    for (std::size_t index = 0; index < hierarchy.nodes.size(); ++index) {
+        if (required[index]) order.push_back(index);
+    }
+    std::sort(order.begin(), order.end(), [&](std::size_t left,
+                                               std::size_t right) {
+        if (hierarchy.nodes[left].tile.level !=
+            hierarchy.nodes[right].tile.level) {
+            return hierarchy.nodes[left].tile.level >
+                   hierarchy.nodes[right].tile.level;
+        }
+        return hierarchy.nodes[left].tile.ToString() >
+               hierarchy.nodes[right].tile.ToString();
+    });
+
+    std::map<std::string, std::uint64_t> pointCounts;
+    std::map<std::string, std::vector<usdgeo::TileId>> children;
+    for (const auto index : order) {
+        const auto& node = hierarchy.nodes[index];
+        auto& pointCount = pointCounts[node.tile.ToString()];
+        if (node.hasPointData) pointCount = node.pointCount;
+        for (const auto& child : hierarchy.nodes) {
+            if (child.tile.level != node.tile.level + 1 ||
+                child.tile.x / 2 != node.tile.x ||
+                child.tile.y / 2 != node.tile.y ||
+                child.tile.z / 2 != node.tile.z ||
+                !required[nodeIndices.at(child.tile.ToString())]) {
+                continue;
+            }
+            const auto childCount = pointCounts[child.tile.ToString()];
+            if (childCount > (std::numeric_limits<std::uint64_t>::max)() -
+                                 pointCount) {
+                AddDiagnostic(diagnostics,
+                              usdgeo::DiagnosticCode::InvalidPointTile,
+                              "COPC tile-plan point count overflow");
+                return false;
+            }
+            pointCount += childCount;
+            children[node.tile.ToString()].push_back(child.tile);
+        }
+    }
+
+    plan.plannerId = kCopcNativeHierarchyPlannerId;
+    plan.plannerVersion = kCopcNativeHierarchyPlannerVersion;
+    plan.nodes.reserve(order.size());
+    for (const auto index : order) {
+        const auto& node = hierarchy.nodes[index];
+        usdpointcloud::TilePlanNode planNode;
+        planNode.id = node.tile;
+        planNode.bounds = node.bounds;
+        planNode.pointCount = pointCounts[node.tile.ToString()];
+        planNode.parent = {-1, 0, 0, 0};
+        if (node.tile.level > 0) {
+            planNode.parent = {node.tile.level - 1, node.tile.x / 2,
+                               node.tile.y / 2, node.tile.z / 2};
+        }
+        planNode.children = children[node.tile.ToString()];
+        planNode.isLeaf = planNode.children.empty();
+        if (node.hasPointData) {
+            planNode.sourceRanges.push_back(
+                {node.pointDataOffset, node.pointDataSize});
+        }
+        plan.nodes.push_back(std::move(planNode));
+    }
+
+    std::sort(plan.nodes.begin(), plan.nodes.end(),
+              [](const auto& left, const auto& right) {
+                  if (left.id.level != right.id.level) {
+                      return left.id.level < right.id.level;
+                  }
+                  if (left.id.x != right.id.x) return left.id.x < right.id.x;
+                  if (left.id.y != right.id.y) return left.id.y < right.id.y;
+                  return left.id.z < right.id.z;
+              });
+    if (!usdpointcloud::ValidateTilePlan(plan, diagnostics)) {
+        plan = {};
+        return false;
+    }
+    return true;
+}
+
 CopcReader::CopcReader(std::string filename)
     : filename_(std::move(filename)),
       source_(std::make_shared<usdgeo::LocalRandomAccessSource>(filename_)) {}
