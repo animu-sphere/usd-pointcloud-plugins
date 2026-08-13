@@ -38,12 +38,16 @@ namespace {
 struct BenchmarkOptions {
     std::string inputPath;
     std::string inputFormat;
+    std::string tilingStrategy = "fixed-grid";
     int epsgCode = 0;
     bool epsgSpecified = false;
     std::size_t pointCount = 1'000'000;
     std::size_t chunkPointCount = 65'536;
     double tileSize = 128.0;
     std::size_t memoryLimitBytes = 1 * 1024 * 1024;
+    std::size_t maxPointsPerTile = 4096;
+    std::size_t minPointsPerTile = 1;
+    std::int32_t maxDepth = 16;
 };
 
 constexpr std::size_t kPointsPerTile = 4096;
@@ -91,8 +95,10 @@ bool ParseOptions(int argc, char** argv, BenchmarkOptions& options) {
                 << "Usage: usdPointCloudAuthoring_stream_benchmark"
                    " [--input PATH] [--format las|laz|copc|ply] [--epsg CODE]"
                    " [--points N]"
-                   " [--chunk-points N] [--tile-size N]"
-                   " [--memory-limit BYTES]\n";
+                   " [--chunk-points N] [--tiling fixed-grid|adaptive]"
+                   " [--tile-size N] [--memory-limit BYTES]"
+                   " [--max-points-per-tile N] [--min-points-per-tile N]"
+                   " [--max-depth N]\n";
             return false;
         }
         if (index + 1 >= argc) return false;
@@ -102,6 +108,12 @@ bool ParseOptions(int argc, char** argv, BenchmarkOptions& options) {
             options.inputPath = value;
         } else if (argument == "--format") {
             options.inputFormat = value;
+        } else if (argument == "--tiling") {
+            options.tilingStrategy = value;
+            if (options.tilingStrategy != "fixed-grid" &&
+                options.tilingStrategy != "adaptive") {
+                return false;
+            }
         } else if (argument == "--epsg") {
             if (!ParseEpsg(value, options.epsgCode)) return false;
             options.epsgSpecified = true;
@@ -113,6 +125,21 @@ bool ParseOptions(int argc, char** argv, BenchmarkOptions& options) {
             if (!ParseDouble(value, options.tileSize)) return false;
         } else if (argument == "--memory-limit") {
             if (!ParseSize(value, options.memoryLimitBytes)) return false;
+        } else if (argument == "--max-points-per-tile") {
+            if (!ParseSize(value, options.maxPointsPerTile)) return false;
+        } else if (argument == "--min-points-per-tile") {
+            if (!ParseSize(value, options.minPointsPerTile)) return false;
+        } else if (argument == "--max-depth") {
+            try {
+                const auto parsed = std::stoll(value);
+                if (parsed < 0 ||
+                    parsed > std::numeric_limits<std::int32_t>::max()) {
+                    return false;
+                }
+                options.maxDepth = static_cast<std::int32_t>(parsed);
+            } catch (...) {
+                return false;
+            }
         } else {
             return false;
         }
@@ -321,6 +348,32 @@ private:
     std::size_t index_ = 0;
 };
 
+class CountingPointStream final : public usdpointcloud::PointStream {
+public:
+    CountingPointStream(std::unique_ptr<usdpointcloud::PointStream> stream,
+                        std::uint64_t& totalBytes)
+        : stream_(std::move(stream)), totalBytes_(totalBytes) {}
+
+    ~CountingPointStream() override {
+        if (stream_) totalBytes_ += stream_->SourceBytesRead();
+    }
+
+    usdpointcloud::PointStreamStatus ReadNext(
+        usdpointcloud::PointChunk& chunk,
+        usdpointcloud::PointData& data,
+        usdgeo::Diagnostic& diagnostic) override {
+        return stream_->ReadNext(chunk, data, diagnostic);
+    }
+
+    std::uint64_t SourceBytesRead() const noexcept override {
+        return stream_ ? stream_->SourceBytesRead() : 0;
+    }
+
+private:
+    std::unique_ptr<usdpointcloud::PointStream> stream_;
+    std::uint64_t& totalBytes_;
+};
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -372,11 +425,43 @@ int main(int argc, char** argv) {
     }
     usdgeo::GeoReference reference;
     std::unique_ptr<usdpointcloud::PointStream> stream;
+    const auto openStream = [&]()
+        -> std::unique_ptr<usdpointcloud::PointStream> {
+        if (options.inputPath.empty()) {
+            return std::make_unique<GeneratedPointStream>(
+                options.pointCount, options.chunkPointCount, options.tileSize);
+        }
+        const auto format = InputFormat(options);
+        usdpointcloud::PointReadOptions readOptions;
+        readOptions.chunkPointLimit = options.chunkPointCount;
+        readOptions.memoryBudgetBytes = options.memoryLimitBytes;
+        std::vector<usdgeo::Diagnostic> openDiagnostics;
+        if (format == "las") {
+            usdlas::LasHeader header;
+            return usdlas::OpenLasPointStream(
+                options.inputPath, readOptions, header, openDiagnostics);
+        }
+        if (format == "laz") {
+            usdlas::LasHeader header;
+            return usdlaz::OpenLazPointStream(
+                options.inputPath, readOptions, header, openDiagnostics);
+        }
+        if (format == "copc") {
+            usdcopc::CopcHeader header;
+            return usdcopc::OpenCopcPointStream(
+                options.inputPath, readOptions, header, openDiagnostics);
+        }
+        if (format == "ply" && options.epsgSpecified) {
+            usdply::PlyHeader header;
+            return usdply::OpenPointStream(
+                options.inputPath, readOptions, header, openDiagnostics);
+        }
+        return nullptr;
+    };
     std::uint64_t pointCount = options.pointCount;
     if (options.inputPath.empty()) {
         reference.epsgCode = 26910;
-        stream = std::make_unique<GeneratedPointStream>(
-            options.pointCount, options.chunkPointCount, options.tileSize);
+        stream = openStream();
     } else {
         const auto format = InputFormat(options);
         usdpointcloud::PointReadOptions readOptions;
@@ -442,13 +527,68 @@ int main(int argc, char** argv) {
         }
         pointCount = sourcePointCount;
     }
+    if (!stream) {
+        std::cerr << "unable to open input stream\n";
+        sampling.store(false, std::memory_order_relaxed);
+        sampler.join();
+        std::filesystem::remove_all(outputDirectory, error);
+        return 1;
+    }
     std::vector<usdgeo::Diagnostic> diagnostics;
     usdpointcloud::SpoolIoStats spoolIoStats;
+    std::vector<usdpointcloud::PointTileManifestEntry> manifestEntries;
+    std::uint64_t plannedSourceReadBytes = 0;
+    std::unique_ptr<usdpointcloud::TileRouter> adaptiveRouter;
+    usdpointcloud::FixedGridTileRouter fixedRouter(
+        {options.tileSize, 0});
+    const usdpointcloud::TileRouter* router = &fixedRouter;
+    if (options.tilingStrategy == "adaptive") {
+        const usdpointcloud::PointBudgetConfig budgetConfig{
+            options.maxPointsPerTile, options.minPointsPerTile,
+            options.maxDepth};
+        stream.reset();
+        const usdpointcloud::PointStreamFactory streamFactory = [&]() {
+            auto plannedStream = openStream();
+            if (!plannedStream) return plannedStream;
+            return std::unique_ptr<usdpointcloud::PointStream>(
+                std::make_unique<CountingPointStream>(
+                    std::move(plannedStream), plannedSourceReadBytes));
+        };
+        usdpointcloud::PointBudgetPlan plan;
+        if (!usdpointcloud::BuildPointBudgetPlan(
+                streamFactory, budgetConfig, plan, diagnostics)) {
+            for (const auto& diagnostic : diagnostics) {
+                std::cerr << diagnostic.message << '\n';
+            }
+            sampling.store(false, std::memory_order_relaxed);
+            sampler.join();
+            std::filesystem::remove_all(outputDirectory, error);
+            return 1;
+        }
+        adaptiveRouter = std::make_unique<usdpointcloud::PointBudgetTileRouter>(
+            plan);
+        if (!adaptiveRouter->IsValid()) {
+            std::cerr << "adaptive tile plan produced an invalid router\n";
+            sampling.store(false, std::memory_order_relaxed);
+            sampler.join();
+            std::filesystem::remove_all(outputDirectory, error);
+            return 1;
+        }
+        router = adaptiveRouter.get();
+        stream = openStream();
+    }
+    if (!stream) {
+        std::cerr << "unable to reopen input stream\n";
+        sampling.store(false, std::memory_order_relaxed);
+        sampler.join();
+        std::filesystem::remove_all(outputDirectory, error);
+        return 1;
+    }
     const auto authored = usdgeo::AuthorPointCloudTiledAssetFromStream(
         layer.operator->(), "/PointCloud", *stream, reference,
-        {options.tileSize, 0},
+        *router,
         {outputDirectory.string(), rootLayerPath.string(),
-         options.memoryLimitBytes, {}, {}, nullptr, &spoolIoStats},
+         options.memoryLimitBytes, {}, {}, &manifestEntries, &spoolIoStats},
         diagnostics);
     const auto exported = authored && layer->Export(rootLayerPath.string());
     std::uint64_t tileCount = 0;
@@ -470,10 +610,39 @@ int main(int argc, char** argv) {
         std::memory_order_relaxed);
     const auto outputBytes = DirectoryBytesRecursive(outputDirectory);
     const auto payloadBytes = PayloadBytes(outputDirectory);
-    const auto sourceReadBytes = stream->SourceBytesRead();
+    const auto sourceReadBytes = plannedSourceReadBytes +
+                                 stream->SourceBytesRead();
     const auto totalIoBytes = sourceReadBytes + spoolIoStats.bytesWritten +
                               spoolIoStats.bytesRead + payloadBytes;
     const auto writeBytesAfter = ProcessWriteBytes();
+    std::uint64_t minimumTilePoints = 0;
+    std::uint64_t maximumTilePoints = 0;
+    std::uint64_t totalTilePoints = 0;
+    std::int32_t treeDepth = 0;
+    std::uint64_t minimumPayloadBytes = 0;
+    std::uint64_t maximumPayloadBytes = 0;
+    std::uint64_t totalPayloadBytes = 0;
+    std::size_t tileManifestCount = 0;
+    for (const auto& entry : manifestEntries) {
+        if (entry.lod != 0) continue;
+        const auto entryPayloadPath = outputDirectory / entry.payloadPath;
+        std::error_code payloadError;
+        const auto entryPayloadBytes = std::filesystem::file_size(
+            entryPayloadPath, payloadError);
+        if (payloadError) continue;
+        ++tileManifestCount;
+        minimumTilePoints = tileManifestCount == 1
+            ? entry.pointCount
+            : std::min(minimumTilePoints, entry.pointCount);
+        maximumTilePoints = std::max(maximumTilePoints, entry.pointCount);
+        totalTilePoints += entry.pointCount;
+        treeDepth = std::max(treeDepth, entry.id.level);
+        minimumPayloadBytes = tileManifestCount == 1
+            ? entryPayloadBytes
+            : std::min(minimumPayloadBytes, entryPayloadBytes);
+        maximumPayloadBytes = std::max(maximumPayloadBytes, entryPayloadBytes);
+        totalPayloadBytes += entryPayloadBytes;
+    }
     std::cout << "format=" << (options.inputPath.empty()
                                    ? "generated"
                                    : InputFormat(options))
@@ -481,8 +650,25 @@ int main(int argc, char** argv) {
               << (options.inputPath.empty() ? "generated" : options.inputPath)
               << " points=" << pointCount
               << " chunk_points=" << options.chunkPointCount
+              << " tiling=" << options.tilingStrategy
               << " tile_size=" << options.tileSize
               << " tile_count=" << tileCount
+              << " tile_manifest_count=" << tileManifestCount
+              << " tile_point_min=" << minimumTilePoints
+              << " tile_point_max=" << maximumTilePoints
+              << " tile_point_average="
+              << (tileManifestCount == 0
+                    ? 0.0
+                    : static_cast<double>(totalTilePoints) /
+                        static_cast<double>(tileManifestCount))
+              << " tile_payload_min_bytes=" << minimumPayloadBytes
+              << " tile_payload_max_bytes=" << maximumPayloadBytes
+              << " tile_payload_average_bytes="
+              << (tileManifestCount == 0
+                    ? 0.0
+                    : static_cast<double>(totalPayloadBytes) /
+                        static_cast<double>(tileManifestCount))
+              << " tree_depth=" << treeDepth
               << " memory_limit_bytes=" << options.memoryLimitBytes
               << " elapsed_seconds=" << elapsed
               << " baseline_rss_bytes=" << baselineResident

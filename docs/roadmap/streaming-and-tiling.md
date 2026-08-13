@@ -495,10 +495,12 @@ compressed point data; a larger real-world COPC baseline remains dataset
 dependent because the repository does not ship a large COPC corpus. The
 `usdPointCloudAuthoring_stream_benchmark_cross_format` test runs all four
 inputs with the same chunk, tile, and memory settings and writes
-`benchmark-cross-format/cross-format.tsv` with the comparable point count,
-tile count, peak RSS, payload bytes, and elapsed time columns. Use the same
-command shape with a representative local source when collecting the
-larger cross-format comparison matrix.
+`benchmark-cross-format/cross-format.tsv` with fixed-grid and adaptive rows
+for every format. The report includes comparable point count, tile count, tile
+point and payload distributions, tree depth, peak RSS, source and spool I/O,
+payload bytes, I/O amplification, and elapsed time. Use the same command shape
+with a representative local source when collecting the larger real-world
+comparison matrix; the checked-in fixtures do not close that gate.
 
 #### Payload working-set measurement through OST plugin view
 
