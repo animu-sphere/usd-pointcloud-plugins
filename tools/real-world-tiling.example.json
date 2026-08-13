@@ -1,0 +1,51 @@
+[
+  {
+    "name": "shizuoka-las",
+    "input": "../build/real-data-source/08NF2330.las",
+    "format": "las",
+    "chunkPoints": 65536,
+    "tileSize": 128,
+    "memoryLimitBytes": 1048576,
+    "maxPointsPerTile": 1000000,
+    "minPointsPerTile": 1000,
+    "maxDepth": 16
+  },
+  {
+    "name": "shizuoka-laz",
+    "input": "../build/real-data-source/08NF2330.laz",
+    "format": "laz",
+    "chunkPoints": 65536,
+    "tileSize": 128,
+    "memoryLimitBytes": 1048576,
+    "maxPointsPerTile": 1000000,
+    "minPointsPerTile": 1000,
+    "maxDepth": 16
+  },
+  {
+    "name": "autzen-copc",
+    "input": "../build/real-data-source/autzen-classified.copc.laz",
+    "format": "copc",
+    "sourceUrl": "https://s3.amazonaws.com/hobu-lidar/autzen-classified.copc.laz",
+    "sourceRepository": "https://github.com/PDAL/data/tree/main/autzen",
+    "license": "CC BY 4.0 as distributed by PDAL/data; verify upstream source terms before redistribution",
+    "attribution": "Aaron Reyna / Watershed Sciences, Inc.; PDAL data repository",
+    "chunkPoints": 65536,
+    "tileSize": 128,
+    "memoryLimitBytes": 1048576,
+    "maxPointsPerTile": 1000000,
+    "minPointsPerTile": 1000,
+    "maxDepth": 16
+  },
+  {
+    "name": "stanford-bunny-ply",
+    "input": "../build/real-data-source/bun_zipper.ply",
+    "format": "ply",
+    "epsg": 26910,
+    "chunkPoints": 4096,
+    "tileSize": 0.01,
+    "memoryLimitBytes": 1048576,
+    "maxPointsPerTile": 4096,
+    "minPointsPerTile": 256,
+    "maxDepth": 16
+  }
+]

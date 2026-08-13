@@ -254,6 +254,9 @@ The ordered plan and acceptance priorities are in the
 
 - [ ] Compare fixed-grid and adaptive tiling on real-world LAS, LAZ, COPC, and
       PLY inputs with uneven density
+-     The matrix runner and real LAS, LAZ, and PLY measurements are available;
+      native Autzen COPC currently exposes a point-format-7 decoder failure,
+      so this gate stays open until a native real COPC comparison succeeds.
 - [x] Add a reproducible fixed-grid versus adaptive comparison harness that
       records corpus identity, normalized settings, tile distributions, RSS,
       source and spool I/O, payload bytes, and processing time in TSV and JSON
