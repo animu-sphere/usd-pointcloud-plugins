@@ -536,8 +536,10 @@ provenance records above and the Stanford Bunny provenance record. Use:
 ```
 
 The runner writes one report per manifest entry and aggregate TSV/JSON output.
-With `-ContinueOnError`, an input failure is preserved in the JSON `failures`
-array instead of being mistaken for a successful comparison.
+The aggregate rows and JSON `manifest_datasets` preserve optional source URL,
+repository, license, and attribution fields. With `-ContinueOnError`, an input
+failure is preserved in the JSON `failures` array instead of being mistaken for
+a successful comparison.
 
 The first local matrix run on 2026-08-14 completed for the 14,574,030-point
 Shizuoka LAS and its 118,588,494-byte derived LAZ, and for the 35,947-vertex

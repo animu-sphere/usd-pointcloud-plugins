@@ -28,25 +28,30 @@ function Get-ManifestProperty {
 $resolvedBenchmark = (Resolve-Path -LiteralPath $Benchmark).Path
 $resolvedManifest = (Resolve-Path -LiteralPath $Manifest).Path
 $manifestDirectory = Split-Path -Parent $resolvedManifest
-$manifestData = Get-Content -LiteralPath $resolvedManifest -Raw |
-    ConvertFrom-Json
-if ($manifestData -isnot [System.Collections.IEnumerable] -or
-    $manifestData -is [string]) {
+$manifestText = (Get-Content -LiteralPath $resolvedManifest -Raw).Trim()
+if ($manifestText.Length -eq 0 -or $manifestText[0] -ne '[') {
     throw 'manifest must contain a JSON array of datasets'
+}
+$manifestData = $manifestText | ConvertFrom-Json
+$datasets = @($manifestData)
+if ($datasets.Count -eq 0) {
+    throw 'manifest must contain at least one dataset'
 }
 
 $resolvedReport = [System.IO.Path]::GetFullPath($Report)
+$jsonReport = [System.IO.Path]::ChangeExtension($resolvedReport, '.json')
 $reportDirectory = Split-Path -Parent $resolvedReport
 if ([string]::IsNullOrEmpty($reportDirectory)) {
     $reportDirectory = (Get-Location).Path
 }
 New-Item -ItemType Directory -Force -Path $reportDirectory | Out-Null
 $singleComparison = Join-Path $PSScriptRoot 'compare_real_world_tiling.ps1'
+$reportNames = @{}
 $rows = @()
 $failures = @()
 $datasetIndex = 0
 
-foreach ($dataset in $manifestData) {
+foreach ($dataset in $datasets) {
     ++$datasetIndex
     $name = [string](Get-ManifestProperty $dataset 'name')
     $format = ([string](Get-ManifestProperty $dataset 'format')).ToLowerInvariant()
@@ -65,7 +70,24 @@ foreach ($dataset in $manifestData) {
     if ([string]::IsNullOrWhiteSpace($safeName)) {
         throw "dataset $datasetIndex has an invalid name"
     }
+    $reportKey = $safeName.ToLowerInvariant()
+    if ($reportNames.ContainsKey($reportKey)) {
+        throw "dataset '$name' collides with dataset '$($reportNames[$reportKey])' after output-name sanitization"
+    }
+    $reportNames[$reportKey] = $name
     $datasetReport = Join-Path $reportDirectory "$safeName.tsv"
+    if ([System.StringComparer]::OrdinalIgnoreCase.Equals(
+            $datasetReport, $resolvedReport) -or
+        [System.StringComparer]::OrdinalIgnoreCase.Equals(
+            $datasetReport, $jsonReport)) {
+        throw "dataset '$name' report would overwrite the aggregate report"
+    }
+    $sourceMetadata = [ordered]@{
+        source_url = [string](Get-ManifestProperty $dataset 'sourceUrl' '')
+        source_repository = [string](Get-ManifestProperty $dataset 'sourceRepository' '')
+        source_license = [string](Get-ManifestProperty $dataset 'license' '')
+        source_attribution = [string](Get-ManifestProperty $dataset 'attribution' '')
+    }
     $arguments = @{
         Benchmark = $resolvedBenchmark
         InputPath = $inputPath
@@ -84,13 +106,19 @@ foreach ($dataset in $manifestData) {
         $arguments.Epsg = $epsg
     }
 
+    Write-Output "dataset=$name status=starting format=$format"
     try {
         & $singleComparison @arguments | Out-Null
         $datasetRows = Import-Csv -LiteralPath $datasetReport -Delimiter "`t"
         foreach ($row in $datasetRows) {
             $row | Add-Member -NotePropertyName dataset -NotePropertyValue $name
+            foreach ($metadata in $sourceMetadata.GetEnumerator()) {
+                $row | Add-Member -Force -NotePropertyName $metadata.Key `
+                    -NotePropertyValue $metadata.Value
+            }
             $rows += $row
         }
+        Write-Output "dataset=$name status=completed report=$datasetReport"
     } catch {
         $failure = [ordered]@{
             dataset = $name
@@ -99,6 +127,7 @@ foreach ($dataset in $manifestData) {
             error = $_.Exception.Message
         }
         $failures += [pscustomobject]$failure
+        Write-Output "dataset=$name status=failed"
         if (-not $ContinueOnError) { throw }
     }
 }
@@ -119,11 +148,11 @@ foreach ($row in $rows) {
 }
 [System.IO.File]::WriteAllLines($resolvedReport, $tsv)
 
-$jsonReport = [System.IO.Path]::ChangeExtension($resolvedReport, '.json')
 $json = [ordered]@{
     generated_utc = [DateTime]::UtcNow.ToString('O')
     benchmark = $resolvedBenchmark
     manifest = $resolvedManifest
+    manifest_datasets = $datasets
     results = $rows
     failures = $failures
 }
