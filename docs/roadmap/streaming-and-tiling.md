@@ -563,10 +563,11 @@ python tools/measure_usd_working_set.py `
 ```
 
 The sampler launches `usdview.cmd` or `usdrecord.cmd` through `ost plugin run`
-and reports the elapsed process time plus the peak working set of the complete
-runtime process tree. In `view` mode, the command uses `--quitAfterStartup`, so
-`elapsed_seconds` is the reproducible startup/open-time measurement for the
-generated output. This includes the OpenUSD runtime and renderer process,
+and reports the stage open time, total process elapsed time, and peak working
+set of the complete runtime process tree. In `view` mode, the command uses
+`--quitAfterStartup`; `stage_open_seconds` is parsed from usdview's timing
+output, while `elapsed_seconds` covers the complete process lifetime. The
+working-set measurement includes the OpenUSD runtime and renderer process,
 which is the relevant working set for an actual plugin view or render session.
 For the full
 Shizuoka payload root generated with tile size 128, a local run on 2026-08-05

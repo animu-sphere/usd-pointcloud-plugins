@@ -21,31 +21,40 @@ if (Test-Path -LiteralPath $resolvedOutput) {
 }
 New-Item -ItemType Directory -Path $resolvedOutput | Out-Null
 
-& $resolvedConverter $resolvedInput $rootPath `
-    --max-points-per-tile 256 `
-    --min-points-per-tile 1 `
-    --max-depth 8 `
-    --memory-limit 1048576 `
-    --attributes xyz,intensity
-if ($LASTEXITCODE -ne 0) {
-    throw "converter failed with exit code $LASTEXITCODE"
-}
+$published = $false
+try {
+    & $resolvedConverter $resolvedInput $rootPath `
+        --max-points-per-tile 256 `
+        --min-points-per-tile 1 `
+        --max-depth 8 `
+        --memory-limit 1048576 `
+        --attributes xyz,intensity
+    if ($LASTEXITCODE -ne 0) {
+        throw "converter failed with exit code $LASTEXITCODE"
+    }
 
-foreach ($requiredPath in @($rootPath, $manifestPath, $tileManifestPath)) {
-    if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
-        throw "fixture is missing required output: $requiredPath"
+    foreach ($requiredPath in @($rootPath, $manifestPath, $tileManifestPath)) {
+        if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
+            throw "fixture is missing required output: $requiredPath"
+        }
+    }
+
+    $payloadCount = @(Get-ChildItem -File -Recurse $payloadDirectory -Filter '*.usdc').Count
+    if ($payloadCount -lt 2) {
+        throw "fixture contains too few payloads: $payloadCount"
+    }
+
+    [PSCustomObject]@{
+        root = $rootPath
+        payload_directory = $payloadDirectory
+        payload_count = $payloadCount
+        manifest = $manifestPath
+        tile_manifest = $tileManifestPath
+    } | ConvertTo-Json
+    $published = $true
+}
+finally {
+    if (-not $published -and (Test-Path -LiteralPath $resolvedOutput)) {
+        Remove-Item -LiteralPath $resolvedOutput -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
-
-$payloadCount = @(Get-ChildItem -File -Recurse $payloadDirectory -Filter '*.usdc').Count
-if ($payloadCount -lt 2) {
-    throw "fixture contains too few payloads: $payloadCount"
-}
-
-[PSCustomObject]@{
-    root = $rootPath
-    payload_directory = $payloadDirectory
-    payload_count = $payloadCount
-    manifest = $manifestPath
-    tile_manifest = $tileManifestPath
-} | ConvertTo-Json
