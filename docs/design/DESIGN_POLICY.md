@@ -1,6 +1,6 @@
 # Development Policy
 
-Last updated: 2026-08-13
+Last updated: 2026-08-14
 
 This document is the standing development policy for `usd-pointcloud-plugins`. The
 roadmap, format support order, and architecture documents refine it; they do
@@ -32,8 +32,8 @@ production path for long-running deterministic payload and cache generation.
 
 ## 2. Current Assessment
 
-v0.7.0 is released and the adaptive-tiling work is complete. The properties to
-preserve are:
+v0.8.0 is released and the measurement and I/O observability work is complete.
+The properties to preserve are:
 
 - Format parsing is separated from OpenUSD API usage.
 - LAS, LAZ, COPC, and PLY share point-stream and authoring contracts.
@@ -674,7 +674,7 @@ and cross-format performance baselines while preserving the existing fixed-grid
 path. Broader real-world baselines and payload-byte fallback policies remain
 open.
 
-### W4: Measurement and I/O Observability (`v0.8.0`)
+### W4: Measurement and I/O Observability (`v0.8.0`, released)
 
 Compare fixed-grid and adaptive tiling on real inputs with uneven density, and
 extend benchmarks with source, spool, and payload I/O counters. Measurement
