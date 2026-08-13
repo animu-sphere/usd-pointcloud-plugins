@@ -1,6 +1,6 @@
 plugin:
   name: pointcloud-laz
-  version: 0.7.0
+  version: 0.8.0
   kind: usd-fileformat
 license: Apache-2.0
 runtime:

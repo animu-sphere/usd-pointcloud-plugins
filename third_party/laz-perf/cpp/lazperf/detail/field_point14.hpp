@@ -175,6 +175,11 @@ private:
     decoders::arithmetic<MemoryStream> point_source_id_dec_;
     decoders::arithmetic<MemoryStream> gpstime_dec_;
     std::vector<uint32_t> sizes_;
+    bool z_valid_ = false;
+    bool class_valid_ = false;
+    bool flags_valid_ = false;
+    bool intensity_valid_ = false;
+    bool user_data_valid_ = false;
     utils::Summer sumChange;
     utils::Summer sumReturn;
     utils::Summer sumX;

@@ -3,6 +3,7 @@
 #include "lazperf/io.hpp"
 #include "lazperf/las.hpp"
 
+#include <array>
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
@@ -410,6 +411,69 @@ void TestLazPerfFileDecoder() {
     Check(std::remove(filename.string().c_str()) == 0);
 }
 
+void TestLazPerfPointFormat7Decoder() {
+    const auto filename =
+        std::filesystem::temp_directory_path() /
+        "usd-pointcloud-plugins-test-point-format-7.laz";
+    {
+        lazperf::writer::named_file::config config;
+        config.scale = {0.01, 0.01, 0.01};
+        config.chunk_size = 3;
+        config.minor_version = 4;
+        config.pdrf = 7;
+        lazperf::writer::named_file writer(filename.string(), config);
+        for (int index = 0; index < 3; ++index) {
+            std::array<char, 36> record{};
+            lazperf::utils::pack(static_cast<std::int32_t>(index * 100),
+                                 record.data());
+            lazperf::utils::pack(static_cast<std::int32_t>(index * 200),
+                                 record.data() + 4);
+            lazperf::utils::pack(static_cast<std::int32_t>(index * 300),
+                                 record.data() + 8);
+            lazperf::utils::pack(static_cast<std::uint16_t>(index + 1),
+                                 record.data() + 12);
+            record[14] = static_cast<char>(0x21);
+            record[15] = 0;
+            record[16] = static_cast<char>(2 + index);
+            record[17] = static_cast<char>(3 + index);
+            lazperf::utils::pack(static_cast<std::int16_t>(-4 + index),
+                                 record.data() + 18);
+            lazperf::utils::pack(static_cast<std::uint16_t>(42 + index),
+                                 record.data() + 20);
+            lazperf::utils::pack(12.5 + index, record.data() + 22);
+            lazperf::utils::pack(static_cast<std::uint16_t>(100 + index),
+                                 record.data() + 30);
+            lazperf::utils::pack(static_cast<std::uint16_t>(200 + index),
+                                 record.data() + 32);
+            lazperf::utils::pack(static_cast<std::uint16_t>(300 + index),
+                                 record.data() + 34);
+            writer.writePoint(record.data());
+        }
+        writer.close();
+    }
+
+    {
+        std::string error;
+        auto decoder = usdlaz::CreateFileDecoder(filename.string(), error);
+        Check(decoder != nullptr && error.empty());
+        usdlaz::LazReader reader(std::move(decoder));
+        usdlaz::LazReadOptions options;
+        options.chunkPointLimit = 2;
+        usdlas::LasHeader header;
+        std::size_t points = 0;
+        Check(reader.Read(
+            options,
+            [&](const usdlas::LasHeader&,
+                const std::vector<usdlas::LasPoint>& data) {
+                points += data.size();
+                return true;
+            },
+            header, error));
+        Check(error.empty() && header.pointFormat == 7 && points == 3);
+    }
+    Check(std::remove(filename.string().c_str()) == 0);
+}
+
 } // namespace
 
 int main() {
@@ -420,5 +484,6 @@ int main() {
     TestTypedReaderPreservesDecoderDiagnostic();
     TestRangeMemoryBudgetAndCancellation();
     TestLazPerfFileDecoder();
+    TestLazPerfPointFormat7Decoder();
     return 0;
 }

@@ -4,10 +4,22 @@
 #include <fstream>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <type_traits>
+
+#ifdef _WIN32
+#include <cstdio>
+#endif
 
 namespace usdpointcloud {
 namespace {
+
+#ifdef _WIN32
+void EnsureSpoolFileDescriptorBudget() {
+    static std::once_flag once;
+    std::call_once(once, [] { _setmaxstdio(2048); });
+}
+#endif
 
 constexpr char kHeader[] = "USDGSP01";
 constexpr char kFooter[] = "USDGEND1";
@@ -229,11 +241,14 @@ bool TileSpoolWriter::Open(const std::filesystem::path& path,
               "invalid tile spool configuration");
         return false;
     }
+#ifdef _WIN32
+    EnsureSpoolFileDescriptorBudget();
+#endif
     impl_ = std::make_unique<Impl>();
     impl_->stream.open(path, std::ios::binary | std::ios::trunc);
     if (!impl_->stream) {
         Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
-              "unable to create tile spool");
+              ("unable to create tile spool: " + path.string()).c_str());
         impl_.reset();
         return false;
     }

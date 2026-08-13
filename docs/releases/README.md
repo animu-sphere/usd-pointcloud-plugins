@@ -15,6 +15,7 @@ Release records are history and are not rewritten after publication.
 | v0.5.0 | 2026-08-12 | [v0.5.0.md](v0.5.0.md) — resolver-backed COPC reads, source identity, and cross-platform resolver CI |
 | v0.6.0 | 2026-08-12 | [v0.6.0.md](v0.6.0.md) — cache lookup states, statistics, recovery, and reuse baselines |
 | v0.7.0 | 2026-08-13 | [v0.7.0.md](v0.7.0.md) — adaptive point-budget tiling, fixed-grid compatibility, and cross-format benchmarks |
+| v0.8.0 | 2026-08-14 | [v0.8.0.md](v0.8.0.md) — real-world fixed/adaptive baselines, I/O observability, and LAZ point-format-7 hardening |
 
 Prepare the record in the release commit immediately before creating its tag.
 The tag pins the source commit and the record pins the release scope; runtime

@@ -590,13 +590,24 @@ void Point14Decompressor::readData()
     auto cnt = sizes_.begin();
 
     // Copy data and read the init bytes.
-    xy_dec_.initStream(stream_, *cnt++);
-    z_dec_.initStream(stream_, *cnt++);
-    class_dec_.initStream(stream_, *cnt++);
-    flags_dec_.initStream(stream_, *cnt++);
-    intensity_dec_.initStream(stream_, *cnt++);
+    const auto xyCount = *cnt++;
+    const auto zCount = *cnt++;
+    const auto classCount = *cnt++;
+    const auto flagsCount = *cnt++;
+    const auto intensityCount = *cnt++;
+    xy_dec_.initStream(stream_, xyCount);
+    z_valid_ = zCount != 0;
+    z_dec_.initStream(stream_, zCount);
+    class_valid_ = classCount != 0;
+    class_dec_.initStream(stream_, classCount);
+    flags_valid_ = flagsCount != 0;
+    flags_dec_.initStream(stream_, flagsCount);
+    intensity_valid_ = intensityCount != 0;
+    intensity_dec_.initStream(stream_, intensityCount);
     scan_angle_dec_.initStream(stream_, *cnt++);
-    user_data_dec_.initStream(stream_, *cnt++);
+    const auto userDataCount = *cnt++;
+    user_data_valid_ = userDataCount != 0;
+    user_data_dec_.initStream(stream_, userDataCount);
     point_source_id_dec_.initStream(stream_, *cnt++);
     gpstime_dec_.initStream(stream_, *cnt++);
     sizes_.clear();
@@ -693,7 +704,8 @@ char *Point14Decompressor::decompress(char *buf, int& scArg)
     LAZDEBUG(sumReturn.add(n));
     LAZDEBUG(sumReturn.add(r));
 
-    uint32_t ctx = (number_return_map_6ctx[n][r] << 1) | gps_time_changed;
+    uint32_t ctx = (number_return_map_6ctx[n][r] << 1) |
+                   static_cast<uint32_t>(gps_time_changed);
     // X
     {
         int32_t median = c.last_x_diff_median5_[ctx].get();
@@ -714,6 +726,7 @@ char *Point14Decompressor::decompress(char *buf, int& scArg)
     }
 
     // Z
+    if (z_valid_)
     {
         uint32_t kbits = (c.dx_decomp_.getK() + c.dy_decomp_.getK()) / 2;
         kbits = (std::min)(kbits, 18U) & ~1;
@@ -725,6 +738,7 @@ char *Point14Decompressor::decompress(char *buf, int& scArg)
     }
 
     // Classification
+    if (class_valid_)
     {
         int32_t ctx = ((r == 1 && r >= n) | ((c.last_.classification() & 0x1F) << 1));
         c.last_.setClassification(class_dec_.decodeSymbol(c.class_model_[ctx]));
@@ -732,6 +746,7 @@ char *Point14Decompressor::decompress(char *buf, int& scArg)
     }
 
     // Flags
+    if (flags_valid_)
     {
         uint32_t last_flags = c.last_.classFlags() |
             (c.last_.scanDirFlag() << 4) |
@@ -745,8 +760,10 @@ char *Point14Decompressor::decompress(char *buf, int& scArg)
     }
 
     // Intensity
+    if (intensity_valid_)
     {
-        int32_t ctx = gps_time_changed | ((r >= n) << 1) | ((r == 1) << 2);
+        int32_t ctx = static_cast<int32_t>(gps_time_changed) |
+                      ((r >= n) << 1) | ((r == 1) << 2);
 
         uint16_t intensity = c.intensity_decomp_.decompress(intensity_dec_,
                 c.last_intensity_[ctx], ctx >> 1);
@@ -756,16 +773,15 @@ char *Point14Decompressor::decompress(char *buf, int& scArg)
     }
 
     // Scan angle
+    if (scan_angle_changed)
     {
-        if (scan_angle_changed)
-        {
-            c.last_.setScanAngle(c.scan_angle_decomp_.decompress(scan_angle_dec_,
-                        c.last_.scanAngle(), gps_time_changed));
-        }
-        LAZDEBUG(sumScanAngle.add(c.last_.scanAngle()));
+        c.last_.setScanAngle(c.scan_angle_decomp_.decompress(scan_angle_dec_,
+                    c.last_.scanAngle(), gps_time_changed));
     }
+    LAZDEBUG(sumScanAngle.add(c.last_.scanAngle()));
 
     // User data
+    if (user_data_valid_)
     {
         int32_t ctx = c.last_.userData() / 4;
         c.last_.setUserData(user_data_dec_.decodeSymbol(c.user_data_model_[ctx]));
@@ -773,12 +789,10 @@ char *Point14Decompressor::decompress(char *buf, int& scArg)
     }
 
     // Point source ID
-    {
-        if (point_source_changed)
-            c.last_.setPointSourceID(c.point_source_id_decomp_.decompress(
-                        point_source_id_dec_, c.last_.pointSourceID(), 0));
-        LAZDEBUG(sumPointSourceId.add(c.last_.pointSourceID()));
-    }
+    if (point_source_changed)
+        c.last_.setPointSourceID(c.point_source_id_decomp_.decompress(
+                    point_source_id_dec_, c.last_.pointSourceID(), 0));
+    LAZDEBUG(sumPointSourceId.add(c.last_.pointSourceID()));
 
     if (gps_time_changed)
         decodeGpsTime(c);

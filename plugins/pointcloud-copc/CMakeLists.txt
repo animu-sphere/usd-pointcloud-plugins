@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.23)
 
 project(pointcloudCopc
-    VERSION 0.7.0
+    VERSION 0.8.0
     DESCRIPTION "OpenUSD FileFormat Plugin for COPC point clouds"
     LANGUAGES CXX)
 
