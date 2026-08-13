@@ -150,7 +150,7 @@ interrupted generated-cache entries.
 | 5 | PLY point-cloud read support | Complete in `v0.4.0` | Bounded scalar decoding and payload-backed tiled plugin reads share the common contracts |
 | 6 | Resolver-backed COPC random access | Released in `v0.5.0` | The plugin adapts resolver-opened `ArAsset` values to the project-owned source interface; remote cache reuse is conservative |
 | 7 | Source identity and cache hardening | Released in `v0.6.0` | Keep generated-output cache identity format- and transport-independent |
-| 8 | Point-budget-aware adaptive tiling | In progress for `v0.7.0` | Deterministic planning, tile statistics, and fixed-grid compatibility are implemented; cross-format baselines remain |
+| 8 | Point-budget-aware adaptive tiling | In progress for `v0.7.0` | Deterministic planning, tile statistics, fixed-grid compatibility, and a fixture-based cross-format baseline are implemented; broader real-world baselines remain |
 | 9 | E57 and other point-cloud formats | Deferred | Reuse `PointStream`, processing, authoring, and cache contracts |
 
 ## Workstreams

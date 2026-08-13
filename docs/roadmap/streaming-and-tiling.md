@@ -16,8 +16,9 @@ Generated-corpus RSS measurement and explicit benchmark paths are implemented.
 Real-input and payload working-set baselines are recorded below; a broader
 real-world matrix remains open. Adaptive point-budget planning, tile
 statistics, and fixed-grid compatibility coverage are implemented; the
-cross-format payload and memory comparison remains open in the
-[infrastructure maturity roadmap](infrastructure-maturity.md). What `main`
+ a fixture-based cross-format payload and memory comparison is implemented;
+ broader real-world baselines remain open in the
+ [infrastructure maturity roadmap](infrastructure-maturity.md). What `main`
 implements today is in
 [implementation status](implementation-status.md) and
 [capability matrix](../reference/CAPABILITY_MATRIX.md).
@@ -367,9 +368,13 @@ must include an explicit EPSG code:
 The checked-in benchmark tests cover LAS, LAZ, PLY, and a generated COPC
 fixture. The generated COPC case validates the shared authoring path with
 compressed point data; a larger real-world COPC baseline remains dataset
-dependent because the repository does not ship a large COPC corpus. Use the
-same command shape with a representative local source when collecting the
-cross-format comparison matrix.
+dependent because the repository does not ship a large COPC corpus. The
+`usdPointCloudAuthoring_stream_benchmark_cross_format` test runs all four
+inputs with the same chunk, tile, and memory settings and writes
+`benchmark-cross-format/cross-format.tsv` with the comparable point count,
+tile count, peak RSS, payload bytes, and elapsed time columns. Use the same
+command shape with a representative local source when collecting the
+larger cross-format comparison matrix.
 
 #### Payload working-set measurement through OST plugin view
 

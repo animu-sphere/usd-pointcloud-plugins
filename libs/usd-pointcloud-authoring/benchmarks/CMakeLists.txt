@@ -40,4 +40,14 @@ if(USDGEO_BUILD_TESTS)
                      -Dfixture_generator=$<TARGET_FILE:usdCopc_tests>
                      -Dtest_root=${CMAKE_CURRENT_BINARY_DIR}/benchmark-conformance-copc
                      -P ${CMAKE_CURRENT_SOURCE_DIR}/test_stream_benchmark.cmake)
+        add_test(NAME usdPointCloudAuthoring_stream_benchmark_cross_format
+             COMMAND ${CMAKE_COMMAND}
+                 -Dbenchmark=$<TARGET_FILE:usdPointCloudAuthoring_stream_benchmark>
+                 -Dlas_fixture=${CMAKE_SOURCE_DIR}/plugins/pointcloud-las/tests/fixtures/conformance.las
+                 -Dlaz_fixture=${CMAKE_SOURCE_DIR}/plugins/pointcloud-laz/tests/fixtures/conformance.laz
+                 -Dply_fixture=${CMAKE_SOURCE_DIR}/plugins/pointcloud-ply/tests/fixtures/conformance.ply
+                 -Dcopc_fixture=${CMAKE_CURRENT_BINARY_DIR}/benchmark-conformance.copc
+                 -Dfixture_generator=$<TARGET_FILE:usdCopc_tests>
+                 -Dtest_root=${CMAKE_CURRENT_BINARY_DIR}/benchmark-cross-format
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/compare_stream_benchmark.cmake)
 endif()
