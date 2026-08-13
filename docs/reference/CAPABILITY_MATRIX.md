@@ -235,9 +235,11 @@ in the [tile and LOD contract](../architecture/LOD.md).
   `LASxxx`, `LAZxxx`, or `COPCxxx` plugin prefixes. See
   [diagnostics](../architecture/DIAGNOSTICS.md).
 - Advanced tile planning such as adaptive depth and point-budget splitting is
-  not exposed through LAS/LAZ file-format arguments. The current interface
-  provides fixed-grid `tileSize` and `tileMemoryLimit`. The conversion tool
-  can generate and reuse deterministic USDC entries with `--cache-root`;
+  not exposed through LAS/LAZ/COPC/PLY file-format arguments. Those interfaces
+  provide fixed-grid `tileSize` and `tileMemoryLimit`; the conversion tool
+  additionally accepts point-budget arguments and uses two bounded stream
+  passes before payload authoring. The conversion tool can generate and reuse
+  deterministic USDC entries with `--cache-root`;
   direct LAS, LAZ, COPC, and PLY FileFormat lookup reuses committed entries
   through `USDGEO_CACHE_ROOT`.
 - Point decoding assumes a little-endian host.

@@ -241,18 +241,17 @@ bool AuthorPointCloudTiledAssetFromStream(
     const std::string& primPath,
     usdpointcloud::PointStream& stream,
     const GeoReference& reference,
-    const usdpointcloud::TileGridConfig& tileConfig,
+    const usdpointcloud::TileRouter& router,
     const PointCloudPayloadOptions& options,
     std::vector<Diagnostic>& diagnostics) {
     diagnostics.clear();
     if (!layer || !IsValidPrimPath(primPath) || !reference.IsValid() ||
-        !tileConfig.IsValid() || options.directory.empty() ||
+        !router.IsValid() || options.directory.empty() ||
         options.rootLayerPath.empty() || options.tileMemoryLimitBytes == 0) {
         AddError(diagnostics, DiagnosticCode::InvalidPointTile,
                  "invalid tiled point-cloud authoring request");
         return false;
     }
-    if (!usdpointcloud::ValidateTileGridConfig(tileConfig, diagnostics)) return false;
 
     const auto spoolDirectory = MakeSpoolDirectory(diagnostics);
     if (spoolDirectory.empty()) return false;
@@ -282,7 +281,6 @@ bool AuthorPointCloudTiledAssetFromStream(
 
     usdpointcloud::SpoolSchema schema;
     std::string waveformDataFile;
-    usdpointcloud::FixedGridTileRouter router(tileConfig);
     for (;;) {
         if (isCancelled()) {
             AddError(diagnostics, DiagnosticCode::DecodeFailure,
@@ -335,6 +333,12 @@ bool AuthorPointCloudTiledAssetFromStream(
                 return false;
             }
             const auto tileId = router.GetTileId(data.positions[index]);
+            if (!tileId.IsValid()) {
+                AddError(diagnostics, DiagnosticCode::InvalidPointTile,
+                         "point stream produced a point outside the tile plan");
+                cleanup();
+                return false;
+            }
             const auto key = tileId.ToString();
             auto found = spools.find(key);
             if (found == spools.end()) {
@@ -520,6 +524,19 @@ bool AuthorPointCloudTiledAssetFromStream(
     }
     layer->TransferContent(stage->GetRootLayer());
     return true;
+}
+
+bool AuthorPointCloudTiledAssetFromStream(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    usdpointcloud::PointStream& stream,
+    const GeoReference& reference,
+    const usdpointcloud::TileGridConfig& tileConfig,
+    const PointCloudPayloadOptions& options,
+    std::vector<Diagnostic>& diagnostics) {
+    usdpointcloud::FixedGridTileRouter router(tileConfig);
+    return AuthorPointCloudTiledAssetFromStream(
+        layer, primPath, stream, reference, router, options, diagnostics);
 }
 
 } // namespace usdgeo

@@ -135,6 +135,15 @@ bool AuthorPointCloudTiledAssetFromStream(
     const std::string& primPath,
     usdpointcloud::PointStream& stream,
     const GeoReference& reference,
+    const usdpointcloud::TileRouter& router,
+    const PointCloudPayloadOptions& options,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
+
+bool AuthorPointCloudTiledAssetFromStream(
+    pxr::SdfLayer* layer,
+    const std::string& primPath,
+    usdpointcloud::PointStream& stream,
+    const GeoReference& reference,
     const usdpointcloud::TileGridConfig& tileConfig,
     const PointCloudPayloadOptions& options,
     std::vector<usdgeo::Diagnostic>& diagnostics);

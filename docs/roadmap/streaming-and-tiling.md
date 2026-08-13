@@ -110,7 +110,7 @@ completely in memory would merely move the existing memory problem. External
 sorting is powerful but unnecessarily complex for a first implementation.
 Per-tile spool files are the practical first bounded-memory design.
 
-The first version of `usdPointCloudTiling` uses:
+The fixed-grid path in `usdPointCloudTiling` uses:
 
 - a fixed 2D grid;
 - source horizontal coordinates;
@@ -120,8 +120,13 @@ The first version of `usdPointCloudTiling` uses:
 - fixed-stride LOD samples;
 - deterministic asset naming.
 
-Complex octrees, adaptive density estimation, and COPC-specific hierarchy
-optimization are deferred.
+The same library also exposes deterministic point-budget planning. A
+`PointStreamFactory` planner performs a bounds pass and a cell-count pass,
+retaining counts rather than all point records; its leaf plan is consumed by a
+`PointBudgetTileRouter` and the shared payload authoring path. The conversion
+tool uses this adaptive path with `--max-points-per-tile`,
+`--min-points-per-tile`, and `--max-depth`. Complex octrees, target payload-byte
+fallbacks, and COPC-specific hierarchy optimization remain deferred.
 
 ### Coordinate policy
 
@@ -201,6 +206,13 @@ usd-pointcloud-convert <input> <output-root>
     --payload-directory <directory>
     --attributes <comma-separated names>
 ```
+
+For adaptive point-budget tiling, replace `--tile-size` with
+`--max-points-per-tile <count>` and optionally add
+`--min-points-per-tile <count>` and `--max-depth <depth>`. Adaptive arguments
+are conversion-tool arguments; `max-depth` is limited to 31 and local input
+identity is checked between planning and payload authoring. FileFormat-triggered
+reads continue to expose the fixed-grid contract above.
 
 The tool owns temporary output, cancellation, failure cleanup, and final
 root-last publication. It must not duplicate LAS or LAZ decoding. It also

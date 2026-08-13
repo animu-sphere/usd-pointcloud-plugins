@@ -28,9 +28,13 @@ void HandleInterrupt(int) {
 
 void PrintUsage() {
     std::cerr
-        << "Usage: usd-pointcloud-convert <input.las|input.laz> <output.usda> "
-           "--tile-size <source-units> [options]\n"
+          << "Usage: usd-pointcloud-convert <input.las|input.laz> <output.usda> "
+              "(--tile-size <source-units> | --max-points-per-tile <count>) [options]\n"
         << "Options:\n"
+          << "  --tile-size <source-units>\n"
+          << "  --max-points-per-tile <count>\n"
+          << "  --min-points-per-tile <count>\n"
+          << "  --max-depth <count>\n"
         << "  --memory-limit <bytes>\n"
         << "  --chunk-points <count>\n"
         << "  --attributes <comma-separated names>\n"
@@ -72,6 +76,14 @@ bool IsExtension(const std::filesystem::path& path, const char* extension) {
         }
     }
     return value == extension;
+}
+
+bool SameSourceIdentity(const usdgeo::cache::SourceIdentity& left,
+                        const usdgeo::cache::SourceIdentity& right) {
+    return left.identifier == right.identifier &&
+           left.sizeBytes == right.sizeBytes &&
+           left.modifiedTime == right.modifiedTime &&
+           left.validationToken == right.validationToken;
 }
 
 std::filesystem::path ManifestPath(
@@ -529,6 +541,7 @@ int main(int argc, char** argv) {
     std::map<std::string, std::string> arguments;
     arguments.emplace("tile", "true");
     bool hasTileSize = false;
+    bool hasAdaptiveBudget = false;
     std::filesystem::path cacheRoot;
     std::filesystem::path payloadDirectory;
     for (int index = 3; index < argc; ++index) {
@@ -538,6 +551,16 @@ int main(int argc, char** argv) {
             if (!ReadOptionValue(index, argc, argv, value)) return 2;
             arguments["tileSize"] = value;
             hasTileSize = true;
+        } else if (option == "--max-points-per-tile") {
+            if (!ReadOptionValue(index, argc, argv, value)) return 2;
+            arguments["maxPointsPerTile"] = value;
+            hasAdaptiveBudget = true;
+        } else if (option == "--min-points-per-tile") {
+            if (!ReadOptionValue(index, argc, argv, value)) return 2;
+            arguments["minPointsPerTile"] = value;
+        } else if (option == "--max-depth") {
+            if (!ReadOptionValue(index, argc, argv, value)) return 2;
+            arguments["maxDepth"] = value;
         } else if (option == "--memory-limit") {
             if (!ReadOptionValue(index, argc, argv, value)) return 2;
             arguments["tileMemoryLimit"] = value;
@@ -560,8 +583,12 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (!hasTileSize) {
-        std::cerr << "--tile-size is required\n";
+    if (!hasTileSize && !hasAdaptiveBudget) {
+        std::cerr << "--tile-size or --max-points-per-tile is required\n";
+        return 2;
+    }
+    if (hasTileSize && hasAdaptiveBudget) {
+        std::cerr << "--tile-size cannot be combined with --max-points-per-tile\n";
         return 2;
     }
     if (payloadDirectory.empty()) {
@@ -790,9 +817,65 @@ int main(int argc, char** argv) {
     const usdgeo::PointCloudPayloadOptions payloadOptions{
         generationPayloadDirectory.string(), generationRootPath.string(),
         request.tileMemoryLimitBytes, request.readOptions.isCancelled};
-    const auto authored = usdgeo::AuthorPointCloudTiledAssetFromStream(
-        layer.operator->(), "/PointCloud", *stream, reference,
-        {request.tileSize, 0}, payloadOptions, diagnostics);
+    usdpointcloud::PointBudgetPlan adaptivePlan;
+    std::unique_ptr<usdpointcloud::PointStream> plannedStream;
+    const auto authored = [&]() {
+        if (!request.maxPointsPerTile) {
+            return usdgeo::AuthorPointCloudTiledAssetFromStream(
+                layer.operator->(), "/PointCloud", *stream, reference,
+                {request.tileSize, 0}, payloadOptions, diagnostics);
+        }
+
+        const usdpointcloud::PointBudgetConfig budget{
+            *request.maxPointsPerTile, request.minPointsPerTile,
+            request.maxTileDepth};
+        usdgeo::cache::SourceIdentity planningIdentity;
+        std::string identityError;
+        if (!usdgeo::cache::TryBuildLocalSourceIdentity(
+                inputPath, planningIdentity, identityError)) {
+            diagnostics.push_back({usdgeo::DiagnosticCode::SourceOpenFailed,
+                                   usdgeo::Severity::Error, identityError});
+            return false;
+        }
+        const usdpointcloud::PointStreamFactory streamFactory = [&]() {
+            usdlas::LasHeader passHeader;
+            std::unique_ptr<usdpointcloud::PointStream> passStream;
+            if (IsExtension(inputPath, ".las")) {
+                passStream = usdlas::OpenLasPointStream(
+                    inputPath.string(), request.readOptions, passHeader,
+                    diagnostics);
+            } else {
+                passStream = usdlaz::OpenLazPointStream(
+                    inputPath.string(), request.readOptions, passHeader,
+                    diagnostics);
+            }
+            if (passStream && !request.attributes.empty()) {
+                passStream = std::make_unique<SelectedPointStream>(
+                    std::move(passStream), request.attributes);
+            }
+            return passStream;
+        };
+        if (!usdpointcloud::BuildPointBudgetPlan(
+                streamFactory, budget, adaptivePlan, diagnostics)) {
+            return false;
+        }
+        usdgeo::cache::SourceIdentity authoringIdentity;
+        if (!usdgeo::cache::TryBuildLocalSourceIdentity(
+                inputPath, authoringIdentity, identityError) ||
+            !SameSourceIdentity(planningIdentity, authoringIdentity)) {
+            diagnostics.push_back({
+                usdgeo::DiagnosticCode::DecodeFailure,
+                usdgeo::Severity::Error,
+                "input changed during adaptive tile planning"});
+            return false;
+        }
+        plannedStream = streamFactory();
+        if (!plannedStream) return false;
+        const usdpointcloud::PointBudgetTileRouter router(adaptivePlan);
+        return usdgeo::AuthorPointCloudTiledAssetFromStream(
+            layer.operator->(), "/PointCloud", *plannedStream, reference,
+            router, payloadOptions, diagnostics);
+    }();
     if (!authored || interrupted != 0) {
         if (interrupted != 0) {
             std::cerr << "Conversion cancelled\n";

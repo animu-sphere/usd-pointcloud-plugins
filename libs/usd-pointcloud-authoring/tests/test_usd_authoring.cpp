@@ -811,6 +811,74 @@ void TestFixedGridTilingPreservesBoundariesAndMemoryLimit() {
     std::filesystem::remove_all(payloadDirectory);
 }
 
+void TestAdaptiveTilingRouterAuthorsPlannedLeaves() {
+    const auto layer = pxr::SdfLayer::CreateAnonymous("adaptive_stream.usda");
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    usdpointcloud::PointData data;
+    data.positions = {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0},
+                      {0.0, 1.0, 0.0}, {1.0, 1.0, 0.0}};
+    data.intensity = {10, 20, 30, 40};
+    usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+    for (const auto& position : data.positions) bounds.Expand(position);
+
+    usdpointcloud::PointBudgetPlan plan;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(usdpointcloud::BuildPointBudgetPlan(
+        data.positions, {2, 1, 1}, plan, diagnostics));
+    Check(plan.tiles.size() == 4);
+    usdpointcloud::PointBudgetTileRouter router(plan);
+    TestPointStream stream({{
+        usdpointcloud::MakePointChunk(data, bounds), data}});
+
+    const auto payloadDirectory =
+        std::filesystem::temp_directory_path() / "usd_geo_adaptive_payloads";
+    std::filesystem::remove_all(payloadDirectory);
+    Check(usdgeo::AuthorPointCloudTiledAssetFromStream(
+        layer.operator->(), "/PointCloud", stream, reference, router,
+        {payloadDirectory.string(),
+         (payloadDirectory / "PointCloud.usda").string(), 1}, diagnostics));
+    Check(diagnostics.empty());
+    for (const auto& tileName : {"Tile_L1_p0_p0_p0", "Tile_L1_p1_p0_p0",
+                                 "Tile_L1_p0_p1_p0", "Tile_L1_p1_p1_p0"}) {
+        Check(layer->GetPrimAtPath(pxr::SdfPath(
+                  "/PointCloud/Tiles/" + std::string(tileName))) != nullptr);
+    }
+    std::filesystem::remove_all(payloadDirectory);
+}
+
+void TestAdaptiveTilingRejectsPointsOutsidePlan() {
+    const auto layer = pxr::SdfLayer::CreateAnonymous("adaptive_outside.usda");
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+
+    std::vector<usdgeo::Vec3d> plannedPositions = {{0.0, 0.0, 0.0},
+                                                    {1.0, 1.0, 0.0}};
+    usdpointcloud::PointBudgetPlan plan;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(usdpointcloud::BuildPointBudgetPlan(
+        plannedPositions, {1, 1, 1}, plan, diagnostics));
+    usdpointcloud::PointBudgetTileRouter router(plan);
+
+    usdpointcloud::PointData data;
+    data.positions = {{2.0, 2.0, 0.0}};
+    usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+    bounds.Expand(data.positions.front());
+    TestPointStream stream({{
+        usdpointcloud::MakePointChunk(data, bounds), data}});
+    const auto payloadDirectory =
+        std::filesystem::temp_directory_path() / "usd_geo_adaptive_outside";
+    std::filesystem::remove_all(payloadDirectory);
+    Check(!usdgeo::AuthorPointCloudTiledAssetFromStream(
+        layer.operator->(), "/PointCloud", stream, reference, router,
+        {payloadDirectory.string(),
+         (payloadDirectory / "PointCloud.usda").string(), 1}, diagnostics));
+    Check(!diagnostics.empty());
+    Check(layer->GetPrimAtPath(pxr::SdfPath("/PointCloud")) == nullptr);
+    Check(!std::filesystem::exists(payloadDirectory));
+}
+
 void TestGeneratedStreamTiledPayloadAuthoring() {
     const auto layer = pxr::SdfLayer::CreateAnonymous("generated_stream.usda");
     usdgeo::GeoReference reference;
@@ -1000,6 +1068,8 @@ int main() {
     TestTiledLodPayloadAuthoring();
     TestStreamTiledPayloadAuthoring();
     TestFixedGridTilingPreservesBoundariesAndMemoryLimit();
+    TestAdaptiveTilingRouterAuthorsPlannedLeaves();
+    TestAdaptiveTilingRejectsPointsOutsidePlan();
     TestGeneratedStreamTiledPayloadAuthoring();
     TestStreamCancellationCleansSpools();
     TestStreamCancellationDuringSpoolReadCleansSpools();
