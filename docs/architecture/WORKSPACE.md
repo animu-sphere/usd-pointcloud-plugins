@@ -298,7 +298,7 @@ matrix as LAS and LAZ.
 | v0.4.0 | PLY point decoding, adaptive display attributes, shared authoring, and payload-backed tiled reads | released 2026-08-12 |
 | v0.5.0 | project-owned random access and resolver-backed COPC without transport coupling | released 2026-08-12 |
 | v0.6.0 | source identity, cache hardening, diagnostics, recovery, and reuse baselines | released 2026-08-12 |
-| v0.7.0 | point-budget-aware adaptive tiling | planned |
+| v0.7.0 | point-budget-aware adaptive tiling | released 2026-08-13 |
 
 Current work and acceptance gaps are tracked in
 [roadmap/implementation-status.md](../roadmap/implementation-status.md).

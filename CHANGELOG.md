@@ -2,6 +2,38 @@
 
 All notable changes to this project are documented here.
 
+## [0.7.0] - 2026-08-13
+
+### Added
+
+- Deterministic point-budget adaptive tiling with minimum and maximum points
+  per tile, maximum depth, and typed planning diagnostics.
+- Point-budget plan statistics covering point count, tile count, leaf density,
+  split count, and reached depth.
+- Reproducible cross-format streaming benchmark coverage for LAS, LAZ, COPC,
+  and PLY, including a generated COPC fixture and a machine-readable report.
+
+### Changed
+
+- Adaptive planning now provides an additive path alongside the existing
+  fixed-grid `tileSize` and `tileMemoryLimit` behavior.
+- Tiling and streaming documentation now records the shared benchmark command
+  shape and comparable payload, memory, tile, and elapsed-time metrics.
+
+### Compatibility
+
+- Existing LAS, LAZ, COPC, and PLY format ids, arguments, authored stage shape,
+  and fixed-grid tiling behavior remain compatible with v0.6.0.
+- Adaptive planning reports a typed failure when the requested point budget
+  cannot be satisfied rather than silently relaxing the limit.
+
+### Known limitations
+
+- Broader real-world cross-format baselines remain dependent on representative
+  local datasets that are not shipped in the repository.
+- Target payload-byte and spatial-size fallback policies, COPC writing, and
+  new public USD schemas remain out of scope.
+
 ## [0.6.0] - 2026-08-12
 
 ### Added
@@ -384,3 +416,4 @@ libraries directly. The complete before/after table and checklist are in
 [0.4.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.4.0
 [0.5.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.5.0
 [0.6.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.6.0
+[0.7.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.7.0

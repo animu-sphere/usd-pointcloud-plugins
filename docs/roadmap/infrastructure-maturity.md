@@ -58,7 +58,7 @@ schema is deferred until the plain-attribute metadata contract is stable.
 | `v0.4.0` | PLY read support | Prove the shared contracts outside the LAS family | Released |
 | `v0.5.0` | Remote source architecture | Resolver-backed COPC through a project-owned random-access source | Released 2026-08-12 |
 | `v0.6.0` | Cache and source identity | Deterministic local reuse and conservative remote identity | Released 2026-08-12 |
-| `v0.7.0` | Adaptive tiling | Predictable payload density and memory through point-budget planning | Planned |
+| `v0.7.0` | Adaptive tiling | Predictable payload density and memory through point-budget planning | Released 2026-08-13 |
 | Later | Format expansion | E57 and other point-cloud formats through `PointStream` | Deferred |
 
 ### `v0.5.0` - Remote Source Architecture
@@ -112,22 +112,21 @@ non-reuse path unless the resolver can supply a stable validation token. The
 COPC integration test keeps this conservative behavior covered when
 `USDGEO_CACHE_ROOT` is configured.
 
-### `v0.7.0` - Adaptive Tiling
+### `v0.7.0` - Adaptive Tiling (released 2026-08-13)
 
 Primary goal: make payload density, payload size, and peak memory more
 predictable across uneven datasets.
 
-Candidate work:
+Delivered:
 
 - deterministic point-budget planning;
 - `maxPointsPerTile`, `minPointsPerTile`, and `maxDepth` controls;
-- optional target payload-byte and spatial-size fallbacks;
 - tile statistics and planning diagnostics;
-- LAS, LAZ, COPC, and PLY comparison baselines.
+- LAS, LAZ, COPC, and PLY fixture-based comparison baselines.
 
 The existing `tileSize` and `tileMemoryLimit` fixed-grid path remains supported
-because it is simple and predictable. Adaptive planning follows remote source
-and cache identity work; it does not block them.
+because it is simple and predictable. Broader real-world baselines and target
+payload-byte or spatial-size fallbacks remain future work.
 
 ### Later - E57 and Other Point-Cloud Formats
 

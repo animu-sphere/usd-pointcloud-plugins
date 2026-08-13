@@ -204,7 +204,7 @@ transaction state creation and retrying the same output workspace.
       shipped. Resolver-backed cache reuse is disabled when a stable local
       filesystem identity is unavailable.
 
-### Planned infrastructure maturity
+### Infrastructure maturity milestones
 
 The ordered plan and acceptance priorities are in the
 [infrastructure maturity roadmap](infrastructure-maturity.md).
@@ -233,7 +233,7 @@ The ordered plan and acceptance priorities are in the
       does not enable reuse for resolver assets without a stable validation
       token.
 
-#### `v0.7.0` - adaptive tiling
+#### `v0.7.0` - adaptive tiling (shipped)
 
 - [x] Define deterministic point-budget planning and limits
 - [x] Preserve fixed-grid `tileSize` and `tileMemoryLimit` behavior

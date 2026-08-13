@@ -36,7 +36,7 @@ detailed rationale, scope, tests, and performance indicators are in the
 | `v0.4.0` | PLY read support | Validate shared contracts outside the LAS family; released |
 | `v0.5.0` | Resolver-backed COPC random access | Remote-capable COPC without coupling `usdCopc` to HTTP; released |
 | `v0.6.0` | Cache and source identity | Deterministic local and conservative remote generated-output reuse; released |
-| `v0.7.0` | Adaptive tiling | Point-budget-aware payload density and memory use |
+| `v0.7.0` | Adaptive tiling | Point-budget-aware payload density and memory use; released |
 | Later | Format expansion | E57 and other point-cloud adapters after infrastructure maturity |
 
 The core architecture remains format-independent:
@@ -150,7 +150,7 @@ interrupted generated-cache entries.
 | 5 | PLY point-cloud read support | Complete in `v0.4.0` | Bounded scalar decoding and payload-backed tiled plugin reads share the common contracts |
 | 6 | Resolver-backed COPC random access | Released in `v0.5.0` | The plugin adapts resolver-opened `ArAsset` values to the project-owned source interface; remote cache reuse is conservative |
 | 7 | Source identity and cache hardening | Released in `v0.6.0` | Keep generated-output cache identity format- and transport-independent |
-| 8 | Point-budget-aware adaptive tiling | In progress for `v0.7.0` | Deterministic planning, tile statistics, fixed-grid compatibility, and a fixture-based cross-format baseline are implemented; broader real-world baselines remain |
+| 8 | Point-budget-aware adaptive tiling | Released in `v0.7.0` | Deterministic planning, tile statistics, fixed-grid compatibility, and a fixture-based cross-format baseline are implemented; broader real-world baselines remain |
 | 9 | E57 and other point-cloud formats | Deferred | Reuse `PointStream`, processing, authoring, and cache contracts |
 
 ## Workstreams
@@ -168,7 +168,7 @@ maps onto the phases above.
 | W6 | PLY decoding and plugin integration | 5 | Complete in `v0.4.0` |
 | W7 | Random-access source and resolver-backed COPC | 6 | Released in `v0.5.0` |
 | W8 | Source identity and generated-cache hardening | 7 | Released in `v0.6.0` |
-| W9 | Point-budget-aware adaptive tiling | 8 | Planned for `v0.7.0` |
+| W9 | Point-budget-aware adaptive tiling | 8 | Released in `v0.7.0` |
 
 The completed workstreams established the shared point schema, streaming reader
 API, tile/LOD representation, and local COPC path. PLY must consume those

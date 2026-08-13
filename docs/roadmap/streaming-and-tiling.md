@@ -15,8 +15,8 @@ arguments and the relative payload asset list.
 Generated-corpus RSS measurement and explicit benchmark paths are implemented.
 Real-input and payload working-set baselines are recorded below; a broader
 real-world matrix remains open. Adaptive point-budget planning, tile
-statistics, and fixed-grid compatibility coverage are implemented; the
- a fixture-based cross-format payload and memory comparison is implemented;
+statistics, and fixed-grid compatibility coverage are implemented; a
+fixture-based cross-format payload and memory comparison is implemented;
  broader real-world baselines remain open in the
  [infrastructure maturity roadmap](infrastructure-maturity.md). What `main`
 implements today is in

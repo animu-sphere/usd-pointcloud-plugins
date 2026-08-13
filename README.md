@@ -272,10 +272,11 @@ See the [implementation status](docs/roadmap/implementation-status.md) and
 
 ## Status
 
-Latest release: **v0.6.0** — cache source identity, lookup diagnostics,
-corruption recovery, and resolver cache reuse baselines. The v0.3.0 module and
-bundle rename is recorded in [MIGRATION.md](docs/compatibility/MIGRATION.md).
-See the [release record](docs/releases/v0.6.0.md) and [CHANGELOG.md](CHANGELOG.md).
+Latest release: **v0.7.0** — deterministic point-budget adaptive tiling,
+fixed-grid compatibility, tile planning statistics, and cross-format streaming
+benchmarks. The v0.3.0 module and bundle rename is recorded in
+[MIGRATION.md](docs/compatibility/MIGRATION.md). See the
+[release record](docs/releases/v0.7.0.md) and [CHANGELOG.md](CHANGELOG.md).
 
 Direction is fixed in the [design policy](docs/design/DESIGN_POLICY.md); the
 structure is fixed in the

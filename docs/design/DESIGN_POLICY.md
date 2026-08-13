@@ -32,8 +32,8 @@ production path for long-running deterministic payload and cache generation.
 
 ## 2. Current Assessment
 
-v0.6.0 is released and the cache/source-identity work is complete. The
-properties to preserve are:
+v0.7.0 is released and the adaptive-tiling work is complete. The properties to
+preserve are:
 
 - Format parsing is separated from OpenUSD API usage.
 - LAS, LAZ, COPC, and PLY share point-stream and authoring contracts.
@@ -620,11 +620,12 @@ compatibility, diagnostics, statistics, and corruption-recovery behavior.
 Transport-specific metadata may inform identity but does not enter the cache
 contract directly.
 
-### W3: Adaptive Tiling (`v0.7.0`)
+### W3: Adaptive Tiling (`v0.7.0`, released)
 
-Add deterministic point-budget-aware planning, depth and payload limits, tile
-statistics, and cross-format performance baselines while preserving the
-existing fixed-grid path.
+The release adds deterministic point-budget-aware planning, tile statistics,
+and cross-format performance baselines while preserving the existing fixed-grid
+path. Broader real-world baselines and payload-byte fallback policies remain
+open.
 
 ### W4: Format Expansion (Later)
 
@@ -644,7 +645,6 @@ as a duplicate numbered list in this policy. Active topics are:
 - source identity and generated-cache invalidation;
 - cache statistics, diagnostics, and corruption recovery;
 - broader real-world and remote-access performance baselines;
-- deterministic point-budget-aware tiling;
 - stabilization of the
   [point-cloud metadata contract](../reference/POINTCLOUD_METADATA.md);
 - E57 and other point-cloud formats after infrastructure maturity.

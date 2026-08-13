@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.23)
 
 project(pointcloudLaz
-    VERSION 0.6.0
+    VERSION 0.7.0
     DESCRIPTION "OpenUSD FileFormat Plugin for LAZ point clouds"
     LANGUAGES CXX)
 
