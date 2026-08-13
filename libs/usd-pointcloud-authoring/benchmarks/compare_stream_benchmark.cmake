@@ -99,16 +99,23 @@ foreach(format IN ITEMS las laz ply copc)
     string(REGEX MATCH "elapsed_seconds=([0-9.]+)" _match "${benchmark_output}")
     set(reported_elapsed "${CMAKE_MATCH_1}")
     string(REGEX MATCH "success=true" reported_success "${benchmark_output}")
-    if(NOT reported_format OR NOT reported_strategy OR NOT reported_points OR
-             NOT reported_tile_count OR NOT reported_tile_manifest_count OR
-             NOT reported_tile_point_min OR NOT reported_tile_point_max OR
-             NOT reported_tile_point_average OR NOT reported_tile_payload_min OR
-             NOT reported_tile_payload_max OR
-             NOT reported_tile_payload_average OR NOT reported_tree_depth OR
-             NOT reported_peak_rss OR NOT reported_payload_bytes OR
-             NOT reported_source_read_bytes OR NOT reported_spool_bytes_written OR
-             NOT reported_spool_bytes_read OR NOT reported_io_amplification OR
-             NOT reported_elapsed OR NOT reported_success)
+    if(reported_format STREQUAL "" OR reported_strategy STREQUAL "" OR
+             reported_points STREQUAL "" OR reported_tile_count STREQUAL "" OR
+             reported_tile_manifest_count STREQUAL "" OR
+             reported_tile_point_min STREQUAL "" OR
+             reported_tile_point_max STREQUAL "" OR
+             reported_tile_point_average STREQUAL "" OR
+             reported_tile_payload_min STREQUAL "" OR
+             reported_tile_payload_max STREQUAL "" OR
+             reported_tile_payload_average STREQUAL "" OR
+             reported_tree_depth STREQUAL "" OR reported_peak_rss STREQUAL "" OR
+             reported_payload_bytes STREQUAL "" OR
+             reported_source_read_bytes STREQUAL "" OR
+             reported_spool_bytes_written STREQUAL "" OR
+             reported_spool_bytes_read STREQUAL "" OR
+             reported_io_amplification STREQUAL "" OR
+             reported_elapsed STREQUAL "" OR
+             NOT reported_success STREQUAL "success=true")
         message(FATAL_ERROR
             "${format} benchmark output is not comparable: ${benchmark_output}")
     endif()

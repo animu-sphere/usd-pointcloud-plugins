@@ -537,6 +537,7 @@ int main(int argc, char** argv) {
     std::vector<usdgeo::Diagnostic> diagnostics;
     usdpointcloud::SpoolIoStats spoolIoStats;
     std::vector<usdpointcloud::PointTileManifestEntry> manifestEntries;
+    std::uint64_t initialSourceReadBytes = 0;
     std::uint64_t plannedSourceReadBytes = 0;
     std::unique_ptr<usdpointcloud::TileRouter> adaptiveRouter;
     usdpointcloud::FixedGridTileRouter fixedRouter(
@@ -546,6 +547,9 @@ int main(int argc, char** argv) {
         const usdpointcloud::PointBudgetConfig budgetConfig{
             options.maxPointsPerTile, options.minPointsPerTile,
             options.maxDepth};
+        if (!options.inputPath.empty()) {
+            initialSourceReadBytes = stream->SourceBytesRead();
+        }
         stream.reset();
         const usdpointcloud::PointStreamFactory streamFactory = [&]() {
             auto plannedStream = openStream();
@@ -610,7 +614,8 @@ int main(int argc, char** argv) {
         std::memory_order_relaxed);
     const auto outputBytes = DirectoryBytesRecursive(outputDirectory);
     const auto payloadBytes = PayloadBytes(outputDirectory);
-    const auto sourceReadBytes = plannedSourceReadBytes +
+    const auto sourceReadBytes = initialSourceReadBytes +
+                                 plannedSourceReadBytes +
                                  stream->SourceBytesRead();
     const auto totalIoBytes = sourceReadBytes + spoolIoStats.bytesWritten +
                               spoolIoStats.bytesRead + payloadBytes;
