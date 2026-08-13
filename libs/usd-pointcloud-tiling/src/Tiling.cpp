@@ -258,6 +258,8 @@ bool ValidateTilePlan(
         return false;
     }
 
+    std::size_t rootCount = 0;
+    std::size_t rootIndex = 0;
     for (std::size_t index = 0; index < plan.nodes.size(); ++index) {
         const auto& node = plan.nodes[index];
         for (std::size_t previous = 0; previous < index; ++previous) {
@@ -267,7 +269,25 @@ bool ValidateTilePlan(
                 return false;
             }
         }
+        if (node.parent.level == -1) {
+            if (node.parent.x != 0 || node.parent.y != 0 || node.parent.z != 0) {
+                AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                         "tile plan root has an invalid parent sentinel");
+                return false;
+            }
+            ++rootCount;
+            rootIndex = index;
+        } else if (node.parent.level < -1) {
+            AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                     "tile plan node has an invalid parent level");
+            return false;
+        }
         if (node.parent.level >= 0) {
+            if (node.id.level - node.parent.level != 1) {
+                AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                         "tile plan parent and child levels are not adjacent");
+                return false;
+            }
             const auto parent = std::find_if(
                 plan.nodes.begin(), plan.nodes.end(),
                 [&](const TilePlanNode& candidate) {
@@ -283,13 +303,24 @@ bool ValidateTilePlan(
                 return false;
             }
         }
-        for (const auto& child : node.children) {
+        for (std::size_t childIndex = 0;
+             childIndex < node.children.size(); ++childIndex) {
+            const auto& child = node.children[childIndex];
+            for (std::size_t previous = 0; previous < childIndex; ++previous) {
+                if (TileIdEqual(node.children[previous], child)) {
+                    AddError(diagnostics,
+                             usdgeo::DiagnosticCode::InvalidPointTile,
+                             "tile plan contains duplicate child identities");
+                    return false;
+                }
+            }
             const auto childNode = std::find_if(
                 plan.nodes.begin(), plan.nodes.end(),
                 [&](const TilePlanNode& candidate) {
                     return TileIdEqual(candidate.id, child);
                 });
             if (childNode == plan.nodes.end() ||
+                child.level - node.id.level != 1 ||
                 !TileIdEqual(childNode->parent, node.id)) {
                 AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
                          "tile plan node has an inconsistent child relationship");
@@ -299,6 +330,44 @@ bool ValidateTilePlan(
         if (!node.isLeaf && node.children.empty()) {
             AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
                      "tile plan contains an internal node without children");
+            return false;
+        }
+    }
+    if (!plan.nodes.empty() && rootCount != 1) {
+        AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                 "tile plan must contain exactly one root node");
+        return false;
+    }
+    if (!plan.nodes.empty()) {
+        std::vector<std::uint8_t> visitState(plan.nodes.size(), 0);
+        const std::function<bool(std::size_t)> visit = [&](std::size_t index) {
+            if (visitState[index] == 1) {
+                AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                         "tile plan contains a parent-child cycle");
+                return false;
+            }
+            if (visitState[index] == 2) return true;
+            visitState[index] = 1;
+            for (const auto& child : plan.nodes[index].children) {
+                const auto childNode = std::find_if(
+                    plan.nodes.begin(), plan.nodes.end(),
+                    [&](const TilePlanNode& candidate) {
+                        return TileIdEqual(candidate.id, child);
+                    });
+                if (childNode == plan.nodes.end() ||
+                    !visit(static_cast<std::size_t>(
+                        childNode - plan.nodes.begin()))) {
+                    return false;
+                }
+            }
+            visitState[index] = 2;
+            return true;
+        };
+        if (!visit(rootIndex)) return false;
+        if (std::find(visitState.begin(), visitState.end(), 0) !=
+            visitState.end()) {
+            AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                     "tile plan contains a node disconnected from its root");
             return false;
         }
     }

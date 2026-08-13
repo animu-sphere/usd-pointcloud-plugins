@@ -185,6 +185,13 @@ void TestTilePlanValidation() {
     plan.nodes[1].parent = {-1, 0, 0, 0};
     Check(!usdpointcloud::ValidateTilePlan(plan, diagnostics));
     Check(!diagnostics.empty());
+
+    plan.nodes[1].parent = {0, 0, 0, 0};
+    plan.nodes[0].parent = {1, 0, 0, 0};
+    plan.nodes[1].children.push_back(plan.nodes[0].id);
+    diagnostics.clear();
+    Check(!usdpointcloud::ValidateTilePlan(plan, diagnostics));
+    Check(!diagnostics.empty());
 }
 
 void TestTileManifestSerialization() {
