@@ -26,7 +26,9 @@ hierarchy planners. It carries the planner identity and version, tile bounds,
 point counts, parent and child relationships, and optional source byte ranges.
 `BuildTilePlan` currently adapts the existing point-budget output without
 changing its partitioning behavior; COPC native hierarchy mapping will use the
-same contract.
+same contract. `TilePlanCacheArguments` and `StableTilePlanKey` provide a
+deterministic cache identity over that representation, including planner
+identity and version, node relationships, bounds, counts, and source ranges.
 
 `SpoolSchema`, `TileSpoolWriter`, and `TileSpoolReader` define a versioned,
 source-and-stage-coordinate binary spool. Records are written in append order,

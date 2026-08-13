@@ -273,8 +273,10 @@ The ordered plan and acceptance priorities are in the
 - [x] Adapt the existing point-budget planner output into `TilePlan` without
       changing its partitioning behavior; the shared tile router accepts the
       adapted representation
-- [ ] Define how cache identity derives from a tile plan, and treat planner
-      algorithm changes as a versioned compatibility concern
+- [x] Define how cache identity derives from a tile plan, and treat planner
+      algorithm changes as a versioned compatibility concern through the
+      deterministic `TilePlanCacheArguments` / `StableTilePlanKey` contract
+      and planner identity/version cache inputs
 - [ ] Map COPC native hierarchy nodes and byte ranges onto a tile plan instead
       of re-deriving the partition
 - [ ] Verify equivalent authored output from a sequential plan and a

@@ -303,6 +303,7 @@ bool BuildCacheDescriptor(
     const std::filesystem::path& inputPath,
     const usdgeo::GeoReference& reference,
     const usdpointcloud::PointReadRequest& request,
+    const std::string& tilePlanKey,
     usdgeo::cache::Descriptor& descriptor,
     std::string& errorMessage) {
     if (!usdgeo::cache::TryBuildLocalSourceIdentity(
@@ -329,6 +330,18 @@ bool BuildCacheDescriptor(
                    key != "memoryBudgetBytes") {
             descriptor.tileAndLod.emplace_back(key, value);
         }
+    }
+    if (request.maxPointsPerTile) {
+        descriptor.tileAndLod.emplace_back(
+            "planner.id", usdpointcloud::kAdaptivePointBudgetPlannerId);
+        descriptor.tileAndLod.emplace_back(
+            "planner.version",
+            std::to_string(usdpointcloud::kAdaptivePointBudgetPlannerVersion));
+        if (tilePlanKey.empty()) {
+            errorMessage = "adaptive cache descriptor requires a tile plan key";
+            return false;
+        }
+        descriptor.tileAndLod.emplace_back("tile.plan", tilePlanKey);
     }
     descriptor.downsampling = {{"algorithm", "fixed-stride"},
                                {"version", "1"}};
@@ -713,6 +726,55 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    usdpointcloud::PointBudgetPlan adaptivePlan;
+    usdpointcloud::TilePlan adaptiveTilePlan;
+    usdpointcloud::PointStreamFactory adaptiveStreamFactory;
+    usdgeo::cache::SourceIdentity planningIdentity;
+    std::string tilePlanKey;
+    if (request.maxPointsPerTile) {
+        std::string identityError;
+        if (!usdgeo::cache::TryBuildLocalSourceIdentity(
+                inputPath, planningIdentity, identityError)) {
+            diagnostics.push_back({usdgeo::DiagnosticCode::SourceOpenFailed,
+                                   usdgeo::Severity::Error, identityError});
+            PrintDiagnostics(diagnostics);
+            return 1;
+        }
+        adaptiveStreamFactory = [&]() {
+            usdlas::LasHeader passHeader;
+            std::unique_ptr<usdpointcloud::PointStream> passStream;
+            if (IsExtension(inputPath, ".las")) {
+                passStream = usdlas::OpenLasPointStream(
+                    inputPath.string(), request.readOptions, passHeader,
+                    diagnostics);
+            } else {
+                passStream = usdlaz::OpenLazPointStream(
+                    inputPath.string(), request.readOptions, passHeader,
+                    diagnostics);
+            }
+            if (passStream && !request.attributes.empty()) {
+                passStream = std::make_unique<SelectedPointStream>(
+                    std::move(passStream), request.attributes);
+            }
+            return passStream;
+        };
+        const usdpointcloud::PointBudgetConfig budget{
+            *request.maxPointsPerTile, request.minPointsPerTile,
+            request.maxTileDepth};
+        if (!usdpointcloud::BuildPointBudgetPlan(
+                adaptiveStreamFactory, budget, adaptivePlan, diagnostics) ||
+            !usdpointcloud::BuildTilePlan(
+                adaptivePlan, adaptiveTilePlan, diagnostics)) {
+            PrintDiagnostics(diagnostics);
+            return 1;
+        }
+        tilePlanKey = usdpointcloud::StableTilePlanKey(adaptiveTilePlan);
+        if (tilePlanKey.empty()) {
+            std::cerr << "Unable to build adaptive tile plan cache identity\n";
+            return 1;
+        }
+    }
+
     const bool cacheEnabled = !cacheRoot.empty();
     usdgeo::cache::Layout cacheLayout;
     usdgeo::cache::Layout cacheGenerationLayout;
@@ -721,9 +783,14 @@ int main(int argc, char** argv) {
     if (cacheEnabled) {
         usdgeo::cache::Descriptor descriptor;
         std::string cacheError;
-        if (!BuildCacheDescriptor(inputPath, reference, request, descriptor,
-                                  cacheError)) {
+        if (!BuildCacheDescriptor(inputPath, reference, request, tilePlanKey,
+                                  descriptor, cacheError)) {
             std::cerr << "Unable to build cache layout: " << cacheError << "\n";
+            return 1;
+        }
+        if (request.maxPointsPerTile &&
+            !SameSourceIdentity(planningIdentity, descriptor.source)) {
+            std::cerr << "Input changed during adaptive tile planning\n";
             return 1;
         }
         if (!usdgeo::cache::TryBuildLayout(cacheRoot, descriptor, cacheLayout)) {
@@ -857,7 +924,6 @@ int main(int argc, char** argv) {
         generationPayloadDirectory.string(), generationRootPath.string(),
         request.tileMemoryLimitBytes, request.readOptions.isCancelled, {},
         &tileManifestEntries};
-    usdpointcloud::PointBudgetPlan adaptivePlan;
     std::unique_ptr<usdpointcloud::PointStream> plannedStream;
     const auto authored = [&]() {
         if (!request.maxPointsPerTile) {
@@ -866,44 +932,10 @@ int main(int argc, char** argv) {
                 {request.tileSize, 0}, payloadOptions, diagnostics);
         }
 
-        const usdpointcloud::PointBudgetConfig budget{
-            *request.maxPointsPerTile, request.minPointsPerTile,
-            request.maxTileDepth};
-        usdgeo::cache::SourceIdentity planningIdentity;
+        if (!adaptiveStreamFactory) {
+            return false;
+        }
         std::string identityError;
-        if (!usdgeo::cache::TryBuildLocalSourceIdentity(
-                inputPath, planningIdentity, identityError)) {
-            diagnostics.push_back({usdgeo::DiagnosticCode::SourceOpenFailed,
-                                   usdgeo::Severity::Error, identityError});
-            return false;
-        }
-        const usdpointcloud::PointStreamFactory streamFactory = [&]() {
-            usdlas::LasHeader passHeader;
-            std::unique_ptr<usdpointcloud::PointStream> passStream;
-            if (IsExtension(inputPath, ".las")) {
-                passStream = usdlas::OpenLasPointStream(
-                    inputPath.string(), request.readOptions, passHeader,
-                    diagnostics);
-            } else {
-                passStream = usdlaz::OpenLazPointStream(
-                    inputPath.string(), request.readOptions, passHeader,
-                    diagnostics);
-            }
-            if (passStream && !request.attributes.empty()) {
-                passStream = std::make_unique<SelectedPointStream>(
-                    std::move(passStream), request.attributes);
-            }
-            return passStream;
-        };
-        if (!usdpointcloud::BuildPointBudgetPlan(
-                streamFactory, budget, adaptivePlan, diagnostics)) {
-            return false;
-        }
-        usdpointcloud::TilePlan tilePlan;
-        if (!usdpointcloud::BuildTilePlan(adaptivePlan, tilePlan,
-                                          diagnostics)) {
-            return false;
-        }
         usdgeo::cache::SourceIdentity authoringIdentity;
         if (!usdgeo::cache::TryBuildLocalSourceIdentity(
                 inputPath, authoringIdentity, identityError) ||
@@ -914,9 +946,9 @@ int main(int argc, char** argv) {
                 "input changed during adaptive tile planning"});
             return false;
         }
-        plannedStream = streamFactory();
+        plannedStream = adaptiveStreamFactory();
         if (!plannedStream) return false;
-        const usdpointcloud::PointBudgetTileRouter router(tilePlan);
+        const usdpointcloud::PointBudgetTileRouter router(adaptiveTilePlan);
         return usdgeo::AuthorPointCloudTiledAssetFromStream(
             layer.operator->(), "/PointCloud", *plannedStream, reference,
             router, payloadOptions, diagnostics);

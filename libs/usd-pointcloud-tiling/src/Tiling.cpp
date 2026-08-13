@@ -379,8 +379,8 @@ bool BuildTilePlan(
     TilePlan& plan,
     std::vector<usdgeo::Diagnostic>& diagnostics) {
     plan = {};
-    plan.plannerId = "adaptive-point-budget";
-    plan.plannerVersion = 1;
+    plan.plannerId = kAdaptivePointBudgetPlannerId;
+    plan.plannerVersion = kAdaptivePointBudgetPlannerVersion;
     std::map<std::string, std::size_t> nodeIndices;
 
     const auto addNode = [&](const PointTileId& id) -> TilePlanNode& {
@@ -440,6 +440,70 @@ bool BuildTilePlan(
         return false;
     }
     return true;
+}
+
+usdgeo::CacheArguments TilePlanCacheArguments(const TilePlan& plan) {
+    usdgeo::CacheArguments arguments;
+    if (!plan.IsValid()) return arguments;
+
+    arguments.emplace_back("planner.id", plan.plannerId);
+    arguments.emplace_back("planner.version",
+                           std::to_string(plan.plannerVersion));
+
+    std::vector<const TilePlanNode*> nodes;
+    nodes.reserve(plan.nodes.size());
+    for (const auto& node : plan.nodes) nodes.push_back(&node);
+    std::sort(nodes.begin(), nodes.end(), [](const auto* left, const auto* right) {
+        return TileIdLess(left->id, right->id);
+    });
+
+    std::ostringstream values;
+    values << std::setprecision(std::numeric_limits<double>::max_digits10);
+    for (const auto* node : nodes) {
+        const auto prefix = "node." + node->id.ToString();
+        arguments.emplace_back(prefix + ".pointCount",
+                               std::to_string(node->pointCount));
+        arguments.emplace_back(prefix + ".parent", node->parent.ToString());
+        values.str({});
+        values.clear();
+        values << node->bounds.minimum.x << ',' << node->bounds.minimum.y
+               << ',' << node->bounds.minimum.z;
+        arguments.emplace_back(prefix + ".bounds.min", values.str());
+        values.str({});
+        values.clear();
+        values << node->bounds.maximum.x << ',' << node->bounds.maximum.y
+               << ',' << node->bounds.maximum.z;
+        arguments.emplace_back(prefix + ".bounds.max", values.str());
+        arguments.emplace_back(prefix + ".leaf", node->isLeaf ? "1" : "0");
+
+        std::vector<PointTileId> children = node->children;
+        std::sort(children.begin(), children.end(), TileIdLess);
+        for (std::size_t index = 0; index < children.size(); ++index) {
+            arguments.emplace_back(prefix + ".child." + std::to_string(index),
+                                   children[index].ToString());
+        }
+
+        std::vector<TilePlanSourceRange> ranges = node->sourceRanges;
+        std::sort(ranges.begin(), ranges.end(),
+                  [](const auto& left, const auto& right) {
+                      if (left.offset != right.offset) {
+                          return left.offset < right.offset;
+                      }
+                      return left.length < right.length;
+                  });
+        for (std::size_t index = 0; index < ranges.size(); ++index) {
+            arguments.emplace_back(
+                prefix + ".sourceRange." + std::to_string(index),
+                std::to_string(ranges[index].offset) + ":" +
+                    std::to_string(ranges[index].length));
+        }
+    }
+    return arguments;
+}
+
+std::string StableTilePlanKey(const TilePlan& plan) {
+    const auto arguments = TilePlanCacheArguments(plan);
+    return arguments.empty() ? std::string{} : usdgeo::StableCacheKey(arguments);
 }
 
 bool BuildPointBudgetPlan(
