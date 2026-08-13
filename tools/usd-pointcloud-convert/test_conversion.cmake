@@ -176,6 +176,29 @@ if(NOT cache_second_result EQUAL 0 OR NOT cache_second_error STREQUAL "" OR
         "converter did not reuse the cache entry: "
         "${cache_second_output}${cache_second_error}")
 endif()
+
+set(cache_rebuild_root "${test_root}-cache-rebuild")
+set(cache_rebuild_output "${cache_rebuild_root}/PointCloud.usda")
+file(REMOVE_RECURSE "${cache_rebuild_root}")
+file(MAKE_DIRECTORY "${cache_rebuild_root}")
+file(REMOVE "${cache_root}/${cache_entries}/payloads/tiles.manifest")
+execute_process(
+    COMMAND "${converter}" "${fixture}" "${cache_rebuild_output}"
+            --tile-size 1 --memory-limit 1024
+            --attributes intensity,xyz
+            --cache-root "${cache_root}"
+    RESULT_VARIABLE cache_rebuild_result
+    OUTPUT_VARIABLE cache_rebuild_output_log
+    ERROR_VARIABLE cache_rebuild_error_log)
+string(FIND "${cache_rebuild_output_log}" "Cache hit " cache_rebuild_hit)
+if(NOT cache_rebuild_result EQUAL 0 OR
+   cache_rebuild_hit GREATER -1 OR
+   NOT EXISTS "${cache_rebuild_output}" OR
+   NOT EXISTS "${cache_rebuild_root}/payloads/tiles.manifest")
+    message(FATAL_ERROR
+        "converter did not rebuild a cache entry missing its tile manifest: "
+        "${cache_rebuild_output_log}${cache_rebuild_error_log}")
+endif()
     execute_process(
         COMMAND usdcat --flatten "${cache_second_root}/PointCloud.usda"
             -o "${cache_second_root}/flattened.usda"
@@ -312,6 +335,7 @@ file(REMOVE_RECURSE "${test_root}")
 file(REMOVE_RECURSE "${repeat_root}")
 file(REMOVE_RECURSE "${cache_first_root}")
 file(REMOVE_RECURSE "${cache_second_root}")
+file(REMOVE_RECURSE "${cache_rebuild_root}")
 file(REMOVE_RECURSE "${cache_recovery_root}")
 file(REMOVE_RECURSE "${failure_root}")
 file(REMOVE_RECURSE "${unsafe_root}")

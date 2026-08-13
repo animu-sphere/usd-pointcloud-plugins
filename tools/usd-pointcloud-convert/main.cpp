@@ -309,7 +309,7 @@ bool BuildCacheDescriptor(
             inputPath, descriptor.source, errorMessage)) {
         return false;
     }
-    descriptor.pluginVersion = "usd-pointcloud-plugins-0.3.0-display-v2";
+    descriptor.pluginVersion = "usd-pointcloud-plugins-0.3.0-display-v3";
     descriptor.parserVersion = IsExtension(inputPath, ".las")
                                    ? "las-reader-1"
                                    : "laz-reader-1";
@@ -731,6 +731,13 @@ int main(int argc, char** argv) {
             return 1;
         }
         cacheHit = usdgeo::cache::IsCacheHit(cacheLayout);
+        if (cacheHit) {
+            std::error_code tileManifestError;
+            cacheHit = std::filesystem::is_regular_file(
+                           TileManifestPath(cacheLayout.payloadDirectory),
+                           tileManifestError) &&
+                       !tileManifestError;
+        }
         if (!cacheHit) {
             std::error_code cacheCleanupError;
             std::filesystem::remove_all(cacheLayout.entryDirectory,
