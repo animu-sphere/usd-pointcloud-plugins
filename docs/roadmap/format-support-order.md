@@ -26,8 +26,8 @@ Infrastructure gates before the next format addition:
 | 1 | Resolver-backed COPC | `v0.5.0` | Project-owned random access, `ArAsset` adaptation, selective reads, and conservative identity are verified |
 | 2 | Source identity and cache hardening | `v0.6.0` | Local and remote generated-output reuse has explicit invalidation and recovery rules |
 | 3 | Point-budget-aware adaptive tiling | `v0.7.0` | Deterministic planning, memory limits, tile statistics, and cross-format baselines are available |
-| 4 | Measurement and I/O observability | `v0.8.0` | Fixed-grid and adaptive are compared on uneven real data, and source, spool, and payload I/O are visible in benchmark output |
-| 5 | TilePlan convergence | `v0.9.0` | Sequential planning and COPC native hierarchy reach payload authoring through one plan representation |
+| 4 | Measurement and I/O observability | `v0.8.0` | Fixed-grid and adaptive are compared on uneven real data, and source, spool, and payload I/O are visible in benchmark output; host responsiveness moves to `v0.9.0` |
+| 5 | TilePlan convergence and interactive validation | `v0.9.0` | Sequential planning and COPC native hierarchy reach payload authoring through one plan representation, with a reproducible host-responsiveness baseline |
 | 6 | Resolver-backed source identity | `v0.10.0` | Generated-cache reuse is enabled exactly where a resolver supplies sufficient identity, with transport still owned by the resolver |
 
 The format sequence below resumes only after those infrastructure gates. E57

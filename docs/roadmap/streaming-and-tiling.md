@@ -26,10 +26,10 @@ bytes, and effective I/O amplification. For local LAS, LAZ, COPC, and PLY,
 source bytes are counted at the actual reader boundary; generated input
 reports its logical generated-point byte volume. Payload bytes are the
 materialized payload size used as the output-write baseline. Resolver
-range-read accounting remains a separate future measurement. The next steps
-recorded there are I/O observability alongside the existing memory
-measurements, and convergence of the sequential planner and the COPC native
-hierarchy onto one tile-plan representation. What `main`
+range-read accounting remains a separate future measurement. The v0.8.0 I/O
+observability work is complete; v0.9.0 carries host-responsiveness measurement
+alongside convergence of the sequential planner and the COPC native hierarchy
+onto one tile-plan representation. What `main`
 implements today is in
 [implementation status](implementation-status.md) and
 [capability matrix](../reference/CAPABILITY_MATRIX.md).
@@ -400,7 +400,12 @@ effective I/O amplification
 It also adds a fixed-grid versus adaptive comparison on the same input,
 reporting points per tile distribution, payload bytes per tile, total payload
 bytes, tile count, tree depth, peak RSS, spool bytes, source read bytes, total
-processing time, `usdview` open time, and host responsiveness.
+processing time, and `usdview` open time.
+
+v0.9.0 carries the host-responsiveness item forward. It will measure
+interaction with the generated output using the reproducible payload-backed
+`usdview` fixture, and record the workload, method, and baseline alongside the
+existing open-time and working-set measurements.
 
 The comparison needs inputs whose density genuinely varies, because uniform
 fixtures cannot distinguish the two strategies:

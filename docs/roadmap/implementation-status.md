@@ -268,15 +268,16 @@ The ordered plan and acceptance priorities are in the
       set for the generated output
 - [x] Provide a reproducible build-local payload-backed `usdview` fixture
       recipe from the public-domain USGS 3DEP corpus
-- [ ] Measure host responsiveness while interacting with the generated output
 - [x] Add source bytes read, spool bytes written, spool bytes read, payload
       bytes written, and effective I/O amplification to the streaming benchmark
 - [x] Publish the commands and corpus provenance needed to reproduce each
       baseline; the comparison harness records the input SHA-256 beside every
       fixed-grid and adaptive result
 
-#### `v0.9.0` - TilePlan convergence (in progress)
+#### `v0.9.0` - TilePlan convergence and interactive validation (in progress)
 
+- [ ] Measure host responsiveness while interacting with the generated output
+      using a documented workload and the reproducible payload-backed fixture
 - [x] Define the `TilePlan` contract: tile identity, bounds, point counts,
       parent and child relationships, source ranges, depth, and planner
       identity and version

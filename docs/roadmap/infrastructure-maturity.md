@@ -134,7 +134,7 @@ schema is deferred until the plain-attribute metadata contract is stable.
 | `v0.6.0` | Cache and source identity | Deterministic local reuse and conservative remote identity | Released 2026-08-12 |
 | `v0.7.0` | Adaptive tiling | Predictable payload density and memory through point-budget planning | Released 2026-08-13 |
 | `v0.8.0` | Measurement and I/O observability | Real-world adaptive baselines and visible I/O amplification | Released 2026-08-14 |
-| `v0.9.0` | TilePlan convergence | One tile-plan representation for sequential planning and COPC native hierarchy | Planned |
+| `v0.9.0` | TilePlan convergence and interactive validation | One tile-plan representation for sequential planning and COPC native hierarchy, plus a host-responsiveness baseline | Planned |
 | `v0.10.0` | Resolver-backed source identity | Safe generated-cache reuse for resolver-provided sources | Planned |
 | Research | Runtime streaming | Evidence about host-driven partial loading, with no premature abstraction | Ongoing |
 | Later | Format expansion | E57 and other point-cloud formats through `PointStream` | Deferred |
@@ -247,7 +247,6 @@ Comparison metrics:
 | Source read bytes | Read amplification |
 | Total processing time | Practical conversion cost |
 | `usdview` open time | Consumption cost |
-| Host responsiveness | Whether the result is usable interactively |
 
 I/O observability adds source bytes read, spool bytes written, spool bytes
 read, payload bytes written, and effective I/O amplification to the benchmark
@@ -281,7 +280,7 @@ Exit gate: fixed-grid and adaptive baselines for real LAS, LAZ, COPC, and PLY
 inputs are published with the metrics above, and I/O amplification is visible
 in benchmark output.
 
-### `v0.9.0` - TilePlan Convergence
+### `v0.9.0` - TilePlan Convergence and Interactive Validation
 
 Primary goal: let sequential formats and natively hierarchical formats produce
 the same tile-plan representation, so everything downstream stops caring which
@@ -298,6 +297,8 @@ COPC native hierarchy -> CopcHierarchyPlanner-/
 
 With one intermediate representation, authoring, cache identity, and payload
 generation are written once against `TilePlan` instead of once per planner.
+This milestone also carries forward the host-responsiveness measurement that
+was not required to close the v0.8.0 I/O gate.
 
 Scope:
 
@@ -311,6 +312,8 @@ Scope:
   output;
 - implement the COPC fast path that maps native hierarchy nodes and byte
   ranges onto a plan instead of re-deriving them.
+- measure host responsiveness while interacting with generated output, using
+  a documented workload and the reproducible payload-backed fixture.
 
 Contract work precedes implementation. If the COPC hierarchy cannot be
 expressed as a plan without distorting it, that is a finding about the
@@ -318,7 +321,8 @@ contract, not a reason to add a second authoring path.
 
 Exit gate: adaptive and COPC-native plans reach payload authoring through one
 representation, the COPC path demonstrably avoids the sequential planning
-passes, and authored output equivalence is covered by tests.
+passes, authored output equivalence is covered by tests, and a reproducible
+host-responsiveness baseline is recorded.
 
 ### `v0.10.0` - Resolver-Backed Source Identity
 
