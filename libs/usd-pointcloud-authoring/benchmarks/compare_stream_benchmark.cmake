@@ -70,10 +70,10 @@ foreach(format IN ITEMS las laz ply copc)
     set(reported_elapsed "${CMAKE_MATCH_1}")
     string(REGEX MATCH "success=true" reported_success "${benchmark_output}")
     if(NOT reported_format OR NOT reported_points OR NOT reported_tile_count OR
-       NOT reported_peak_rss OR NOT reported_payload_bytes OR
-         NOT reported_source_read_bytes OR NOT reported_spool_bytes_written OR
-         NOT reported_spool_bytes_read OR NOT reported_io_amplification OR
-         NOT reported_elapsed OR NOT reported_success)
+             NOT reported_peak_rss OR NOT reported_payload_bytes OR
+             NOT reported_source_read_bytes OR NOT reported_spool_bytes_written OR
+             NOT reported_spool_bytes_read OR NOT reported_io_amplification OR
+             NOT reported_elapsed OR NOT reported_success)
         message(FATAL_ERROR
             "${format} benchmark output is not comparable: ${benchmark_output}")
     endif()

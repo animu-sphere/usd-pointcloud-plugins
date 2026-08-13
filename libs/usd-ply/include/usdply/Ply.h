@@ -59,6 +59,7 @@ public:
         usdpointcloud::PointChunk& chunk,
         usdpointcloud::PointData& data,
         usdgeo::Diagnostic& diagnostic) override;
+    std::uint64_t SourceBytesRead() const noexcept override;
 
 private:
     friend std::unique_ptr<PlyPointStream> OpenPointStream(

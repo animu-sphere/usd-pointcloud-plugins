@@ -263,17 +263,6 @@ std::uint64_t DirectoryBytesRecursive(const std::filesystem::path& directory) {
     return bytes;
 }
 
-std::uint64_t SourceReadBytes(const BenchmarkOptions& options,
-                              std::uint64_t pointCount) {
-    if (!options.inputPath.empty()) {
-        std::error_code error;
-        const auto size = std::filesystem::file_size(options.inputPath, error);
-        return error ? 0 : static_cast<std::uint64_t>(size);
-    }
-    return pointCount * (sizeof(usdgeo::Vec3d) + sizeof(std::uint16_t) +
-                         sizeof(double));
-}
-
 class GeneratedPointStream final : public usdpointcloud::PointStream {
 public:
     GeneratedPointStream(std::size_t pointCount, std::size_t chunkPointCount,
@@ -318,6 +307,11 @@ public:
         chunk = usdpointcloud::MakePointChunk(data, bounds);
         index_ += count;
         return usdpointcloud::PointStreamStatus::Chunk;
+    }
+
+    std::uint64_t SourceBytesRead() const noexcept override {
+        return static_cast<std::uint64_t>(pointCount_) *
+               (sizeof(usdgeo::Vec3d) + sizeof(std::uint16_t) + sizeof(double));
     }
 
 private:
@@ -476,7 +470,7 @@ int main(int argc, char** argv) {
         std::memory_order_relaxed);
     const auto outputBytes = DirectoryBytesRecursive(outputDirectory);
     const auto payloadBytes = PayloadBytes(outputDirectory);
-    const auto sourceReadBytes = SourceReadBytes(options, pointCount);
+    const auto sourceReadBytes = stream->SourceBytesRead();
     const auto totalIoBytes = sourceReadBytes + spoolIoStats.bytesWritten +
                               spoolIoStats.bytesRead + payloadBytes;
     const auto writeBytesAfter = ProcessWriteBytes();

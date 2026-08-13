@@ -93,7 +93,12 @@ bool LocalRandomAccessSource::Read(
                       "source byte range is truncated", offset);
         return false;
     }
+    bytesRead_ += static_cast<std::uint64_t>(bytes.size());
     return true;
+}
+
+std::uint64_t LocalRandomAccessSource::BytesRead() const noexcept {
+    return bytesRead_;
 }
 
 std::unique_ptr<RandomAccessSource> OpenLocalRandomAccessSource(

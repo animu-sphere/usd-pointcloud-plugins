@@ -22,9 +22,11 @@ fixture-based cross-format payload and memory comparison is implemented;
 broader real-world baselines remain open in the
 [infrastructure maturity roadmap](infrastructure-maturity.md). The streaming
 benchmark also reports source bytes, spool bytes written and read, payload
-bytes, and effective I/O amplification. The source-byte value is the local
-input-file baseline; resolver range-read accounting remains a separate future
-measurement. The next steps
+bytes, and effective I/O amplification. For local LAS, LAZ, COPC, and PLY,
+source bytes are counted at the actual reader boundary; generated input
+reports its logical generated-point byte volume. Payload bytes are the
+materialized payload size used as the output-write baseline. Resolver
+range-read accounting remains a separate future measurement. The next steps
 recorded there are I/O observability alongside the existing memory
 measurements, and convergence of the sequential planner and the COPC native
 hierarchy onto one tile-plan representation. What `main`

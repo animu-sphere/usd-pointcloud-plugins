@@ -189,6 +189,7 @@ public:
                       std::vector<usdgeo::Diagnostic>& diagnostics,
                       std::size_t memoryBudgetBytes =
                           (std::numeric_limits<std::size_t>::max)());
+    std::uint64_t SourceBytesRead() const noexcept;
 
     LasReadFailure FailureKind() const noexcept;
 
@@ -216,6 +217,7 @@ public:
         usdpointcloud::PointChunk& chunk,
         usdpointcloud::PointData& data,
         usdgeo::Diagnostic& diagnostic) override;
+    std::uint64_t SourceBytesRead() const noexcept override;
 
     const LasHeader& Header() const noexcept;
     LasReadFailure FailureKind() const noexcept;
@@ -230,7 +232,8 @@ private:
     LasPointStream(std::string filename,
                    LasReadOptions options,
                    LasHeader header,
-                   std::size_t effectiveChunkPointLimit);
+                   std::size_t effectiveChunkPointLimit,
+                   std::uint64_t initialSourceBytesRead);
 
     std::string filename_;
     LasReader reader_;
@@ -239,6 +242,7 @@ private:
     std::uint64_t nextPoint_ = 0;
     std::uint64_t endPoint_ = 0;
     std::size_t effectiveChunkPointLimit_ = 0;
+    std::uint64_t initialSourceBytesRead_ = 0;
     LasReadFailure failureKind_ = LasReadFailure::None;
 };
 

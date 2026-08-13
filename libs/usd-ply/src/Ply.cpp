@@ -504,6 +504,7 @@ struct PlyPointStream::Impl {
         bool typedIntensity = false;
         std::uint8_t colorBitDepth = 16;
         usdpointcloud::PointReadOptions options;
+        std::uint64_t sourceBytesRead = 0;
 };
 
 PlyPointStream::PlyPointStream(std::unique_ptr<Impl> impl)
@@ -541,6 +542,7 @@ usdpointcloud::PointStreamStatus PlyPointStream::ReadNext(
                        impl_->endPoint - impl_->nextPoint));
         const auto sourceStart = impl_->nextPoint;
         impl_->nextPoint += count;
+        const auto inputStart = impl_->input.tellg();
         data.positions.reserve(count);
         data.intensity.reserve(count);
         data.classification.reserve(count);
@@ -665,6 +667,11 @@ usdpointcloud::PointStreamStatus PlyPointStream::ReadNext(
             }
             bounds.Expand(position);
         }
+        const auto inputEnd = impl_->input.tellg();
+        if (inputStart >= 0 && inputEnd >= inputStart) {
+            impl_->sourceBytesRead +=
+                static_cast<std::uint64_t>(inputEnd - inputStart);
+        }
         if (data.positions.empty()) {
             data = {};
             continue;
@@ -680,6 +687,10 @@ usdpointcloud::PointStreamStatus PlyPointStream::ReadNext(
         return usdpointcloud::PointStreamStatus::Chunk;
     }
     return usdpointcloud::PointStreamStatus::End;
+}
+
+std::uint64_t PlyPointStream::SourceBytesRead() const noexcept {
+    return impl_ ? impl_->sourceBytesRead : 0;
 }
 
 std::unique_ptr<PlyPointStream> OpenPointStream(
@@ -815,6 +826,10 @@ std::unique_ptr<PlyPointStream> OpenPointStream(
                                     "PLY payload is truncated or unreadable");
                 return nullptr;
             }
+        }
+        const auto sourcePosition = impl->input.tellg();
+        if (sourcePosition >= 0) {
+            impl->sourceBytesRead = static_cast<std::uint64_t>(sourcePosition);
         }
         return std::unique_ptr<PlyPointStream>(
             new PlyPointStream(std::move(impl)));

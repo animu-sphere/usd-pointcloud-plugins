@@ -95,6 +95,10 @@ LasReadFailure LasReader::FailureKind() const noexcept {
     return failureKind_;
 }
 
+std::uint64_t LasReader::SourceBytesRead() const noexcept {
+    return source_ ? source_->BytesRead() : 0;
+}
+
 bool LasReader::ReadMetadata(
     LasHeader& header,
     std::vector<usdgeo::Diagnostic>& diagnostics,
