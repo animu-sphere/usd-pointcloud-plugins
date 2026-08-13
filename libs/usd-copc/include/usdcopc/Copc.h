@@ -143,6 +143,7 @@ public:
         usdpointcloud::PointChunk& chunk,
         usdpointcloud::PointData& data,
         usdgeo::Diagnostic& diagnostic) override;
+    std::uint64_t SourceBytesRead() const noexcept override;
 
     const CopcHeader& Header() const noexcept;
     CopcReadFailure FailureKind() const noexcept;

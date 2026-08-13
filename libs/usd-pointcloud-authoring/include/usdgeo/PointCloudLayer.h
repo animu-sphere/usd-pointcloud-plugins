@@ -130,6 +130,7 @@ struct PointCloudPayloadOptions {
     std::function<void(std::size_t)> onBufferedBytes;
     std::vector<usdpointcloud::PointTileManifestEntry>* tileManifestEntries =
         nullptr;
+    usdpointcloud::SpoolIoStats* spoolIoStats = nullptr;
 };
 
 bool AuthorPointCloudTiledAssetFromStream(

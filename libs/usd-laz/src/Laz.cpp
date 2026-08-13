@@ -219,6 +219,10 @@ const usdlas::LasHeader& LazPointStream::Header() const noexcept {
     return header_;
 }
 
+std::uint64_t LazPointStream::SourceBytesRead() const noexcept {
+    return decoder_ ? decoder_->SourceBytesRead() : 0;
+}
+
 std::unique_ptr<LazPointStream> OpenLazPointStream(
     const std::string& filename,
     const LazReadOptions& options,

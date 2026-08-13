@@ -122,6 +122,8 @@ public:
         PointChunk& chunk,
         PointData& data,
         usdgeo::Diagnostic& diagnostic) = 0;
+
+    virtual std::uint64_t SourceBytesRead() const noexcept { return 0; }
 };
 
 } // namespace usdpointcloud

@@ -309,6 +309,11 @@ public:
         return usdpointcloud::PointStreamStatus::Chunk;
     }
 
+    std::uint64_t SourceBytesRead() const noexcept override {
+        return static_cast<std::uint64_t>(pointCount_) *
+               (sizeof(usdgeo::Vec3d) + sizeof(std::uint16_t) + sizeof(double));
+    }
+
 private:
     std::size_t pointCount_;
     std::size_t chunkPointCount_;
@@ -438,11 +443,12 @@ int main(int argc, char** argv) {
         pointCount = sourcePointCount;
     }
     std::vector<usdgeo::Diagnostic> diagnostics;
+    usdpointcloud::SpoolIoStats spoolIoStats;
     const auto authored = usdgeo::AuthorPointCloudTiledAssetFromStream(
         layer.operator->(), "/PointCloud", *stream, reference,
         {options.tileSize, 0},
         {outputDirectory.string(), rootLayerPath.string(),
-         options.memoryLimitBytes},
+         options.memoryLimitBytes, {}, {}, nullptr, &spoolIoStats},
         diagnostics);
     const auto exported = authored && layer->Export(rootLayerPath.string());
     std::uint64_t tileCount = 0;
@@ -464,6 +470,9 @@ int main(int argc, char** argv) {
         std::memory_order_relaxed);
     const auto outputBytes = DirectoryBytesRecursive(outputDirectory);
     const auto payloadBytes = PayloadBytes(outputDirectory);
+    const auto sourceReadBytes = stream->SourceBytesRead();
+    const auto totalIoBytes = sourceReadBytes + spoolIoStats.bytesWritten +
+                              spoolIoStats.bytesRead + payloadBytes;
     const auto writeBytesAfter = ProcessWriteBytes();
     std::cout << "format=" << (options.inputPath.empty()
                                    ? "generated"
@@ -484,6 +493,14 @@ int main(int argc, char** argv) {
                       : 0)
               << " peak_spool_file_bytes=" << peakSpoolFileBytes.load()
               << " payload_bytes=" << payloadBytes
+              << " source_read_bytes=" << sourceReadBytes
+              << " spool_bytes_written=" << spoolIoStats.bytesWritten
+              << " spool_bytes_read=" << spoolIoStats.bytesRead
+              << " io_amplification="
+              << (sourceReadBytes == 0
+                    ? 0.0
+                    : static_cast<double>(totalIoBytes) /
+                        static_cast<double>(sourceReadBytes))
               << " output_bytes=" << outputBytes
               << " process_write_bytes="
               << (writeBytesAfter >= writeBytesBefore

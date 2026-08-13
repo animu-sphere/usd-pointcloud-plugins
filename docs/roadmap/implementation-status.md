@@ -260,7 +260,7 @@ The ordered plan and acceptance priorities are in the
       time for both strategies
 - [ ] Record `usdview` open time and host responsiveness for the generated
       output
-- [ ] Add source bytes read, spool bytes written, spool bytes read, payload
+- [x] Add source bytes read, spool bytes written, spool bytes read, payload
       bytes written, and effective I/O amplification to the streaming benchmark
 - [ ] Publish the commands and corpus provenance needed to reproduce each
       baseline

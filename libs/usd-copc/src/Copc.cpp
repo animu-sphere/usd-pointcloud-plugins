@@ -465,6 +465,10 @@ const CopcHeader& CopcPointStream::Header() const noexcept {
     return header_;
 }
 
+std::uint64_t CopcPointStream::SourceBytesRead() const noexcept {
+    return source_ ? source_->BytesRead() : 0;
+}
+
 CopcReadFailure CopcPointStream::FailureKind() const noexcept {
     return failureKind_;
 }

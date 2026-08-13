@@ -9,6 +9,7 @@
 #include <limits>
 #include <memory>
 #include <stdexcept>
+#include <streambuf>
 #include <utility>
 #include <vector>
 
@@ -132,7 +133,7 @@ public:
                    std::vector<usdlas::LasPoint>& points,
                    bool& complete,
                    std::vector<usdgeo::Diagnostic>& diagnostics) override {
-        points.clear();
+            points.clear();
         complete = false;
         diagnostics.clear();
         if (maximumPoints == 0 || pointsRead_ >= pointCount_) {
@@ -184,9 +185,49 @@ private:
     std::uint64_t pointsRead_ = 0;
 };
 
+class CountingStreambuf final : public std::streambuf {
+public:
+    explicit CountingStreambuf(std::streambuf* source) : source_(source) {}
+
+    std::uint64_t BytesRead() const noexcept { return bytesRead_; }
+
+protected:
+    std::streamsize xsgetn(char* output, std::streamsize count) override {
+        const auto read = source_->sgetn(output, count);
+        if (read > 0) bytesRead_ += static_cast<std::uint64_t>(read);
+        return read;
+    }
+
+    int_type underflow() override { return source_->sgetc(); }
+
+    int_type uflow() override {
+        const auto value = source_->sbumpc();
+        if (value != traits_type::eof()) ++bytesRead_;
+        return value;
+    }
+
+    pos_type seekoff(off_type offset,
+                     std::ios_base::seekdir direction,
+                     std::ios_base::openmode mode) override {
+        return source_->pubseekoff(offset, direction, mode);
+    }
+
+    pos_type seekpos(pos_type position,
+                     std::ios_base::openmode mode) override {
+        return source_->pubseekpos(position, mode);
+    }
+
+    int sync() override { return source_->pubsync(); }
+
+private:
+    std::streambuf* source_;
+    std::uint64_t bytesRead_ = 0;
+};
+
 bool ReadHeaderBytes(const std::string& filename,
                      std::vector<std::uint8_t>& bytes,
-                     std::string& error) {
+                     std::string& error,
+                     std::uint64_t& bytesRead) {
     std::ifstream stream(filename, std::ios::binary);
     if (!stream) {
         error = "could not open LAZ file: " + filename;
@@ -210,6 +251,7 @@ bool ReadHeaderBytes(const std::string& filename,
         error = "could not read LAZ file";
         return false;
     }
+    bytesRead += static_cast<std::uint64_t>(bytes.size());
     if (bytes.size() <= 104) {
         error = "LAZ header is truncated";
         return false;
@@ -232,6 +274,7 @@ bool ReadHeaderBytes(const std::string& filename,
         error = "could not read LAZ header and VLRs";
         return false;
     }
+    bytesRead += static_cast<std::uint64_t>(bytes.size());
     bytes[104] &= 0x3f;
     return true;
 }
@@ -240,7 +283,8 @@ bool ReadExtendedRecords(const std::string& filename,
                          std::uint64_t offset,
                          std::uint32_t count,
                          std::vector<usdlas::LasVariableLengthRecord>& records,
-                         std::string& error) {
+                         std::string& error,
+                         std::uint64_t& bytesRead) {
     std::ifstream stream(filename, std::ios::binary);
     if (!stream) {
         error = "could not open LAZ file for EVLRs: " + filename;
@@ -262,6 +306,7 @@ bool ReadExtendedRecords(const std::string& filename,
             error = "LAS extended variable-length record header is truncated";
             return false;
         }
+        bytesRead += static_cast<std::uint64_t>(recordHeader.size());
         std::uint64_t length = 0;
         std::memcpy(&length, recordHeader.data() + 20, sizeof(length));
         const auto dataOffset = stream.tellg();
@@ -281,14 +326,23 @@ bool ReadExtendedRecords(const std::string& filename,
             error = "LAS extended variable-length record data is truncated";
             return false;
         }
+        bytesRead += length;
     }
     return usdlas::InspectRecords(bytes, 0, count, true, records, error);
 }
 
 class LazPerfDecoder final : public usdlaz::LazDecoder {
 public:
-    explicit LazPerfDecoder(std::unique_ptr<lazperf::reader::named_file> file)
-        : file_(std::move(file)) {}
+    LazPerfDecoder(std::unique_ptr<std::ifstream> input,
+                   std::unique_ptr<CountingStreambuf> buffer,
+                   std::unique_ptr<std::istream> stream,
+                   std::unique_ptr<lazperf::reader::generic_file> file,
+                   std::uint64_t initialSourceBytesRead)
+        : input_(std::move(input)),
+          buffer_(std::move(buffer)),
+          stream_(std::move(stream)),
+          file_(std::move(file)),
+          initialSourceBytesRead_(initialSourceBytesRead) {}
 
     bool ReadHeader(usdlas::LasHeader& header, std::string& error) override {
         header = header_;
@@ -355,10 +409,19 @@ public:
         return result;
     }
 
+    std::uint64_t SourceBytesRead() const noexcept override {
+        return initialSourceBytesRead_ +
+               (buffer_ ? buffer_->BytesRead() : 0);
+    }
+
     usdlas::LasHeader header_;
 
 private:
-    std::unique_ptr<lazperf::reader::named_file> file_;
+    std::unique_ptr<std::ifstream> input_;
+    std::unique_ptr<CountingStreambuf> buffer_;
+    std::unique_ptr<std::istream> stream_;
+    std::unique_ptr<lazperf::reader::generic_file> file_;
+    std::uint64_t initialSourceBytesRead_ = 0;
     std::uint64_t pointsRead_ = 0;
 };
 
@@ -475,9 +538,9 @@ std::unique_ptr<LazDecoder> CreateFileDecoder(const std::string& filename,
                                               std::string& error) {
     error.clear();
     try {
-        auto file = std::make_unique<lazperf::reader::named_file>(filename);
+        std::uint64_t initialSourceBytesRead = 0;
         std::vector<std::uint8_t> bytes;
-        if (!ReadHeaderBytes(filename, bytes, error)) {
+        if (!ReadHeaderBytes(filename, bytes, error, initialSourceBytesRead)) {
             return nullptr;
         }
         usdlas::LasHeader header;
@@ -499,14 +562,25 @@ std::unique_ptr<LazDecoder> CreateFileDecoder(const std::string& filename,
             !ReadExtendedRecords(filename,
                                  header.firstExtendedVariableLengthRecordOffset,
                                  header.extendedVariableLengthRecordCount,
-                                 header.variableLengthRecords, error)) {
+                                 header.variableLengthRecords, error,
+                                 initialSourceBytesRead)) {
             return nullptr;
         }
         if (!usdlas::ParseKnownMetadata(header.variableLengthRecords, header,
                                          error)) {
             return nullptr;
         }
-        auto decoder = std::make_unique<LazPerfDecoder>(std::move(file));
+        auto input = std::make_unique<std::ifstream>(filename, std::ios::binary);
+        if (!*input) {
+            error = "could not open LAZ file: " + filename;
+            return nullptr;
+        }
+        auto buffer = std::make_unique<CountingStreambuf>(input->rdbuf());
+        auto stream = std::make_unique<std::istream>(buffer.get());
+        auto file = std::make_unique<lazperf::reader::generic_file>(*stream);
+        auto decoder = std::make_unique<LazPerfDecoder>(
+            std::move(input), std::move(buffer), std::move(stream),
+            std::move(file), initialSourceBytesRead);
         decoder->header_ = std::move(header);
         return decoder;
     } catch (const std::exception& exception) {

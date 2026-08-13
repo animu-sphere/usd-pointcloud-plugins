@@ -34,7 +34,8 @@ void AddStreamDiagnostic(usdgeo::DiagnosticCode code,
 LasPointStream::LasPointStream(std::string filename,
                                LasReadOptions options,
                                LasHeader header,
-                               std::size_t effectiveChunkPointLimit)
+                               std::size_t effectiveChunkPointLimit,
+                               std::uint64_t initialSourceBytesRead)
     : filename_(std::move(filename)),
       reader_(filename_),
       options_(std::move(options)),
@@ -43,7 +44,8 @@ LasPointStream::LasPointStream(std::string filename,
       endPoint_(options_.range.pointCount == 0
                     ? header_.pointCount
                     : options_.range.firstPoint + options_.range.pointCount),
-      effectiveChunkPointLimit_(effectiveChunkPointLimit) {}
+    effectiveChunkPointLimit_(effectiveChunkPointLimit),
+    initialSourceBytesRead_(initialSourceBytesRead) {}
 
 LasPointStream::~LasPointStream() = default;
 
@@ -106,6 +108,10 @@ const LasHeader& LasPointStream::Header() const noexcept {
     return header_;
 }
 
+std::uint64_t LasPointStream::SourceBytesRead() const noexcept {
+    return initialSourceBytesRead_ + reader_.SourceBytesRead();
+}
+
 LasReadFailure LasPointStream::FailureKind() const noexcept {
     return failureKind_;
 }
@@ -147,8 +153,10 @@ std::unique_ptr<LasPointStream> OpenLasPointStream(
                             diagnostics);
         return nullptr;
     }
+    const auto initialSourceBytesRead = reader.SourceBytesRead();
     return std::unique_ptr<LasPointStream>(new LasPointStream(
-        filename, options, header, effectiveChunkPointLimit));
+        filename, options, header, effectiveChunkPointLimit,
+        initialSourceBytesRead));
 }
 
 } // namespace usdlas

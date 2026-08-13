@@ -28,6 +28,7 @@ public:
                            std::vector<usdlas::LasPoint>& points,
                            bool& complete,
                            std::vector<usdgeo::Diagnostic>& diagnostics);
+    virtual std::uint64_t SourceBytesRead() const noexcept { return 0; }
 };
 
 std::unique_ptr<LazDecoder> CreateFileDecoder(const std::string& filename,
@@ -127,6 +128,7 @@ public:
         usdpointcloud::PointChunk& chunk,
         usdpointcloud::PointData& data,
         usdgeo::Diagnostic& diagnostic) override;
+    std::uint64_t SourceBytesRead() const noexcept override;
 
     const usdlas::LasHeader& Header() const noexcept;
 
