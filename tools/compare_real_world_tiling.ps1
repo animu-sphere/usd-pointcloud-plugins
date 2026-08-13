@@ -101,7 +101,20 @@ if ($ChunkPoints -le 0 -or $TileSize -le 0 -or $MemoryLimitBytes -eq 0 -or
 }
 
 $resolvedInput = (Resolve-Path -LiteralPath $InputPath).Path
+$resolvedBenchmark = (Resolve-Path -LiteralPath $Benchmark).Path
 $resolvedReport = [System.IO.Path]::GetFullPath($Report)
+$jsonReport = [System.IO.Path]::ChangeExtension($resolvedReport, '.json')
+$protectedPaths = @($resolvedInput, $resolvedBenchmark)
+foreach ($outputPath in @($resolvedReport, $jsonReport)) {
+    if ($protectedPaths | Where-Object {
+            [System.StringComparer]::OrdinalIgnoreCase.Equals($_, $outputPath) }) {
+        throw "report output must not overwrite the input or benchmark: $outputPath"
+    }
+}
+if ([System.StringComparer]::OrdinalIgnoreCase.Equals(
+        $resolvedReport, $jsonReport)) {
+    throw 'report path must not use the .json extension'
+}
 $reportDirectory = Split-Path -Parent $resolvedReport
 if ([string]::IsNullOrEmpty($reportDirectory)) { $reportDirectory = (Get-Location).Path }
 New-Item -ItemType Directory -Force -Path $reportDirectory | Out-Null
@@ -150,10 +163,9 @@ foreach ($row in $rows) {
 }
 [System.IO.File]::WriteAllLines($resolvedReport, $tsv)
 
-$jsonReport = [System.IO.Path]::ChangeExtension($resolvedReport, '.json')
 $json = [ordered]@{
     generated_utc = [DateTime]::UtcNow.ToString('O')
-    benchmark = (Resolve-Path -LiteralPath $Benchmark).Path
+    benchmark = $resolvedBenchmark
     configuration = $common
     results = $rows
 }
