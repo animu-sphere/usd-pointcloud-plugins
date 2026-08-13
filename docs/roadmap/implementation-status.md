@@ -254,10 +254,12 @@ The ordered plan and acceptance priorities are in the
 
 - [ ] Compare fixed-grid and adaptive tiling on real-world LAS, LAZ, COPC, and
       PLY inputs with uneven density
-- [ ] Record points per tile distribution, payload bytes per tile, total
-      payload bytes, tile count, and tree depth
-- [ ] Record peak RSS, spool bytes, source read bytes, and total processing
-      time for both strategies
+- [x] Record points per tile distribution, payload bytes per tile, total
+      payload bytes, tile count, and tree depth in the reproducible benchmark
+      report for both strategies on the same fixture inputs
+- [x] Record peak RSS, spool bytes, source read bytes, and total processing
+      time for both strategies in benchmark output; real-world baselines remain
+      open
 - [ ] Record `usdview` open time and host responsiveness for the generated
       output
 - [x] Add source bytes read, spool bytes written, spool bytes read, payload
