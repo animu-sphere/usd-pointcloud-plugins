@@ -330,6 +330,13 @@ bool BuildCacheDescriptor(
             descriptor.tileAndLod.emplace_back(key, value);
         }
     }
+    if (request.maxPointsPerTile) {
+        descriptor.tileAndLod.emplace_back(
+            "planner.id", usdpointcloud::kAdaptivePointBudgetPlannerId);
+        descriptor.tileAndLod.emplace_back(
+            "planner.version",
+            std::to_string(usdpointcloud::kAdaptivePointBudgetPlannerVersion));
+    }
     descriptor.downsampling = {{"algorithm", "fixed-stride"},
                                {"version", "1"}};
     if (!descriptor.IsValid()) {

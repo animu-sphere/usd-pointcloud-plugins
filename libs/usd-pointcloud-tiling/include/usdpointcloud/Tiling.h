@@ -1,5 +1,6 @@
 #pragma once
 
+#include "usdgeo/CacheKey.h"
 #include "usdgeo/Diagnostic.h"
 #include "usdgeo/TileId.h"
 #include "usdgeo/SpatialBounds.h"
@@ -33,6 +34,9 @@ struct PointBudgetConfig {
 };
 
 constexpr std::int32_t kMaxPointBudgetDepth = 31;
+constexpr const char* kAdaptivePointBudgetPlannerId =
+    "adaptive-point-budget";
+constexpr std::uint32_t kAdaptivePointBudgetPlannerVersion = 1;
 
 struct PointBudgetTile {
     PointTileId id;
@@ -136,6 +140,9 @@ bool BuildTilePlan(
     const PointBudgetPlan& budgetPlan,
     TilePlan& plan,
     std::vector<usdgeo::Diagnostic>& diagnostics);
+
+usdgeo::CacheArguments TilePlanCacheArguments(const TilePlan& plan);
+std::string StableTilePlanKey(const TilePlan& plan);
 
 class TileRouter {
 public:

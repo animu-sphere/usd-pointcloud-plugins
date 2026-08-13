@@ -194,6 +194,36 @@ void TestTilePlanValidation() {
     Check(!diagnostics.empty());
 }
 
+void TestTilePlanCacheIdentity() {
+    const usdgeo::SpatialBounds bounds{{0.0, 0.0, 0.0},
+                                       {1.0, 1.0, 0.0}};
+    usdpointcloud::TilePlan first;
+    first.plannerId = "copc-native-hierarchy";
+    first.plannerVersion = 1;
+    first.nodes = {
+        {{0, 0, 0, 0}, bounds, 2, {-1, 0, 0, 0}, {{1, 0, 0, 0}}, {}, false},
+        {{1, 0, 0, 0}, bounds, 2, {0, 0, 0, 0}, {}, {{0, 10}}, true}};
+    Check(usdpointcloud::StableTilePlanKey(first).size() == 16);
+
+    auto reordered = first;
+    std::swap(reordered.nodes[0], reordered.nodes[1]);
+    Check(usdpointcloud::StableTilePlanKey(first) ==
+          usdpointcloud::StableTilePlanKey(reordered));
+
+    reordered.nodes[1].pointCount++;
+    Check(usdpointcloud::StableTilePlanKey(first) !=
+          usdpointcloud::StableTilePlanKey(reordered));
+
+    reordered = first;
+    reordered.plannerVersion++;
+    Check(usdpointcloud::StableTilePlanKey(first) !=
+          usdpointcloud::StableTilePlanKey(reordered));
+
+    usdpointcloud::TilePlan invalid = first;
+    invalid.plannerId.clear();
+    Check(usdpointcloud::StableTilePlanKey(invalid).empty());
+}
+
 void TestTileManifestSerialization() {
     const usdgeo::SpatialBounds bounds{{-2.0, 1.0, 3.0},
                                        {4.0, 5.0, 6.0}};
@@ -343,6 +373,7 @@ int main() {
     TestPointBudgetPlanningMatchesVectorForUnevenDistribution();
     TestPointBudgetDepthLimit();
     TestTilePlanValidation();
+    TestTilePlanCacheIdentity();
     TestTileManifestSerialization();
     TestTileManifestValidation();
     return 0;
