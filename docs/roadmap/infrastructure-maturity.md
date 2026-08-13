@@ -133,7 +133,7 @@ schema is deferred until the plain-attribute metadata contract is stable.
 | `v0.5.0` | Remote source architecture | Resolver-backed COPC through a project-owned random-access source | Released 2026-08-12 |
 | `v0.6.0` | Cache and source identity | Deterministic local reuse and conservative remote identity | Released 2026-08-12 |
 | `v0.7.0` | Adaptive tiling | Predictable payload density and memory through point-budget planning | Released 2026-08-13 |
-| `v0.8.0` | Measurement and I/O observability | Real-world adaptive baselines and visible I/O amplification | Planned |
+| `v0.8.0` | Measurement and I/O observability | Real-world adaptive baselines and visible I/O amplification | Released 2026-08-14 |
 | `v0.9.0` | TilePlan convergence | One tile-plan representation for sequential planning and COPC native hierarchy | Planned |
 | `v0.10.0` | Resolver-backed source identity | Safe generated-cache reuse for resolver-provided sources | Planned |
 | Research | Runtime streaming | Evidence about host-driven partial loading, with no premature abstraction | Ongoing |

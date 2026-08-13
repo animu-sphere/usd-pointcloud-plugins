@@ -2,6 +2,39 @@
 
 All notable changes to this project are documented here.
 
+## [0.8.0] - 2026-08-14
+
+### Added
+
+- Reproducible fixed-grid versus adaptive real-world measurements for LAS,
+  LAZ, COPC, and PLY, including tile distributions, RSS, source and spool
+  I/O, payload bytes, processing time, and I/O amplification in TSV and JSON.
+- A deterministic LAS 1.4 point-format-7 LAZ regression fixture covering RGB
+  decoding and optional compressed substreams.
+
+### Changed
+
+- Windows spool authoring now supports fine-grained real-world runs beyond
+  the CRT default of 512 simultaneously open files.
+- The vendored LAZ reader accepts the compressor version emitted for LAS 1.4
+  point formats 6-8 and safely skips absent optional point-format-7 streams.
+- Payload authoring validates tile manifests only when a manifest is requested,
+  allowing external payload directories for FileFormat reads.
+
+### Compatibility
+
+- Existing LAS, LAZ, COPC, and PLY format ids, arguments, authored stage shape,
+  and fixed-grid tiling behavior remain compatible with v0.7.0.
+- The v0.8.0 real-world matrix completed for Shizuoka LAS/LAZ, Autzen COPC,
+  and Stanford Bunny PLY inputs on Windows with OpenUSD 26.08.
+
+### Known limitations
+
+- Host responsiveness during interactive output use remains unmeasured.
+- Broader datasets remain build-local and are not shipped in plugin bundles.
+- Target payload-byte and spatial-size fallback policies, COPC writing, and
+  new public USD schemas remain out of scope.
+
 ## [0.7.0] - 2026-08-13
 
 ### Added

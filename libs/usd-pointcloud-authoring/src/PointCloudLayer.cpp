@@ -916,12 +916,14 @@ bool AuthorPointCloudTiledAssetWithPayloads(
                 relativePayloadPath.generic_string()});
         }
     }
-    std::vector<usdgeo::Diagnostic> manifestDiagnostics;
-    const usdpointcloud::PointTileManifest tileManifest{manifestEntries};
-    if (!usdpointcloud::ValidatePointTileManifest(
-            tileManifest, manifestDiagnostics)) {
-        cleanup();
-        return false;
+    if (options.tileManifestEntries) {
+        std::vector<usdgeo::Diagnostic> manifestDiagnostics;
+        const usdpointcloud::PointTileManifest tileManifest{manifestEntries};
+        if (!usdpointcloud::ValidatePointTileManifest(
+                tileManifest, manifestDiagnostics)) {
+            cleanup();
+            return false;
+        }
     }
 
     const ScopedLayerIdentifier scopedRootIdentifier(

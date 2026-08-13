@@ -196,7 +196,7 @@ void basic_file::Private::parseVLRs()
 void basic_file::Private::parseLASZIPVLR(const char *buf)
 {
     laz.fill(buf);
-    if (laz.compressor != 2)
+    if (laz.compressor != 2 && laz.compressor != 3)
         throw error("LASZIP format unsupported - invalid compressor version.");
 }
 

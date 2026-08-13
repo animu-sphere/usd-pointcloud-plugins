@@ -250,13 +250,12 @@ The ordered plan and acceptance priorities are in the
       tile ID, LOD level, source bounds, point count, and portable payload path
 - [x] Invalidate cached entries whose tile manifest is incomplete
 
-#### `v0.8.0` - measurement and I/O observability (planned)
+#### `v0.8.0` - measurement and I/O observability (released 2026-08-14)
 
-- [ ] Compare fixed-grid and adaptive tiling on real-world LAS, LAZ, COPC, and
+- [x] Compare fixed-grid and adaptive tiling on real-world LAS, LAZ, COPC, and
       PLY inputs with uneven density
--     The matrix runner and real LAS, LAZ, and PLY measurements are available;
-      native Autzen COPC currently exposes a point-format-7 decoder failure,
-      so this gate stays open until a native real COPC comparison succeeds.
+-     The final matrix completed for Shizuoka LAS/LAZ, Autzen COPC, and
+      Stanford Bunny PLY with fixed-grid and adaptive rows for every format.
 - [x] Add a reproducible fixed-grid versus adaptive comparison harness that
       records corpus identity, normalized settings, tile distributions, RSS,
       source and spool I/O, payload bytes, and processing time in TSV and JSON
@@ -264,8 +263,7 @@ The ordered plan and acceptance priorities are in the
       payload bytes, tile count, and tree depth in the reproducible benchmark
       report for both strategies on the same fixture inputs
 - [x] Record peak RSS, spool bytes, source read bytes, and total processing
-      time for both strategies in benchmark output; real-world baselines remain
-      open
+      time for both strategies in benchmark output and real-world baselines
 - [x] Record `usdview` startup/open elapsed time and peak process-tree working
       set for the generated output
 - [x] Provide a reproducible build-local payload-backed `usdview` fixture
