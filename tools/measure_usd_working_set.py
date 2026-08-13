@@ -3,6 +3,7 @@ import ctypes
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -124,9 +125,17 @@ def sample_tree(root_pid):
     return sum(values), max(values, default=0), len(values)
 
 
+def parse_stage_open_seconds(output):
+    match = re.search(r"Time to open stage .*: ([0-9]+(?:\.[0-9]+)?)s", output)
+    return float(match.group(1)) if match else None
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Measure the Windows working set of an ost plugin view session"
+        description=(
+            "Measure the Windows working set and elapsed time of an ost "
+            "plugin view session"
+        )
     )
     parser.add_argument("--bundle", required=True)
     parser.add_argument("--with-bundle", action="append", default=[])
@@ -177,6 +186,7 @@ def main():
         raise SystemExit("--interval-ms must be positive")
     command = build_command(options)
     with tempfile.TemporaryFile() as output_file:
+        started_at = time.perf_counter()
         process = subprocess.Popen(
             command,
             stdout=output_file,
@@ -195,8 +205,10 @@ def main():
             samples += 1
             time.sleep(options.interval_ms / 1000.0)
         process.wait()
+        elapsed_seconds = time.perf_counter() - started_at
         output_file.seek(0)
         output = output_file.read().decode(errors="replace")
+        stage_open_seconds = parse_stage_open_seconds(output)
         total, single, count = sample_tree(process.pid)
         peak_total = max(peak_total, total)
         peak_single = max(peak_single, single)
@@ -207,6 +219,8 @@ def main():
         "renderer": options.renderer,
         "fixture": str(Path(options.fixture).resolve()),
         "returncode": process.returncode,
+        "elapsed_seconds": elapsed_seconds,
+        "stage_open_seconds": stage_open_seconds,
         "baseline_process_tree_working_set_bytes": baseline_total,
         "peak_process_tree_working_set_bytes": peak_total,
         "peak_process_working_set_bytes": peak_single,

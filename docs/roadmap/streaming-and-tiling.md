@@ -529,6 +529,24 @@ The pinned OpenUSD runtime exposes `Storm` as its Hydra renderer. The available
 scene and render paths can be measured consistently with the Windows
 process-tree sampler:
 
+For a reproducible payload-backed smoke fixture, use the public-domain USGS
+3DEP 4,096-point LAS subset described in
+`plugins/pointcloud-las/tests/corpus/usgs-3dep-2020/PROVENANCE.md`. The recipe
+keeps generated USD and USDC files in the build tree rather than checking in
+platform-dependent binary output:
+
+```powershell
+$envScript = ost env cy2026 --profile usd --shell powershell | Out-String
+Invoke-Expression $envScript
+& '.\tools\prepare_usdview_fixture.ps1' `
+    -Converter '.\build\cy2026-windows-x86_64-py313-usd\tools\usd-pointcloud-convert\usd-pointcloud-convert.exe' `
+    -OutputDirectory '.\build\usdview-fixture-usgs-4096'
+```
+
+The default recipe settings produce a deterministic adaptive `usdLod` root
+with multiple payloads while keeping the fixture fast enough for local
+startup checks. The generated root can then be measured directly:
+
 ```powershell
 python tools/measure_usd_working_set.py `
     --bundle .\\plugins\\pointcloud-las `
@@ -545,9 +563,13 @@ python tools/measure_usd_working_set.py `
 ```
 
 The sampler launches `usdview.cmd` or `usdrecord.cmd` through `ost plugin run`
-and reports the peak working set of the complete runtime process tree. This
-includes the OpenUSD runtime and renderer process, which is the relevant
-working set for an actual plugin view or render session. For the full
+and reports the stage open time, total process elapsed time, and peak working
+set of the complete runtime process tree. In `view` mode, the command uses
+`--quitAfterStartup`; `stage_open_seconds` is parsed from usdview's timing
+output, while `elapsed_seconds` covers the complete process lifetime. The
+working-set measurement includes the OpenUSD runtime and renderer process,
+which is the relevant working set for an actual plugin view or render session.
+For the full
 Shizuoka payload root generated with tile size 128, a local run on 2026-08-05
 reported:
 
