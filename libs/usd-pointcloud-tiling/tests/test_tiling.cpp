@@ -17,6 +17,30 @@ void Check(bool condition) {
     }
 }
 
+class PlanningPointStream final : public usdpointcloud::PointStream {
+public:
+    explicit PlanningPointStream(std::vector<usdgeo::Vec3d> positions)
+        : positions_(std::move(positions)) {}
+
+    usdpointcloud::PointStreamStatus ReadNext(
+        usdpointcloud::PointChunk& chunk,
+        usdpointcloud::PointData& data,
+        usdgeo::Diagnostic& diagnostic) override {
+        diagnostic = {};
+        if (read_) return usdpointcloud::PointStreamStatus::End;
+        data.positions = positions_;
+        usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+        for (const auto& position : data.positions) bounds.Expand(position);
+        chunk = usdpointcloud::MakePointChunk(data, bounds);
+        read_ = true;
+        return usdpointcloud::PointStreamStatus::Chunk;
+    }
+
+private:
+    std::vector<usdgeo::Vec3d> positions_;
+    bool read_ = false;
+};
+
 void TestConfigValidation() {
     usdpointcloud::TileGridConfig config{10.0, 2};
     std::vector<usdgeo::Diagnostic> diagnostics;
@@ -69,6 +93,69 @@ void TestPointBudgetPlanning() {
     diagnostics.clear();
     config = {100, 70, 3};
     Check(!usdpointcloud::BuildPointBudgetPlan(positions, config, plan, diagnostics));
+    Check(!diagnostics.empty());
+}
+
+void TestPointBudgetStreamPlanning() {
+    usdpointcloud::PointBudgetConfig config{100, 10, 3};
+    std::vector<usdgeo::Vec3d> positions;
+    for (int y = 0; y < 32; ++y) {
+        for (int x = 0; x < 32; ++x) {
+            positions.push_back({static_cast<double>(x), static_cast<double>(y), 0.0});
+        }
+    }
+    std::size_t factoryCalls = 0;
+    const usdpointcloud::PointStreamFactory factory = [&]() {
+        ++factoryCalls;
+        return std::make_unique<PlanningPointStream>(positions);
+    };
+    usdpointcloud::PointBudgetPlan plan;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(usdpointcloud::BuildPointBudgetPlan(
+        factory, config, plan, diagnostics));
+    Check(factoryCalls == 2 && diagnostics.empty());
+    Check(plan.pointCount == 1024 && plan.tileCount == 16 &&
+          plan.minimumPointsPerTile == 64 &&
+          plan.maximumPointsPerTile == 64 && plan.tiles.size() == 16);
+    const usdpointcloud::PointBudgetTileRouter router(plan);
+    Check(router.GetTileId({31.0, 31.0, 0.0}).level == 2);
+}
+
+void TestPointBudgetPlanningMatchesVectorForUnevenDistribution() {
+    const std::vector<usdgeo::Vec3d> positions = {
+        {0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0},
+        {1.0, 1.0, 0.0}, {10.0, 0.0, 0.0}, {11.0, 0.0, 0.0},
+        {10.0, 1.0, 0.0}, {11.0, 1.0, 0.0}, {0.0, 10.0, 0.0},
+        {1.0, 10.0, 0.0}, {0.0, 11.0, 0.0}, {1.0, 11.0, 0.0},
+        {10.0, 10.0, 0.0}, {11.0, 10.0, 0.0}, {10.0, 11.0, 0.0},
+        {11.0, 11.0, 0.0}};
+    const usdpointcloud::PointBudgetConfig config{4, 2, 3};
+    usdpointcloud::PointBudgetPlan vectorPlan;
+    std::vector<usdgeo::Diagnostic> vectorDiagnostics;
+    Check(usdpointcloud::BuildPointBudgetPlan(
+        positions, config, vectorPlan, vectorDiagnostics));
+
+    const usdpointcloud::PointStreamFactory factory = [&]() {
+        return std::make_unique<PlanningPointStream>(positions);
+    };
+    usdpointcloud::PointBudgetPlan streamPlan;
+    std::vector<usdgeo::Diagnostic> streamDiagnostics;
+    Check(usdpointcloud::BuildPointBudgetPlan(
+        factory, config, streamPlan, streamDiagnostics));
+    Check(vectorPlan.tiles.size() == streamPlan.tiles.size());
+    for (std::size_t index = 0; index < vectorPlan.tiles.size(); ++index) {
+        Check(vectorPlan.tiles[index].id.level == streamPlan.tiles[index].id.level &&
+              vectorPlan.tiles[index].id.x == streamPlan.tiles[index].id.x &&
+              vectorPlan.tiles[index].id.y == streamPlan.tiles[index].id.y &&
+              vectorPlan.tiles[index].pointCount ==
+                  streamPlan.tiles[index].pointCount);
+    }
+}
+
+void TestPointBudgetDepthLimit() {
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!usdpointcloud::ValidatePointBudgetConfig(
+        {1, 1, usdpointcloud::kMaxPointBudgetDepth + 1}, diagnostics));
     Check(!diagnostics.empty());
 }
 
@@ -170,5 +257,8 @@ int main() {
     TestInvalidRouting();
     TestSpoolRoundTrip();
     TestIncompleteSpool();
+    TestPointBudgetStreamPlanning();
+    TestPointBudgetPlanningMatchesVectorForUnevenDistribution();
+    TestPointBudgetDepthLimit();
     return 0;
 }

@@ -7,6 +7,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <memory>
 #include <vector>
 
 namespace usdpointcloud {
@@ -29,6 +31,19 @@ struct PointBudgetConfig {
     bool IsValid() const noexcept;
 };
 
+constexpr std::int32_t kMaxPointBudgetDepth = 31;
+
+struct PointBudgetTile {
+    PointTileId id;
+    double minX = 0.0;
+    double maxX = 0.0;
+    double minY = 0.0;
+    double maxY = 0.0;
+    std::size_t pointCount = 0;
+
+    bool IsValid() const noexcept;
+};
+
 struct PointBudgetPlan {
     std::size_t tileCount = 0;
     std::size_t maximumPointsPerTile = 0;
@@ -37,6 +52,7 @@ struct PointBudgetPlan {
     std::size_t minimumPointsPerTile = 0;
     double averagePointsPerTile = 0.0;
     std::size_t splitCount = 0;
+    std::vector<PointBudgetTile> tiles;
 };
 
 bool ValidatePointBudgetConfig(
@@ -45,6 +61,15 @@ bool ValidatePointBudgetConfig(
 
 bool BuildPointBudgetPlan(
     const std::vector<usdgeo::Vec3d>& sourcePositions,
+    const PointBudgetConfig& config,
+    PointBudgetPlan& plan,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
+
+using PointStreamFactory =
+    std::function<std::unique_ptr<PointStream>()>;
+
+bool BuildPointBudgetPlan(
+    const PointStreamFactory& streamFactory,
     const PointBudgetConfig& config,
     PointBudgetPlan& plan,
     std::vector<usdgeo::Diagnostic>& diagnostics);
@@ -68,6 +93,22 @@ public:
 
 private:
     TileGridConfig config_;
+};
+
+class PointBudgetTileRouter final : public TileRouter {
+public:
+    explicit PointBudgetTileRouter(const PointBudgetPlan& plan);
+
+    PointTileId GetTileId(
+        const usdgeo::Vec3d& sourcePosition) const noexcept override;
+    bool IsValid() const noexcept override;
+
+private:
+    std::vector<PointBudgetTile> tiles_;
+    double rootMinX_ = 0.0;
+    double rootMaxX_ = 0.0;
+    double rootMinY_ = 0.0;
+    double rootMaxY_ = 0.0;
 };
 
 } // namespace usdpointcloud

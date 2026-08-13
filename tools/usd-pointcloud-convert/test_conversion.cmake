@@ -38,6 +38,33 @@ if(NOT EXISTS "${output_root}" OR NOT EXISTS "${output_payloads}" OR
     message(FATAL_ERROR "converter did not publish the expected output bundle")
 endif()
 
+set(adaptive_root "${test_root}-adaptive")
+file(REMOVE_RECURSE "${adaptive_root}")
+execute_process(
+    COMMAND "${converter}" "${fixture}" "${adaptive_root}/PointCloud.usda"
+            --max-points-per-tile 1 --min-points-per-tile 1 --max-depth 8
+            --memory-limit 1024 --attributes xyz,intensity
+    RESULT_VARIABLE adaptive_result
+    OUTPUT_VARIABLE adaptive_output
+    ERROR_VARIABLE adaptive_error)
+if(NOT adaptive_result EQUAL 0 OR NOT adaptive_error STREQUAL "" OR
+   NOT EXISTS "${adaptive_root}/PointCloud.usda" OR
+   NOT EXISTS "${adaptive_root}/PointCloud.usda.manifest" OR
+   NOT EXISTS "${adaptive_root}/PointCloud_payloads")
+    message(FATAL_ERROR
+        "adaptive converter failed: ${adaptive_output}${adaptive_error}")
+endif()
+file(READ "${adaptive_root}/PointCloud.usda.manifest" adaptive_manifest)
+foreach(expected_line
+        "argument.maxPointsPerTile=1"
+        "argument.minPointsPerTile=1"
+        "argument.maxDepth=8")
+    string(FIND "${adaptive_manifest}" "${expected_line}" expected_position)
+    if(expected_position EQUAL -1)
+        message(FATAL_ERROR "adaptive manifest is missing: ${expected_line}")
+    endif()
+endforeach()
+
 file(READ "${output_manifest}" manifest_contents)
 foreach(expected_line
         "format=usd-pointcloud-manifest-v1"

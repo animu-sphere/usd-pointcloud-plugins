@@ -98,6 +98,15 @@ The tiled surface also exposes:
 | `tileMemoryLimit` | Positive total spool working-set limit in bytes |
 | `payloadDirectory` | Payload output directory |
 
+The explicit `usd-pointcloud-convert` tool additionally accepts the generic
+point-budget arguments `maxPointsPerTile`, `minPointsPerTile`, and `maxDepth`.
+`maxDepth` is an unsigned value from 0 through 31.
+They are normalized into the conversion manifest and cache identity, then
+planned with two bounded stream passes before adaptive payload authoring.
+These arguments are intentionally not accepted by LAS, LAZ, COPC, or PLY
+FileFormat reads; those interactive paths retain fixed-grid `tileSize`
+behavior.
+
 The `lod` profile is normalized as `off`, `preview`, `balanced`, or `quality`.
 `off` is the default and has the same canonical identity as an omitted
 argument. The other profiles author a single non-tiled `usdLod` root using

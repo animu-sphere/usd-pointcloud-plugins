@@ -38,6 +38,9 @@ struct PointReadRequest {
     bool tiled = false;
     double tileSize = 0.0;
     std::size_t tileMemoryLimitBytes = 64 * 1024 * 1024;
+    std::optional<std::size_t> maxPointsPerTile;
+    std::size_t minPointsPerTile = 0;
+    std::int32_t maxTileDepth = 0;
     std::string payloadDirectory;
     std::vector<std::string> attributes;
     std::map<std::string, std::string> canonicalArguments;

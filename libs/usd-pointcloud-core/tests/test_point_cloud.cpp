@@ -258,6 +258,34 @@ void TestFileFormatArgumentNormalization() {
         Check(request.normalizedArguments ==
                 "tile=true&tileSize=2.000000&tileMemoryLimit=1024&payloadDirectory=tiles");
 
+          arguments = {{"maxPointsPerTile", "128"},
+                   {"minPointsPerTile", "16"},
+                   {"maxDepth", "6"},
+                   {"payloadDirectory", "adaptive"}};
+          Check(usdpointcloud::NormalizeFileFormatArguments(
+            arguments, request, diagnostics));
+          Check(request.tiled && request.maxPointsPerTile == 128 &&
+              request.minPointsPerTile == 16 && request.maxTileDepth == 6 &&
+              request.tileSize == 0.0);
+          Check(request.normalizedArguments ==
+              "tile=true&maxPointsPerTile=128&minPointsPerTile=16&maxDepth=6&payloadDirectory=adaptive");
+
+          arguments = {{"maxPointsPerTile", "128"},
+                   {"tileSize", "2"},
+                   {"payloadDirectory", "adaptive"}};
+          Check(!usdpointcloud::NormalizeFileFormatArguments(
+            arguments, request, diagnostics));
+          Check(diagnostics.front().code ==
+              usdgeo::DiagnosticCode::ConflictingFormatArguments);
+
+          arguments = {{"maxPointsPerTile", "128"},
+                   {"maxDepth", "32"},
+                   {"payloadDirectory", "adaptive"}};
+          Check(!usdpointcloud::NormalizeFileFormatArguments(
+            arguments, request, diagnostics));
+          Check(diagnostics.front().code ==
+              usdgeo::DiagnosticCode::InvalidFormatArgument);
+
         arguments = {{"lod", "preview"}, {"payloadDirectory", "tiles"},
                  {"tileSize", "2"}};
         Check(!usdpointcloud::NormalizeFileFormatArguments(

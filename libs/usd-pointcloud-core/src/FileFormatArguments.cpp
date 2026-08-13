@@ -328,6 +328,36 @@ bool NormalizeFileFormatArguments(
             }
             request.tileMemoryLimitBytes = static_cast<std::size_t>(parsed);
             request.tiled = true;
+        } else if (key == "maxPointsPerTile") {
+            if (format != PointReadFormat::Generic ||
+                !ParseUnsigned(value, parsed, error) || parsed == 0 ||
+                parsed > (std::numeric_limits<std::size_t>::max)()) {
+                AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                              "invalid maxPointsPerTile: " + value, diagnostics);
+                return false;
+            }
+            request.maxPointsPerTile = static_cast<std::size_t>(parsed);
+            request.tiled = true;
+        } else if (key == "minPointsPerTile") {
+            if (format != PointReadFormat::Generic ||
+                !ParseUnsigned(value, parsed, error) ||
+                parsed > (std::numeric_limits<std::size_t>::max)()) {
+                AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                              "invalid minPointsPerTile: " + value, diagnostics);
+                return false;
+            }
+            request.minPointsPerTile = static_cast<std::size_t>(parsed);
+            request.tiled = true;
+        } else if (key == "maxDepth") {
+            if (format != PointReadFormat::Generic ||
+                !ParseUnsigned(value, parsed, error) ||
+                parsed > 31) {
+                AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                              "invalid maxDepth: " + value, diagnostics);
+                return false;
+            }
+            request.maxTileDepth = static_cast<std::int32_t>(parsed);
+            request.tiled = true;
         } else if (key == "payloadDirectory") {
             request.payloadDirectory = value;
             request.tiled = true;
@@ -414,11 +444,30 @@ bool NormalizeFileFormatArguments(
                       diagnostics);
         return false;
     }
-    if (request.tiled && (request.tileSize <= 0.0 ||
+    const bool adaptiveTiling = request.maxPointsPerTile.has_value();
+    if (request.tiled && ((request.tileSize <= 0.0 && !adaptiveTiling) ||
                           request.payloadDirectory.empty())) {
         AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
-                      "tiled reads require tileSize and payloadDirectory",
+                      "tiled reads require tileSize or maxPointsPerTile and payloadDirectory",
                       diagnostics);
+        return false;
+    }
+    if (adaptiveTiling && request.tileSize > 0.0) {
+        AddDiagnostic(usdgeo::DiagnosticCode::ConflictingFormatArguments,
+                      "maxPointsPerTile cannot be combined with tileSize",
+                      diagnostics);
+        return false;
+    }
+    if (request.minPointsPerTile > 0 && !adaptiveTiling) {
+        AddDiagnostic(usdgeo::DiagnosticCode::ConflictingFormatArguments,
+                      "minPointsPerTile requires maxPointsPerTile", diagnostics);
+        return false;
+    }
+    if (adaptiveTiling &&
+        (request.minPointsPerTile > *request.maxPointsPerTile ||
+         request.maxTileDepth < 0)) {
+        AddDiagnostic(usdgeo::DiagnosticCode::InvalidFormatArgument,
+                      "invalid point-budget tiling limits", diagnostics);
         return false;
     }
     if (request.tiled && request.lodProfile != LodProfile::Off) {
@@ -490,7 +539,20 @@ bool NormalizeFileFormatArguments(
     }
     if (request.tiled) {
         normalized.emplace_back("tile", "true");
-        normalized.emplace_back("tileSize", std::to_string(request.tileSize));
+        if (request.maxPointsPerTile) {
+            normalized.emplace_back("maxPointsPerTile",
+                                    std::to_string(*request.maxPointsPerTile));
+            if (request.minPointsPerTile != 0) {
+                normalized.emplace_back("minPointsPerTile",
+                                        std::to_string(request.minPointsPerTile));
+            }
+            if (request.maxTileDepth != 0) {
+                normalized.emplace_back("maxDepth",
+                                        std::to_string(request.maxTileDepth));
+            }
+        } else {
+            normalized.emplace_back("tileSize", std::to_string(request.tileSize));
+        }
         if (request.tileMemoryLimitBytes != 64 * 1024 * 1024) {
             normalized.emplace_back("tileMemoryLimit",
                                     std::to_string(request.tileMemoryLimitBytes));

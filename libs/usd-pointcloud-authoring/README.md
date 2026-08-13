@@ -179,6 +179,8 @@ ctest --test-dir build/cy2026-windows-x86_64-py313-usd -C Release `
   no claim is made that a non-selected LOD child's payload stays unloaded.
 - `AuthorPointCloudTiledAssetFromStream` consumes a pull stream, spools points
   by source tile, and reconstructs one tile at a time before payload authoring.
+  The router overload also accepts a planned `PointBudgetTileRouter`, allowing
+  adaptive leaf plans to use the same bounded spool and payload path.
 - Large-corpus RSS measurement for generated, LAS, and LAZ inputs is available
   through the explicit `usdPointCloudAuthoring_stream_benchmark` target. It is
   disabled by default;
