@@ -842,6 +842,7 @@ bool AuthorPointCloudTiledAssetWithPayloads(
         return false;
     }
     std::vector<std::filesystem::path> payloadPaths;
+    std::vector<usdpointcloud::PointTileManifestEntry> manifestEntries;
     std::error_code error;
     const auto payloadDirectoryExisted =
         std::filesystem::exists(payloadDirectory, error);
@@ -899,7 +900,28 @@ bool AuthorPointCloudTiledAssetWithPayloads(
                 cleanup();
                 return false;
             }
+            const auto payloadPath = payloadPaths[
+                manifestEntries.size()];
+            const auto relativePayloadPath = std::filesystem::relative(
+                payloadPath, rootLayerPath.parent_path(), error);
+            if (error || relativePayloadPath.empty()) {
+                cleanup();
+                return false;
+            }
+            manifestEntries.push_back({
+                tile.tile.id,
+                static_cast<std::uint32_t>(index),
+                item.bounds,
+                level.chunk.pointCount,
+                relativePayloadPath.generic_string()});
         }
+    }
+    std::vector<usdgeo::Diagnostic> manifestDiagnostics;
+    const usdpointcloud::PointTileManifest tileManifest{manifestEntries};
+    if (!usdpointcloud::ValidatePointTileManifest(
+            tileManifest, manifestDiagnostics)) {
+        cleanup();
+        return false;
     }
 
     const ScopedLayerIdentifier scopedRootIdentifier(
@@ -937,6 +959,11 @@ bool AuthorPointCloudTiledAssetWithPayloads(
     }
     generatedPayloads.insert(generatedPayloads.end(), payloadPaths.begin(),
                              payloadPaths.end());
+    if (options.tileManifestEntries) {
+        options.tileManifestEntries->insert(
+            options.tileManifestEntries->end(), manifestEntries.begin(),
+            manifestEntries.end());
+    }
     return true;
 }
 

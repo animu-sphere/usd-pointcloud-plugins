@@ -91,6 +91,11 @@ std::filesystem::path ManifestPath(
     return std::filesystem::path(outputPath.string() + ".manifest");
 }
 
+std::filesystem::path TileManifestPath(
+    const std::filesystem::path& payloadDirectory) {
+    return payloadDirectory / "tiles.manifest";
+}
+
 std::filesystem::path TransactionPath(
     const std::filesystem::path& outputPath) {
     return std::filesystem::path(outputPath.string() + ".transaction");
@@ -304,7 +309,7 @@ bool BuildCacheDescriptor(
             inputPath, descriptor.source, errorMessage)) {
         return false;
     }
-    descriptor.pluginVersion = "usd-pointcloud-plugins-0.3.0-display-v2";
+    descriptor.pluginVersion = "usd-pointcloud-plugins-0.3.0-display-v3";
     descriptor.parserVersion = IsExtension(inputPath, ".las")
                                    ? "las-reader-1"
                                    : "laz-reader-1";
@@ -439,7 +444,8 @@ bool WriteManifest(const std::filesystem::path& manifestPath,
     for (std::filesystem::recursive_directory_iterator iterator(
              payloadDirectory, error), end;
          iterator != end && !error; iterator.increment(error)) {
-        if (iterator->is_regular_file(error) && !error) {
+        if (iterator->is_regular_file(error) && !error &&
+            iterator->path().filename() != "tiles.manifest") {
             payloads.push_back(RelativeManifestPath(
                 outputPath.parent_path(), iterator->path()));
         }
@@ -477,6 +483,31 @@ bool WriteManifest(const std::filesystem::path& manifestPath,
     }
     if (!output) {
         errorMessage = "unable to write manifest";
+        return false;
+    }
+    return true;
+}
+
+bool WriteTileManifest(const std::filesystem::path& manifestPath,
+                       const usdpointcloud::PointTileManifest& manifest,
+                       std::string& errorMessage) {
+    std::string serialized;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    if (!usdpointcloud::SerializePointTileManifest(
+            manifest, serialized, diagnostics)) {
+        errorMessage = diagnostics.empty()
+                           ? "invalid tile manifest"
+                           : diagnostics.front().message;
+        return false;
+    }
+    std::ofstream output(manifestPath, std::ios::binary | std::ios::trunc);
+    if (!output) {
+        errorMessage = "unable to create tile manifest";
+        return false;
+    }
+    output << serialized;
+    if (!output) {
+        errorMessage = "unable to write tile manifest";
         return false;
     }
     return true;
@@ -700,6 +731,13 @@ int main(int argc, char** argv) {
             return 1;
         }
         cacheHit = usdgeo::cache::IsCacheHit(cacheLayout);
+        if (cacheHit) {
+            std::error_code tileManifestError;
+            cacheHit = std::filesystem::is_regular_file(
+                           TileManifestPath(cacheLayout.payloadDirectory),
+                           tileManifestError) &&
+                       !tileManifestError;
+        }
         if (!cacheHit) {
             std::error_code cacheCleanupError;
             std::filesystem::remove_all(cacheLayout.entryDirectory,
@@ -814,9 +852,11 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    std::vector<usdpointcloud::PointTileManifestEntry> tileManifestEntries;
     const usdgeo::PointCloudPayloadOptions payloadOptions{
         generationPayloadDirectory.string(), generationRootPath.string(),
-        request.tileMemoryLimitBytes, request.readOptions.isCancelled};
+        request.tileMemoryLimitBytes, request.readOptions.isCancelled, {},
+        &tileManifestEntries};
     usdpointcloud::PointBudgetPlan adaptivePlan;
     std::unique_ptr<usdpointcloud::PointStream> plannedStream;
     const auto authored = [&]() {
@@ -905,6 +945,14 @@ int main(int argc, char** argv) {
         return 1;
     }
     std::string manifestError;
+    if (!WriteTileManifest(
+            TileManifestPath(generationPayloadDirectory),
+            {tileManifestEntries}, manifestError)) {
+        std::cerr << "Unable to write tile manifest: " << manifestError
+                  << "\n";
+        cleanup();
+        return 1;
+    }
     const auto generatedManifestPath =
         cacheEnabled ? cacheGenerationLayout.manifest : temporaryManifestPath;
     const auto generatedOutputPath =

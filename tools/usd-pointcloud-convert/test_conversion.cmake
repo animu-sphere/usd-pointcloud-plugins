@@ -6,6 +6,7 @@ file(REMOVE_RECURSE "${test_root}")
 file(MAKE_DIRECTORY "${test_root}")
 set(output_root "${test_root}/PointCloud.usda")
 set(output_payloads "${test_root}/PointCloud_payloads")
+set(output_tile_manifest "${output_payloads}/tiles.manifest")
 set(stale_payloads "${test_root}/StalePayloads")
 set(output_manifest "${output_root}.manifest")
 set(output_transaction "${output_root}.transaction")
@@ -33,7 +34,9 @@ if(NOT convert_error STREQUAL "")
     message(FATAL_ERROR "converter emitted diagnostics: ${convert_error}")
 endif()
 if(NOT EXISTS "${output_root}" OR NOT EXISTS "${output_payloads}" OR
-    NOT EXISTS "${output_manifest}" OR EXISTS "${output_transaction}" OR
+    NOT EXISTS "${output_manifest}" OR
+    NOT EXISTS "${output_tile_manifest}" OR
+    EXISTS "${output_transaction}" OR
     EXISTS "${stale_payloads}")
     message(FATAL_ERROR "converter did not publish the expected output bundle")
 endif()
@@ -50,7 +53,8 @@ execute_process(
 if(NOT adaptive_result EQUAL 0 OR NOT adaptive_error STREQUAL "" OR
    NOT EXISTS "${adaptive_root}/PointCloud.usda" OR
    NOT EXISTS "${adaptive_root}/PointCloud.usda.manifest" OR
-   NOT EXISTS "${adaptive_root}/PointCloud_payloads")
+    NOT EXISTS "${adaptive_root}/PointCloud_payloads" OR
+    NOT EXISTS "${adaptive_root}/PointCloud_payloads/tiles.manifest")
     message(FATAL_ERROR
         "adaptive converter failed: ${adaptive_output}${adaptive_error}")
 endif()
@@ -81,7 +85,20 @@ foreach(expected_line
     endif()
 endforeach()
 
+file(READ "${output_tile_manifest}" tile_manifest_contents)
+foreach(expected_line
+        "format=usd-pointcloud-tile-manifest-v1"
+        "tile.count="
+        "tile.0.id="
+        "tile.0.payload=")
+    string(FIND "${tile_manifest_contents}" "${expected_line}" expected_position)
+    if(expected_position EQUAL -1)
+        message(FATAL_ERROR "tile manifest is missing: ${expected_line}")
+    endif()
+endforeach()
+
 file(SHA256 "${output_manifest}" first_manifest_hash)
+file(SHA256 "${output_tile_manifest}" first_tile_manifest_hash)
 
 set(repeat_root "${test_root}-repeat")
 file(REMOVE_RECURSE "${repeat_root}")
@@ -100,6 +117,11 @@ endif()
 file(SHA256 "${repeat_root}/PointCloud.usda.manifest" repeat_manifest_hash)
 if(NOT first_manifest_hash STREQUAL repeat_manifest_hash)
     message(FATAL_ERROR "converter manifest is not deterministic")
+endif()
+file(SHA256 "${repeat_root}/PointCloud_payloads/tiles.manifest"
+     repeat_tile_manifest_hash)
+if(NOT first_tile_manifest_hash STREQUAL repeat_tile_manifest_hash)
+    message(FATAL_ERROR "tile manifest is not deterministic")
 endif()
 
 set(cache_root "${test_root}/cache")
@@ -127,7 +149,8 @@ list(LENGTH cache_entries cache_entry_count)
 if(NOT cache_entry_count EQUAL 1 OR
    NOT EXISTS "${cache_root}/${cache_entries}/root.usdc" OR
    NOT EXISTS "${cache_root}/${cache_entries}/cache.manifest" OR
-   NOT EXISTS "${cache_root}/${cache_entries}/payloads")
+    NOT EXISTS "${cache_root}/${cache_entries}/payloads" OR
+    NOT EXISTS "${cache_root}/${cache_entries}/payloads/tiles.manifest")
     message(FATAL_ERROR "converter did not publish the expected cache entry")
 endif()
 
@@ -147,10 +170,34 @@ if(NOT cache_second_result EQUAL 0 OR NOT cache_second_error STREQUAL "" OR
    cache_hit_stats_position EQUAL -1 OR
    NOT EXISTS "${cache_second_root}/PointCloud.usda" OR
    NOT EXISTS "${cache_second_root}/PointCloud.usda.manifest" OR
-   NOT EXISTS "${cache_second_root}/payloads")
+    NOT EXISTS "${cache_second_root}/payloads" OR
+    NOT EXISTS "${cache_second_root}/payloads/tiles.manifest")
     message(FATAL_ERROR
         "converter did not reuse the cache entry: "
         "${cache_second_output}${cache_second_error}")
+endif()
+
+set(cache_rebuild_root "${test_root}-cache-rebuild")
+set(cache_rebuild_output "${cache_rebuild_root}/PointCloud.usda")
+file(REMOVE_RECURSE "${cache_rebuild_root}")
+file(MAKE_DIRECTORY "${cache_rebuild_root}")
+file(REMOVE "${cache_root}/${cache_entries}/payloads/tiles.manifest")
+execute_process(
+    COMMAND "${converter}" "${fixture}" "${cache_rebuild_output}"
+            --tile-size 1 --memory-limit 1024
+            --attributes intensity,xyz
+            --cache-root "${cache_root}"
+    RESULT_VARIABLE cache_rebuild_result
+    OUTPUT_VARIABLE cache_rebuild_output_log
+    ERROR_VARIABLE cache_rebuild_error_log)
+string(FIND "${cache_rebuild_output_log}" "Cache hit " cache_rebuild_hit)
+if(NOT cache_rebuild_result EQUAL 0 OR
+   cache_rebuild_hit GREATER -1 OR
+   NOT EXISTS "${cache_rebuild_output}" OR
+   NOT EXISTS "${cache_rebuild_root}/payloads/tiles.manifest")
+    message(FATAL_ERROR
+        "converter did not rebuild a cache entry missing its tile manifest: "
+        "${cache_rebuild_output_log}${cache_rebuild_error_log}")
 endif()
     execute_process(
         COMMAND usdcat --flatten "${cache_second_root}/PointCloud.usda"
@@ -288,6 +335,7 @@ file(REMOVE_RECURSE "${test_root}")
 file(REMOVE_RECURSE "${repeat_root}")
 file(REMOVE_RECURSE "${cache_first_root}")
 file(REMOVE_RECURSE "${cache_second_root}")
+file(REMOVE_RECURSE "${cache_rebuild_root}")
 file(REMOVE_RECURSE "${cache_recovery_root}")
 file(REMOVE_RECURSE "${failure_root}")
 file(REMOVE_RECURSE "${unsafe_root}")

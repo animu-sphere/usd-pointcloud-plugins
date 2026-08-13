@@ -4,9 +4,11 @@
 #include <array>
 #include <cmath>
 #include <functional>
+#include <iomanip>
 #include <limits>
 #include <map>
 #include <numeric>
+#include <sstream>
 
 namespace usdpointcloud {
 namespace {
@@ -58,6 +60,45 @@ bool TileIdEqual(const PointTileId& left, const PointTileId& right) noexcept {
            left.y == right.y && left.z == right.z;
 }
 
+bool IsSafeManifestPath(const std::string& value) {
+    if (value.empty() || value.find('\\') != std::string::npos ||
+        value.find('\n') != std::string::npos ||
+        value.find('\r') != std::string::npos ||
+        value.find('=') != std::string::npos) {
+        return false;
+    }
+    if (value.front() == '/' ||
+        (value.size() >= 2 &&
+         ((value.front() >= 'A' && value.front() <= 'Z') ||
+          (value.front() >= 'a' && value.front() <= 'z')) &&
+         value[1] == ':')) {
+        return false;
+    }
+    std::size_t componentStart = 0;
+    while (componentStart < value.size()) {
+        const auto separator = value.find('/', componentStart);
+        const auto componentLength = separator == std::string::npos
+                                         ? value.size() - componentStart
+                                         : separator - componentStart;
+        if ((componentLength == 1 && value[componentStart] == '.') ||
+            (componentLength == 2 &&
+             value.compare(componentStart, 2, "..") == 0)) {
+            return false;
+        }
+        if (separator == std::string::npos) break;
+        componentStart = separator + 1;
+    }
+    return true;
+}
+
+bool ManifestEntryLess(const PointTileManifestEntry& left,
+                       const PointTileManifestEntry& right) noexcept {
+    if (TileIdLess(left.id, right.id)) return true;
+    if (TileIdLess(right.id, left.id)) return false;
+    if (left.lod != right.lod) return left.lod < right.lod;
+    return left.payloadPath < right.payloadPath;
+}
+
 } // namespace
 
 bool TileGridConfig::IsValid() const noexcept {
@@ -86,6 +127,73 @@ bool PointBudgetTile::IsValid() const noexcept {
     return id.IsValid() && std::isfinite(minX) && std::isfinite(maxX) &&
            std::isfinite(minY) && std::isfinite(maxY) && minX <= maxX &&
            minY <= maxY && pointCount > 0;
+}
+
+bool PointTileManifestEntry::IsValid() const noexcept {
+    return id.IsValid() && bounds.IsValid() && pointCount > 0 &&
+           IsSafeManifestPath(payloadPath);
+}
+
+bool ValidatePointTileManifest(
+    const PointTileManifest& manifest,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    for (const auto& entry : manifest.entries) {
+        if (!entry.IsValid()) {
+            AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                     "tile manifest contains an invalid entry");
+            return false;
+        }
+    }
+
+    std::vector<PointTileManifestEntry> sorted = manifest.entries;
+    std::sort(sorted.begin(), sorted.end(), ManifestEntryLess);
+    for (std::size_t index = 1; index < sorted.size(); ++index) {
+        const auto& previous = sorted[index - 1];
+        const auto& current = sorted[index];
+        if (TileIdEqual(previous.id, current.id) &&
+            previous.lod == current.lod) {
+            AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                     "tile manifest contains duplicate tile LOD entries");
+            return false;
+        }
+    }
+    return true;
+}
+
+bool SerializePointTileManifest(
+    const PointTileManifest& manifest,
+    std::string& serialized,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    serialized.clear();
+    if (!ValidatePointTileManifest(manifest, diagnostics)) return false;
+
+    std::vector<PointTileManifestEntry> sorted = manifest.entries;
+    std::sort(sorted.begin(), sorted.end(), ManifestEntryLess);
+    std::ostringstream output;
+    output << std::setprecision(std::numeric_limits<double>::max_digits10);
+    output << "format=" << kPointTileManifestFormat << '\n'
+           << "tile.count=" << sorted.size() << '\n';
+    for (std::size_t index = 0; index < sorted.size(); ++index) {
+        const auto& entry = sorted[index];
+        const auto prefix = "tile." + std::to_string(index) + ".";
+        output << prefix << "id=" << entry.id.ToString() << '\n'
+               << prefix << "lod=" << entry.lod << '\n'
+               << prefix << "pointCount=" << entry.pointCount << '\n'
+               << prefix << "bounds.min=" << entry.bounds.minimum.x << ','
+               << entry.bounds.minimum.y << ',' << entry.bounds.minimum.z
+               << '\n'
+               << prefix << "bounds.max=" << entry.bounds.maximum.x << ','
+               << entry.bounds.maximum.y << ',' << entry.bounds.maximum.z
+               << '\n'
+               << prefix << "payload=" << entry.payloadPath << '\n';
+    }
+    if (!output) {
+        AddError(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
+                 "unable to serialize tile manifest");
+        return false;
+    }
+    serialized = output.str();
+    return true;
 }
 
 bool ValidatePointBudgetConfig(

@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace usdpointcloud {
@@ -54,6 +55,32 @@ struct PointBudgetPlan {
     std::size_t splitCount = 0;
     std::vector<PointBudgetTile> tiles;
 };
+
+constexpr const char* kPointTileManifestFormat =
+    "usd-pointcloud-tile-manifest-v1";
+
+struct PointTileManifestEntry {
+    PointTileId id;
+    std::uint32_t lod = 0;
+    usdgeo::SpatialBounds bounds;
+    std::uint64_t pointCount = 0;
+    std::string payloadPath;
+
+    bool IsValid() const noexcept;
+};
+
+struct PointTileManifest {
+    std::vector<PointTileManifestEntry> entries;
+};
+
+bool ValidatePointTileManifest(
+    const PointTileManifest& manifest,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
+
+bool SerializePointTileManifest(
+    const PointTileManifest& manifest,
+    std::string& serialized,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
 
 bool ValidatePointBudgetConfig(
     const PointBudgetConfig& config,

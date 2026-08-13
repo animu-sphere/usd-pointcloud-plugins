@@ -48,6 +48,9 @@ missing payload, or a payload reference outside the entry is incomplete or
 corrupt and must not be reused. The shared authoring loader invalidates corrupt
 entries through the descriptor-derived path. Interrupted conversion output is
 also not committed until both the root and manifest are published.
+Converter-generated tiled entries additionally require
+`payloads/tiles.manifest`; the converter regenerates an entry when that tile
+manifest is missing, including entries created by an older cache format.
 
 CMake target `usdgeo::cache` and namespace `usdgeo::cache`.
 

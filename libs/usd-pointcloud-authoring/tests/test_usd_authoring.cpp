@@ -891,10 +891,24 @@ void TestGeneratedStreamTiledPayloadAuthoring() {
     const auto rootLayerPath = payloadDirectory / "PointCloud.usda";
     std::filesystem::remove_all(payloadDirectory);
     std::vector<usdgeo::Diagnostic> diagnostics;
+    std::vector<usdpointcloud::PointTileManifestEntry> manifestEntries;
+    const usdgeo::PointCloudPayloadOptions options{
+        payloadDirectory.string(), rootLayerPath.string(), 1024, {}, {},
+        &manifestEntries};
     Check(usdgeo::AuthorPointCloudTiledAssetFromStream(
         layer.operator->(), "/PointCloud", stream, reference, {128.0, 0},
-        {payloadDirectory.string(), rootLayerPath.string(), 1024}, diagnostics));
+        options, diagnostics));
     Check(diagnostics.empty());
+    Check(manifestEntries.size() == 32);
+    Check(manifestEntries.front().payloadPath ==
+          "Tile_L0_p0_p0_p0_LOD0.usdc");
+    const auto lastTile = std::find_if(
+        manifestEntries.begin(), manifestEntries.end(),
+        [](const auto& entry) { return entry.id.x == 31; });
+    Check(lastTile != manifestEntries.end());
+    Check(lastTile->payloadPath == "Tile_L0_p31_p0_p0_LOD0.usdc");
+    Check(manifestEntries.front().pointCount > 0);
+    Check(manifestEntries.front().bounds.IsValid());
     Check(std::filesystem::exists(
         payloadDirectory / "Tile_L0_p0_p0_p0_LOD0.usdc"));
     Check(std::filesystem::exists(

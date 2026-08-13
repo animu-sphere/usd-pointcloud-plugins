@@ -159,6 +159,50 @@ void TestPointBudgetDepthLimit() {
     Check(!diagnostics.empty());
 }
 
+void TestTileManifestSerialization() {
+    const usdgeo::SpatialBounds bounds{{-2.0, 1.0, 3.0},
+                                       {4.0, 5.0, 6.0}};
+    usdpointcloud::PointTileManifest manifest;
+    manifest.entries = {
+        {{2, -3, 4, 0}, 1, bounds, 12, "payload/L2_-3_4_0_LOD1.usdc"},
+        {{0, 0, 0, 0}, 0, bounds, 8, "payload/L0_0_0_0_LOD0.usdc"}};
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    std::string first;
+    Check(usdpointcloud::SerializePointTileManifest(
+        manifest, first, diagnostics));
+    Check(diagnostics.empty());
+    Check(first.find("format=usd-pointcloud-tile-manifest-v1\n") == 0);
+    Check(first.find("tile.0.id=L0/0/0/0\n") != std::string::npos);
+    Check(first.find("tile.1.id=L2/-3/4/0\n") != std::string::npos);
+
+    std::swap(manifest.entries[0], manifest.entries[1]);
+    std::string second;
+    Check(usdpointcloud::SerializePointTileManifest(
+        manifest, second, diagnostics));
+    Check(first == second);
+}
+
+void TestTileManifestValidation() {
+    const usdgeo::SpatialBounds bounds{{0.0, 0.0, 0.0},
+                                       {1.0, 1.0, 1.0}};
+    usdpointcloud::PointTileManifest manifest;
+    manifest.entries = {
+        {{0, 0, 0, 0}, 0, bounds, 1, "payload/a.usdc"},
+        {{0, 0, 0, 0}, 0, bounds, 1, "payload/b.usdc"}};
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!usdpointcloud::ValidatePointTileManifest(manifest, diagnostics));
+    Check(!diagnostics.empty());
+
+    diagnostics.clear();
+    manifest.entries[1].id.level = -1;
+    Check(!usdpointcloud::ValidatePointTileManifest(manifest, diagnostics));
+
+    diagnostics.clear();
+    manifest.entries = {
+        {{0, 0, 0, 0}, 0, bounds, 1, "../outside.usdc"}};
+    Check(!usdpointcloud::ValidatePointTileManifest(manifest, diagnostics));
+}
+
 void TestFixedGridRouting() {
     const usdpointcloud::FixedGridTileRouter router({10.0, 0});
     Check(router.IsValid());
@@ -260,5 +304,7 @@ int main() {
     TestPointBudgetStreamPlanning();
     TestPointBudgetPlanningMatchesVectorForUnevenDistribution();
     TestPointBudgetDepthLimit();
+    TestTileManifestSerialization();
+    TestTileManifestValidation();
     return 0;
 }
