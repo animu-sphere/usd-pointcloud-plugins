@@ -1,0 +1,79 @@
+if(NOT DEFINED benchmark OR NOT DEFINED test_root)
+    message(FATAL_ERROR "cross-format benchmark arguments are incomplete")
+endif()
+
+foreach(format IN ITEMS las laz ply copc)
+    if(NOT DEFINED ${format}_fixture)
+        message(FATAL_ERROR "missing ${format} benchmark fixture")
+    endif()
+endforeach()
+
+file(REMOVE_RECURSE "${test_root}")
+file(MAKE_DIRECTORY "${test_root}")
+
+if(DEFINED fixture_generator AND NOT fixture_generator STREQUAL "")
+    execute_process(
+        COMMAND "${fixture_generator}" "--write-fixture" "${copc_fixture}"
+        RESULT_VARIABLE fixture_result
+        ERROR_VARIABLE fixture_error)
+    if(NOT fixture_result EQUAL 0)
+        message(FATAL_ERROR
+            "fixture generation failed with ${fixture_result}: ${fixture_error}")
+    endif()
+endif()
+
+set(report "${test_root}/cross-format.tsv")
+file(WRITE "${report}"
+     "format\tpoints\ttile_count\tpeak_rss_bytes\tpayload_bytes\telapsed_seconds\n")
+
+foreach(format IN ITEMS las laz ply copc)
+    set(epsg_arguments)
+    if(format STREQUAL "ply")
+        list(APPEND epsg_arguments "--epsg" "26910")
+    endif()
+
+    execute_process(
+        COMMAND "${benchmark}" "--input" "${${format}_fixture}"
+                "--format" "${format}"
+                "--chunk-points" "2" "--tile-size" "1"
+                "--memory-limit" "1024" ${epsg_arguments}
+        RESULT_VARIABLE benchmark_result
+        OUTPUT_VARIABLE benchmark_output
+        ERROR_VARIABLE benchmark_error)
+    if(NOT benchmark_result EQUAL 0)
+        message(FATAL_ERROR
+            "${format} benchmark failed with ${benchmark_result}: "
+            "${benchmark_output}${benchmark_error}")
+    endif()
+
+    string(REGEX MATCH "format=([^ ]+)" _match "${benchmark_output}")
+    set(reported_format "${CMAKE_MATCH_1}")
+    string(REGEX MATCH "points=([0-9]+)" _match "${benchmark_output}")
+    set(reported_points "${CMAKE_MATCH_1}")
+    string(REGEX MATCH "tile_count=([0-9]+)" _match "${benchmark_output}")
+    set(reported_tile_count "${CMAKE_MATCH_1}")
+    string(REGEX MATCH "peak_rss_bytes=([0-9]+)" _match "${benchmark_output}")
+    set(reported_peak_rss "${CMAKE_MATCH_1}")
+    string(REGEX MATCH "payload_bytes=([0-9]+)" _match "${benchmark_output}")
+    set(reported_payload_bytes "${CMAKE_MATCH_1}")
+    string(REGEX MATCH "elapsed_seconds=([0-9.]+)" _match "${benchmark_output}")
+    set(reported_elapsed "${CMAKE_MATCH_1}")
+    string(REGEX MATCH "success=true" reported_success "${benchmark_output}")
+    if(NOT reported_format OR NOT reported_points OR NOT reported_tile_count OR
+       NOT reported_peak_rss OR NOT reported_payload_bytes OR
+       NOT reported_elapsed OR NOT reported_success)
+        message(FATAL_ERROR
+            "${format} benchmark output is not comparable: ${benchmark_output}")
+    endif()
+    if(NOT reported_format STREQUAL format)
+        message(FATAL_ERROR
+            "${format} benchmark reported format ${reported_format}")
+    endif()
+
+    file(APPEND "${report}"
+         "${reported_format}\t${reported_points}\t${reported_tile_count}\t"
+         "${reported_peak_rss}\t${reported_payload_bytes}\t"
+         "${reported_elapsed}\n")
+endforeach()
+
+message(STATUS "cross-format benchmark report: ${report}")

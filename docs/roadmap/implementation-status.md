@@ -238,7 +238,9 @@ The ordered plan and acceptance priorities are in the
 - [x] Define deterministic point-budget planning and limits
 - [x] Preserve fixed-grid `tileSize` and `tileMemoryLimit` behavior
 - [x] Add tile statistics and planning diagnostics
-- [ ] Compare LAS, LAZ, COPC, and PLY payload and memory behavior
+- [x] Compare LAS, LAZ, COPC, and PLY payload and memory behavior through the
+      reproducible cross-format benchmark report; larger real-world datasets
+      remain dataset-dependent
 
 E57, delimited text, and other point-cloud formats follow these infrastructure
 milestones. A public custom USD schema remains deferred until the documented
