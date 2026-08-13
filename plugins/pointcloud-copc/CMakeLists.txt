@@ -39,6 +39,11 @@ if(NOT TARGET usdlaz::core)
         "${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-laz"
         "${CMAKE_CURRENT_BINARY_DIR}/usd-laz")
 endif()
+if(NOT TARGET usdpointcloud::tiling)
+    add_subdirectory(
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-pointcloud-tiling"
+        "${CMAKE_CURRENT_BINARY_DIR}/usd-pointcloud-tiling")
+endif()
 if(NOT TARGET usdcopc::core)
     add_subdirectory(
         "${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-copc"
@@ -51,11 +56,6 @@ if(NOT TARGET HttpResolver)
 endif()
 if(NOT TARGET OpenGL::GL)
     find_package(OpenGL REQUIRED)
-endif()
-if(NOT TARGET usdpointcloud::tiling)
-    add_subdirectory(
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-pointcloud-tiling"
-        "${CMAKE_CURRENT_BINARY_DIR}/usd-pointcloud-tiling")
 endif()
 if(NOT TARGET usdpointcloud::authoring)
     add_subdirectory(

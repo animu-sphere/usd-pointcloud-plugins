@@ -279,7 +279,7 @@ The ordered plan and acceptance priorities are in the
       algorithm changes as a versioned compatibility concern through the
       deterministic `TilePlanCacheArguments` / `StableTilePlanKey` contract
       and planner identity/version cache inputs
-- [ ] Map COPC native hierarchy nodes and byte ranges onto a tile plan instead
+- [x] Map COPC native hierarchy nodes and byte ranges onto a tile plan instead
       of re-deriving the partition
 - [ ] Verify equivalent authored output from a sequential plan and a
       COPC-native plan describing the same partition
