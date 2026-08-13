@@ -254,6 +254,9 @@ The ordered plan and acceptance priorities are in the
 
 - [ ] Compare fixed-grid and adaptive tiling on real-world LAS, LAZ, COPC, and
       PLY inputs with uneven density
+- [x] Add a reproducible fixed-grid versus adaptive comparison harness that
+      records corpus identity, normalized settings, tile distributions, RSS,
+      source and spool I/O, payload bytes, and processing time in TSV and JSON
 - [x] Record points per tile distribution, payload bytes per tile, total
       payload bytes, tile count, and tree depth in the reproducible benchmark
       report for both strategies on the same fixture inputs
@@ -264,8 +267,9 @@ The ordered plan and acceptance priorities are in the
       output
 - [x] Add source bytes read, spool bytes written, spool bytes read, payload
       bytes written, and effective I/O amplification to the streaming benchmark
-- [ ] Publish the commands and corpus provenance needed to reproduce each
-      baseline
+- [x] Publish the commands and corpus provenance needed to reproduce each
+      baseline; the comparison harness records the input SHA-256 beside every
+      fixed-grid and adaptive result
 
 #### `v0.9.0` - TilePlan convergence (in progress)
 

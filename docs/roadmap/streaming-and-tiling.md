@@ -502,6 +502,27 @@ payload bytes, I/O amplification, and elapsed time. Use the same command shape
 with a representative local source when collecting the larger real-world
 comparison matrix; the checked-in fixtures do not close that gate.
 
+For repeatable real-data comparisons, use
+`tools/compare_real_world_tiling.ps1`. It runs the same source through both
+strategies, records the source size and SHA-256, preserves the normalized
+benchmark settings, and writes a TSV report plus a JSON companion beside it:
+
+```powershell
+& '.\\tools\\compare_real_world_tiling.ps1' `
+    -Benchmark '.\\build\\cy2026-windows-x86_64-py313-usd\\libs\\usd-pointcloud-authoring\\benchmarks\\usdPointCloudAuthoring_stream_benchmark.exe' `
+    -InputPath '.\\build\\real-data-source\\08NF2330.las' `
+    -Format las -ChunkPoints 65536 -TileSize 128 `
+    -MemoryLimitBytes 1048576 -MaxPointsPerTile 1000000 `
+    -MinPointsPerTile 1000 -MaxDepth 16 `
+    -Report '.\\build\\real-data-source\\shizuoka-fixed-adaptive.tsv'
+```
+
+The TSV is intended for comparison tables and the JSON companion is intended
+for provenance-preserving archival. Repeat the command with the corresponding
+`-Format` and `-Epsg` (required for PLY) for each available corpus. The
+harness does not claim that a fixture or a single real source closes the
+broader uneven-density baseline gate.
+
 #### Payload working-set measurement through OST plugin view
 
 The pinned OpenUSD runtime exposes `Storm` as its Hydra renderer. The available
