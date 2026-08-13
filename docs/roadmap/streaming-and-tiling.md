@@ -20,7 +20,10 @@ real-world matrix remains open. Adaptive point-budget planning, tile
 statistics, and fixed-grid compatibility coverage are implemented; a
 fixture-based cross-format payload and memory comparison is implemented;
  broader real-world baselines remain open in the
- [infrastructure maturity roadmap](infrastructure-maturity.md). What `main`
+ [infrastructure maturity roadmap](infrastructure-maturity.md). The next steps
+recorded there are I/O observability alongside the existing memory
+measurements, and convergence of the sequential planner and the COPC native
+hierarchy onto one tile-plan representation. What `main`
 implements today is in
 [implementation status](implementation-status.md) and
 [capability matrix](../reference/CAPABILITY_MATRIX.md).
@@ -33,6 +36,30 @@ before writing its payload, so it does not retain the complete point cloud in
 the authoring stage. Generated, LAS, and LAZ inputs can be measured with the
 explicit benchmark target; a broader real-world dataset matrix is still
 outstanding.
+
+### Conversion streaming and runtime streaming
+
+This document covers conversion streaming only:
+
+```text
+large input -> bounded-memory processing -> USD payload generation
+```
+
+Its objectives are memory use independent of input size, safe long-running
+processing, recoverable state after failure or cancellation, and deterministic
+output.
+
+Runtime streaming is a different problem:
+
+```text
+camera / host LOD decision -> required tile -> range request -> decode -> render
+```
+
+It involves OpenUSD composition, payload loading, the host application, and
+renderer LOD decisions, so a FileFormat Plugin cannot own it. It is tracked as
+a research theme in the
+[infrastructure maturity roadmap](infrastructure-maturity.md) and does not
+change the contracts below.
 
 The target pipeline must:
 
@@ -137,7 +164,42 @@ continues to use stage-local coordinates. This keeps tile identity stable
 across stage up-axis conversion and preserves the meaning of projected CRS
 coordinates. See [ADR 0001](../adr/0001-coordinate-model.md).
 
-## 5. Temporary spool requirements
+## 5. Spool positioning and I/O amplification
+
+Spool-backed tiling is a reasonable bounded-memory conversion design, and it is
+the current one:
+
+```text
+PointStream -> tile router -> temporary spool -> payload authoring
+```
+
+It is not treated as the final form of streaming. Its main cost is I/O
+amplification, because a large conversion moves the same data several times:
+
+```text
+source read
+decoded point traffic
+spool write
+spool read
+USD payload write
+```
+
+The project therefore evaluates designs on two axes rather than one. Memory
+bounded is necessary but not sufficient; I/O bounded is measured as well.
+
+The spool is not removed or redesigned on suspicion. It is measured on real
+data first, and changed only where measurement shows it is the bottleneck. The
+instrumentation for that decision — source bytes read, spool bytes written,
+spool bytes read, payload bytes written, and effective I/O amplification — is
+`v0.8.0` work in the
+[infrastructure maturity roadmap](infrastructure-maturity.md).
+
+Deterministic point-budget planning helps here for a structural reason: the
+tile plan is fixed before any payload is authored, so spool volume and write
+patterns are known in advance rather than discovered during authoring. Any
+future reduction in spool traffic builds on that property.
+
+## 6. Temporary spool requirements
 
 The spool system must define:
 
@@ -155,7 +217,7 @@ The spool system must define:
 Temporary output is isolated in a dedicated working directory and removed on
 successful completion unless a debug-retention option is enabled.
 
-## 6. Payload output requirements
+## 7. Payload output requirements
 
 The payload writer produces:
 
@@ -179,7 +241,7 @@ authored representation stays inside the existing
 [tile and LOD contract](../architecture/LOD.md); streaming changes how assets
 are produced, not what they look like.
 
-## 7. Initial FileFormat arguments
+## 8. Initial FileFormat arguments
 
 The existing compact `lod` profiles remain. Spatial streaming is introduced
 with a small, explicit argument set:
@@ -232,7 +294,7 @@ An internal transaction marker lets the next invocation remove incomplete
 temporary output after an interrupted process, while completed root and
 manifest pairs are left intact.
 
-## 8. Out of scope for the first streaming release
+## 9. Out of scope for the first streaming release
 
 - adaptive octrees;
 - density-aware tile sizing;
@@ -242,7 +304,13 @@ manifest pairs are left intact.
 - renderer-specific page scheduling;
 - automatic cache eviction.
 
-## 9. Implementation sequence
+Two of these have since moved into the plan. Deterministic point-budget
+planning shipped in `v0.7.0`, and COPC hierarchy preservation is `v0.9.0`
+work: rather than re-deriving a partition that COPC already carries, its
+native hierarchy becomes a tile plan through the same representation the
+sequential planner produces. The remaining items stay out of scope.
+
+## 10. Implementation sequence
 
 Each step is one pull request. Behavior changes are not mixed into the rename
 and documentation steps that precede them.
@@ -258,7 +326,7 @@ and documentation steps that precede them.
 | 7 | Add explicit conversion tooling | Add a thin LAS/LAZ command-line entry point over the shared stream and authoring APIs; publish the root layer last; add cancellation, cleanup, and deterministic-output tests. |
 | 8 | Adopt narrow dynamic FileFormat composition | Format-specific LOD metadata fields map to the normalized `lod` argument after generated assets, cache lookup, manifest identity, and operational recovery stabilized. Other fields and raw source re-generation during recomposition remain out of scope. |
 
-## 10. Testing requirements
+## 11. Testing requirements
 
 ### Unit tests
 
@@ -311,6 +379,36 @@ time to first usable LOD asset
 
 Benchmarks may initially run outside required PR CI, but their commands and
 datasets must be documented.
+
+`v0.8.0` extends this set with I/O counters, so that amplification is visible
+rather than inferred:
+
+```text
+source bytes read
+spool bytes written
+spool bytes read
+payload bytes written
+effective I/O amplification
+```
+
+It also adds a fixed-grid versus adaptive comparison on the same input,
+reporting points per tile distribution, payload bytes per tile, total payload
+bytes, tile count, tree depth, peak RSS, spool bytes, source read bytes, total
+processing time, `usdview` open time, and host responsiveness.
+
+The comparison needs inputs whose density genuinely varies, because uniform
+fixtures cannot distinguish the two strategies:
+
+```text
+forest         high density
+buildings      high / medium density
+roads          medium density
+open terrain   low density
+```
+
+Datasets that cannot be redistributed are referenced through corpus provenance
+records with reproducible download and run commands, as the Shizuoka and USGS
+3DEP baselines below already do.
 
 #### Real LAS baseline
 
@@ -481,7 +579,7 @@ fixtures validate the measurement path and cross-format output equivalence;
 they do not replace the full-size real-dataset baseline or payload working-set
 measurement.
 
-## 11. Definition of done
+## 12. Definition of done
 
 The first streaming phase is complete when:
 
@@ -497,7 +595,7 @@ The first streaming phase is complete when:
 - direct FileFormat arguments can enable the path;
 - all affected module READMEs and architecture documents are updated.
 
-## 12. Related open contracts
+## 13. Related open contracts
 
 Extra Bytes descriptor names are currently rejected when they are not valid USD
 identifiers, which fails whole files for names such as `temperature (C)` or

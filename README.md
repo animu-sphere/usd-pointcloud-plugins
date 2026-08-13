@@ -59,10 +59,12 @@ the [capability matrix](docs/reference/CAPABILITY_MATRIX.md).
 
 The [capability matrix](docs/reference/CAPABILITY_MATRIX.md) is the canonical
 source for point formats, attributes, CRS, metadata, and authored USD details.
-The next milestones harden
-[source identity, caching, and adaptive tiling](docs/roadmap/infrastructure-maturity.md)
-before E57 or other format expansion. Terrain, raster, and vector formats are
-future repository candidates.
+Source identity, caching, and adaptive tiling are implemented. The next
+milestones measure that infrastructure on real data, unify tile planning across
+sequential formats and the COPC native hierarchy, and mature resolver-backed
+source identity before E57 or other
+[format expansion](docs/roadmap/infrastructure-maturity.md). Terrain, raster,
+and vector formats are future repository candidates.
 
 ## Quick Start
 

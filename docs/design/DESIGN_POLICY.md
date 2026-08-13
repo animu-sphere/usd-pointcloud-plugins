@@ -1,6 +1,6 @@
 # Development Policy
 
-Last updated: 2026-08-12
+Last updated: 2026-08-13
 
 This document is the standing development policy for `usd-pointcloud-plugins`. The
 roadmap, format support order, and architecture documents refine it; they do
@@ -45,10 +45,20 @@ preserve are:
 - Readers remain independent of OpenUSD and transport policy.
 - Implementation status and roadmap are documented.
 
-The next work formalizes source identity and cache invalidation, then adds
-point-budget-aware adaptive tiling. Format expansion follows those
-infrastructure milestones. See the
+Source identity, cache invalidation, and point-budget-aware adaptive tiling are
+now implemented. The next work measures that infrastructure on real data,
+including I/O behavior and not only memory behavior, then converges sequential
+planning and COPC native hierarchy onto one tile-plan representation, then
+matures resolver-backed source identity. Format expansion follows those
+milestones. See the
 [infrastructure maturity roadmap](../roadmap/infrastructure-maturity.md).
+
+The standing goal is not a larger format count. It is that any point-cloud
+format can use the same streaming, tiling, cache, and authoring infrastructure:
+
+```text
+format-independent ingestion, streaming, tiling, caching, and OpenUSD authoring
+```
 
 ## 3. Design Principles
 
@@ -340,6 +350,19 @@ layer instead of producing two public stage representations.
 
 Designs that materialize a full point cloud in memory are avoided.
 
+Streaming here means conversion streaming: bounded-memory processing of a large
+input into generated USD payloads. Runtime streaming, where a host's LOD
+decision drives range requests during viewing, is a separate research theme
+because it depends on OpenUSD composition, payload loading, and the renderer.
+The two are not merged, and runtime concerns do not enter the conversion
+contracts on speculation.
+
+Bounded memory is necessary but not sufficient. Conversion also has an I/O
+cost — source read, decoded point traffic, spool write, spool read, and payload
+write — so designs are evaluated as both memory bounded and I/O bounded. The
+spool-backed design is measured before it is changed; it is not replaced on the
+assumption that it amplifies I/O.
+
 ### 6.1 Reader API
 
 The reader supports:
@@ -371,6 +394,19 @@ library or an isolated COPC reader module inside `usd-laz` is used. COPC
 hierarchy, octree keys, byte ranges, and resolution map onto the shared tile
 contract.
 
+A COPC file already carries a hierarchy. Forcing it through the same sequential
+planning passes as LAS, LAZ, and PLY discards that. The intended convergence is
+one plan representation reached from either direction:
+
+```text
+LAS / LAZ / PLY -> sequential planner ----\
+                                            +-> TilePlan -> authoring
+COPC native hierarchy -> hierarchy planner-/
+```
+
+Downstream authoring, cache identity, and payload generation must not need to
+know which planner produced the plan.
+
 ## 7. USDC Cache
 
 A USDC cache is a derived cache of the USD representation generated from an
@@ -391,9 +427,20 @@ The cache key includes at least:
 - Downsampling settings
 - Sampling algorithm and sampling algorithm version
 
+For adaptive tiling the identity also includes the maximum and minimum points
+per tile, the maximum depth, the relevant filters, and the planner algorithm
+and its version. A planner algorithm change alters generated output, so it is
+treated as a versioned compatibility contract rather than an implementation
+detail.
+
 An argument that alters authored topology never reuses an incompatible cached
 layer. The complete LOD cache-key input list is in the
 [tile and LOD contract](../architecture/LOD.md).
+
+Cache is not only an optimization; it carries the identity and reproducibility
+of generated output. Reuse stays disabled when source identity is not stable
+enough to exclude stale results, including for resolver-provided sources
+without a trustworthy validation token.
 
 ## 8. Diagnostics API
 
@@ -627,11 +674,36 @@ and cross-format performance baselines while preserving the existing fixed-grid
 path. Broader real-world baselines and payload-byte fallback policies remain
 open.
 
-### W4: Format Expansion (Later)
+### W4: Measurement and I/O Observability (`v0.8.0`)
+
+Compare fixed-grid and adaptive tiling on real inputs with uneven density, and
+extend benchmarks with source, spool, and payload I/O counters. Measurement
+precedes further tiling design and precedes any change to the spool.
+
+### W5: TilePlan Convergence (`v0.9.0`)
+
+Define the tile-plan contract before implementing against it, move the adaptive
+planner onto it without changing its output, and add the COPC native-hierarchy
+fast path. Authoring, cache identity, and payload generation must become
+planner-agnostic.
+
+### W6: Resolver-Backed Source Identity (`v0.10.0`)
+
+Define what a resolver must supply for generated-cache reuse to be safe, keep
+byte-range caching distinct from generated-USDC caching, and record remote
+baselines. Transport implementation stays in the resolver.
+
+### W7: Format Expansion (Later)
 
 Add E57 and other point-cloud formats only through the shared `PointStream`,
 processing, cache, and authoring contracts. Do not use format work to bypass an
 unresolved common abstraction.
+
+### Research: Runtime Streaming (parallel, no release gate)
+
+Investigate host-driven partial loading of large COPC through range reads and
+payload composition. Findings may inform the conversion pipeline; they do not
+justify adding runtime abstractions to it in advance.
 
 Workstreams and acceptance criteria are maintained in the
 [infrastructure maturity roadmap](../roadmap/infrastructure-maturity.md).
@@ -641,13 +713,23 @@ Workstreams and acceptance criteria are maintained in the
 Public issues should be derived from the current roadmap rather than retained
 as a duplicate numbered list in this policy. Active topics are:
 
-- resolver-backed source correctness, cancellation, and range-read evidence;
-- source identity and generated-cache invalidation;
-- cache statistics, diagnostics, and corruption recovery;
+- real-world fixed-grid versus adaptive tiling comparison;
+- I/O observability and spool amplification measurement;
+- a shared tile-plan representation for sequential and native-hierarchy
+  planning, and the COPC fast path built on it;
+- resolver-backed source identity sufficient for generated-cache reuse;
 - broader real-world and remote-access performance baselines;
 - stabilization of the
   [point-cloud metadata contract](../reference/POINTCLOUD_METADATA.md);
+- runtime streaming, as research separate from the conversion pipeline;
 - E57 and other point-cloud formats after infrastructure maturity.
+
+The following are deliberately not active work: growing the format count as an
+end in itself, embedding an HTTP client in `usdCopc`, moving production-scale
+conversion into FileFormat reads, implementing a renderer here, putting
+host-specific LOD policy into core, removing the spool without measurement,
+treating a native hierarchy as if it were sequential, and fixing a public
+custom USD schema early.
 
 ## 17. Definition of Done
 
@@ -665,6 +747,10 @@ A point format counts as supported only when all of the following hold:
 
 ## 18. Immediate Actions
 
-1. Define and benchmark deterministic point-budget-aware tiling for v0.7.0.
-2. Keep `geo:*` metadata documented as a provisional plain-attribute contract.
-3. Reassess E57 and other format entry gates after v0.7.0.
+1. Measure fixed-grid and adaptive tiling on real, uneven point clouds, and
+   make source, spool, and payload I/O visible in the benchmark output.
+2. Specify the tile-plan contract that sequential planning and COPC native
+   hierarchy both produce, before implementing the COPC fast path.
+3. Keep `geo:*` metadata documented as a provisional plain-attribute contract.
+4. Reassess E57 and other format entry gates after the infrastructure
+   milestones in the roadmap, not before.
