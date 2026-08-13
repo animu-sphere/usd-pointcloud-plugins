@@ -1,4 +1,5 @@
 #include "usdgeo/PointCloudLayer.h"
+#include "usdcopc/Copc.h"
 
 #include <pxr/base/gf/vec3d.h>
 #include <pxr/base/gf/vec3f.h>
@@ -17,6 +18,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <map>
 #include <set>
 
 namespace {
@@ -25,6 +27,31 @@ void Check(bool condition) {
     if (!condition) {
         std::abort();
     }
+}
+
+std::string ReadFile(const std::filesystem::path& path) {
+    std::ifstream input(path, std::ios::binary);
+    Check(input.good());
+    return {std::istreambuf_iterator<char>(input),
+            std::istreambuf_iterator<char>()};
+}
+
+std::map<std::string, std::string> ReadDirectoryFiles(
+    const std::filesystem::path& directory) {
+    std::map<std::string, std::string> files;
+    std::error_code error;
+    for (const auto& entry : std::filesystem::directory_iterator(
+             directory, error)) {
+        Check(!error);
+        if (entry.is_regular_file(error)) {
+            Check(!error);
+            files.emplace(entry.path().filename().string(),
+                          ReadFile(entry.path()));
+        }
+        error.clear();
+    }
+    Check(!error);
+    return files;
 }
 
 std::set<std::filesystem::path> ListPointSpoolDirectories() {
@@ -848,6 +875,104 @@ void TestAdaptiveTilingRouterAuthorsPlannedLeaves() {
     std::filesystem::remove_all(payloadDirectory);
 }
 
+void TestSequentialAndCopcPlansAuthorEquivalentOutput() {
+    const std::vector<usdgeo::Vec3d> positions = {
+        {0.25, 0.25, 0.0}, {0.75, 0.25, 0.0},
+        {0.25, 0.75, 0.0}, {0.75, 0.75, 0.0}};
+    usdpointcloud::PointData data;
+    data.positions = positions;
+    data.intensity = {10, 20, 30, 40};
+    usdgeo::SpatialBounds bounds = usdgeo::SpatialBounds::Empty();
+    for (const auto& position : positions) bounds.Expand(position);
+
+    const usdpointcloud::PointBudgetConfig config{1, 1, 1};
+    usdpointcloud::PointBudgetPlan budgetPlan;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(usdpointcloud::BuildPointBudgetPlan(
+        positions, config, budgetPlan, diagnostics));
+    usdpointcloud::TilePlan sequentialPlan;
+    Check(usdpointcloud::BuildTilePlan(
+        budgetPlan, sequentialPlan, diagnostics));
+
+    usdcopc::CopcHierarchy hierarchy;
+    hierarchy.bounds = sequentialPlan.nodes.front().bounds;
+    hierarchy.spacing = 1.0;
+    hierarchy.nodes.reserve(sequentialPlan.nodes.size());
+    for (std::size_t index = 0; index < sequentialPlan.nodes.size(); ++index) {
+        const auto& planNode = sequentialPlan.nodes[index];
+        usdcopc::CopcNode node;
+        node.tile = planNode.id;
+        node.bounds = planNode.bounds;
+        node.spacing = 1.0;
+        if (planNode.isLeaf) {
+            node.pointCount = planNode.pointCount;
+            node.pointDataOffset = index + 1;
+            node.pointDataSize = 1;
+            node.hasPointData = true;
+        } else {
+            node.hasEmptyNode = true;
+        }
+        hierarchy.nodes.push_back(std::move(node));
+    }
+    usdpointcloud::TilePlan copcPlan;
+    Check(usdcopc::BuildTilePlan(hierarchy, copcPlan, diagnostics));
+    Check(diagnostics.empty() && copcPlan.IsValid());
+
+    const auto sequentialDirectory =
+        std::filesystem::temp_directory_path() /
+        "usd_geo_sequential_plan_equivalence";
+    const auto copcDirectory =
+        std::filesystem::temp_directory_path() /
+        "usd_geo_copc_plan_equivalence";
+    std::filesystem::remove_all(sequentialDirectory);
+    std::filesystem::remove_all(copcDirectory);
+    const auto sequentialLayer = pxr::SdfLayer::CreateAnonymous(
+        "sequential_plan_equivalence.usda");
+    const auto copcLayer = pxr::SdfLayer::CreateAnonymous(
+        "copc_plan_equivalence.usda");
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+    std::vector<usdpointcloud::PointTileManifestEntry> sequentialManifest;
+    std::vector<usdpointcloud::PointTileManifestEntry> copcManifest;
+    const usdpointcloud::PointBudgetTileRouter sequentialRouter(sequentialPlan);
+    const usdpointcloud::PointBudgetTileRouter copcRouter(copcPlan);
+    TestPointStream sequentialStream({{
+        usdpointcloud::MakePointChunk(data, bounds), data}});
+    TestPointStream copcStream({{
+        usdpointcloud::MakePointChunk(data, bounds), data}});
+    Check(usdgeo::AuthorPointCloudTiledAssetFromStream(
+        sequentialLayer.operator->(), "/PointCloud",
+        sequentialStream,
+        reference, sequentialRouter,
+        {sequentialDirectory.string(),
+         (sequentialDirectory / "PointCloud.usda").string(), 1, {}, {},
+         &sequentialManifest},
+        diagnostics));
+    Check(usdgeo::AuthorPointCloudTiledAssetFromStream(
+        copcLayer.operator->(), "/PointCloud",
+        copcStream,
+        reference, copcRouter,
+        {copcDirectory.string(),
+         (copcDirectory / "PointCloud.usda").string(), 1, {}, {},
+         &copcManifest},
+        diagnostics));
+    Check(sequentialLayer->Export(
+        (sequentialDirectory / "PointCloud.usda").string()));
+    Check(copcLayer->Export((copcDirectory / "PointCloud.usda").string()));
+
+    std::string sequentialManifestText;
+    std::string copcManifestText;
+    Check(usdpointcloud::SerializePointTileManifest(
+        {sequentialManifest}, sequentialManifestText, diagnostics));
+    Check(usdpointcloud::SerializePointTileManifest(
+        {copcManifest}, copcManifestText, diagnostics));
+    Check(sequentialManifestText == copcManifestText);
+    Check(ReadDirectoryFiles(sequentialDirectory) ==
+          ReadDirectoryFiles(copcDirectory));
+    std::filesystem::remove_all(sequentialDirectory);
+    std::filesystem::remove_all(copcDirectory);
+}
+
 void TestAdaptiveTilingRejectsPointsOutsidePlan() {
     const auto layer = pxr::SdfLayer::CreateAnonymous("adaptive_outside.usda");
     usdgeo::GeoReference reference;
@@ -1083,6 +1208,7 @@ int main() {
     TestStreamTiledPayloadAuthoring();
     TestFixedGridTilingPreservesBoundariesAndMemoryLimit();
     TestAdaptiveTilingRouterAuthorsPlannedLeaves();
+    TestSequentialAndCopcPlansAuthorEquivalentOutput();
     TestAdaptiveTilingRejectsPointsOutsidePlan();
     TestGeneratedStreamTiledPayloadAuthoring();
     TestStreamCancellationCleansSpools();
