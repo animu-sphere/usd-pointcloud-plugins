@@ -101,8 +101,10 @@ validated; use `--help` for the current option surface.
 An optional `--cache-root <directory>` enables deterministic USDC cache lookup
 and generation. Cache entries contain `root.usdc`, `cache.manifest`, and a
 `payloads/` directory keyed by the canonical source identity and normalized
-generation arguments. Cache-enabled output uses `payloads/` beside the output
-root so the cached payload references remain portable:
+generation arguments. Each generated payload directory also contains the
+deterministic `tiles.manifest` tile inventory. Cache-enabled output uses
+`payloads/` beside the output root so the cached payload references remain
+portable:
 
 ```powershell
 usd-pointcloud-convert `

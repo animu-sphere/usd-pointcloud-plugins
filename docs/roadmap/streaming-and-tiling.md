@@ -11,7 +11,9 @@ The production path for long-running tiled generation is now an explicit
 conversion tool; FileFormat-triggered generation remains a compatibility path
 and is not the target operational interface. The converter publishes a
 deterministic `<root>.manifest` sidecar containing normalized generation
-arguments and the relative payload asset list.
+arguments and the relative payload asset list. It also publishes a
+deterministic `tiles.manifest` beside the payload assets containing each tile
+ID, LOD level, source bounds, point count, and portable payload path.
 Generated-corpus RSS measurement and explicit benchmark paths are implemented.
 Real-input and payload working-set baselines are recorded below; a broader
 real-world matrix remains open. Adaptive point-budget planning, tile
@@ -158,13 +160,19 @@ successful completion unless a debug-retention option is enabled.
 The payload writer produces:
 
 - one payload asset per tile and LOD level, or another documented
-  deterministic grouping;
+    deterministic grouping;
 - relative and portable asset paths;
 - stable prim paths;
 - root `usdLod` metadata;
 - a source fingerprint and the generation settings;
 - tile bounds and point counts;
 - no partially published root asset after failure.
+
+The conversion tool writes the versioned tile manifest only after all payloads
+have been authored successfully. Entries are sorted by tile ID and LOD, and
+portable payload paths, duplicate tile/LOD entries, bounds, and point counts
+are validated before publication. Cache materialization preserves the tile
+manifest beside the cached payloads.
 
 Final output is committed atomically where the filesystem allows it. The
 authored representation stays inside the existing

@@ -30,5 +30,9 @@ configured byte threshold before flushing; streaming callers may combine
 multiple writers under a total working-set budget. Callers own the working
 directory and can remove it with `RemoveSpoolDirectory`.
 
-Tile manifests remain a separate follow-up contract described in
-`docs/roadmap/streaming-and-tiling.md`.
+`PointTileManifest` records the tile ID, LOD level, source bounds, point count,
+and portable payload path for generated tile assets. Its v1 serializer sorts
+entries by tile ID and LOD, rejects duplicate entries and unsafe paths, and
+produces deterministic key-value output. The conversion tool writes this
+manifest as `tiles.manifest` beside the payloads; the existing conversion
+manifest remains the source-argument and payload-list sidecar.

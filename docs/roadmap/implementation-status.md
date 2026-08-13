@@ -153,6 +153,8 @@ The completed work is documented in [streaming and tiling](streaming-and-tiling.
 - [x] Failure and interruption cleanup validation across tiled reads
 - [x] Explicit conversion tool with atomic publish and deterministic manifest
       output
+- [x] Versioned tile manifests with deterministic tile/LOD ordering, payload
+      paths, bounds, and point counts
 
 The stabilization slice completed a reproducible LAS/LAZ measurement matrix
 using the checked-in 4,096-point thinned corpora, full-size Shizuoka LAS and
