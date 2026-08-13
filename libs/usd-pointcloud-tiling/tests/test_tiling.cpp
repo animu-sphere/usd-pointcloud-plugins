@@ -80,6 +80,15 @@ void TestPointBudgetPlanning() {
             plan.averagePointsPerTile == 64.0);
     Check(diagnostics.empty());
 
+    usdpointcloud::TilePlan tilePlan;
+    Check(usdpointcloud::BuildTilePlan(plan, tilePlan, diagnostics));
+    Check(tilePlan.IsValid() && tilePlan.plannerId == "adaptive-point-budget" &&
+          tilePlan.plannerVersion == 1 && tilePlan.nodes.size() == 21);
+    Check(tilePlan.nodes.front().id.level == 0 &&
+          tilePlan.nodes.front().children.size() == 4);
+    const usdpointcloud::PointBudgetTileRouter tilePlanRouter(tilePlan);
+    Check(tilePlanRouter.GetTileId({31.0, 31.0, 0.0}).level == 2);
+
     diagnostics.clear();
     config.maxDepth = 1;
     Check(!usdpointcloud::BuildPointBudgetPlan(positions, config, plan, diagnostics));
@@ -156,6 +165,32 @@ void TestPointBudgetDepthLimit() {
     std::vector<usdgeo::Diagnostic> diagnostics;
     Check(!usdpointcloud::ValidatePointBudgetConfig(
         {1, 1, usdpointcloud::kMaxPointBudgetDepth + 1}, diagnostics));
+    Check(!diagnostics.empty());
+}
+
+void TestTilePlanValidation() {
+    const usdgeo::SpatialBounds bounds{{0.0, 0.0, 0.0},
+                                       {1.0, 1.0, 0.0}};
+    usdpointcloud::TilePlan plan;
+    plan.plannerId = "copc-native-hierarchy";
+    plan.plannerVersion = 1;
+    plan.nodes = {{{0, 0, 0, 0}, bounds, 2, {-1, 0, 0, 0},
+                   {{1, 0, 0, 0}}, {{0, 10}}, false},
+                  {{1, 0, 0, 0}, bounds, 2, {0, 0, 0, 0}, {},
+                   {{0, 10}}, true}};
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(usdpointcloud::ValidateTilePlan(plan, diagnostics));
+    Check(diagnostics.empty());
+
+    plan.nodes[1].parent = {-1, 0, 0, 0};
+    Check(!usdpointcloud::ValidateTilePlan(plan, diagnostics));
+    Check(!diagnostics.empty());
+
+    plan.nodes[1].parent = {0, 0, 0, 0};
+    plan.nodes[0].parent = {1, 0, 0, 0};
+    plan.nodes[1].children.push_back(plan.nodes[0].id);
+    diagnostics.clear();
+    Check(!usdpointcloud::ValidateTilePlan(plan, diagnostics));
     Check(!diagnostics.empty());
 }
 
@@ -307,6 +342,7 @@ int main() {
     TestPointBudgetStreamPlanning();
     TestPointBudgetPlanningMatchesVectorForUnevenDistribution();
     TestPointBudgetDepthLimit();
+    TestTilePlanValidation();
     TestTileManifestSerialization();
     TestTileManifestValidation();
     return 0;

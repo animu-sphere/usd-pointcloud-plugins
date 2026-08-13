@@ -45,6 +45,33 @@ struct PointBudgetTile {
     bool IsValid() const noexcept;
 };
 
+struct TilePlanSourceRange {
+    std::uint64_t offset = 0;
+    std::uint64_t length = 0;
+
+    bool IsValid() const noexcept;
+};
+
+struct TilePlanNode {
+    PointTileId id;
+    usdgeo::SpatialBounds bounds;
+    std::uint64_t pointCount = 0;
+    PointTileId parent{-1, 0, 0, 0};
+    std::vector<PointTileId> children;
+    std::vector<TilePlanSourceRange> sourceRanges;
+    bool isLeaf = false;
+
+    bool IsValid() const noexcept;
+};
+
+struct TilePlan {
+    std::string plannerId;
+    std::uint32_t plannerVersion = 0;
+    std::vector<TilePlanNode> nodes;
+
+    bool IsValid() const noexcept;
+};
+
 struct PointBudgetPlan {
     std::size_t tileCount = 0;
     std::size_t maximumPointsPerTile = 0;
@@ -101,6 +128,15 @@ bool BuildPointBudgetPlan(
     PointBudgetPlan& plan,
     std::vector<usdgeo::Diagnostic>& diagnostics);
 
+bool ValidateTilePlan(
+    const TilePlan& plan,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
+
+bool BuildTilePlan(
+    const PointBudgetPlan& budgetPlan,
+    TilePlan& plan,
+    std::vector<usdgeo::Diagnostic>& diagnostics);
+
 class TileRouter {
 public:
     virtual ~TileRouter() = default;
@@ -125,6 +161,7 @@ private:
 class PointBudgetTileRouter final : public TileRouter {
 public:
     explicit PointBudgetTileRouter(const PointBudgetPlan& plan);
+    explicit PointBudgetTileRouter(const TilePlan& plan);
 
     PointTileId GetTileId(
         const usdgeo::Vec3d& sourcePosition) const noexcept override;

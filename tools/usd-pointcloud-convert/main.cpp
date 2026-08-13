@@ -899,6 +899,11 @@ int main(int argc, char** argv) {
                 streamFactory, budget, adaptivePlan, diagnostics)) {
             return false;
         }
+        usdpointcloud::TilePlan tilePlan;
+        if (!usdpointcloud::BuildTilePlan(adaptivePlan, tilePlan,
+                                          diagnostics)) {
+            return false;
+        }
         usdgeo::cache::SourceIdentity authoringIdentity;
         if (!usdgeo::cache::TryBuildLocalSourceIdentity(
                 inputPath, authoringIdentity, identityError) ||
@@ -911,7 +916,7 @@ int main(int argc, char** argv) {
         }
         plannedStream = streamFactory();
         if (!plannedStream) return false;
-        const usdpointcloud::PointBudgetTileRouter router(adaptivePlan);
+        const usdpointcloud::PointBudgetTileRouter router(tilePlan);
         return usdgeo::AuthorPointCloudTiledAssetFromStream(
             layer.operator->(), "/PointCloud", *plannedStream, reference,
             router, payloadOptions, diagnostics);
