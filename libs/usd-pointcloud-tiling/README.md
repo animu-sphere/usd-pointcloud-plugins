@@ -21,6 +21,13 @@ When the source distribution cannot satisfy the requested budget, the planner
 returns a failure and emits a typed diagnostic instead of silently relaxing the
 limit.
 
+`TilePlan` is the common planning representation for sequential and native
+hierarchy planners. It carries the planner identity and version, tile bounds,
+point counts, parent and child relationships, and optional source byte ranges.
+`BuildTilePlan` currently adapts the existing point-budget output without
+changing its partitioning behavior; COPC native hierarchy mapping will use the
+same contract.
+
 `SpoolSchema`, `TileSpoolWriter`, and `TileSpoolReader` define a versioned,
 source-and-stage-coordinate binary spool. Records are written in append order,
 the footer commits the point count, and readers use the fixed record layout to

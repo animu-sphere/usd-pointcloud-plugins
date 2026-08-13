@@ -265,15 +265,16 @@ The ordered plan and acceptance priorities are in the
 - [ ] Publish the commands and corpus provenance needed to reproduce each
       baseline
 
-#### `v0.9.0` - TilePlan convergence (planned)
+#### `v0.9.0` - TilePlan convergence (in progress)
 
-- [ ] Define the `TilePlan` contract: tile identity, bounds, point counts,
+- [x] Define the `TilePlan` contract: tile identity, bounds, point counts,
       parent and child relationships, source ranges, depth, and planner
       identity and version
+- [x] Adapt the existing point-budget planner output into `TilePlan` without
+      changing its partitioning behavior; the shared tile router accepts the
+      adapted representation
 - [ ] Define how cache identity derives from a tile plan, and treat planner
       algorithm changes as a versioned compatibility concern
-- [ ] Move the existing adaptive planner onto the contract without changing its
-      output
 - [ ] Map COPC native hierarchy nodes and byte ranges onto a tile plan instead
       of re-deriving the partition
 - [ ] Verify equivalent authored output from a sequential plan and a
