@@ -263,6 +263,17 @@ std::uint64_t DirectoryBytesRecursive(const std::filesystem::path& directory) {
     return bytes;
 }
 
+std::uint64_t SourceReadBytes(const BenchmarkOptions& options,
+                              std::uint64_t pointCount) {
+    if (!options.inputPath.empty()) {
+        std::error_code error;
+        const auto size = std::filesystem::file_size(options.inputPath, error);
+        return error ? 0 : static_cast<std::uint64_t>(size);
+    }
+    return pointCount * (sizeof(usdgeo::Vec3d) + sizeof(std::uint16_t) +
+                         sizeof(double));
+}
+
 class GeneratedPointStream final : public usdpointcloud::PointStream {
 public:
     GeneratedPointStream(std::size_t pointCount, std::size_t chunkPointCount,
@@ -438,11 +449,12 @@ int main(int argc, char** argv) {
         pointCount = sourcePointCount;
     }
     std::vector<usdgeo::Diagnostic> diagnostics;
+    usdpointcloud::SpoolIoStats spoolIoStats;
     const auto authored = usdgeo::AuthorPointCloudTiledAssetFromStream(
         layer.operator->(), "/PointCloud", *stream, reference,
         {options.tileSize, 0},
         {outputDirectory.string(), rootLayerPath.string(),
-         options.memoryLimitBytes},
+         options.memoryLimitBytes, {}, {}, nullptr, &spoolIoStats},
         diagnostics);
     const auto exported = authored && layer->Export(rootLayerPath.string());
     std::uint64_t tileCount = 0;
@@ -464,6 +476,9 @@ int main(int argc, char** argv) {
         std::memory_order_relaxed);
     const auto outputBytes = DirectoryBytesRecursive(outputDirectory);
     const auto payloadBytes = PayloadBytes(outputDirectory);
+    const auto sourceReadBytes = SourceReadBytes(options, pointCount);
+    const auto totalIoBytes = sourceReadBytes + spoolIoStats.bytesWritten +
+                              spoolIoStats.bytesRead + payloadBytes;
     const auto writeBytesAfter = ProcessWriteBytes();
     std::cout << "format=" << (options.inputPath.empty()
                                    ? "generated"
@@ -484,6 +499,14 @@ int main(int argc, char** argv) {
                       : 0)
               << " peak_spool_file_bytes=" << peakSpoolFileBytes.load()
               << " payload_bytes=" << payloadBytes
+              << " source_read_bytes=" << sourceReadBytes
+              << " spool_bytes_written=" << spoolIoStats.bytesWritten
+              << " spool_bytes_read=" << spoolIoStats.bytesRead
+              << " io_amplification="
+              << (sourceReadBytes == 0
+                    ? 0.0
+                    : static_cast<double>(totalIoBytes) /
+                        static_cast<double>(sourceReadBytes))
               << " output_bytes=" << outputBytes
               << " process_write_bytes="
               << (writeBytesAfter >= writeBytesBefore

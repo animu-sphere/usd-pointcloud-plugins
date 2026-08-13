@@ -234,8 +234,9 @@ void TestSpoolRoundTrip() {
     schema.attributes.push_back({"density", usdpointcloud::PointAttributeType::Float32});
     schema.attributes.push_back({"normal", usdpointcloud::PointAttributeType::Float64Vec2});
     std::vector<usdgeo::Diagnostic> diagnostics;
+    usdpointcloud::SpoolIoStats ioStats;
     usdpointcloud::TileSpoolWriter writer;
-    Check(writer.Open(path, tile, schema, 1, diagnostics));
+    Check(writer.Open(path, tile, schema, 1, diagnostics, &ioStats));
     Check(writer.Append({{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0},
                          {std::uint64_t{0xFFFFFFFFFFFFFFFF}, 7.5F,
                           std::array<double, 2>{1.0, 2.0}}}, diagnostics));
@@ -255,7 +256,7 @@ void TestSpoolRoundTrip() {
         usdpointcloud::TileSpoolReader reader;
         usdpointcloud::PointTileId readTile;
         usdpointcloud::SpoolSchema readSchema;
-        Check(reader.Open(path, readTile, readSchema, diagnostics));
+        Check(reader.Open(path, readTile, readSchema, diagnostics, &ioStats));
         Check(readTile.x == tile.x && readTile.y == tile.y && readSchema.IsValid());
         usdpointcloud::SpoolPoint point;
           Check(reader.ReadNext(point, diagnostics) &&
@@ -272,6 +273,8 @@ void TestSpoolRoundTrip() {
         Check(!reader.ReadNext(point, diagnostics) && reader.IsComplete());
         Check(diagnostics.empty());
     }
+    Check(ioStats.bytesWritten > 0);
+    Check(ioStats.bytesWritten == ioStats.bytesRead);
     std::filesystem::remove(path);
 }
 

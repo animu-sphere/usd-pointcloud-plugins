@@ -28,6 +28,11 @@ struct SpoolSchema {
     bool IsValid() const noexcept;
 };
 
+struct SpoolIoStats {
+    std::uint64_t bytesWritten = 0;
+    std::uint64_t bytesRead = 0;
+};
+
 using SpoolAttributeValue = std::variant<
     std::int32_t,
     std::int16_t,
@@ -55,7 +60,8 @@ public:
               const PointTileId& tile,
               const SpoolSchema& schema,
               std::size_t memoryLimitBytes,
-              std::vector<usdgeo::Diagnostic>& diagnostics);
+              std::vector<usdgeo::Diagnostic>& diagnostics,
+              SpoolIoStats* ioStats = nullptr);
     bool Append(const SpoolPoint& point,
                 std::vector<usdgeo::Diagnostic>& diagnostics);
     bool Flush(std::vector<usdgeo::Diagnostic>& diagnostics);
@@ -76,7 +82,8 @@ public:
     bool Open(const std::filesystem::path& path,
               PointTileId& tile,
               SpoolSchema& schema,
-              std::vector<usdgeo::Diagnostic>& diagnostics);
+              std::vector<usdgeo::Diagnostic>& diagnostics,
+              SpoolIoStats* ioStats = nullptr);
     bool ReadNext(SpoolPoint& point,
                   std::vector<usdgeo::Diagnostic>& diagnostics);
     bool IsComplete() const noexcept;

@@ -19,8 +19,12 @@ Real-input and payload working-set baselines are recorded below; a broader
 real-world matrix remains open. Adaptive point-budget planning, tile
 statistics, and fixed-grid compatibility coverage are implemented; a
 fixture-based cross-format payload and memory comparison is implemented;
- broader real-world baselines remain open in the
- [infrastructure maturity roadmap](infrastructure-maturity.md). The next steps
+broader real-world baselines remain open in the
+[infrastructure maturity roadmap](infrastructure-maturity.md). The streaming
+benchmark also reports source bytes, spool bytes written and read, payload
+bytes, and effective I/O amplification. The source-byte value is the local
+input-file baseline; resolver range-read accounting remains a separate future
+measurement. The next steps
 recorded there are I/O observability alongside the existing memory
 measurements, and convergence of the sequential planner and the COPC native
 hierarchy onto one tile-plan representation. What `main`

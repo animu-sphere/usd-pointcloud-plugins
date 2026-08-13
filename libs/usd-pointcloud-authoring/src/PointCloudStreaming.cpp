@@ -347,7 +347,8 @@ bool AuthorPointCloudTiledAssetFromStream(
                 tile.path = spoolDirectory / ("tile_" + std::to_string(spools.size()) + ".bin");
                 tile.writer = std::make_unique<usdpointcloud::TileSpoolWriter>();
                 if (!tile.writer->Open(tile.path, tile.id, schema,
-                                       options.tileMemoryLimitBytes, diagnostics)) {
+                                       options.tileMemoryLimitBytes, diagnostics,
+                                       options.spoolIoStats)) {
                     cleanup();
                     return false;
                 }
@@ -438,7 +439,8 @@ bool AuthorPointCloudTiledAssetFromStream(
         };
         usdpointcloud::PointTileId tileId;
         usdpointcloud::SpoolSchema tileSchema;
-        if (!reader.Open(entry.second.path, tileId, tileSchema, diagnostics) ||
+        if (!reader.Open(entry.second.path, tileId, tileSchema, diagnostics,
+                 options.spoolIoStats) ||
             !SameSchema(schema, tileSchema)) {
             AddError(diagnostics, DiagnosticCode::DecodeFailure,
                      "unable to reopen point tile spool");

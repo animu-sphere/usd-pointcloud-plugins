@@ -24,7 +24,9 @@ endif()
 
 set(report "${test_root}/cross-format.tsv")
 file(WRITE "${report}"
-     "format\tpoints\ttile_count\tpeak_rss_bytes\tpayload_bytes\telapsed_seconds\n")
+    "format\tpoints\ttile_count\tpeak_rss_bytes\tpayload_bytes\t"
+    "source_read_bytes\tspool_bytes_written\tspool_bytes_read\t"
+    "io_amplification\telapsed_seconds\n")
 
 foreach(format IN ITEMS las laz ply copc)
     set(epsg_arguments)
@@ -56,12 +58,22 @@ foreach(format IN ITEMS las laz ply copc)
     set(reported_peak_rss "${CMAKE_MATCH_1}")
     string(REGEX MATCH "payload_bytes=([0-9]+)" _match "${benchmark_output}")
     set(reported_payload_bytes "${CMAKE_MATCH_1}")
+    string(REGEX MATCH "source_read_bytes=([0-9]+)" _match "${benchmark_output}")
+    set(reported_source_read_bytes "${CMAKE_MATCH_1}")
+    string(REGEX MATCH "spool_bytes_written=([0-9]+)" _match "${benchmark_output}")
+    set(reported_spool_bytes_written "${CMAKE_MATCH_1}")
+    string(REGEX MATCH "spool_bytes_read=([0-9]+)" _match "${benchmark_output}")
+    set(reported_spool_bytes_read "${CMAKE_MATCH_1}")
+    string(REGEX MATCH "io_amplification=([0-9]+\\.[0-9]+)" _match "${benchmark_output}")
+    set(reported_io_amplification "${CMAKE_MATCH_1}")
     string(REGEX MATCH "elapsed_seconds=([0-9.]+)" _match "${benchmark_output}")
     set(reported_elapsed "${CMAKE_MATCH_1}")
     string(REGEX MATCH "success=true" reported_success "${benchmark_output}")
     if(NOT reported_format OR NOT reported_points OR NOT reported_tile_count OR
        NOT reported_peak_rss OR NOT reported_payload_bytes OR
-       NOT reported_elapsed OR NOT reported_success)
+         NOT reported_source_read_bytes OR NOT reported_spool_bytes_written OR
+         NOT reported_spool_bytes_read OR NOT reported_io_amplification OR
+         NOT reported_elapsed OR NOT reported_success)
         message(FATAL_ERROR
             "${format} benchmark output is not comparable: ${benchmark_output}")
     endif()
@@ -73,6 +85,8 @@ foreach(format IN ITEMS las laz ply copc)
     file(APPEND "${report}"
          "${reported_format}\t${reported_points}\t${reported_tile_count}\t"
          "${reported_peak_rss}\t${reported_payload_bytes}\t"
+         "${reported_source_read_bytes}\t${reported_spool_bytes_written}\t"
+         "${reported_spool_bytes_read}\t${reported_io_amplification}\t"
          "${reported_elapsed}\n")
 endforeach()
 

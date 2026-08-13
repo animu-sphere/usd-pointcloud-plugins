@@ -180,6 +180,7 @@ public:
     std::size_t buffered = 0;
     std::uint64_t pointCount = 0;
     std::vector<SpoolPoint> points;
+    SpoolIoStats* ioStats = nullptr;
     bool open = false;
 };
 
@@ -191,6 +192,7 @@ public:
     std::uint64_t pointsRead = 0;
     std::streamoff dataEnd = 0;
     std::size_t recordSize = 0;
+    SpoolIoStats* ioStats = nullptr;
     bool complete = false;
 };
 
@@ -220,7 +222,8 @@ bool TileSpoolWriter::Open(const std::filesystem::path& path,
                            const PointTileId& tile,
                            const SpoolSchema& schema,
                            std::size_t memoryLimitBytes,
-                           std::vector<usdgeo::Diagnostic>& diagnostics) {
+                           std::vector<usdgeo::Diagnostic>& diagnostics,
+                           SpoolIoStats* ioStats) {
     if (!tile.IsValid() || !schema.IsValid() || memoryLimitBytes == 0) {
         Error(diagnostics, usdgeo::DiagnosticCode::InvalidPointTile,
               "invalid tile spool configuration");
@@ -236,6 +239,7 @@ bool TileSpoolWriter::Open(const std::filesystem::path& path,
     }
     impl_->schema = schema;
     impl_->memoryLimit = memoryLimitBytes;
+    impl_->ioStats = ioStats;
     impl_->open = true;
     impl_->stream.write(kHeader, sizeof(kHeader) - 1);
     const auto version = schema.version;
@@ -254,6 +258,12 @@ bool TileSpoolWriter::Open(const std::filesystem::path& path,
             Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
                   "unable to write tile spool schema");
             return false;
+        }
+    }
+    if (impl_->ioStats) {
+        const auto position = impl_->stream.tellp();
+        if (position >= 0) {
+            impl_->ioStats->bytesWritten += static_cast<std::uint64_t>(position);
         }
     }
     return true;
@@ -292,6 +302,7 @@ bool TileSpoolWriter::Flush(std::vector<usdgeo::Diagnostic>& diagnostics) {
               "unable to flush tile spool");
         return false;
     }
+    const auto start = impl_->stream.tellp();
     for (const auto& point : impl_->points) {
         if (!impl_->stream.write(reinterpret_cast<const char*>(&point.sourcePosition),
                                  sizeof(point.sourcePosition)) ||
@@ -318,6 +329,13 @@ bool TileSpoolWriter::Flush(std::vector<usdgeo::Diagnostic>& diagnostics) {
               "unable to flush tile spool");
         return false;
     }
+    if (impl_->ioStats && start >= 0) {
+        const auto end = impl_->stream.tellp();
+        if (end >= start) {
+            impl_->ioStats->bytesWritten +=
+                static_cast<std::uint64_t>(end - start);
+        }
+    }
     return true;
 }
 
@@ -325,11 +343,22 @@ bool TileSpoolWriter::Close(std::vector<usdgeo::Diagnostic>& diagnostics) {
     if (!impl_ || !impl_->open) {
         return true;
     }
-    if (!Flush(diagnostics) || !impl_->stream.write(kFooter, sizeof(kFooter) - 1) ||
+    if (!Flush(diagnostics)) {
+        return false;
+    }
+    const auto start = impl_->stream.tellp();
+    if (!impl_->stream.write(kFooter, sizeof(kFooter) - 1) ||
         !Write(impl_->stream, impl_->pointCount) || !impl_->stream.flush()) {
         Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
               "unable to finalize tile spool");
         return false;
+    }
+    if (impl_->ioStats && start >= 0) {
+        const auto end = impl_->stream.tellp();
+        if (end >= start) {
+            impl_->ioStats->bytesWritten +=
+                static_cast<std::uint64_t>(end - start);
+        }
     }
     impl_->stream.close();
     impl_->open = false;
@@ -354,7 +383,8 @@ void TileSpoolReader::Close() noexcept {
 bool TileSpoolReader::Open(const std::filesystem::path& path,
                            PointTileId& tile,
                            SpoolSchema& schema,
-                           std::vector<usdgeo::Diagnostic>& diagnostics) {
+                           std::vector<usdgeo::Diagnostic>& diagnostics,
+                           SpoolIoStats* ioStats) {
     impl_ = std::make_unique<Impl>();
     impl_->stream.open(path, std::ios::binary);
     char header[sizeof(kHeader) - 1] = {};
@@ -390,6 +420,7 @@ bool TileSpoolReader::Open(const std::filesystem::path& path,
         return false;
     }
     impl_->recordSize = sizeof(usdgeo::Vec3d) * 2;
+    impl_->ioStats = ioStats;
     for (const auto& attribute : schema.attributes) {
         impl_->recordSize += AttributeSize(attribute.type);
     }
@@ -412,6 +443,9 @@ bool TileSpoolReader::Open(const std::filesystem::path& path,
     }
     impl_->stream.seekg(dataStart);
     impl_->schema = schema;
+    if (impl_->ioStats && dataStart >= 0) {
+        impl_->ioStats->bytesRead += static_cast<std::uint64_t>(dataStart);
+    }
     return true;
 }
 
@@ -427,6 +461,7 @@ bool TileSpoolReader::ReadNext(SpoolPoint& point,
         return false;
     }
     if (position == impl_->dataEnd) {
+        const auto start = position;
         char footer[sizeof(kFooter) - 1] = {};
         std::uint64_t count = 0;
         if (!impl_->stream.read(footer, sizeof(footer)) ||
@@ -438,6 +473,13 @@ bool TileSpoolReader::ReadNext(SpoolPoint& point,
         }
         impl_->pointCount = count;
         impl_->complete = true;
+        if (impl_->ioStats) {
+            const auto end = impl_->stream.tellg();
+            if (end >= start) {
+                impl_->ioStats->bytesRead +=
+                    static_cast<std::uint64_t>(end - start);
+            }
+        }
         return false;
     }
     if (impl_->dataEnd - position < static_cast<std::streamoff>(impl_->recordSize) ||
@@ -455,6 +497,13 @@ bool TileSpoolReader::ReadNext(SpoolPoint& point,
             Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
                   "truncated tile spool point");
             return false;
+        }
+    }
+    if (impl_->ioStats) {
+        const auto end = impl_->stream.tellg();
+        if (end >= position) {
+            impl_->ioStats->bytesRead +=
+                static_cast<std::uint64_t>(end - position);
         }
     }
     ++impl_->pointsRead;
