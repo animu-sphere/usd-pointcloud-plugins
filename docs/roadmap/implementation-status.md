@@ -263,8 +263,11 @@ The ordered plan and acceptance priorities are in the
 - [x] Record peak RSS, spool bytes, source read bytes, and total processing
       time for both strategies in benchmark output; real-world baselines remain
       open
-- [ ] Record `usdview` open time and host responsiveness for the generated
-      output
+- [x] Record `usdview` startup/open elapsed time and peak process-tree working
+      set for the generated output
+- [x] Provide a reproducible build-local payload-backed `usdview` fixture
+      recipe from the public-domain USGS 3DEP corpus
+- [ ] Measure host responsiveness while interacting with the generated output
 - [x] Add source bytes read, spool bytes written, spool bytes read, payload
       bytes written, and effective I/O amplification to the streaming benchmark
 - [x] Publish the commands and corpus provenance needed to reproduce each
