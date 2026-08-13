@@ -69,6 +69,58 @@ foreach(expected_line
     endif()
 endforeach()
 
+set(adaptive_cache_root "${test_root}/adaptive-cache")
+set(adaptive_cache_first_root "${test_root}-adaptive-cache-first")
+set(adaptive_cache_second_root "${test_root}-adaptive-cache-second")
+file(REMOVE_RECURSE "${adaptive_cache_root}" "${adaptive_cache_first_root}"
+     "${adaptive_cache_second_root}")
+file(MAKE_DIRECTORY "${adaptive_cache_first_root}"
+     "${adaptive_cache_second_root}")
+execute_process(
+    COMMAND "${converter}" "${fixture}"
+            "${adaptive_cache_first_root}/PointCloud.usda"
+            --max-points-per-tile 1 --min-points-per-tile 1 --max-depth 8
+            --memory-limit 1024 --attributes xyz,intensity
+            --cache-root "${adaptive_cache_root}"
+    RESULT_VARIABLE adaptive_cache_first_result
+    OUTPUT_VARIABLE adaptive_cache_first_output
+    ERROR_VARIABLE adaptive_cache_first_error)
+string(FIND "${adaptive_cache_first_output}"
+    "Cache lookups: 1, hits: 0, misses: 1"
+    adaptive_cache_first_stats_position)
+if(NOT adaptive_cache_first_result EQUAL 0 OR
+   NOT adaptive_cache_first_error STREQUAL "" OR
+   adaptive_cache_first_stats_position EQUAL -1)
+    message(FATAL_ERROR
+        "adaptive cached first conversion failed: "
+        "${adaptive_cache_first_output}${adaptive_cache_first_error}")
+endif()
+
+execute_process(
+    COMMAND "${converter}" "${fixture}"
+            "${adaptive_cache_second_root}/PointCloud.usda"
+            --max-points-per-tile 1 --min-points-per-tile 1 --max-depth 8
+            --memory-limit 1024 --attributes intensity,xyz
+            --cache-root "${adaptive_cache_root}"
+    RESULT_VARIABLE adaptive_cache_second_result
+    OUTPUT_VARIABLE adaptive_cache_second_output
+    ERROR_VARIABLE adaptive_cache_second_error)
+string(FIND "${adaptive_cache_second_output}" "Cache hit "
+    adaptive_cache_hit_position)
+string(FIND "${adaptive_cache_second_output}"
+    "Cache lookups: 1, hits: 1, misses: 0"
+    adaptive_cache_second_stats_position)
+if(NOT adaptive_cache_second_result EQUAL 0 OR
+   NOT adaptive_cache_second_error STREQUAL "" OR
+   adaptive_cache_hit_position EQUAL -1 OR
+   adaptive_cache_second_stats_position EQUAL -1 OR
+   NOT EXISTS "${adaptive_cache_second_root}/PointCloud.usda" OR
+   NOT EXISTS "${adaptive_cache_second_root}/payloads/tiles.manifest")
+    message(FATAL_ERROR
+        "adaptive converter did not reuse the cache entry: "
+        "${adaptive_cache_second_output}${adaptive_cache_second_error}")
+endif()
+
 file(READ "${output_manifest}" manifest_contents)
 foreach(expected_line
         "format=usd-pointcloud-manifest-v1"
