@@ -599,9 +599,10 @@ python tools/measure_usd_working_set.py `
 ```
 
 For the v0.9.0 host-responsiveness workload, use `--mode interactive`. The
-sampler sends `Home`, `Left`, `Right`, `Up`, and `Down` at the configured
-interaction interval, samples working set during the sequence, and closes or
-boundedly cleans up usdview afterward:
+sampler synchronously probes the usdview UI thread with `WM_NULL`, sends
+`Home`, `Left`, `Right`, `Up`, and `Down` at the configured interaction
+interval, samples working set during the sequence, and closes or boundedly
+cleans up usdview afterward:
 
 ```powershell
 python tools/measure_usd_working_set.py `
