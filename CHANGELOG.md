@@ -2,13 +2,42 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased]
+## [0.9.0] - 2026-08-15
 
-### Planned for v0.9.0
+### Added
 
-- Carry the host-responsiveness measurement into the TilePlan convergence
-  milestone, using the reproducible payload-backed `usdview` fixture and a
-  documented interaction workload.
+- A versioned `TilePlan` contract covering tile identity, bounds, point counts,
+  hierarchy relationships, source ranges, depth, and planner identity.
+- Tile-plan cache identity through the deterministic
+  `TilePlanCacheArguments` and `StableTilePlanKey` contracts.
+- A reproducible Windows `usdview` host-responsiveness baseline using a
+  payload-backed USGS 3DEP fixture and a documented five-key workload.
+
+### Changed
+
+- Adaptive point-budget planning now reaches the shared tile router through
+  the `TilePlan` representation without changing its partitioning behavior.
+- COPC native hierarchy nodes and byte ranges are mapped to `TilePlan` rather
+  than re-derived through sequential planning.
+- Sequential and COPC-native plans share the downstream payload authoring
+  path, with equivalent authored output covered by tests.
+
+### Compatibility
+
+- Existing LAS, LAZ, COPC, and PLY format ids, arguments, authored stage shape,
+  and fixed-grid tiling behavior remain compatible with v0.8.0.
+- Planner identity and version are now explicit cache compatibility inputs;
+  changing a planner algorithm invalidates incompatible generated output.
+
+### Known limitations
+
+- The host-responsiveness baseline measures bounded UI dispatch latency and
+  working-set pressure; it does not measure renderer frame latency or a
+  host-specific input-to-present time.
+- Resolver-backed generated-cache reuse still requires a stable validation
+  token, and remote range-cache ownership remains out of scope.
+- Target payload-byte and spatial-size fallback policies, COPC writing, and
+  new public USD schemas remain out of scope.
 
 ## [0.8.0] - 2026-08-14
 
@@ -459,4 +488,5 @@ libraries directly. The complete before/after table and checklist are in
 [0.6.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.6.0
 [0.7.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.7.0
 [0.8.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.8.0
-[Unreleased]: https://github.com/animu-sphere/usd-pointcloud-plugins/compare/v0.8.0...HEAD
+[0.9.0]: https://github.com/animu-sphere/usd-pointcloud-plugins/releases/tag/v0.9.0
+[Unreleased]: https://github.com/animu-sphere/usd-pointcloud-plugins/compare/v0.9.0...HEAD

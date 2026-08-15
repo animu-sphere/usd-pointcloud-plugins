@@ -274,10 +274,10 @@ See the [implementation status](docs/roadmap/implementation-status.md) and
 
 ## Status
 
-Latest release: **v0.8.0** — real-world fixed-grid and adaptive measurements,
-I/O observability, and LAZ point-format-7 hardening. The v0.3.0 module and
+Latest release: **v0.9.0** — TilePlan convergence across sequential and COPC
+native planning, plus a reproducible host-responsiveness baseline. The v0.3.0 module and
 bundle rename is recorded in [MIGRATION.md](docs/compatibility/MIGRATION.md).
-See the [release record](docs/releases/v0.8.0.md) and [CHANGELOG.md](CHANGELOG.md).
+See the [release record](docs/releases/v0.9.0.md) and [CHANGELOG.md](CHANGELOG.md).
 
 Direction is fixed in the [design policy](docs/design/DESIGN_POLICY.md); the
 structure is fixed in the

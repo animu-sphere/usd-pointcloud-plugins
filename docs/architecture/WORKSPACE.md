@@ -300,6 +300,7 @@ matrix as LAS and LAZ.
 | v0.6.0 | source identity, cache hardening, diagnostics, recovery, and reuse baselines | released 2026-08-12 |
 | v0.7.0 | point-budget-aware adaptive tiling | released 2026-08-13 |
 | v0.8.0 | real-world measurement and I/O observability | released 2026-08-14 |
+| v0.9.0 | TilePlan convergence and interactive validation | released 2026-08-15 |
 
 Current work and acceptance gaps are tracked in
 [roadmap/implementation-status.md](../roadmap/implementation-status.md).

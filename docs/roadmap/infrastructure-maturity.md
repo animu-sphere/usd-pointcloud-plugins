@@ -134,7 +134,7 @@ schema is deferred until the plain-attribute metadata contract is stable.
 | `v0.6.0` | Cache and source identity | Deterministic local reuse and conservative remote identity | Released 2026-08-12 |
 | `v0.7.0` | Adaptive tiling | Predictable payload density and memory through point-budget planning | Released 2026-08-13 |
 | `v0.8.0` | Measurement and I/O observability | Real-world adaptive baselines and visible I/O amplification | Released 2026-08-14 |
-| `v0.9.0` | TilePlan convergence and interactive validation | One tile-plan representation for sequential planning and COPC native hierarchy, plus a host-responsiveness baseline | Planned |
+| `v0.9.0` | TilePlan convergence and interactive validation | One tile-plan representation for sequential planning and COPC native hierarchy, plus a host-responsiveness baseline | Released 2026-08-15 |
 | `v0.10.0` | Resolver-backed source identity | Safe generated-cache reuse for resolver-provided sources | Planned |
 | Research | Runtime streaming | Evidence about host-driven partial loading, with no premature abstraction | Ongoing |
 | Later | Format expansion | E57 and other point-cloud formats through `PointStream` | Deferred |

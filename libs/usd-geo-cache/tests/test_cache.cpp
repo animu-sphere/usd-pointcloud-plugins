@@ -195,7 +195,7 @@ void TestConcurrentLookupStatistics() {
     std::vector<std::thread> workers;
     workers.reserve(threadCount);
     for (int threadIndex = 0; threadIndex != threadCount; ++threadIndex) {
-        workers.emplace_back([&layout] {
+        workers.emplace_back([&layout, lookupsPerThread] {
             for (int lookupIndex = 0; lookupIndex != lookupsPerThread;
                  ++lookupIndex) {
                 usdgeo::cache::Inspect(layout);

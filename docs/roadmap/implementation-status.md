@@ -274,7 +274,7 @@ The ordered plan and acceptance priorities are in the
       baseline; the comparison harness records the input SHA-256 beside every
       fixed-grid and adaptive result
 
-#### `v0.9.0` - TilePlan convergence and interactive validation (in progress)
+#### `v0.9.0` - TilePlan convergence and interactive validation (released 2026-08-15)
 
 - [x] Measure host responsiveness while interacting with the generated output
       using the documented five-key workload and the reproducible USGS 3DEP

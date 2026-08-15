@@ -27,9 +27,9 @@ source bytes are counted at the actual reader boundary; generated input
 reports its logical generated-point byte volume. Payload bytes are the
 materialized payload size used as the output-write baseline. Resolver
 range-read accounting remains a separate future measurement. The v0.8.0 I/O
-observability work is complete; v0.9.0 carries host-responsiveness measurement
-alongside convergence of the sequential planner and the COPC native hierarchy
-onto one tile-plan representation. What `main`
+observability work is complete, and v0.9.0 completed host-responsiveness
+measurement alongside convergence of the sequential planner and the COPC
+native hierarchy onto one tile-plan representation. What `main`
 implements today is in
 [implementation status](implementation-status.md) and
 [capability matrix](../reference/CAPABILITY_MATRIX.md).
@@ -311,8 +311,8 @@ manifest pairs are left intact.
 - automatic cache eviction.
 
 Two of these have since moved into the plan. Deterministic point-budget
-planning shipped in `v0.7.0`, and COPC hierarchy preservation is `v0.9.0`
-work: rather than re-deriving a partition that COPC already carries, its
+planning shipped in `v0.7.0`, and COPC hierarchy preservation shipped in
+`v0.9.0`: rather than re-deriving a partition that COPC already carries, its
 native hierarchy becomes a tile plan through the same representation the
 sequential planner produces. The remaining items stay out of scope.
 
@@ -402,10 +402,9 @@ reporting points per tile distribution, payload bytes per tile, total payload
 bytes, tile count, tree depth, peak RSS, spool bytes, source read bytes, total
 processing time, and `usdview` open time.
 
-v0.9.0 carries the host-responsiveness item forward. It will measure
-interaction with the generated output using the reproducible payload-backed
-`usdview` fixture, and record the workload, method, and baseline alongside the
-existing open-time and working-set measurements.
+v0.9.0 measured interaction with the generated output using the reproducible
+payload-backed `usdview` fixture, and recorded the workload, method, and
+baseline alongside the existing open-time and working-set measurements.
 
 The comparison needs inputs whose density genuinely varies, because uniform
 fixtures cannot distinguish the two strategies:

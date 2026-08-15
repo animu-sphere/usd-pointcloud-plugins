@@ -1,6 +1,6 @@
 # Installing and registering the plugins
 
-The latest tagged release is v0.8.0
+The latest tagged release is v0.9.0
 ([release records](../releases/README.md)); `main` carries unreleased work.
 Building from source is in [BUILDING.md](BUILDING.md), and redistribution
 obligations — which matter for `pointcloud-laz` — are in

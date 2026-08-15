@@ -32,7 +32,8 @@ production path for long-running deterministic payload and cache generation.
 
 ## 2. Current Assessment
 
-v0.8.0 is released and the measurement and I/O observability work is complete.
+v0.9.0 is released and the TilePlan convergence and interactive validation
+work is complete.
 The properties to preserve are:
 
 - Format parsing is separated from OpenUSD API usage.
@@ -678,16 +679,17 @@ open.
 
 Compare fixed-grid and adaptive tiling on real inputs with uneven density, and
 extend benchmarks with source, spool, and payload I/O counters. Measurement
-precedes further tiling design and precedes any change to the spool. Host
-responsiveness is carried into v0.9.0 for a separate interactive baseline.
+precedes further tiling design and precedes any change to the spool. The
+v0.9.0 interactive host-responsiveness baseline is complete.
 
-### W5: TilePlan Convergence and Interactive Validation (`v0.9.0`)
+### W5: TilePlan Convergence and Interactive Validation (`v0.9.0`, released)
 
-Define the tile-plan contract before implementing against it, move the adaptive
-planner onto it without changing its output, and add the COPC native-hierarchy
-fast path. Authoring, cache identity, and payload generation must become
-planner-agnostic. Record host responsiveness against generated output using a
-documented workload and the reproducible payload-backed fixture.
+The release defined the tile-plan contract before implementing against it,
+moved the adaptive planner onto it without changing its output, and added the
+COPC native-hierarchy fast path. Authoring, cache identity, and payload
+generation are planner-agnostic. Host responsiveness is recorded against
+generated output using a documented workload and the reproducible
+payload-backed fixture.
 
 ### W6: Resolver-Backed Source Identity (`v0.10.0`)
 
