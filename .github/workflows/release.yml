@@ -56,8 +56,8 @@ jobs:
             runs_on: macos-15
             runner_profile: macos-arm64-hosted
             ost_home: .ost-ci-home
-            runtime_artifact: sha256:b2cb7b68e72b05e486d57e96cde2ec7a8dc5a17b02b774af923aa58ee31d6d21
-            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:f8de29a4176d02ffbcf50a2205bb6b23d9a3cd9463e0d58a28a3c1c6ee5cb82c
+            runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
             host_python: '3.13'
             host_packages_apt: ''
             up_to: 5
