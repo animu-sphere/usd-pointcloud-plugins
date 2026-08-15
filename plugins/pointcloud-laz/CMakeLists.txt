@@ -37,6 +37,9 @@ endif()
 if(NOT TARGET OpenGL::GL)
     find_package(OpenGL REQUIRED)
 endif()
+if(NOT TARGET Vulkan::Vulkan)
+    find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
+endif()
 if(NOT TARGET usdpointcloud::authoring)
     add_subdirectory(
         "${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-pointcloud-authoring"
