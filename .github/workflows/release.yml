@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  OST_VERSION: '0.22.1'
+  OST_VERSION: '0.22.2'
   OST_REPOSITORY: animu-sphere/open-strata
   OST_PLATFORM: cy2026
   OST_PROFILE: usd
