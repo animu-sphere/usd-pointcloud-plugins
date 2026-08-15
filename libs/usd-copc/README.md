@@ -66,9 +66,11 @@ classification, memory, chunk, and cancellation options while traversing
 point-data nodes. COPC hierarchy order is spatial rather than LAS source
 order, so source point ranges are rejected. HTTP range sources, network
 caching, COPC writing, hierarchy optimization, and OpenUSD authoring remain
-outside this module. The `ArAsset` adapter and resolver-dependent cache
-identity are plugin-layer responsibilities. The OpenUSD adapter lives in
-`plugins/pointcloud-copc`.
+outside this module. The `ArAsset` adapter is a plugin-layer responsibility,
+and resolver-provided cache identity is extracted once outside the format
+readers rather than here; see the
+[resolver-backed source contract](../../docs/architecture/RESOLVER_SOURCE.md).
+The OpenUSD adapter lives in `plugins/pointcloud-copc`.
 
 ## Build and test
 

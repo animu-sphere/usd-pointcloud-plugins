@@ -15,7 +15,8 @@ runtime:
 `pointcloud-las`, `pointcloud-laz`, `pointcloud-copc`, and `pointcloud-ply` are
 `usd-fileformat` bundles and require the `usd-stage-read` capability.
 `httpresolver` is a `usd-asset-resolver` test-double bundle for the resolver
-path used by COPC integration tests.
+path used by COPC integration tests. It is not part of the product surface and
+provides no network transport; a production resolver is a separate project.
 
 | Item | Value |
 | --- | --- |
@@ -123,8 +124,18 @@ remain static `SDF_FORMAT_ARGS`. See [ADR-0003](../adr/0003-dynamic-file-format.
 - The host is responsible for rendering. These plugins author stages; they do
   not provide a point-cloud render delegate.
 - Remote COPC requires the active resolver to provide efficient random-access
-  reads. HTTP support, authentication, retries, and transport caching remain
-  resolver responsibilities. Generated-USDC cache reuse is disabled unless a
-  stable local filesystem identity is available.
+  reads. HTTP support, authentication, retries, redirects, and raw byte-range
+  caching remain resolver responsibilities. Generated-USDC cache reuse is
+  disabled unless a stable local filesystem identity is available; extending
+  reuse to stable resolver-provided identity is `v0.10.0` work.
+- An external resolver is runtime composition, not a build-time dependency.
+  These bundles carry no CMake dependency, submodule, vendored transport
+  library, or link dependency on any resolver implementation, and they do not
+  detect which resolver opened an asset. `usd-http-resolver` is one compatible
+  implementation; register it alongside these bundles through
+  `PXR_PLUGINPATH_NAME`.
 - The repository's `httpresolver` bundle is an integration-test double only;
   it does not provide network transport or production HTTP behavior.
+
+The boundary is stated in full in the
+[resolver-backed source contract](../architecture/RESOLVER_SOURCE.md).

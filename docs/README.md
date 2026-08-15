@@ -43,6 +43,10 @@ workspace contract wins; structural changes must update that contract first.
 - [architecture/POINT_READER.md](architecture/POINT_READER.md) and
   [architecture/FILE_FORMAT_ARGUMENTS.md](architecture/FILE_FORMAT_ARGUMENTS.md)
   define the shared read contract and the argument surface that reaches it.
+- [architecture/RESOLVER_SOURCE.md](architecture/RESOLVER_SOURCE.md) fixes the
+  boundary toward external resolvers: resolver-backed byte access,
+  transport-neutral source identity, generated-cache ownership, and the
+  diagnostics that explain a cache decision.
 - [architecture/PLUGIN_ADAPTER.md](architecture/PLUGIN_ADAPTER.md) is the
   thin-adapter rule every FileFormat Plugin is held to.
 - [architecture/DIAGNOSTICS.md](architecture/DIAGNOSTICS.md) defines the typed

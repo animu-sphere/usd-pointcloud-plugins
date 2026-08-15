@@ -117,6 +117,9 @@ schema is deferred until the plain-attribute metadata contract is stable.
   deterministic, payload-backed generation and cache population.
 - Prefer OpenUSD asset resolution over format-specific HTTP, cloud, or
   authentication clients.
+- Compose external resolvers at runtime; never depend on one at build time.
+- Keep source identity transport-neutral, and treat resolver validation tokens
+  as opaque.
 - Keep fixed-grid tiling as the simple, predictable compatibility path.
 - Evaluate designs against both memory bounds and I/O bounds.
 - Change the spool design only after measurement shows it is the bottleneck.
@@ -135,7 +138,7 @@ schema is deferred until the plain-attribute metadata contract is stable.
 | `v0.7.0` | Adaptive tiling | Predictable payload density and memory through point-budget planning | Released 2026-08-13 |
 | `v0.8.0` | Measurement and I/O observability | Real-world adaptive baselines and visible I/O amplification | Released 2026-08-14 |
 | `v0.9.0` | TilePlan convergence and interactive validation | One tile-plan representation for sequential planning and COPC native hierarchy, plus a host-responsiveness baseline | Released 2026-08-15 |
-| `v0.10.0` | Resolver-backed source identity | Safe generated-cache reuse for resolver-provided sources | Planned |
+| `v0.10.0` | Resolver-backed source identity and external resolver interoperability | Safe generated-cache reuse for resolver-provided sources, with transport owned by the resolver | Planned |
 | Research | Runtime streaming | Evidence about host-driven partial loading, with no premature abstraction | Ongoing |
 | Later | Format expansion | E57 and other point-cloud formats through `PointStream` | Deferred |
 
@@ -357,33 +360,115 @@ separately from the synchronous UI dispatch probe.
 
 ### `v0.10.0` - Resolver-Backed Source Identity
 
-Primary goal: make generated-cache reuse safe for sources the project does not
-own the transport for.
+Primary goal: make generated point-cloud assets safely reusable across
+resolver-backed sources without depending on any transport implementation.
 
 Local filesystem identity is settled. Resolver-backed sources are currently
 excluded from reuse whenever a stable validation token is absent, which is
 correct but conservative enough to make remote workflows recompute output they
-already have.
+already have. The release closes that gap from the identity side only. The
+binding contract is in the
+[resolver-backed source contract](../architecture/RESOLVER_SOURCE.md).
 
-Scope:
+Five outcomes define the release:
 
-- define what a resolver must supply for identity to be trusted, and what a
-  partially trustworthy answer permits;
-- keep transport implementation in the resolver, not in this repository;
-- separate source byte-range caching from generated-USDC caching explicitly,
-  including which layer owns each;
-- measure remote hit ratios and `bytes fetched / source size` for
-  representative workflows.
+1. a stable resolver-backed source identity contract;
+2. safe generated-cache reuse for resolver-provided sources;
+3. conservative fallback when a resolver cannot provide stable identity;
+4. removal of transport-specific HTTP ownership from this repository;
+5. reproducible interoperability tests proving an external resolver can satisfy
+   the point-cloud contracts.
+
+#### Identity contract
+
+Source identity describes what content was resolved, not how it was
+transported. `resolvedIdentifier`, `size`, and an opaque `validationToken` are
+the neutral representation; `url` and `etag` are not. A resolver may derive the
+token from an HTTP `ETag`, `Last-Modified` plus size, an object version id, a
+generation number, filesystem metadata, a digest, or a studio revision, and
+none of those concepts enter the cache contract.
+
+Identity is classified before it is trusted:
+
+```text
+Stable        sufficient for safe generated-cache reuse
+Unstable      readable source, freshness not guaranteed
+Unavailable   no usable identity metadata
+```
+
+Reuse stays disabled for `Unstable` and `Unavailable`, preserving the fail-safe
+behavior established before this release.
+
+One resolver-facing adapter translates `ArResolver` / `ArAsset` identity into
+`SourceIdentity`. It lives outside format readers — LAS, LAZ, COPC, and PLY do
+not each extract identity — and is owned by `usdGeoCache` or a small resolver
+integration layer adjacent to it, so a future raster or vector repository can
+reuse it. Point-cloud tiling concepts do not move into `usdGeoCore` for this.
+
+#### Cache behavior
+
+Raw byte and range caching belongs to the resolver; the generated USDC and
+payload cache belongs here. A resolver-backed key adds stable source identity
+to the deterministic generation inputs already used for local sources,
+including `TilePlan` planner identity and version from `v0.9.0`. Reuse requires
+stable identity, a matching descriptor, matching generation and `TilePlan`
+inputs, and a validating root and payload set; anything else fails closed.
+
+The central correctness property is that the same logical identifier with a
+different validation token must not hit an existing entry.
+
+Credentials, authorization headers, signed URLs, and tokens are never persisted
+into manifests, cache descriptors, or diagnostics.
+
+#### Repository boundary
 
 The boundary does not move: byte-range access, COPC metadata and hierarchy,
 point decoding, typed diagnostics, source identity, and cache compatibility
 belong here; HTTP, authentication, retry, redirect, credentials, network
-caching, and transport behavior belong to the resolver. `httpresolver` remains
-an integration-test double and reference implementation. A production
-transport, if one is needed, is a separate repository.
+caching, and transport behavior belong to the resolver. The repository must
+build and test with no CMake dependency, submodule, vendored HTTP library,
+resolver-specific include, or link dependency on any resolver implementation.
+`usd-http-resolver` is documented as one compatible implementation composed at
+runtime through `PXR_PLUGINPATH_NAME`, never as a requirement.
+
+`plugins/httpresolver` stops being presented as part of the product surface. It
+is removed once equivalent external integration coverage exists, or relocated
+under an explicitly test-only path such as `tests/plugins/httpresolver/`.
+
+#### Tests
+
+Tier 1 runs without any external resolver repository, using fake or
+memory-backed test assets, and remains the required CI gate: resolver-backed
+random access, partial reads, short-read diagnostics, the three identity
+states, miss-to-hit behavior, invalidation on token change, corruption
+recovery, `TilePlan` compatibility inputs, and deterministic diagnostics.
+
+Tier 2 composes an external resolver, a local reproducible HTTP server, and a
+COPC fixture through OpenStrata workspace composition, and verifies resolution,
+metadata and range reads, local/remote output equivalence, reuse under stable
+identity, and invalidation when validation metadata changes.
+
+#### Diagnostics
+
+Cache decisions are explained through stable categories — identity
+unavailable, unstable, stable, or changed; reuse disabled; cache hit; cache
+invalidated — without leaking transport specifics or token contents. `Missing
+HTTP ETag` is not an acceptable message because HTTP is not part of the
+contract.
+
+#### Non-goals
+
+HTTP clients and range requests, `ETag` parsing, `If-Range` / `If-None-Match`,
+redirects, retry, timeout, and TLS policy, proxies, cookies, authentication
+protocols, signed URLs, S3 / Azure / GCS SDK integration, raw remote byte
+caching, range-cache eviction, connection pooling, COPC writing, E57, public
+custom point-cloud USD schemas, and renderer-controlled runtime streaming.
 
 Exit gate: a documented identity contract for resolver-provided sources, reuse
-enabled exactly where identity is sufficient, and recorded remote baselines.
+enabled exactly where identity is sufficient, Tier 1 passing without an
+external resolver, Tier 2 recorded against one, the bundled test resolver
+removed or clearly marked test-only, and recorded remote baselines including
+`bytes fetched / source size`.
 
 ### Research - Runtime Streaming
 
@@ -420,6 +505,34 @@ evidence about the common contract, not permission to build a parallel
 authoring path. Delimited text and other point-cloud formats are also deferred
 until the infrastructure milestones above are mature.
 
+## Position Toward v1.0
+
+The release sequence completes the core vertical architecture:
+
+```text
+v0.5.0  Resolver-backed random access
+v0.6.0  Source identity and generated cache
+v0.7.0  Adaptive tiling
+v0.8.0  Real-world I/O measurement
+v0.9.0  TilePlan convergence
+v0.10.0 External resolver identity and safe remote cache reuse
+```
+
+which corresponds to one path from source to authored output:
+
+```text
+Source / ArResolver -> RandomAccessSource / PointStream -> filtering / sampling
+  -> sequential planner or native hierarchy -> TilePlan -> generated cache
+  -> payload authoring -> FileFormat or Converter
+```
+
+After `v0.10.0` the project should consider a stabilization release or a move
+toward `v1.0.0` rather than immediately expanding format count. E57 and other
+new formats are not `v1.0` requirements. The stronger `v1.0` criterion is that
+the format-independent ingestion, tiling, caching, resolver, and authoring
+contracts are stable enough to support future formats without architectural
+rewrites.
+
 ## Non-Goals
 
 The following are explicitly not priorities, so that they do not reappear as
@@ -427,6 +540,10 @@ implicit work:
 
 - increasing the number of supported formats as a goal in itself;
 - embedding an HTTP client in `usdCopc`;
+- owning network transport, authentication, or raw byte caching for any
+  resolver-backed source;
+- presenting a bundled test resolver as a production transport;
+- making any resolver implementation a build-time dependency;
 - giving FileFormat reads the full responsibility for production-scale
   conversion;
 - implementing a renderer in this repository;
@@ -448,6 +565,11 @@ changes affect cache compatibility, so the planner identity and version are
 cache-key inputs alongside `maxPointsPerTile`, `minPointsPerTile`, `maxDepth`,
 the sampling algorithm and version, the applied filters, and source identity.
 
+Source identity and its stability classification become a public contract in
+`v0.10.0`: what a resolver must supply, what each stability level permits, and
+that validation tokens are opaque to every consumer. The binding statement is
+the [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md).
+
 ## Testing Priorities
 
 Architecture-level tests accompany correctness tests:
@@ -464,6 +586,12 @@ Architecture-level tests accompany correctness tests:
   interrupted-write behavior;
 - equivalent authored output from a sequentially planned tile plan and a
   COPC-native tile plan describing the same partition.
+
+From `v0.10.0`, resolver coverage is split in two tiers. Tier 1 runs
+repository-local contract tests against fake or memory-backed resolver assets
+and is the required CI gate; Tier 2 composes an external resolver
+implementation and a local reproducible server for end-to-end verification
+without making this repository structurally depend on it.
 
 ## Performance Baselines
 

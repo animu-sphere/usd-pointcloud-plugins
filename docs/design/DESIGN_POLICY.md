@@ -46,13 +46,14 @@ The properties to preserve are:
 - Readers remain independent of OpenUSD and transport policy.
 - Implementation status and roadmap are documented.
 
-Source identity, cache invalidation, and point-budget-aware adaptive tiling are
-now implemented. The next work measures that infrastructure on real data,
-including I/O behavior and not only memory behavior, then converges sequential
-planning and COPC native hierarchy onto one tile-plan representation, then
-matures resolver-backed source identity. Format expansion follows those
-milestones. See the
-[infrastructure maturity roadmap](../roadmap/infrastructure-maturity.md).
+Source identity, cache invalidation, point-budget-aware adaptive tiling,
+real-world I/O measurement, and one tile-plan representation for sequential and
+COPC-native planning are now implemented. The next work matures resolver-backed
+source identity so generated output can be reused safely for resolver-provided
+sources, while transport stays in external resolver implementations. Format
+expansion follows that milestone. See the
+[infrastructure maturity roadmap](../roadmap/infrastructure-maturity.md) and
+the [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md).
 
 The standing goal is not a larger format count. It is that any point-cloud
 format can use the same streaming, tiling, cache, and authoring infrastructure:
@@ -441,7 +442,14 @@ layer. The complete LOD cache-key input list is in the
 Cache is not only an optimization; it carries the identity and reproducibility
 of generated output. Reuse stays disabled when source identity is not stable
 enough to exclude stale results, including for resolver-provided sources
-without a trustworthy validation token.
+without a trustworthy validation token. Equal identifiers never imply equal
+content.
+
+Source identity is transport-neutral. A resolver-provided validation token is
+opaque to every consumer here, whatever the resolver derived it from, and
+credentials, authorization headers, signed URLs, and tokens are never persisted
+into manifests, cache descriptors, or diagnostics. See the
+[resolver-backed source contract](../architecture/RESOLVER_SOURCE.md).
 
 ## 8. Diagnostics API
 
@@ -691,11 +699,19 @@ generation are planner-agnostic. Host responsiveness is recorded against
 generated output using a documented workload and the reproducible
 payload-backed fixture.
 
-### W6: Resolver-Backed Source Identity (`v0.10.0`)
+### W6: Resolver-Backed Source Identity and External Resolver Interoperability (`v0.10.0`)
 
-Define what a resolver must supply for generated-cache reuse to be safe, keep
-byte-range caching distinct from generated-USDC caching, and record remote
-baselines. Transport implementation stays in the resolver.
+Define what a resolver must supply for generated-cache reuse to be safe,
+classify identity as stable, unstable, or unavailable, and enable reuse only
+for the stable case. Extract identity in one resolver-facing adapter rather
+than in each format reader. Keep byte-range caching distinct from
+generated-USDC caching, and record remote baselines.
+
+Transport implementation stays in the resolver, and no resolver implementation
+becomes a build-time dependency: repository-local contract tests must pass
+without one, while cross-repository integration is composed separately. The
+bundled `httpresolver` test double is removed or relocated to a test-only path
+in this release.
 
 ### W7: Format Expansion (Later)
 
@@ -722,6 +738,8 @@ as a duplicate numbered list in this policy. Active topics are:
 - a shared tile-plan representation for sequential and native-hierarchy
   planning, and the COPC fast path built on it;
 - resolver-backed source identity sufficient for generated-cache reuse;
+- external resolver interoperability as runtime composition only, and the
+  disposition of the bundled resolver test double;
 - broader real-world and remote-access performance baselines;
 - stabilization of the
   [point-cloud metadata contract](../reference/POINTCLOUD_METADATA.md);
@@ -729,7 +747,8 @@ as a duplicate numbered list in this policy. Active topics are:
 - E57 and other point-cloud formats after infrastructure maturity.
 
 The following are deliberately not active work: growing the format count as an
-end in itself, embedding an HTTP client in `usdCopc`, moving production-scale
+end in itself, embedding an HTTP client or any other network transport anywhere
+in this repository, owning raw byte-range caching, moving production-scale
 conversion into FileFormat reads, implementing a renderer here, putting
 host-specific LOD policy into core, removing the spool without measurement,
 treating a native hierarchy as if it were sequential, and fixing a public

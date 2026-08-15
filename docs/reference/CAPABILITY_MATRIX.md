@@ -33,6 +33,8 @@ uses the same reader and authoring contracts for long-running generation.
 | Local hierarchy page validation | Supported | Root and child pages are read depth-first with range, alignment, and repeated-page checks |
 | COPC point-data decoding | Supported | Local hierarchy ranges are decoded as LAZ chunks through `usdlaz::DecodeLazChunk`; bounds, classification, and attribute selection use the shared point-cloud contracts |
 | COPC FileFormat Plugin | Supported | `pointcloud-copc` provides local metadata-only, non-tiled, and native hierarchy tiled reads; tiled output is payload-backed `usdLod`, while source point ranges are rejected because hierarchy order is spatial |
+| Resolver-backed COPC reads | Supported | The plugin adapts an `ArAsset` opened through the active `ArResolver` to the project-owned random-access source; remote tiled reads require an absolute local `payloadDirectory`. Transport, authentication, retries, and raw byte caching belong to the resolver |
+| Resolver-backed generated-cache reuse | Planned | Reuse requires stable source identity and is disabled for resolver-provided sources until the resolver identity contract lands in `v0.10.0`; see the [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md) |
 
 ## LAS Versions
 
@@ -241,7 +243,12 @@ in the [tile and LOD contract](../architecture/LOD.md).
   passes before payload authoring. The conversion tool can generate and reuse
   deterministic USDC entries with `--cache-root`;
   direct LAS, LAZ, COPC, and PLY FileFormat lookup reuses committed entries
-  through `USDGEO_CACHE_ROOT`.
+  through `USDGEO_CACHE_ROOT`. Reuse requires a stable local filesystem
+  identity; resolver-backed sources are not reused.
+- No HTTP client, cloud SDK, authentication flow, retry policy, or raw
+  byte-range cache exists here. Resolver-backed reads consume whatever the
+  active `ArResolver` provides, and no resolver implementation is a build-time
+  dependency.
 - Point decoding assumes a little-endian host.
 - Writing LAS, LAZ, or COPC is out of scope; all three plugins export as
   `usda`.

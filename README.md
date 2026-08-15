@@ -11,7 +11,8 @@ workflows.
 
 - Reads LAS 1.2-1.4 and LAZ point records through format-specific plugins.
 - Reads local and resolver-backed COPC metadata, hierarchy, and selected byte
-  ranges without coupling the reader to HTTP.
+  ranges through the active OpenUSD `ArResolver`, without implementing any
+  network transport.
 - Reads scalar PLY vertex properties through ASCII and binary point streams.
 - Authors `UsdGeomPoints`, metadata, OpenUSD 26.08 `usdLod` roots, and
   payload-backed spatial tiles through shared authoring.
@@ -59,12 +60,32 @@ the [capability matrix](docs/reference/CAPABILITY_MATRIX.md).
 
 The [capability matrix](docs/reference/CAPABILITY_MATRIX.md) is the canonical
 source for point formats, attributes, CRS, metadata, and authored USD details.
-Source identity, caching, and adaptive tiling are implemented. The next
-milestones measure that infrastructure on real data, unify tile planning across
-sequential formats and the COPC native hierarchy, and mature resolver-backed
-source identity before E57 or other
+Source identity, caching, adaptive tiling, real-world I/O baselines, and one
+tile-plan representation for sequential and COPC-native planning are
+implemented. The next milestone matures resolver-backed source identity so
+generated output can be reused safely for resolver-provided sources, before
+E57 or other
 [format expansion](docs/roadmap/infrastructure-maturity.md). Terrain, raster,
 and vector formats are future repository candidates.
+
+## Resolver-Backed Sources
+
+Resolver-backed COPC reads operate through the active OpenUSD `ArResolver`.
+Network transport, authentication, retries, and raw byte caching are owned by
+the selected resolver implementation, not by this repository. The plugins
+consume the resolved `ArAsset` and never learn which resolver opened it.
+
+An external resolver is runtime composition: install it alongside these
+bundles and register both through `PXR_PLUGINPATH_NAME`. `usd-http-resolver` is
+one compatible implementation, not a required dependency — this repository
+builds and tests without it. The bundled `plugins/httpresolver` is an
+integration-test double that serves a local fixture in memory; it is not a
+network transport.
+
+Generated-USDC cache reuse for resolver-backed sources requires stable source
+identity and stays disabled when the resolver cannot supply it. The boundary,
+the identity model, and the planned `v0.10.0` work are in the
+[resolver-backed source contract](docs/architecture/RESOLVER_SOURCE.md).
 
 ## Quick Start
 
@@ -265,7 +286,10 @@ dataset coverage remains open.
   `ConflictingCrs` diagnostic.
 - The deterministic USDC cache is available to the conversion tool through
   `--cache-root`; direct FileFormat lookup reuses committed entries through
-  `USDGEO_CACHE_ROOT`.
+  `USDGEO_CACHE_ROOT`. Resolver-backed sources are excluded from reuse until a
+  stable source identity is available; enabling that case is `v0.10.0` work.
+- HTTP, cloud SDKs, authentication, retries, and raw byte-range caching are
+  out of scope; they belong to the resolver implementation.
 - Writing LAS, LAZ, or COPC is out of scope; all three plugins export as
   `usda`.
 
@@ -278,6 +302,12 @@ Latest release: **v0.9.0** — TilePlan convergence across sequential and COPC
 native planning, plus a reproducible host-responsiveness baseline. The v0.3.0 module and
 bundle rename is recorded in [MIGRATION.md](docs/compatibility/MIGRATION.md).
 See the [release record](docs/releases/v0.9.0.md) and [CHANGELOG.md](CHANGELOG.md).
+
+Next: **v0.10.0** — resolver-backed source identity and external resolver
+interoperability, so generated output can be reused safely for
+resolver-provided sources while transport stays with the resolver. Scope and
+exit gate are in the
+[infrastructure maturity roadmap](docs/roadmap/infrastructure-maturity.md).
 
 Direction is fixed in the [design policy](docs/design/DESIGN_POLICY.md); the
 structure is fixed in the
@@ -307,15 +337,19 @@ of this is
 
 ```text
 libs/usd-geo-core/              Geospatial values, transforms, bounds, cache keys, diagnostics
+libs/usd-geo-cache/             Source identity, deterministic cache keys, layout, and lookup
 libs/usd-pointcloud-core/       Point attribute, chunk, read-option, sampling, and LOD contracts
+libs/usd-pointcloud-tiling/     Fixed-grid and adaptive partitioning, spool routing, tile manifests
 libs/usd-pointcloud-authoring/  OpenUSD point-cloud, usdLod, and payload authoring
 libs/usd-las/                   LAS header, metadata, and point-record reader
 libs/usd-laz/                   LAZ chunk reader and laz-perf adapter
-libs/usd-copc/                  COPC metadata, hierarchy, and local range reader
-libs/usd-ply/                   PLY 1.0 header-inspection foundation
+libs/usd-copc/                  COPC metadata, hierarchy, and source-backed range reader
+libs/usd-ply/                   PLY 1.0 header inspection and scalar vertex decoding
 plugins/pointcloud-las/         LAS OpenUSD FileFormat Plugin
 plugins/pointcloud-laz/         LAZ OpenUSD FileFormat Plugin
 plugins/pointcloud-copc/        COPC OpenUSD FileFormat Plugin
+plugins/pointcloud-ply/         PLY OpenUSD FileFormat Plugin
+plugins/httpresolver/           Resolver test double for the COPC integration test, not a transport
 docs/                           See docs/README.md for the documentation index
 ```
 
@@ -336,6 +370,7 @@ Start at the [documentation index](docs/README.md).
   [Binary distribution and licensing](docs/guides/DISTRIBUTION.md)
 - [Design policy](docs/design/DESIGN_POLICY.md)
 - [Tile and LOD contract](docs/architecture/LOD.md) ·
+  [Resolver-backed sources](docs/architecture/RESOLVER_SOURCE.md) ·
   [Plugin adapter](docs/architecture/PLUGIN_ADAPTER.md) ·
   [File-format arguments](docs/architecture/FILE_FORMAT_ARGUMENTS.md) ·
   [Point reader](docs/architecture/POINT_READER.md) ·
