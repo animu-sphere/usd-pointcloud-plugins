@@ -44,9 +44,9 @@
 #   The OCI manifest digest is NOT stable across republishes (provenance embeds
 #   the producing commit), so `expected_oci_digest` must be re-pinned from the
 #   push output every time, while `runtime_artifact` stays put.
-#     Windows: OST artifact sha256:e3368364... / OCI sha256:184cdbb4...
+#     Windows: OST artifact sha256:91344651... / OCI sha256:0f8129aa...
 #     macOS:   OST artifact sha256:b2cb7b68... / OCI sha256:f8de29a4...
-#     Linux:   OST artifact sha256:70b47d1b... / OCI sha256:1a873111...
+#     Linux:   OST artifact sha256:41f762fd... / OCI sha256:665d9644...
 schema: 1
 
 bootstrap:
@@ -75,10 +75,10 @@ cells:
   - name: pointcloud-las-pr-windows
     lane: pull_request
     runner: windows-hosted
-    runtime_artifact: sha256:e3368364f8f4661a7c34371e907f2e5ddcdec4e680b76f5e9e1c1ed656022f48
+    runtime_artifact: sha256:913446515149cb32e2dfe23114c09f58c8f23aeed491bcff377bd6a1de142375
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
-      expected_oci_digest: sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
+      expected_oci_digest: sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
     bundle: plugins/pointcloud-las
     platform: cy2026
     profile: usd
@@ -87,10 +87,10 @@ cells:
   - name: pointcloud-laz-pr-windows
     lane: pull_request
     runner: windows-hosted
-    runtime_artifact: sha256:e3368364f8f4661a7c34371e907f2e5ddcdec4e680b76f5e9e1c1ed656022f48
+    runtime_artifact: sha256:913446515149cb32e2dfe23114c09f58c8f23aeed491bcff377bd6a1de142375
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
-      expected_oci_digest: sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
+      expected_oci_digest: sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
     bundle: plugins/pointcloud-laz
     platform: cy2026
     profile: usd
@@ -112,10 +112,10 @@ cells:
   - name: pointcloud-las-pr-linux
     lane: pull_request
     runner: linux-hosted
-    runtime_artifact: sha256:70b47d1b1a337b71d6c6fd63898e3295c0f91dc4b2ad2f5c09d14d6ac0ff2e1d
+    runtime_artifact: sha256:41f762fd4184e8df4e96cf8145be514db16ffc0e84c56166de86c823a7d22e3a
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
-      expected_oci_digest: sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
+      expected_oci_digest: sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
     bundle: plugins/pointcloud-las
     platform: cy2026
     profile: usd
@@ -141,10 +141,10 @@ cells:
   - name: pointcloud-laz-pr-linux
     lane: pull_request
     runner: linux-hosted
-    runtime_artifact: sha256:70b47d1b1a337b71d6c6fd63898e3295c0f91dc4b2ad2f5c09d14d6ac0ff2e1d
+    runtime_artifact: sha256:41f762fd4184e8df4e96cf8145be514db16ffc0e84c56166de86c823a7d22e3a
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
-      expected_oci_digest: sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
+      expected_oci_digest: sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
     bundle: plugins/pointcloud-laz
     platform: cy2026
     profile: usd
@@ -157,10 +157,10 @@ cells:
   - name: pointcloud-copc-pr-windows
     lane: pull_request
     runner: windows-hosted
-    runtime_artifact: sha256:e3368364f8f4661a7c34371e907f2e5ddcdec4e680b76f5e9e1c1ed656022f48
+    runtime_artifact: sha256:913446515149cb32e2dfe23114c09f58c8f23aeed491bcff377bd6a1de142375
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
-      expected_oci_digest: sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
+      expected_oci_digest: sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
     bundle: plugins/pointcloud-copc
     platform: cy2026
     profile: usd
@@ -182,10 +182,10 @@ cells:
   - name: pointcloud-copc-pr-linux
     lane: pull_request
     runner: linux-hosted
-    runtime_artifact: sha256:70b47d1b1a337b71d6c6fd63898e3295c0f91dc4b2ad2f5c09d14d6ac0ff2e1d
+    runtime_artifact: sha256:41f762fd4184e8df4e96cf8145be514db16ffc0e84c56166de86c823a7d22e3a
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
-      expected_oci_digest: sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
+      expected_oci_digest: sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
     bundle: plugins/pointcloud-copc
     platform: cy2026
     profile: usd
@@ -197,10 +197,10 @@ cells:
   - name: httpresolver-pr-windows
     lane: pull_request
     runner: windows-hosted
-    runtime_artifact: sha256:e3368364f8f4661a7c34371e907f2e5ddcdec4e680b76f5e9e1c1ed656022f48
+    runtime_artifact: sha256:913446515149cb32e2dfe23114c09f58c8f23aeed491bcff377bd6a1de142375
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
-      expected_oci_digest: sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
+      expected_oci_digest: sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
     bundle: plugins/httpresolver
     platform: cy2026
     profile: usd
@@ -222,10 +222,10 @@ cells:
   - name: httpresolver-pr-linux
     lane: pull_request
     runner: linux-hosted
-    runtime_artifact: sha256:70b47d1b1a337b71d6c6fd63898e3295c0f91dc4b2ad2f5c09d14d6ac0ff2e1d
+    runtime_artifact: sha256:41f762fd4184e8df4e96cf8145be514db16ffc0e84c56166de86c823a7d22e3a
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
-      expected_oci_digest: sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
+      expected_oci_digest: sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
     bundle: plugins/httpresolver
     platform: cy2026
     profile: usd
@@ -237,10 +237,10 @@ cells:
   - name: pointcloud-ply-pr-windows
     lane: pull_request
     runner: windows-hosted
-    runtime_artifact: sha256:e3368364f8f4661a7c34371e907f2e5ddcdec4e680b76f5e9e1c1ed656022f48
+    runtime_artifact: sha256:913446515149cb32e2dfe23114c09f58c8f23aeed491bcff377bd6a1de142375
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
-      expected_oci_digest: sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
+      expected_oci_digest: sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
     bundle: plugins/pointcloud-ply
     platform: cy2026
     profile: usd
@@ -262,10 +262,10 @@ cells:
   - name: pointcloud-ply-pr-linux
     lane: pull_request
     runner: linux-hosted
-    runtime_artifact: sha256:70b47d1b1a337b71d6c6fd63898e3295c0f91dc4b2ad2f5c09d14d6ac0ff2e1d
+    runtime_artifact: sha256:41f762fd4184e8df4e96cf8145be514db16ffc0e84c56166de86c823a7d22e3a
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
-      expected_oci_digest: sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
+      expected_oci_digest: sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
     bundle: plugins/pointcloud-ply
     platform: cy2026
     profile: usd
@@ -277,10 +277,10 @@ cells:
   - name: pointcloud-las-main-windows
     lane: main
     runner: windows-hosted
-    runtime_artifact: sha256:e3368364f8f4661a7c34371e907f2e5ddcdec4e680b76f5e9e1c1ed656022f48
+    runtime_artifact: sha256:913446515149cb32e2dfe23114c09f58c8f23aeed491bcff377bd6a1de142375
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
-      expected_oci_digest: sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
+      expected_oci_digest: sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
     bundle: plugins/pointcloud-las
     platform: cy2026
     profile: usd
@@ -289,10 +289,10 @@ cells:
   - name: pointcloud-laz-main-windows
     lane: main
     runner: windows-hosted
-    runtime_artifact: sha256:e3368364f8f4661a7c34371e907f2e5ddcdec4e680b76f5e9e1c1ed656022f48
+    runtime_artifact: sha256:913446515149cb32e2dfe23114c09f58c8f23aeed491bcff377bd6a1de142375
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
-      expected_oci_digest: sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
+      expected_oci_digest: sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
     bundle: plugins/pointcloud-laz
     platform: cy2026
     profile: usd
@@ -327,10 +327,10 @@ cells:
   - name: pointcloud-las-main-linux
     lane: main
     runner: linux-hosted
-    runtime_artifact: sha256:70b47d1b1a337b71d6c6fd63898e3295c0f91dc4b2ad2f5c09d14d6ac0ff2e1d
+    runtime_artifact: sha256:41f762fd4184e8df4e96cf8145be514db16ffc0e84c56166de86c823a7d22e3a
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
-      expected_oci_digest: sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
+      expected_oci_digest: sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
     bundle: plugins/pointcloud-las
     platform: cy2026
     profile: usd
@@ -342,10 +342,10 @@ cells:
   - name: pointcloud-laz-main-linux
     lane: main
     runner: linux-hosted
-    runtime_artifact: sha256:70b47d1b1a337b71d6c6fd63898e3295c0f91dc4b2ad2f5c09d14d6ac0ff2e1d
+    runtime_artifact: sha256:41f762fd4184e8df4e96cf8145be514db16ffc0e84c56166de86c823a7d22e3a
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
-      expected_oci_digest: sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
+      expected_oci_digest: sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
     bundle: plugins/pointcloud-laz
     platform: cy2026
     profile: usd
@@ -357,10 +357,10 @@ cells:
   - name: pointcloud-copc-main-windows
     lane: main
     runner: windows-hosted
-    runtime_artifact: sha256:e3368364f8f4661a7c34371e907f2e5ddcdec4e680b76f5e9e1c1ed656022f48
+    runtime_artifact: sha256:913446515149cb32e2dfe23114c09f58c8f23aeed491bcff377bd6a1de142375
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
-      expected_oci_digest: sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
+      expected_oci_digest: sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
     bundle: plugins/pointcloud-copc
     platform: cy2026
     profile: usd
@@ -382,10 +382,10 @@ cells:
   - name: pointcloud-copc-main-linux
     lane: main
     runner: linux-hosted
-    runtime_artifact: sha256:70b47d1b1a337b71d6c6fd63898e3295c0f91dc4b2ad2f5c09d14d6ac0ff2e1d
+    runtime_artifact: sha256:41f762fd4184e8df4e96cf8145be514db16ffc0e84c56166de86c823a7d22e3a
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
-      expected_oci_digest: sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
+      expected_oci_digest: sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
     bundle: plugins/pointcloud-copc
     platform: cy2026
     profile: usd
@@ -397,10 +397,10 @@ cells:
   - name: pointcloud-ply-main-windows
     lane: main
     runner: windows-hosted
-    runtime_artifact: sha256:e3368364f8f4661a7c34371e907f2e5ddcdec4e680b76f5e9e1c1ed656022f48
+    runtime_artifact: sha256:913446515149cb32e2dfe23114c09f58c8f23aeed491bcff377bd6a1de142375
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
-      expected_oci_digest: sha256:184cdbb42e9f01d4587429f6bfb3e3700f1cdbe3a6505e966edfec90a2f617f1
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
+      expected_oci_digest: sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
     bundle: plugins/pointcloud-ply
     platform: cy2026
     profile: usd
@@ -422,10 +422,10 @@ cells:
   - name: pointcloud-ply-main-linux
     lane: main
     runner: linux-hosted
-    runtime_artifact: sha256:70b47d1b1a337b71d6c6fd63898e3295c0f91dc4b2ad2f5c09d14d6ac0ff2e1d
+    runtime_artifact: sha256:41f762fd4184e8df4e96cf8145be514db16ffc0e84c56166de86c823a7d22e3a
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
-      expected_oci_digest: sha256:1a873111e4edf0cec7fdcf03e7bd2bbdf9723e1019cadcbcab9280c3229ac3af
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
+      expected_oci_digest: sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
     bundle: plugins/pointcloud-ply
     platform: cy2026
     profile: usd
