@@ -38,8 +38,8 @@ jobs:
             runs_on: windows-2022
             runner_profile: windows-hosted
             ost_home: ''
-            runtime_artifact: sha256:913446515149cb32e2dfe23114c09f58c8f23aeed491bcff377bd6a1de142375
-            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:0f8129aa905cb6db85895de36c5dfd1fc8e89c6d9de434d5ff55e6b32055ed54
+            runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
             host_python: ''
             host_packages_apt: ''
             up_to: 4
@@ -47,8 +47,8 @@ jobs:
             runs_on: ubuntu-24.04
             runner_profile: linux-hosted
             ost_home: .ost-ci-home
-            runtime_artifact: sha256:41f762fd4184e8df4e96cf8145be514db16ffc0e84c56166de86c823a7d22e3a
-            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:665d9644304bb6abd34f3fe0c5233bd91ecc62a9e13ca944744dbd4fee130af7
+            runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
             host_python: '3.13'
             host_packages_apt: libx11-dev libxt-dev libxext-dev libgl1-mesa-dev
             up_to: 5
