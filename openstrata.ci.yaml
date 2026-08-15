@@ -51,7 +51,7 @@ schema: 1
 
 bootstrap:
   ost:
-    version: "0.22.0"
+    version: "0.22.1"
     repository: animu-sphere/open-strata
 
 runners:
