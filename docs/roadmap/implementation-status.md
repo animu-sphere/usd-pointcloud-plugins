@@ -276,8 +276,10 @@ The ordered plan and acceptance priorities are in the
 
 #### `v0.9.0` - TilePlan convergence and interactive validation (in progress)
 
-- [ ] Measure host responsiveness while interacting with the generated output
-      using a documented workload and the reproducible payload-backed fixture
+- [x] Measure host responsiveness while interacting with the generated output
+      using the documented five-key workload and the reproducible USGS 3DEP
+      4,096-point payload-backed fixture; the baseline is recorded in the
+      [infrastructure maturity roadmap](infrastructure-maturity.md)
 - [x] Define the `TilePlan` contract: tile identity, bounds, point counts,
       parent and child relationships, source ranges, depth, and planner
       identity and version

@@ -324,6 +324,37 @@ representation, the COPC path demonstrably avoids the sequential planning
 passes, authored output equivalence is covered by tests, and a reproducible
 host-responsiveness baseline is recorded.
 
+#### Host-responsiveness baseline (2026-08-15)
+
+The interactive workload uses the reproducible USGS 3DEP 4,096-point,
+payload-backed fixture. It sends `Home`, `Left`, `Right`, `Up`, and `Down` at
+500 ms intervals while sampling the complete OST process tree every 50 ms.
+For each action, the harness synchronously dispatches `WM_NULL` with a bounded
+timeout to measure UI-thread responsiveness, then checks that the key-down and
+key-up messages were queued successfully:
+
+```powershell
+python tools/measure_usd_working_set.py `
+  --bundle .\plugins\pointcloud-las `
+  --with-bundle .\plugins\pointcloud-laz `
+  --fixture .\build\usdview-fixture-usgs-4096-interactive\PointCloud.usda `
+  --mode interactive --renderer Storm `
+  --interaction-interval-ms 500 --interval-ms 50 `
+  --post-interaction-seconds 3
+```
+
+The local run used the pinned `cy2026` / `usd` OST environment and reported:
+
+| Fixture | Actions | Max UI dispatch | Stage open | Peak tree working set | Peak process working set | Samples |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| USGS 3DEP 4,096-point payload fixture | 5 | 0.132723 s | 0.027894 s | 316,616,704 B | 296,374,272 B | 48 |
+
+The harness returned success after the workload completed and usdview exited
+normally. The baseline measures bounded UI-thread dispatch latency and
+working-set pressure. It does not measure renderer frame latency or a
+host-specific input-to-present time; queued key messages are validated
+separately from the synchronous UI dispatch probe.
+
 ### `v0.10.0` - Resolver-Backed Source Identity
 
 Primary goal: make generated-cache reuse safe for sources the project does not
