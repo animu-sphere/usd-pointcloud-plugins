@@ -221,7 +221,7 @@ bundle carries no LGPL-2.1 obligation — unlike
 | --- | --- |
 | Declared OpenUSD range | `>=26.08,<27.0` |
 | Validated OpenUSD | 26.08 |
-| OpenStrata CLI | 0.21.0 |
+| OpenStrata CLI | 0.22.0 |
 | OpenStrata platform / profile | `cy2026` / `usd` |
 | C++ standard | C++17 |
 | Hosted CI | Windows 2022 (L0-L4), macOS 15 arm64 (L0-L5), Ubuntu 24.04 (L0-L5) |

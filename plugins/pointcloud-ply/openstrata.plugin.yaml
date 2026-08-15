@@ -13,4 +13,6 @@ usd:
   plug_info: plugin/resources/pointcloud-ply/plugInfo.json
 tests:
   smoke:
-    - tests/fixtures/conformance.usda
+    - path: tests/fixtures/conformance.ply
+      file_format_arguments:
+        epsg: "4978"
