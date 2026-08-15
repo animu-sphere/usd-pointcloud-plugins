@@ -33,7 +33,7 @@ Validate the minimum path from an OpenUSD FileFormat Plugin to a LAS / LAZ reade
 
 ## Validated Environment
 
-- OpenStrata target: `cy2026`, profile `usd`, CLI 0.21.0
+- OpenStrata target: `cy2026`, profile `usd`, CLI 0.22.0
 - OpenUSD extension: 26.08 with the core feature set; plugin manifests declare
   `>=26.08,<27.0`
 - Build path: `ost configure`, `ost build`, and `ost test`

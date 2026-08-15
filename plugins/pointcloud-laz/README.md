@@ -212,7 +212,7 @@ and carries none of this.
 | --- | --- |
 | Declared OpenUSD range | `>=26.08,<27.0` |
 | Validated OpenUSD | 26.08 |
-| OpenStrata CLI | 0.21.0 |
+| OpenStrata CLI | 0.22.0 |
 | OpenStrata platform / profile | `cy2026` / `usd` |
 | C++ standard | C++17 |
 | Vendored codec | laz-perf 2.0.0 (LGPL-2.1) |
