@@ -324,6 +324,35 @@ representation, the COPC path demonstrably avoids the sequential planning
 passes, authored output equivalence is covered by tests, and a reproducible
 host-responsiveness baseline is recorded.
 
+#### Host-responsiveness baseline (2026-08-15)
+
+The interactive workload uses the reproducible USGS 3DEP 4,096-point,
+payload-backed fixture. It sends `Home`, `Left`, `Right`, `Up`, and `Down` at
+500 ms intervals while sampling the complete OST process tree every 50 ms:
+
+```powershell
+python tools/measure_usd_working_set.py `
+  --bundle .\plugins\pointcloud-las `
+  --with-bundle .\plugins\pointcloud-laz `
+  --fixture .\build\usdview-fixture-usgs-4096-interactive\PointCloud.usda `
+  --mode interactive --renderer Storm `
+  --interaction-interval-ms 500 --interval-ms 50 `
+  --post-interaction-seconds 3
+```
+
+The local run used the pinned `cy2026` / `usd` OST environment and reported:
+
+| Fixture | Actions | Interaction elapsed | Peak tree working set | Peak process working set | Samples |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| USGS 3DEP 4,096-point payload fixture | 5 | 2.505326 s | 316,661,760 B | 296,353,792 B | 84 |
+
+The harness returned success after the workload completed. The usdview process
+did not exit after `WM_CLOSE`, so the harness performed bounded cleanup after
+the three-second post-interaction grace period; the raw child process return
+code was `1`. This is recorded as a cleanup limitation, not as an interaction
+failure. The baseline measures bounded workload completion and working-set
+pressure, not renderer frame latency or a host-specific input-to-present time.
+
 ### `v0.10.0` - Resolver-Backed Source Identity
 
 Primary goal: make generated-cache reuse safe for sources the project does not

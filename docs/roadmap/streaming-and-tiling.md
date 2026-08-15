@@ -598,6 +598,21 @@ python tools/measure_usd_working_set.py `
     --output C:\\path\\to\\shizuoka-full-payload-storm.png
 ```
 
+For the v0.9.0 host-responsiveness workload, use `--mode interactive`. The
+sampler sends `Home`, `Left`, `Right`, `Up`, and `Down` at the configured
+interaction interval, samples working set during the sequence, and closes or
+boundedly cleans up usdview afterward:
+
+```powershell
+python tools/measure_usd_working_set.py `
+    --bundle .\\plugins\\pointcloud-las `
+    --with-bundle .\\plugins\\pointcloud-laz `
+    --fixture .\\build\\usdview-fixture-usgs-4096-interactive\\PointCloud.usda `
+    --mode interactive --renderer Storm `
+    --interaction-interval-ms 500 --interval-ms 50 `
+    --post-interaction-seconds 3
+```
+
 The sampler launches `usdview.cmd` or `usdrecord.cmd` through `ost plugin run`
 and reports the stage open time, total process elapsed time, and peak working
 set of the complete runtime process tree. In `view` mode, the command uses
