@@ -57,8 +57,26 @@ CMake target `usdgeo::cache` and namespace `usdgeo::cache`.
 The module owns identity, layout, lookup, and invalidation only. It does not
 open or author USD, or decide reader-specific cache arguments. `SourceIdentity`
 accepts a neutral identifier and validation token, so local paths, resolver
-identifiers, ETags, and digests can participate without transport-specific
-types entering the cache contract. `TryBuildLocalSourceIdentity` is the
-filesystem convenience helper for local callers; it supplies a canonical
-identifier and an `fnv1a64` validation token. The legacy `canonicalPath` and
-`contentIdentity` fields remain accepted as compatibility aliases.
+identifiers, and digests can participate without transport-specific types
+entering the cache contract. `TryBuildLocalSourceIdentity` is the filesystem
+convenience helper for local callers; it supplies a canonical identifier and an
+`fnv1a64` validation token. The legacy `canonicalPath` and `contentIdentity`
+fields remain accepted as compatibility aliases.
+
+## Source Identity Neutrality
+
+Identity describes what source content was resolved, not how it was
+transported. The validation token is opaque: whether a resolver derived it from
+an HTTP `ETag`, `Last-Modified` plus size, an object version id, a generation
+number, filesystem metadata, or a digest is invisible here, and no
+transport-specific field name enters the contract. Equal identifiers never
+imply equal content, so a matching path or URL alone is not a cache hit.
+
+Credentials, authorization headers, signed URLs, and access tokens are never
+written into cache descriptors, manifests, or diagnostics.
+
+Resolver-provided identity is classified before it is trusted — stable,
+unstable, or unavailable — and generated-cache reuse is enabled only for the
+stable case. That classification and the resolver-facing adapter that produces
+it are `v0.10.0` work; see the
+[resolver-backed source contract](../../docs/architecture/RESOLVER_SOURCE.md).

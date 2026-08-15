@@ -10,7 +10,10 @@ Status: `usdGeoCore`, `usdGeoCache`, `usdPointCloudCore`,
 and `usdPly` are implemented, as are the `pointcloud-las`, `pointcloud-laz`,
 `pointcloud-copc`, and `pointcloud-ply` bundles. Resolver-backed COPC random
 access is implemented on `main`; production network transport remains the
-active resolver's responsibility.
+active resolver's responsibility, and no resolver implementation is a
+build-time dependency of this workspace. The resolver-facing behavior these
+modules implement is fixed in
+[RESOLVER_SOURCE.md](RESOLVER_SOURCE.md).
 
 ## 1. Components
 
@@ -25,7 +28,7 @@ active resolver's responsibility.
 | `pointcloud-laz` | `plugins/pointcloud-laz` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | The same adapter shape for `.laz`, using `LazReader` and the laz-perf codec integration. Owns its `LAZxxx` diagnostic codes. |
 | `usdCopc` | `libs/usd-copc` | plain CMake/OpenStrata static library | implemented (source-backed) | COPC Info and hierarchy validation, project-owned random-access source integration, selective point-data range decoding through the shared LAZ chunk decoder, and native hierarchy streaming. It remains OpenUSD- and transport-independent. |
 | `pointcloud-copc` | `plugins/pointcloud-copc` | OpenStrata plugin bundle (`usd-fileformat`) | implemented (resolver-backed read) | Resolver-opened `ArAsset` adaptation, metadata-only and non-tiled reads, and native hierarchy tiled COPC authoring through shared `usdLod`. Remote tiled reads require a local payload directory; source point ranges remain unsupported. |
-| `httpresolver` | `plugins/httpresolver` | OpenStrata plugin bundle (`usd-asset-resolver`) | implemented (test double) | OpenUSD `ArResolver` bundle for `http://memory.copc` and `https://memory.copc`, serving a configured local fixture as an in-memory `ArAsset` for resolver-backed COPC integration tests. It does not implement network transport. |
+| `httpresolver` | `plugins/httpresolver` | OpenStrata plugin bundle (`usd-asset-resolver`) | test-only, disposition pending in `v0.10.0` | OpenUSD `ArResolver` bundle for `http://memory.copc` and `https://memory.copc`, serving a configured local fixture as an in-memory `ArAsset` for resolver-backed COPC integration tests. It implements no network transport and is not part of the product surface. `v0.10.0` either removes it once equivalent external integration coverage exists, or relocates it to an explicitly test-only path such as `tests/plugins/httpresolver/`. |
 | `usdPointCloudTiling` | `libs/usd-pointcloud-tiling` | plain CMake/OpenStrata static library | implemented | Format-independent fixed-grid partitioning, spill-backed bounded-memory routing, deterministic tile and LOD ordering, validated tile manifest serialization, spool validation, and cleanup contracts. See the [streaming and tiling plan](../roadmap/streaming-and-tiling.md). |
 | `usdGeoCache` | `libs/usd-geo-cache` | plain CMake/OpenStrata static library | implemented | Descriptor-based stable cache keys, deterministic USDC root/payload layout, machine-readable lookup states, process-local lookup statistics, and entry invalidation. The conversion tool owns generation and atomic publication; direct FileFormat adapters reuse committed entries through `USDGEO_CACHE_ROOT`. |
 | `usdPly` | `libs/usd-ply` | plain CMake/OpenStrata static library | implemented | PLY 1.0 header inspection, scalar vertex decoding, source filters, and explicit georeference conversion into shared point-cloud assets. |
@@ -240,6 +243,14 @@ Every structural or format change preserves these invariants:
     [MODULE_README_CONTRACT.md](../contributing/MODULE_README_CONTRACT.md).
 14. Write support is deferred until read behavior and preservation rules are
     stable.
+15. No resolver implementation is a build-time dependency. The workspace
+    contains no CMake dependency, submodule, vendored transport library,
+    resolver-specific include, or link dependency on one; external resolvers
+    compose at runtime. See [RESOLVER_SOURCE.md](RESOLVER_SOURCE.md).
+16. Transport-specific concepts do not enter shared contracts. Resolver
+    validation tokens are opaque, and credentials, authorization headers,
+    signed URLs, and tokens are never persisted into manifests, cache
+    descriptors, or diagnostics.
 
 ## 8. Build and packaging
 
@@ -286,6 +297,12 @@ no standalone fixture because its functional path is exercised by the COPC
 integration test; its PR cells validate resolver-bundle structure, runtime
 compatibility, and plugin discovery. The COPC bundle follows the same runtime
 matrix as LAS and LAZ.
+
+The gate must stay passable without any external resolver repository. From
+`v0.10.0`, repository-local resolver contract tests (Tier 1) are the required
+CI gate, and cross-repository integration against an external resolver
+implementation (Tier 2) is composed separately; see
+[RESOLVER_SOURCE.md](RESOLVER_SOURCE.md).
 
 ## 10. Delivery status
 

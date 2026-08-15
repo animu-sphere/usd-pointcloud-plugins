@@ -54,6 +54,42 @@ If you are migrating from v0.1.0, the bundle directory and `plugInfo.json`
 resource directory both changed name; see
 [MIGRATION.md](../compatibility/MIGRATION.md).
 
+## Adding an external resolver
+
+Resolver-backed COPC reads go through the active OpenUSD `ArResolver`. Network
+transport, authentication, retries, and raw byte caching belong to the resolver
+implementation, not to these plugins, so remote sources need a resolver that
+resolves the identifier and serves an `ArAsset` with efficient range reads.
+
+An external resolver is runtime composition. Install it beside the point-cloud
+bundles and register both:
+
+```powershell
+$env:PXR_PLUGINPATH_NAME =
+  "C:\path\to\pointcloud-copc\plugin\resources\;C:\path\to\resolver\plugin\resources\"
+```
+
+```bash
+export PXR_PLUGINPATH_NAME=/path/to/pointcloud-copc/plugin/resources/:/path/to/resolver/plugin/resources/
+```
+
+OpenUSD then composes them:
+
+```text
+usdview https://example.org/data.copc
+  -> ArResolver -> external resolver -> ArAsset -> pointcloud-copc
+```
+
+`usd-http-resolver` is one compatible implementation. It is not required, and
+these bundles are built and tested without it. The repository's
+`plugins/httpresolver` bundle is an integration-test double that serves a local
+fixture in memory; do not deploy it as a transport. See the
+[resolver-backed source contract](../architecture/RESOLVER_SOURCE.md).
+
+Generated-USDC cache reuse for resolver-backed sources requires stable source
+identity from the resolver and stays disabled otherwise, so a remote read may
+regenerate output that a local read would reuse.
+
 ## Opening a file
 
 Any OpenUSD application that discovers FileFormat Plugins can open a LAS or

@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Documentation
+
+- Recorded the v0.10.0 direction: resolver-backed source identity and external
+  resolver interoperability, with transport owned by the resolver.
+- Added the
+  [resolver-backed source contract](docs/architecture/RESOLVER_SOURCE.md),
+  covering the responsibility boundary, the transport-neutral `SourceIdentity`
+  model, `Stable` / `Unstable` / `Unavailable` identity classification,
+  generated-cache ownership and reuse rules, diagnostics categories, the
+  no-secrets rule, and the Tier 1 / Tier 2 test split.
+- Stated that no resolver implementation is a build-time dependency, and that
+  `usd-http-resolver` is one compatible implementation composed at runtime.
+- Marked `plugins/httpresolver` explicitly as an integration-test double whose
+  removal or relocation to a test-only path is v0.10.0 work.
+
+No runtime behavior changed.
+
 ## [0.9.0] - 2026-08-15
 
 ### Added

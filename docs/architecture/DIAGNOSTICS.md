@@ -122,3 +122,13 @@ conditions this taxonomy does not yet cover — spool write failures, incomplete
 spool detection, exhausted open-file budgets, and payload commit failures.
 Each gets a new `DiagnosticCode` value and a new plugin code when it ships;
 none reuses an existing meaning.
+
+`v0.10.0` adds resolver identity and generated-cache decisions to the same
+taxonomy: identity unavailable, unstable, stable, or changed, and cache reuse
+disabled, cache hit, or cache invalidated. These explain the decision without
+leaking transport specifics or validation-token contents, so a message such as
+`Missing HTTP ETag` is not acceptable while
+`Generated cache reuse disabled: the active resolver did not provide a stable
+source validation identity.` is. The contract is in
+[RESOLVER_SOURCE.md](RESOLVER_SOURCE.md); the code names follow rule 1 above
+and are not reserved in advance.

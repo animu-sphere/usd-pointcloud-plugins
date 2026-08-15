@@ -295,14 +295,72 @@ The ordered plan and acceptance priorities are in the
 - [x] Verify equivalent authored output from a sequential plan and a
       COPC-native plan describing the same partition
 
-#### `v0.10.0` - resolver-backed source identity (planned)
+#### `v0.10.0` - resolver-backed source identity and external resolver interoperability (planned)
 
-- [ ] Define what a resolver must supply for generated-cache identity to be
-      trusted, and what a partial answer permits
+The contract is recorded in the
+[resolver-backed source contract](../architecture/RESOLVER_SOURCE.md); the
+scope and exit gate are in the
+[infrastructure maturity roadmap](infrastructure-maturity.md).
+
+Phase 1 — identity contract:
+
+- [ ] Review the existing `usdgeo::cache::SourceIdentity` model against the
+      neutral `resolvedIdentifier` / `size` / `validationToken` representation
+- [ ] Define resolver-backed stability semantics for `Stable`, `Unstable`, and
+      `Unavailable` identity, and what each level permits
+- [ ] Add opaque validation-identity support without transport-specific field
+      names entering the cache contract
+- [ ] Keep serialization and stable cache keys deterministic, and add unit
+      tests
+
+Phase 2 — resolver adapter:
+
+- [ ] Centralize `ArResolver` / `ArAsset` identity extraction in one adapter
+      owned by `usdGeoCache` or an adjacent resolver integration layer
+- [ ] Keep the adapter outside LAS, LAZ, COPC, and PLY readers
+- [ ] Add stable, unstable, and unavailable identity test assets
+- [ ] Preserve current resolver-backed COPC read behavior
+
+Phase 3 — generated cache reuse:
+
+- [ ] Enable generated-cache lookup for stable resolver identities, with
+      `TilePlan` identity and version remaining compatibility inputs
+- [ ] Retain conservative no-reuse behavior for unstable and unavailable
+      identity, and never treat identifier equality as content equality
+- [ ] Verify that a changed validation token for the same identifier
+      regenerates instead of hitting the old entry
+- [ ] Verify corrupted and incomplete cache recovery on the resolver-backed
+      path
 - [ ] Separate source byte-range caching from generated-USDC caching, with an
       explicit owner for each
-- [ ] Enable reuse exactly where resolver identity is sufficient, keeping
-      transport implementation outside this repository
+
+Phase 4 — repository boundary cleanup:
+
+- [ ] Remove `plugins/httpresolver`, or relocate it to an explicitly test-only
+      path such as `tests/plugins/httpresolver/`
+- [ ] Remove documentation language implying this repository owns a production
+      HTTP implementation
+- [ ] Document the external resolver contract and `usd-http-resolver`
+      interoperability guidance as optional runtime composition
+- [ ] Verify the repository builds and tests with no CMake dependency,
+      submodule, vendored HTTP library, or link dependency on a resolver
+      implementation
+
+Phase 5 — diagnostics and secrets:
+
+- [ ] Add stable diagnostics for identity unavailable, unstable, stable, and
+      changed, and for cache reuse disabled, hit, and invalidated
+- [ ] Keep diagnostics free of transport specifics and token contents
+- [ ] Verify no credentials, authorization headers, signed URLs, or tokens are
+      persisted into manifests or cache descriptors
+
+Phase 6 — validation and baselines:
+
+- [ ] Pass Tier 1 repository-local resolver contract tests as the CI gate
+      without any external resolver repository
+- [ ] Record Tier 2 integration against an external resolver, a local
+      reproducible HTTP server, and a COPC fixture, including local/remote
+      output equivalence
 - [ ] Record remote hit ratios and `bytes fetched / source size` baselines
 
 #### Research - runtime streaming (no release gate)
