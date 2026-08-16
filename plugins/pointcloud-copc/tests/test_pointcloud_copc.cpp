@@ -87,6 +87,14 @@ void SetHttpResolverAsset(const std::filesystem::path& assetPath) {
 #endif
 }
 
+void SetHttpResolverIdentityMode(const char* mode) {
+#if defined(_WIN32)
+    Check(_putenv_s("USDGEOCOPC_TEST_IDENTITY", mode) == 0);
+#else
+    Check(setenv("USDGEOCOPC_TEST_IDENTITY", mode, 1) == 0);
+#endif
+}
+
 void SetCacheRoot(const std::filesystem::path& cacheRoot) {
 #if defined(_WIN32)
     Check(_putenv_s("USDGEO_CACHE_ROOT", cacheRoot.string().c_str()) == 0);
@@ -581,6 +589,42 @@ void TestResolverBackedRead() {
           usdgeo::cache::ResolverIdentityStability::Stable);
     Check(resolverIdentity.identifier == "http://memory.copc");
     Check(!resolverIdentity.validationToken.empty());
+
+    SetHttpResolverIdentityMode("unstable");
+    const auto unstableInfo = pxr::ArGetResolver().GetAssetInfo(
+        "http://memory.copc", pxr::ArResolvedPath("http://memory.copc"));
+    usdgeo::cache::ResolverAssetIdentity unstableAsset{
+        "http://memory.copc", static_cast<std::uintmax_t>(bytes.size()),
+        unstableInfo.version};
+    Check(usdgeo::cache::ClassifyResolverIdentity(unstableAsset) ==
+          usdgeo::cache::ResolverIdentityStability::Unstable);
+    Check(!usdgeo::TryBuildResolverSourceIdentity(
+              pxr::ArGetResolver(), "http://memory.copc",
+              pxr::ArResolvedPath("http://memory.copc"), *resolvedAsset,
+              resolverIdentity, resolverStability, identityError));
+    Check(resolverStability ==
+          usdgeo::cache::ResolverIdentityStability::Unstable);
+
+    SetHttpResolverIdentityMode("unavailable");
+    const auto unavailableInfo = pxr::ArGetResolver().GetAssetInfo(
+        "http://memory.copc", pxr::ArResolvedPath("http://memory.copc"));
+    const auto unavailablePath =
+        pxr::ArGetResolver().Resolve("http://memory.copc");
+    Check(unavailablePath.GetPathString().empty());
+    usdgeo::cache::ResolverAssetIdentity unavailableAsset{
+        unavailablePath.GetPathString(),
+        static_cast<std::uintmax_t>(bytes.size()),
+        unavailableInfo.version};
+    Check(usdgeo::cache::ClassifyResolverIdentity(unavailableAsset) ==
+          usdgeo::cache::ResolverIdentityStability::Unavailable);
+    Check(!usdgeo::TryBuildResolverSourceIdentity(
+              pxr::ArGetResolver(), "http://memory.copc",
+              unavailablePath, *resolvedAsset,
+              resolverIdentity, resolverStability, identityError));
+    Check(resolverStability ==
+          usdgeo::cache::ResolverIdentityStability::Unavailable);
+    SetHttpResolverIdentityMode("");
+
     char signature[4]{};
     Check(resolvedAsset->Read(signature, sizeof(signature), 0) ==
               sizeof(signature),

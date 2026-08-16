@@ -66,6 +66,13 @@ std::shared_ptr<pxr::ArAsset> LoadTestAsset() {
 }
 
 std::string TestAssetVersion() {
+    const auto* identityMode = std::getenv("USDGEOCOPC_TEST_IDENTITY");
+    if (identityMode && std::string(identityMode) == "unavailable") {
+        return {};
+    }
+    if (identityMode && std::string(identityMode) == "unstable") {
+        return " ";
+    }
     const auto* path = std::getenv("USDGEOCOPC_TEST_ASSET");
     if (!path) {
         return {};
@@ -109,6 +116,10 @@ protected:
     }
 
     ArResolvedPath _Resolve(const std::string& assetPath) const override {
+        const auto* identityMode = std::getenv("USDGEOCOPC_TEST_IDENTITY");
+        if (identityMode && std::string(identityMode) == "unavailable") {
+            return ArResolvedPath();
+        }
         if (IsTestMemoryUri(assetPath)) {
             return ArResolvedPath(assetPath);
         }
