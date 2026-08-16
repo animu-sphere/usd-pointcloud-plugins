@@ -467,6 +467,13 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
             }
             if (resolverStability !=
                 usdgeo::cache::ResolverIdentityStability::Stable) {
+                const auto stabilityName =
+                    usdgeo::cache::ResolverIdentityStabilityName(
+                        resolverStability);
+                TF_WARN("Generated cache reuse disabled: the active resolver "
+                    "did not provide a stable source validation identity "
+                    "(%s).",
+                        stabilityName);
                 return true;
             }
             const std::filesystem::path payloadDirectory(request.payloadDirectory);
