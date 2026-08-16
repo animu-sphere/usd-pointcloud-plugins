@@ -246,6 +246,12 @@ and tested by the resolver repository. Tier 2 is reproducible through
 OpenStrata workspace composition without making this repository structurally
 dependent on the resolver repository.
 
+`usd-http-resolver` is the designated first Tier 2 implementation, but is
+pre-implementation as of 2026-08-16: it has no resolver bundle, backend, cache,
+or release yet. Therefore Tier 1 is the v0.10.0 implementation gate in this
+repository. Tier 2 becomes a release gate only after that repository publishes
+its first resolver implementation and its OpenStrata build and test workflow.
+
 ## 7. Test-double resolver
 
 `plugins/httpresolver` is an integration-test double: it serves a configured
@@ -253,8 +259,8 @@ local fixture as an in-memory `ArAsset` for `http://memory.copc` and
 `https://memory.copc`. It is not a network transport and is not part of the
 point-cloud product surface.
 
-`v0.10.0` resolves its status in one of two ways: it is removed once equivalent
-external integration coverage exists, or it is relocated under an explicitly
-test-only path such as `tests/plugins/httpresolver/`. Until then it must not be
-presented as equivalent to a production point-cloud bundle. See
+It remains in place until equivalent external integration coverage exists.
+After that coverage is recorded, `v0.10.0` either removes it or relocates it
+under an explicitly test-only path such as `tests/plugins/httpresolver/`. It
+must not be presented as equivalent to a production point-cloud bundle. See
 [WORKSPACE.md](WORKSPACE.md).

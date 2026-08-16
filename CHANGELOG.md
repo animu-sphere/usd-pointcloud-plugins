@@ -18,6 +18,12 @@ All notable changes to this project are documented here.
   `usd-http-resolver` is one compatible implementation composed at runtime.
 - Marked `plugins/httpresolver` explicitly as an integration-test double whose
   removal or relocation to a test-only path is v0.10.0 work.
+- Staged v0.10.0 around the pre-implementation `usd-http-resolver` repository:
+  repository-local identity and cache tests proceed first, while external
+  interoperability and test-double disposition wait for its first released
+  resolver implementation.
+- Added an OpenStrata 0.22.2 dogfooding record for the external resolver
+  skeleton; it identifies repository setup work, not an OpenStrata defect.
 
 No runtime behavior changed.
 

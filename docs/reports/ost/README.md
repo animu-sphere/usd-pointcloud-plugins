@@ -10,6 +10,7 @@ The reports record OST adoption and release-readiness work for this repository.
 
 | Report | Date | Subject | OST version | Result |
 | --- | --- | --- | --- | --- |
+| [04](04-2026-08-16-usd-http-resolver-preimplementation.md) | 2026-08-16 | `usd-http-resolver` pre-implementation workflow | 0.22.2 local dogfooding | Build graph configures and builds; CI matrix and tests are intentionally absent, with no OpenStrata change required |
 | [03](03-2026-08-15-v0.22.0-ply-smoke-arguments.md) | 2026-08-15 | v0.22.0 structured PLY smoke-fixture arguments | 0.22.0 local validation | Direct `.ply` smoke fixture with `epsg` arguments passed through L4; the report 01 upstream ask is resolved |
 | [02](02-2026-08-14-v0.8.0-release-dogfooding.md) | 2026-08-14 | v0.8.0 release dogfooding, local build/test, and packaging | 0.21.0 local validation | Source build and 21 tests passed; workspace packaging blocked by managed-output digest mismatch |
 | [01](01-2026-08-11-v0.22.0-ply-fileformat-ci.md) | 2026-08-11 | v0.22.0 PLY FileFormat readiness, CI, and smoke-fixture arguments | 0.21.0 validation baseline | PLY CI green on Windows, macOS arm64, and Linux after repository fixes; one upstream usability ask is carried into OST v0.22.0 |
