@@ -32,8 +32,9 @@ All notable changes to this project are documented here.
 - Added resolver identity conversion tests and cache-key invalidation coverage
   for changed opaque validation tokens.
 
-The OpenUSD-facing resolver adapter and generated-cache reuse remain planned;
-the current addition only exposes the transport-neutral identity foundation.
+The OpenUSD-facing resolver adapter is now centralized in the shared authoring
+cache bridge. Complete generated-cache generation, diagnostics, and external
+resolver interoperability remain planned.
 
 ## [0.9.0] - 2026-08-15
 
