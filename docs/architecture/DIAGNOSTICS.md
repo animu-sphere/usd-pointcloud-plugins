@@ -19,8 +19,11 @@ user-facing code prefixes and include available byte or point anchors in the
 
 Codes are owned per plugin and listed in
 [pointcloud-las diagnostics](../../plugins/pointcloud-las/docs/DIAGNOSTICS.md) and
-[pointcloud-laz diagnostics](../../plugins/pointcloud-laz/docs/DIAGNOSTICS.md). Every current
-code is fatal, because none of them leave a stage that can be opened.
+[pointcloud-laz diagnostics](../../plugins/pointcloud-laz/docs/DIAGNOSTICS.md).
+The existing import-stage codes are fatal, because none of them leave a stage
+that can be opened. Resolver-backed cache decisions are recoverable warnings;
+COPC reports disabled reuse with `COPC009` and continues by reading and
+authoring from the source.
 
 Remaining limitations of the current migration:
 
@@ -28,8 +31,10 @@ Remaining limitations of the current migration:
    internally; native typed emission should replace it over time.
 - Byte offsets and point indices are only present when a message happens to
   include them.
-- Warnings cannot be expressed, so a recoverable condition either fails the
-  read or disappears.
+- Most warning conditions still cannot be expressed through the shared typed
+   diagnostic value, so they either fail the read or disappear. Resolver cache
+   decisions are currently projected through the plugin warning code described
+   above.
 - Plugin codes remain scoped to the import stage, so one shared condition can
    still be presented under different LAS or LAZ stage codes.
 

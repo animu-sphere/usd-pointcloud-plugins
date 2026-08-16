@@ -1,6 +1,7 @@
 #include "lazperf/io.hpp"
 
 #include "usdgeocopc/ArAssetRandomAccessSource.h"
+#include "usdgeocopc/UsdGeoCopcDiagnostics.h"
 #include "usdgeo/PointCloudCache.h"
 
 #include <pxr/base/plug/plugin.h>
@@ -119,6 +120,17 @@ void TestArAssetRandomAccessSource() {
     Check(!source.Read(4, 2, bytes, diagnostics));
     Check(!diagnostics.empty());
     Check(diagnostics.back().code == usdgeo::DiagnosticCode::InvalidOffset);
+}
+
+void TestResolverCacheDiagnostic() {
+    const auto message = usdgeocopc::diagnostics::Message(
+        usdgeocopc::diagnostics::ResolverCacheReuseDisabled,
+        "Generated cache reuse disabled: the active resolver did not provide "
+        "a stable source validation identity.");
+    Check(message ==
+              "[COPC009] Generated cache reuse disabled: the active resolver "
+              "did not provide a stable source validation identity.",
+          "resolver cache diagnostic format");
 }
 
 void RegisterPlugin(const std::filesystem::path& plugInfo) {
@@ -705,6 +717,7 @@ void TestResolverBackedRead() {
 int main() {
     SelectHttpResolver();
     TestArAssetRandomAccessSource();
+    TestResolverCacheDiagnostic();
     RegisterPlugin(std::filesystem::path(USDGEOCOPC_HTTP_RESOLVER_SOURCE_DIR) /
                    "plugin" / "resources" / "httpresolver" /
                    "plugInfo.json");
