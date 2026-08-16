@@ -22,4 +22,14 @@ bool TryLoadPointCloudCache(
     bool& hit,
     std::string& errorMessage);
 
+bool TryLoadPointCloudCache(
+    pxr::SdfLayer* layer,
+    const std::filesystem::path& sourcePath,
+    const cache::SourceIdentity& sourceIdentity,
+    const GeoReference& reference,
+    const usdpointcloud::PointReadRequest& request,
+    const std::string& parserVersion,
+    bool& hit,
+    std::string& errorMessage);
+
 } // namespace usdgeo

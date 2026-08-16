@@ -19,16 +19,13 @@ std::string FormatDouble(double value) {
     return result.str();
 }
 
-bool BuildDescriptor(const std::filesystem::path& sourcePath,
+bool BuildDescriptor(const usdgeo::cache::SourceIdentity& sourceIdentity,
                      const GeoReference& reference,
                      const usdpointcloud::PointReadRequest& request,
                      const std::string& parserVersion,
                      usdgeo::cache::Descriptor& descriptor,
                      std::string& errorMessage) {
-    if (!usdgeo::cache::TryBuildLocalSourceIdentity(
-            sourcePath, descriptor.source, errorMessage)) {
-        return false;
-    }
+    descriptor.source = sourceIdentity;
 
     descriptor.pluginVersion = "usd-pointcloud-plugins-0.3.0-display-v2";
     descriptor.parserVersion = parserVersion;
@@ -298,13 +295,40 @@ bool TryLoadPointCloudCache(
         errorMessage = "cache lookup requires a writable layer";
         return false;
     }
+    if (PointCloudCacheRootFromEnvironment().empty()) {
+        return true;
+    }
+
+    usdgeo::cache::SourceIdentity sourceIdentity;
+    if (!usdgeo::cache::TryBuildLocalSourceIdentity(
+            sourcePath, sourceIdentity, errorMessage)) {
+        return false;
+    }
+    return TryLoadPointCloudCache(layer, sourcePath, sourceIdentity, reference,
+                                  request, parserVersion, hit, errorMessage);
+}
+
+bool TryLoadPointCloudCache(
+    pxr::SdfLayer* layer,
+    const std::filesystem::path& sourcePath,
+    const cache::SourceIdentity& sourceIdentity,
+    const GeoReference& reference,
+    const usdpointcloud::PointReadRequest& request,
+    const std::string& parserVersion,
+    bool& hit,
+    std::string& errorMessage) {
+    hit = false;
+    if (!layer) {
+        errorMessage = "cache lookup requires a writable layer";
+        return false;
+    }
     const auto cacheRoot = PointCloudCacheRootFromEnvironment();
     if (cacheRoot.empty()) {
         return true;
     }
 
     usdgeo::cache::Descriptor descriptor;
-    if (!BuildDescriptor(sourcePath, reference, request, parserVersion,
+    if (!BuildDescriptor(sourceIdentity, reference, request, parserVersion,
                          descriptor, errorMessage)) {
         return false;
     }
