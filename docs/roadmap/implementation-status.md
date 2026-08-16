@@ -327,11 +327,11 @@ Phase 3 — generated cache reuse:
       `TilePlan` identity and version remaining compatibility inputs
 - [x] Retain conservative no-reuse behavior for unstable and unavailable
       identity, and never treat identifier equality as content equality
-- [ ] Verify that a changed validation token for the same identifier
+- [x] Verify that a changed validation token for the same identifier
       regenerates instead of hitting the old entry
-- [ ] Verify corrupted and incomplete cache recovery on the resolver-backed
+- [x] Verify corrupted and incomplete cache recovery on the resolver-backed
       path
-- [ ] Separate source byte-range caching from generated-USDC caching, with an
+- [x] Separate source byte-range caching from generated-USDC caching, with an
       explicit owner for each
 
 The COPC FileFormat now reports disabled resolver-backed cache reuse through
