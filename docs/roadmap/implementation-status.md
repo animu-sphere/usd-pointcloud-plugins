@@ -318,8 +318,8 @@ Phase 2 — resolver adapter:
 - [x] Centralize `ArResolver` / `ArAsset` identity extraction in one adapter
       owned by `usdGeoCache` or an adjacent resolver integration layer
 - [x] Keep the adapter outside LAS, LAZ, COPC, and PLY readers
-- [ ] Add stable, unstable, and unavailable identity test assets
-- [ ] Preserve current resolver-backed COPC read behavior
+- [x] Add stable, unstable, and unavailable identity test assets
+- [x] Preserve current resolver-backed COPC read behavior
 
 Phase 3 — generated cache reuse:
 
