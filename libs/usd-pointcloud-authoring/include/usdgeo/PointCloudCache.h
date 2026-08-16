@@ -24,8 +24,8 @@ bool TryLoadPointCloudCache(
 
 bool TryLoadPointCloudCache(
     pxr::SdfLayer* layer,
-    const std::filesystem::path& sourcePath,
     const cache::SourceIdentity& sourceIdentity,
+    const std::filesystem::path& payloadBaseDirectory,
     const GeoReference& reference,
     const usdpointcloud::PointReadRequest& request,
     const std::string& parserVersion,

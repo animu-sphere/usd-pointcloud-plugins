@@ -1,6 +1,7 @@
 #include "lazperf/io.hpp"
 
 #include "usdgeocopc/ArAssetRandomAccessSource.h"
+#include "usdgeo/PointCloudCache.h"
 
 #include <pxr/base/plug/plugin.h>
 #include <pxr/base/plug/registry.h>
@@ -554,6 +555,10 @@ void TestResolverBackedRead() {
     Check(resolverOutput.good());
     resolverOutput.close();
     SetHttpResolverAsset(resolverAsset);
+    const auto resolverInfo = pxr::ArGetResolver().GetAssetInfo(
+        "http://memory.copc", pxr::ArResolvedPath("http://memory.copc"));
+    Check(!resolverInfo.version.empty(),
+          "resolver did not provide an asset validation version");
     const auto cacheRoot = std::filesystem::temp_directory_path() /
                            "usd_copc_resolver_cache_baseline";
     std::error_code cacheError;
@@ -588,6 +593,11 @@ void TestResolverBackedRead() {
     pxr::VtVec3fArray firstPositions;
     Check(firstPoints.GetPointsAttr().Get(&firstPositions));
     Check(!firstPositions.empty());
+
+    const auto cachedLayer =
+        pxr::SdfLayer::CreateAnonymous("resolver-cached.usda");
+    Check(cachedLayer);
+    Check(format->Read(cachedLayer.operator->(), "http://memory.copc", false));
 
     auto changedRecords = records;
     Write(changedRecords.front(), 0, std::int32_t{9000});

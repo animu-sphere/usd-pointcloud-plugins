@@ -304,14 +304,15 @@ bool TryLoadPointCloudCache(
             sourcePath, sourceIdentity, errorMessage)) {
         return false;
     }
-    return TryLoadPointCloudCache(layer, sourcePath, sourceIdentity, reference,
-                                  request, parserVersion, hit, errorMessage);
+    return TryLoadPointCloudCache(
+        layer, sourceIdentity, sourcePath.parent_path(), reference, request,
+        parserVersion, hit, errorMessage);
 }
 
 bool TryLoadPointCloudCache(
     pxr::SdfLayer* layer,
-    const std::filesystem::path& sourcePath,
     const cache::SourceIdentity& sourceIdentity,
+    const std::filesystem::path& payloadBaseDirectory,
     const GeoReference& reference,
     const usdpointcloud::PointReadRequest& request,
     const std::string& parserVersion,
@@ -355,7 +356,10 @@ bool TryLoadPointCloudCache(
     if (!request.payloadDirectory.empty()) {
         targetPayloadDirectory = request.payloadDirectory;
         if (targetPayloadDirectory.is_relative()) {
-            targetPayloadDirectory = sourcePath.parent_path() /
+            if (payloadBaseDirectory.empty()) {
+                return true;
+            }
+            targetPayloadDirectory = payloadBaseDirectory /
                                      targetPayloadDirectory;
         }
         std::error_code error;
@@ -368,7 +372,7 @@ bool TryLoadPointCloudCache(
     }
     layer->TransferContent(cachedLayer);
     const auto layerBaseDirectory =
-        LayerBaseDirectory(layer, sourcePath.parent_path());
+        LayerBaseDirectory(layer, payloadBaseDirectory);
     RebasePayloads(
         layer, layout.entryDirectory,
         targetPayloadDirectory.empty() ? layout.payloadDirectory

@@ -144,8 +144,8 @@ void TestPointCloudCacheMissAndMaterialization() {
     Check(resolverLayer);
     hit = false;
     Check(usdgeo::TryLoadPointCloudCache(
-        resolverLayer.operator->(), sourcePath, resolverIdentity, reference,
-        request, "las-reader-1", hit, errorMessage));
+        resolverLayer.operator->(), resolverIdentity, sourcePath.parent_path(),
+        reference, request, "las-reader-1", hit, errorMessage));
     Check(!hit);
     Check(errorMessage.empty());
 
@@ -184,8 +184,8 @@ void TestPointCloudCacheMissAndMaterialization() {
     hit = false;
     errorMessage.clear();
     Check(usdgeo::TryLoadPointCloudCache(
-        requestedLayer.operator->(), sourcePath, resolverIdentity, reference,
-        request, "las-reader-1", hit, errorMessage));
+        requestedLayer.operator->(), resolverIdentity, sourcePath.parent_path(),
+        reference, request, "las-reader-1", hit, errorMessage));
     Check(hit);
     Check(errorMessage.empty());
     const auto requestedPayload = testRoot / "requested_payloads" / "tile.usdc";

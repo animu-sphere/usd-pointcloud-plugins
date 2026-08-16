@@ -14,6 +14,7 @@
 #include <pxr/base/tf/registryManager.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/ar/resolver.h>
+#include <pxr/usd/ar/assetInfo.h>
 #include <pxr/usd/pcp/dynamicFileFormatContext.h>
 #include <pxr/usd/usdGeom/metrics.h>
 
@@ -79,13 +80,36 @@ bool IsLocalFileSource(const std::string& path) {
 
 std::shared_ptr<usdgeo::RandomAccessSource> OpenResolvedAssetSource(
     const std::string& resolvedPath,
-    std::string& error) {
+    std::string& error,
+    usdgeo::cache::SourceIdentity& resolverIdentity,
+    usdgeo::cache::ResolverIdentityStability& resolverStability) {
+    resolverIdentity = {};
+    resolverStability =
+        usdgeo::cache::ResolverIdentityStability::Unavailable;
     const auto asset = pxr::ArGetResolver().OpenAsset(
         pxr::ArResolvedPath(resolvedPath));
     if (!asset) {
         error = "active resolver could not open COPC asset: " + resolvedPath;
         return nullptr;
     }
+    const auto resolver = &pxr::ArGetResolver();
+    const auto resolved = pxr::ArResolvedPath(resolvedPath);
+    const auto assetInfo = resolver->GetAssetInfo(resolvedPath, resolved);
+    auto validationToken = assetInfo.version;
+    if (validationToken.empty()) {
+        const auto timestamp =
+            resolver->GetModificationTimestamp(resolvedPath, resolved);
+        if (timestamp.IsValid()) {
+            validationToken = "resolver-mtime:" +
+                              std::to_string(timestamp.GetTime());
+        }
+    }
+    const usdgeo::cache::ResolverAssetIdentity assetIdentity{
+        resolvedPath, static_cast<std::uintmax_t>(asset->GetSize()),
+        validationToken};
+    std::string identityError;
+    usdgeo::cache::TryBuildResolverSourceIdentity(
+        assetIdentity, resolverIdentity, resolverStability, identityError);
     return std::make_shared<usdgeocopc::ArAssetRandomAccessSource>(
         asset, resolvedPath);
 }
@@ -384,7 +408,11 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
     }
 
     std::string sourceError;
-    const auto source = OpenResolvedAssetSource(resolvedPath, sourceError);
+    usdgeo::cache::SourceIdentity resolverIdentity;
+    usdgeo::cache::ResolverIdentityStability resolverStability =
+        usdgeo::cache::ResolverIdentityStability::Unavailable;
+    const auto source = OpenResolvedAssetSource(
+        resolvedPath, sourceError, resolverIdentity, resolverStability);
     if (!source) {
         TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(
                                   usdgeocopc::diagnostics::FileOpenFailed,
@@ -433,8 +461,7 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
         return true;
     }
 
-    if (IsLocalFileSource(resolvedPath) &&
-        !usdgeo::PointCloudCacheRootFromEnvironment().empty()) {
+    if (!usdgeo::PointCloudCacheRootFromEnvironment().empty()) {
         usdpointcloud::PointChunk chunk;
         usdgeo::GeoReference reference;
         usdgeo::SpatialBounds bounds;
@@ -446,9 +473,26 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
         }
         bool cacheHit = false;
         std::string cacheError;
-        if (!usdgeo::TryLoadPointCloudCache(
-                layer, resolvedPath, reference, request, "copc-reader-1",
-                cacheHit, cacheError)) {
+        const auto loadCache = [&]() {
+            if (IsLocalFileSource(resolvedPath)) {
+                return usdgeo::TryLoadPointCloudCache(
+                    layer, resolvedPath, reference, request, "copc-reader-1",
+                    cacheHit, cacheError);
+            }
+            if (resolverStability !=
+                usdgeo::cache::ResolverIdentityStability::Stable) {
+                return true;
+            }
+            const std::filesystem::path payloadDirectory(request.payloadDirectory);
+            if (!payloadDirectory.empty() &&
+                payloadDirectory.is_relative()) {
+                return true;
+            }
+            return usdgeo::TryLoadPointCloudCache(
+                layer, resolverIdentity, {}, reference, request,
+                "copc-reader-1", cacheHit, cacheError);
+        };
+        if (!loadCache()) {
             TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(
                                       usdgeocopc::diagnostics::PointCloudAuthorFailed,
                                       cacheError)
