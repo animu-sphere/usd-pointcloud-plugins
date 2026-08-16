@@ -323,9 +323,9 @@ Phase 2 — resolver adapter:
 
 Phase 3 — generated cache reuse:
 
-- [ ] Enable generated-cache lookup for stable resolver identities, with
+- [x] Enable generated-cache lookup for stable resolver identities, with
       `TilePlan` identity and version remaining compatibility inputs
-- [ ] Retain conservative no-reuse behavior for unstable and unavailable
+- [x] Retain conservative no-reuse behavior for unstable and unavailable
       identity, and never treat identifier equality as content equality
 - [ ] Verify that a changed validation token for the same identifier
       regenerates instead of hitting the old entry
@@ -333,6 +333,9 @@ Phase 3 — generated cache reuse:
       path
 - [ ] Separate source byte-range caching from generated-USDC caching, with an
       explicit owner for each
+
+The COPC FileFormat now reports disabled resolver-backed cache reuse through
+the typed `COPC009` diagnostic while preserving the conservative fallback.
 
 Phase 4 — repository boundary cleanup:
 

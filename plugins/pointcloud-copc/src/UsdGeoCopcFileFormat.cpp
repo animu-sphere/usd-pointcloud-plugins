@@ -470,9 +470,10 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
                 const auto stabilityName =
                     usdgeo::cache::ResolverIdentityStabilityName(
                         resolverStability);
-                TF_WARN("Generated cache reuse disabled: the active resolver "
-                    "did not provide a stable source validation identity "
-                    "(%s).",
+                TF_WARN("[%s] Generated cache reuse disabled: the active "
+                    "resolver did not provide a stable source validation "
+                    "identity (%s).",
+                        usdgeocopc::diagnostics::ResolverCacheReuseDisabled,
                         stabilityName);
                 return true;
             }
