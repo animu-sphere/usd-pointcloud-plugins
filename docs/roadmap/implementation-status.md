@@ -315,9 +315,9 @@ Phase 1 — identity contract:
 
 Phase 2 — resolver adapter:
 
-- [ ] Centralize `ArResolver` / `ArAsset` identity extraction in one adapter
+- [x] Centralize `ArResolver` / `ArAsset` identity extraction in one adapter
       owned by `usdGeoCache` or an adjacent resolver integration layer
-- [ ] Keep the adapter outside LAS, LAZ, COPC, and PLY readers
+- [x] Keep the adapter outside LAS, LAZ, COPC, and PLY readers
 - [ ] Add stable, unstable, and unavailable identity test assets
 - [ ] Preserve current resolver-backed COPC read behavior
 

@@ -5,6 +5,8 @@
 #include "usdpointcloud/FileFormatArguments.h"
 
 #include <pxr/usd/sdf/layer.h>
+#include <pxr/usd/ar/asset.h>
+#include <pxr/usd/ar/resolver.h>
 
 #include <filesystem>
 #include <string>
@@ -12,6 +14,15 @@
 namespace usdgeo {
 
 std::filesystem::path PointCloudCacheRootFromEnvironment();
+
+bool TryBuildResolverSourceIdentity(
+    const pxr::ArResolver& resolver,
+    const std::string& assetPath,
+    const pxr::ArResolvedPath& resolvedPath,
+    const pxr::ArAsset& asset,
+    cache::SourceIdentity& identity,
+    cache::ResolverIdentityStability& stability,
+    std::string& errorMessage);
 
 bool TryLoadPointCloudCache(
     pxr::SdfLayer* layer,

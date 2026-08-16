@@ -74,7 +74,7 @@ a studio asset revision. None of those concepts appear here.
 Local sources build this identity through `TryBuildLocalSourceIdentity`, which
 supplies a canonical path and an `fnv1a64` validation token.
 
-### 2.1 Stability levels — Planned (`v0.10.0`)
+### 2.1 Stability levels
 
 Resolver-provided identity is classified before it is trusted:
 
@@ -88,7 +88,7 @@ Generated-cache reuse stays disabled for `Unstable` and `Unavailable`. That is
 the fail-safe behavior established before `v0.10.0`, and enabling reuse for
 `Stable` identity is the only relaxation the milestone makes.
 
-### 2.2 Adapter placement — Planned (`v0.10.0`)
+### 2.2 Adapter placement
 
 One resolver-facing adapter translates resolver-provided asset identity into
 the cache identity model:

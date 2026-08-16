@@ -34,7 +34,7 @@ uses the same reader and authoring contracts for long-running generation.
 | COPC point-data decoding | Supported | Local hierarchy ranges are decoded as LAZ chunks through `usdlaz::DecodeLazChunk`; bounds, classification, and attribute selection use the shared point-cloud contracts |
 | COPC FileFormat Plugin | Supported | `pointcloud-copc` provides local metadata-only, non-tiled, and native hierarchy tiled reads; tiled output is payload-backed `usdLod`, while source point ranges are rejected because hierarchy order is spatial |
 | Resolver-backed COPC reads | Supported | The plugin adapts an `ArAsset` opened through the active `ArResolver` to the project-owned random-access source; remote tiled reads require an absolute local `payloadDirectory`. Transport, authentication, retries, and raw byte caching belong to the resolver |
-| Resolver-backed generated-cache reuse | Planned | Reuse requires stable source identity and is disabled for resolver-provided sources until the resolver identity contract lands in `v0.10.0`; see the [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md) |
+| Resolver-backed generated-cache reuse | Foundation | COPC now extracts resolver-neutral identity through the shared adapter and attempts lookup only for `Stable` identity; complete stable-identity generation, corruption recovery, and cross-resolver coverage remain in v0.10.0 work; see the [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md) |
 
 ## LAS Versions
 

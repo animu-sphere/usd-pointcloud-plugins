@@ -92,24 +92,10 @@ std::shared_ptr<usdgeo::RandomAccessSource> OpenResolvedAssetSource(
         error = "active resolver could not open COPC asset: " + resolvedPath;
         return nullptr;
     }
-    const auto resolver = &pxr::ArGetResolver();
-    const auto resolved = pxr::ArResolvedPath(resolvedPath);
-    const auto assetInfo = resolver->GetAssetInfo(resolvedPath, resolved);
-    auto validationToken = assetInfo.version;
-    if (validationToken.empty()) {
-        const auto timestamp =
-            resolver->GetModificationTimestamp(resolvedPath, resolved);
-        if (timestamp.IsValid()) {
-            validationToken = "resolver-mtime:" +
-                              std::to_string(timestamp.GetTime());
-        }
-    }
-    const usdgeo::cache::ResolverAssetIdentity assetIdentity{
-        resolvedPath, static_cast<std::uintmax_t>(asset->GetSize()),
-        validationToken};
     std::string identityError;
-    usdgeo::cache::TryBuildResolverSourceIdentity(
-        assetIdentity, resolverIdentity, resolverStability, identityError);
+    usdgeo::TryBuildResolverSourceIdentity(
+        pxr::ArGetResolver(), resolvedPath, pxr::ArResolvedPath(resolvedPath),
+        *asset, resolverIdentity, resolverStability, identityError);
     return std::make_shared<usdgeocopc::ArAssetRandomAccessSource>(
         asset, resolvedPath);
 }

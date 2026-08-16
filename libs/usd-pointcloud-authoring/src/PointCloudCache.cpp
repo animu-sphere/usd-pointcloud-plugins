@@ -5,6 +5,7 @@
 #include <pxr/usd/sdf/primSpec.h>
 
 #include <cstdlib>
+#include <cstdint>
 #include <iomanip>
 #include <set>
 #include <sstream>
@@ -12,6 +13,34 @@
 
 namespace usdgeo {
 namespace {
+
+bool BuildResolverSourceIdentity(
+    const pxr::ArResolver& resolver,
+    const std::string& assetPath,
+    const pxr::ArResolvedPath& resolvedPath,
+    const pxr::ArAsset& asset,
+    cache::SourceIdentity& identity,
+    cache::ResolverIdentityStability& stability,
+    std::string& errorMessage) {
+    identity = {};
+    stability = cache::ResolverIdentityStability::Unavailable;
+    const auto assetInfo = resolver.GetAssetInfo(assetPath, resolvedPath);
+    auto validationToken = assetInfo.version;
+    if (validationToken.empty()) {
+        const auto timestamp =
+            resolver.GetModificationTimestamp(assetPath, resolvedPath);
+        if (timestamp.IsValid()) {
+            validationToken = "resolver-mtime:" +
+                              std::to_string(timestamp.GetTime());
+        }
+    }
+    const cache::ResolverAssetIdentity assetIdentity{
+        resolvedPath.GetPathString(),
+        static_cast<std::uintmax_t>(asset.GetSize()),
+        validationToken};
+    return cache::TryBuildResolverSourceIdentity(
+        assetIdentity, identity, stability, errorMessage);
+}
 
 std::string FormatDouble(double value) {
     std::ostringstream result;
@@ -271,6 +300,18 @@ std::filesystem::path LayerBaseDirectory(
 }
 
 } // namespace
+
+bool TryBuildResolverSourceIdentity(
+    const pxr::ArResolver& resolver,
+    const std::string& assetPath,
+    const pxr::ArResolvedPath& resolvedPath,
+    const pxr::ArAsset& asset,
+    cache::SourceIdentity& identity,
+    cache::ResolverIdentityStability& stability,
+    std::string& errorMessage) {
+    return BuildResolverSourceIdentity(resolver, assetPath, resolvedPath, asset,
+                                       identity, stability, errorMessage);
+}
 
 std::filesystem::path PointCloudCacheRootFromEnvironment() {
     const auto* value = std::getenv("USDGEO_CACHE_ROOT");

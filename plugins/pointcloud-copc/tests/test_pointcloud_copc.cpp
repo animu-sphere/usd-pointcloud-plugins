@@ -570,6 +570,17 @@ void TestResolverBackedRead() {
     Check(static_cast<bool>(resolvedAsset), "resolver returned an asset");
     Check(resolvedAsset->GetSize() == bytes.size(),
           "resolver asset size matches");
+    usdgeo::cache::SourceIdentity resolverIdentity;
+    usdgeo::cache::ResolverIdentityStability resolverStability;
+    std::string identityError;
+    Check(usdgeo::TryBuildResolverSourceIdentity(
+              pxr::ArGetResolver(), "http://memory.copc",
+              pxr::ArResolvedPath("http://memory.copc"), *resolvedAsset,
+              resolverIdentity, resolverStability, identityError));
+    Check(resolverStability ==
+          usdgeo::cache::ResolverIdentityStability::Stable);
+    Check(resolverIdentity.identifier == "http://memory.copc");
+    Check(!resolverIdentity.validationToken.empty());
     char signature[4]{};
     Check(resolvedAsset->Read(signature, sizeof(signature), 0) ==
               sizeof(signature),
