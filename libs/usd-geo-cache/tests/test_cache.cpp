@@ -70,7 +70,7 @@ void TestStableDescriptorKey() {
         equivalent = first;
         equivalent.source.validationToken = "sha256:changed";
         Check(usdgeo::cache::StableCacheKey(first) !=
-            usdgeo::cache::StableCacheKey(equivalent));
+                    usdgeo::cache::StableCacheKey(equivalent));
 
     const usdgeo::cache::SourceIdentity resolverIdentity{
         "resolver://survey/sample.las", 0, 0, "etag:abc"};
@@ -135,6 +135,21 @@ void TestResolverSourceIdentity() {
         unavailableAsset, stableIdentity, stability, errorMessage));
     Check(stability == usdgeo::cache::ResolverIdentityStability::Unavailable);
     Check(errorMessage == "resolver source identity is unavailable");
+    Check(!stableIdentity.IsValid());
+
+    const usdgeo::cache::ResolverAssetIdentity whitespaceIdentifier{
+        " \t", stableAsset.sizeBytes, stableAsset.validationToken};
+    Check(usdgeo::cache::ClassifyResolverIdentity(whitespaceIdentifier) ==
+          usdgeo::cache::ResolverIdentityStability::Unavailable);
+
+    const usdgeo::cache::ResolverAssetIdentity whitespaceToken{
+        stableAsset.resolvedIdentifier, stableAsset.sizeBytes, " \r\n"};
+    Check(usdgeo::cache::ClassifyResolverIdentity(whitespaceToken) ==
+          usdgeo::cache::ResolverIdentityStability::Unstable);
+    Check(!usdgeo::cache::TryBuildResolverSourceIdentity(
+        whitespaceToken, stableIdentity, stability, errorMessage));
+    Check(stability == usdgeo::cache::ResolverIdentityStability::Unstable);
+    Check(errorMessage == "resolver source identity is unstable");
     Check(!stableIdentity.IsValid());
 }
 

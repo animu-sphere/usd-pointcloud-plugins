@@ -47,6 +47,10 @@ bool HasArgumentsWithEmptyNames(const usdgeo::CacheArguments& arguments) {
     return false;
 }
 
+bool HasNonWhitespace(const std::string& value) {
+    return value.find_first_not_of(" \t\r\n") != std::string::npos;
+}
+
 std::string AxisName(std::int64_t value) {
     if (value >= 0) {
         return "p" + std::to_string(static_cast<std::uint64_t>(value));
@@ -204,10 +208,10 @@ bool TryBuildLocalSourceIdentity(const std::filesystem::path& sourcePath,
 
 ResolverIdentityStability ClassifyResolverIdentity(
     const ResolverAssetIdentity& assetIdentity) noexcept {
-    if (assetIdentity.resolvedIdentifier.empty()) {
+    if (!HasNonWhitespace(assetIdentity.resolvedIdentifier)) {
         return ResolverIdentityStability::Unavailable;
     }
-    if (assetIdentity.validationToken.empty()) {
+    if (!HasNonWhitespace(assetIdentity.validationToken)) {
         return ResolverIdentityStability::Unstable;
     }
     return ResolverIdentityStability::Stable;
