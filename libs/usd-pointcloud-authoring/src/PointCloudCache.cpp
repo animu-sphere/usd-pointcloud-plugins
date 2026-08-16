@@ -379,7 +379,11 @@ bool TryLoadPointCloudCache(
         errorMessage = "unable to build cache layout";
         return false;
     }
-    if (!usdgeo::cache::IsCacheHit(layout)) {
+    const auto lookup = usdgeo::cache::Inspect(layout);
+    if (lookup.status == usdgeo::cache::LookupStatus::Incomplete) {
+        usdgeo::cache::Invalidate(cacheRoot, descriptor);
+    }
+    if (!lookup.IsHit()) {
         return true;
     }
 

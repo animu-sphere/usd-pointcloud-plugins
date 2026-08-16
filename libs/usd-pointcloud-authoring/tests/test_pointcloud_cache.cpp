@@ -222,6 +222,7 @@ void TestPointCloudCacheMissAndMaterialization() {
         "las-reader-1", hit, errorMessage));
     Check(!hit);
     Check(errorMessage.empty());
+    Check(!std::filesystem::exists(layout.entryDirectory));
 
     const auto corruptSource = testRoot / "corrupt-source.las";
     {
