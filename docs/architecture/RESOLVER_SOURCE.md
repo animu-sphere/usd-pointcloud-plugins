@@ -143,7 +143,7 @@ GeneratedCacheKey =
 `TilePlan` planner identity and version, introduced in `v0.9.0`, remain
 compatibility inputs.
 
-### 3.1 Reuse rules — Planned (`v0.10.0`)
+### 3.1 Reuse rules — Implemented (`v0.10.0`)
 
 A resolver-backed entry may be reused only when all of the following hold:
 
@@ -177,6 +177,19 @@ them, computes the same resolver-neutral identity, populates and reuses the
 generated cache only under stable identity, and may record the normalized
 identity class in manifest or debug metadata — never the transport secrets
 covered in §2.3.
+
+### 3.3 Cache ownership boundary — Implemented (`v0.10.0`)
+
+The generated-USDC cache is owned by `usdGeoCache` and
+`usd-pointcloud-authoring`. Its entries contain the committed `root.usdc`,
+manifest, and generated payloads, and their identity includes the resolver
+validation token.
+
+Source byte-range caching is a separate concern owned by the active resolver
+and its `ArAsset` implementation. The point-cloud readers and
+`ArAssetRandomAccessSource` perform bounded reads but do not persist source
+ranges in the generated-USDC cache. This prevents transport or resolver
+fetch state from becoming an implicit generated-asset cache key or artifact.
 
 ## 4. Diagnostics — Planned (`v0.10.0`)
 

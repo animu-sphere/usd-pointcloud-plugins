@@ -104,6 +104,22 @@ void SetCacheRoot(const std::filesystem::path& cacheRoot) {
 #endif
 }
 
+std::filesystem::path FindGeneratedCacheRoot(
+    const std::filesystem::path& cacheRoot) {
+    std::error_code error;
+    for (const auto& entry :
+         std::filesystem::recursive_directory_iterator(cacheRoot, error)) {
+        if (error) {
+            break;
+        }
+        if (entry.is_regular_file(error) &&
+            entry.path().filename() == "root.usdc") {
+            return entry.path().parent_path();
+        }
+    }
+    return {};
+}
+
 void TestArAssetRandomAccessSource() {
     auto asset = std::make_shared<MemoryAsset>(
         std::vector<std::uint8_t>{1, 2, 3, 4, 5});
@@ -601,6 +617,7 @@ void TestResolverBackedRead() {
           usdgeo::cache::ResolverIdentityStability::Stable);
     Check(resolverIdentity.identifier == "http://memory.copc");
     Check(!resolverIdentity.validationToken.empty());
+        const auto initialValidationToken = resolverIdentity.validationToken;
 
     SetHttpResolverIdentityMode("unstable");
     const auto unstableInfo = pxr::ArGetResolver().GetAssetInfo(
@@ -664,7 +681,40 @@ void TestResolverBackedRead() {
     const auto cachedLayer =
         pxr::SdfLayer::CreateAnonymous("resolver-cached.usda");
     Check(cachedLayer);
+        usdgeo::cache::ResetLookupStatistics();
     Check(format->Read(cachedLayer.operator->(), "http://memory.copc", false));
+        const auto cacheHitStatistics = usdgeo::cache::GetLookupStatistics();
+        Check(cacheHitStatistics.hits > 0,
+            "stable resolver identity did not reuse generated cache");
+
+        const auto generatedCacheRoot = FindGeneratedCacheRoot(cacheRoot);
+        Check(!generatedCacheRoot.empty(),
+            "resolver read did not publish a generated cache entry");
+        std::filesystem::remove(generatedCacheRoot / "root.usdc");
+        const auto recoveredLayer =
+          pxr::SdfLayer::CreateAnonymous("resolver-recovered.usda");
+        Check(recoveredLayer);
+        usdgeo::cache::ResetLookupStatistics();
+        Check(format->Read(recoveredLayer.operator->(), "http://memory.copc",
+                     false));
+        const auto recoveryStatistics = usdgeo::cache::GetLookupStatistics();
+        Check(recoveryStatistics.incomplete > 0,
+            "corrupt resolver cache entry was not classified incomplete");
+
+            const auto regeneratedCacheRoot = FindGeneratedCacheRoot(cacheRoot);
+            Check(!regeneratedCacheRoot.empty(),
+                "incomplete resolver cache entry was not regenerated");
+            std::ofstream corruptedRoot(regeneratedCacheRoot / "root.usdc",
+                               std::ios::binary | std::ios::trunc);
+            Check(corruptedRoot.good());
+            corruptedRoot << "corrupted generated cache";
+            corruptedRoot.close();
+            const auto corruptedLayer =
+              pxr::SdfLayer::CreateAnonymous("resolver-corrupted.usda");
+            Check(corruptedLayer);
+            Check(format->Read(corruptedLayer.operator->(), "http://memory.copc",
+                         false));
+            Check(corruptedLayer->GetPrimAtPath(pxr::SdfPath("/PointCloud")));
 
     auto changedRecords = records;
     Write(changedRecords.front(), 0, std::int32_t{9000});
@@ -691,10 +741,22 @@ void TestResolverBackedRead() {
     Check(resolverReplacement.good());
     resolverReplacement.close();
 
+        const auto changedInfo = pxr::ArGetResolver().GetAssetInfo(
+          "http://memory.copc", pxr::ArResolvedPath("http://memory.copc"));
+        Check(!changedInfo.version.empty());
+        Check(changedInfo.version != initialValidationToken,
+            "resolver test asset validation token did not change");
+
     const auto changedLayer =
         pxr::SdfLayer::CreateAnonymous("resolver-changed.usda");
     Check(changedLayer);
+        usdgeo::cache::ResetLookupStatistics();
     Check(format->Read(changedLayer.operator->(), "http://memory.copc", false));
+        const auto changedStatistics = usdgeo::cache::GetLookupStatistics();
+        Check(changedStatistics.hits == 0,
+            "changed resolver validation token reused the old cache entry");
+        Check(changedStatistics.misses > 0,
+            "changed resolver validation token did not produce a cache miss");
     const auto changedStage = pxr::UsdStage::Open(changedLayer);
     Check(changedStage);
     const auto changedPoints = pxr::UsdGeomPoints::Get(

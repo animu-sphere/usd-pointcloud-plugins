@@ -96,7 +96,8 @@ if(USDGEO_BUILD_TESTS)
         src/ArAssetRandomAccessSource.cpp
         tests/test_pointcloud_copc.cpp)
     target_compile_features(pointcloudCopc_tests PRIVATE cxx_std_17)
-    target_link_libraries(pointcloudCopc_tests PRIVATE usdlaz::core usdgeo::cache)
+    target_link_libraries(pointcloudCopc_tests PRIVATE usdlaz::core
+        usdgeo::cache usdpointcloud::authoring)
     target_compile_definitions(pointcloudCopc_tests PRIVATE
         USDGEOCOPC_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
         USDGEOCOPC_HTTP_RESOLVER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../httpresolver"
