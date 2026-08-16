@@ -37,14 +37,11 @@ std::string FormatDouble(double value) {
 }
 
 usdgeo::cache::Descriptor MakeDescriptor(
-    const std::filesystem::path& sourcePath,
+    const usdgeo::cache::SourceIdentity& sourceIdentity,
     const usdgeo::GeoReference& reference,
     const usdpointcloud::PointReadRequest& request) {
     usdgeo::cache::Descriptor descriptor;
-    std::string errorMessage;
-    Check(usdgeo::cache::TryBuildLocalSourceIdentity(
-        sourcePath, descriptor.source, errorMessage));
-    Check(errorMessage.empty());
+    descriptor.source = sourceIdentity;
     descriptor.pluginVersion = "usd-pointcloud-plugins-0.3.0-display-v2";
     descriptor.parserVersion = "las-reader-1";
     descriptor.openUsdVersion = "26.08";
@@ -68,6 +65,18 @@ usdgeo::cache::Descriptor MakeDescriptor(
                                {"version", "1"}};
     Check(descriptor.IsValid());
     return descriptor;
+}
+
+usdgeo::cache::Descriptor MakeDescriptor(
+    const std::filesystem::path& sourcePath,
+    const usdgeo::GeoReference& reference,
+    const usdpointcloud::PointReadRequest& request) {
+    usdgeo::cache::SourceIdentity sourceIdentity;
+    std::string errorMessage;
+    Check(usdgeo::cache::TryBuildLocalSourceIdentity(
+        sourcePath, sourceIdentity, errorMessage));
+    Check(errorMessage.empty());
+    return MakeDescriptor(sourceIdentity, reference, request);
 }
 
 void SetCacheRoot(const std::filesystem::path& root) {
@@ -223,6 +232,28 @@ void TestPointCloudCacheMissAndMaterialization() {
     Check(!hit);
     Check(errorMessage.empty());
     Check(!std::filesystem::exists(layout.entryDirectory));
+
+    const usdgeo::cache::SourceIdentity resolverIdentity{
+        "https://memory.example/pointcloud.copc", 42, 0, "revision-a"};
+    const auto resolverDescriptor =
+        MakeDescriptor(resolverIdentity, reference, request);
+    usdgeo::cache::Layout resolverLayout;
+    Check(usdgeo::cache::TryBuildLayout(
+        cacheRoot, resolverDescriptor, resolverLayout));
+    std::filesystem::create_directories(resolverLayout.payloadDirectory);
+    std::ofstream(resolverLayout.rootLayer, std::ios::binary)
+        << "incomplete resolver root";
+    const auto resolverLayer = pxr::SdfLayer::CreateNew(
+        (testRoot / "resolver-incomplete.usda").string());
+    Check(resolverLayer);
+    hit = true;
+    errorMessage.clear();
+    Check(usdgeo::TryLoadPointCloudCache(
+        resolverLayer.operator->(), resolverIdentity, {}, reference, request,
+        "las-reader-1", hit, errorMessage));
+    Check(!hit);
+    Check(errorMessage.empty());
+    Check(!std::filesystem::exists(resolverLayout.entryDirectory));
 
     const auto corruptSource = testRoot / "corrupt-source.las";
     {
