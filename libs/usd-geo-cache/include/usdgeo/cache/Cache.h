@@ -9,6 +9,21 @@
 
 namespace usdgeo::cache {
 
+enum class ResolverIdentityStability {
+    Stable,
+    Unstable,
+    Unavailable,
+};
+
+const char* ResolverIdentityStabilityName(
+    ResolverIdentityStability stability) noexcept;
+
+struct ResolverAssetIdentity {
+    std::string resolvedIdentifier;
+    std::uintmax_t sizeBytes = 0;
+    std::string validationToken;
+};
+
 struct SourceIdentity {
     std::string identifier;
     std::uintmax_t sizeBytes = 0;
@@ -73,6 +88,15 @@ std::string StableCacheKey(const Descriptor& descriptor);
 bool TryBuildLocalSourceIdentity(const std::filesystem::path& sourcePath,
                                  SourceIdentity& identity,
                                  std::string& errorMessage);
+
+ResolverIdentityStability ClassifyResolverIdentity(
+    const ResolverAssetIdentity& assetIdentity) noexcept;
+
+bool TryBuildResolverSourceIdentity(
+    const ResolverAssetIdentity& assetIdentity,
+    SourceIdentity& identity,
+    ResolverIdentityStability& stability,
+    std::string& errorMessage);
 
 bool TryBuildLayout(const std::filesystem::path& cacheRoot,
                     const Descriptor& descriptor,

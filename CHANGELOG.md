@@ -25,7 +25,15 @@ All notable changes to this project are documented here.
 - Added an OpenStrata 0.22.2 dogfooding record for the external resolver
   skeleton; it identifies repository setup work, not an OpenStrata defect.
 
-No runtime behavior changed.
+### Added
+
+- Added the resolver-neutral `ResolverAssetIdentity` contract and
+  `Stable` / `Unstable` / `Unavailable` classification API to `usdGeoCache`.
+- Added resolver identity conversion tests and cache-key invalidation coverage
+  for changed opaque validation tokens.
+
+The OpenUSD-facing resolver adapter and generated-cache reuse remain planned;
+the current addition only exposes the transport-neutral identity foundation.
 
 ## [0.9.0] - 2026-08-15
 

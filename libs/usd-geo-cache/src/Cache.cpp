@@ -98,6 +98,19 @@ const char* LookupStatusName(LookupStatus status) noexcept {
     return "invalid-layout";
 }
 
+const char* ResolverIdentityStabilityName(
+    ResolverIdentityStability stability) noexcept {
+    switch (stability) {
+    case ResolverIdentityStability::Stable:
+        return "stable";
+    case ResolverIdentityStability::Unstable:
+        return "unstable";
+    case ResolverIdentityStability::Unavailable:
+        return "unavailable";
+    }
+    return "unavailable";
+}
+
 double LookupStatistics::HitRatio() const noexcept {
     return lookups == 0 ? 0.0
                         : static_cast<double>(hits) /
@@ -184,6 +197,42 @@ bool TryBuildLocalSourceIdentity(const std::filesystem::path& sourcePath,
     identity.contentIdentity = identity.validationToken;
     if (!identity.IsValid()) {
         errorMessage = "generated source identity is invalid";
+        return false;
+    }
+    return true;
+}
+
+ResolverIdentityStability ClassifyResolverIdentity(
+    const ResolverAssetIdentity& assetIdentity) noexcept {
+    if (assetIdentity.resolvedIdentifier.empty()) {
+        return ResolverIdentityStability::Unavailable;
+    }
+    if (assetIdentity.validationToken.empty()) {
+        return ResolverIdentityStability::Unstable;
+    }
+    return ResolverIdentityStability::Stable;
+}
+
+bool TryBuildResolverSourceIdentity(
+    const ResolverAssetIdentity& assetIdentity,
+    SourceIdentity& identity,
+    ResolverIdentityStability& stability,
+    std::string& errorMessage) {
+    identity = {};
+    stability = ClassifyResolverIdentity(assetIdentity);
+    errorMessage.clear();
+    if (stability != ResolverIdentityStability::Stable) {
+        errorMessage = stability == ResolverIdentityStability::Unstable
+                           ? "resolver source identity is unstable"
+                           : "resolver source identity is unavailable";
+        return false;
+    }
+
+    identity.identifier = assetIdentity.resolvedIdentifier;
+    identity.sizeBytes = assetIdentity.sizeBytes;
+    identity.validationToken = assetIdentity.validationToken;
+    if (!identity.IsValid()) {
+        errorMessage = "resolver source identity is invalid";
         return false;
     }
     return true;
