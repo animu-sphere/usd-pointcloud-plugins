@@ -1,7 +1,9 @@
 #include <pxr/usd/ar/asset.h>
+#include <pxr/usd/ar/assetInfo.h>
 #include <pxr/usd/ar/defineResolver.h>
 #include <pxr/usd/ar/resolver.h>
 
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -63,6 +65,26 @@ std::shared_ptr<pxr::ArAsset> LoadTestAsset() {
     return std::make_shared<HttpAsset>(std::move(bytes));
 }
 
+std::string TestAssetVersion() {
+    const auto* path = std::getenv("USDGEOCOPC_TEST_ASSET");
+    if (!path) {
+        return {};
+    }
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        return {};
+    }
+    constexpr std::uint64_t offsetBasis = 14695981039346656037ull;
+    constexpr std::uint64_t prime = 1099511628211ull;
+    std::uint64_t hash = offsetBasis;
+    char value = 0;
+    while (input.get(value)) {
+        hash ^= static_cast<unsigned char>(value);
+        hash *= prime;
+    }
+    return input.eof() ? "test-fnv1a64:" + std::to_string(hash) : "";
+}
+
 bool IsTestMemoryUri(const std::string& path) {
     return path == "http://memory.copc" ||
            path == "https://memory.copc";
@@ -96,6 +118,11 @@ protected:
     ArResolvedPath _ResolveForNewAsset(
         const std::string& assetPath) const override {
         return ArResolvedPath(assetPath);
+    }
+
+    ArAssetInfo _GetAssetInfo(
+        const std::string&, const ArResolvedPath&) const override {
+        return {TestAssetVersion(), {}, {}, {}};
     }
 
     std::shared_ptr<ArAsset> _OpenAsset(

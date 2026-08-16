@@ -136,6 +136,19 @@ void TestPointCloudCacheMissAndMaterialization() {
     Check(!hit);
     Check(errorMessage.empty());
 
+    usdgeo::cache::SourceIdentity resolverIdentity;
+    Check(usdgeo::cache::TryBuildLocalSourceIdentity(
+        sourcePath, resolverIdentity, errorMessage));
+    const auto resolverLayer = pxr::SdfLayer::CreateAnonymous(
+        "resolver-identity-cache.usda");
+    Check(resolverLayer);
+    hit = false;
+    Check(usdgeo::TryLoadPointCloudCache(
+        resolverLayer.operator->(), resolverIdentity, sourcePath.parent_path(),
+        reference, request, "las-reader-1", hit, errorMessage));
+    Check(!hit);
+    Check(errorMessage.empty());
+
     std::filesystem::create_directories(layout.payloadDirectory);
     const auto payloadPath = layout.payloadDirectory / "tile.usdc";
     const auto payloadStage = pxr::UsdStage::CreateNew(payloadPath.string());
@@ -171,8 +184,8 @@ void TestPointCloudCacheMissAndMaterialization() {
     hit = false;
     errorMessage.clear();
     Check(usdgeo::TryLoadPointCloudCache(
-        requestedLayer.operator->(), sourcePath, reference, request,
-        "las-reader-1", hit, errorMessage));
+        requestedLayer.operator->(), resolverIdentity, sourcePath.parent_path(),
+        reference, request, "las-reader-1", hit, errorMessage));
     Check(hit);
     Check(errorMessage.empty());
     const auto requestedPayload = testRoot / "requested_payloads" / "tile.usdc";
