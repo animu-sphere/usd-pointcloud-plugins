@@ -67,6 +67,11 @@ void TestStableDescriptorKey() {
     Check(usdgeo::cache::StableCacheKey(first) !=
           usdgeo::cache::StableCacheKey(equivalent));
 
+        equivalent = first;
+        equivalent.source.validationToken = "sha256:changed";
+        Check(usdgeo::cache::StableCacheKey(first) !=
+                    usdgeo::cache::StableCacheKey(equivalent));
+
     const usdgeo::cache::SourceIdentity resolverIdentity{
         "resolver://survey/sample.las", 0, 0, "etag:abc"};
     Check(resolverIdentity.IsValid());
@@ -84,6 +89,68 @@ void TestStableDescriptorKey() {
     legacyDescriptor.source = legacyIdentity;
     Check(usdgeo::cache::StableCacheKey(legacyDescriptor) ==
           usdgeo::cache::StableCacheKey(first));
+}
+
+void TestResolverSourceIdentity() {
+    const usdgeo::cache::ResolverAssetIdentity stableAsset{
+        "resolver://survey/sample.copc", 4096, "opaque-revision-a"};
+    Check(usdgeo::cache::ClassifyResolverIdentity(stableAsset) ==
+          usdgeo::cache::ResolverIdentityStability::Stable);
+    Check(std::string(usdgeo::cache::ResolverIdentityStabilityName(
+              usdgeo::cache::ResolverIdentityStability::Stable)) == "stable");
+
+    usdgeo::cache::SourceIdentity stableIdentity;
+    usdgeo::cache::ResolverIdentityStability stability;
+    std::string errorMessage;
+    Check(usdgeo::cache::TryBuildResolverSourceIdentity(
+        stableAsset, stableIdentity, stability, errorMessage));
+    Check(stability == usdgeo::cache::ResolverIdentityStability::Stable);
+    Check(errorMessage.empty());
+    Check(stableIdentity.identifier == stableAsset.resolvedIdentifier);
+    Check(stableIdentity.sizeBytes == stableAsset.sizeBytes);
+    Check(stableIdentity.validationToken == stableAsset.validationToken);
+    Check(stableIdentity.canonicalPath.empty());
+    Check(stableIdentity.contentIdentity.empty());
+
+    const usdgeo::cache::ResolverAssetIdentity unstableAsset{
+        stableAsset.resolvedIdentifier, stableAsset.sizeBytes, {}};
+    Check(usdgeo::cache::ClassifyResolverIdentity(unstableAsset) ==
+          usdgeo::cache::ResolverIdentityStability::Unstable);
+    Check(std::string(usdgeo::cache::ResolverIdentityStabilityName(
+              usdgeo::cache::ResolverIdentityStability::Unstable)) ==
+          "unstable");
+    Check(!usdgeo::cache::TryBuildResolverSourceIdentity(
+        unstableAsset, stableIdentity, stability, errorMessage));
+    Check(stability == usdgeo::cache::ResolverIdentityStability::Unstable);
+    Check(errorMessage == "resolver source identity is unstable");
+    Check(!stableIdentity.IsValid());
+
+    const usdgeo::cache::ResolverAssetIdentity unavailableAsset{};
+    Check(usdgeo::cache::ClassifyResolverIdentity(unavailableAsset) ==
+          usdgeo::cache::ResolverIdentityStability::Unavailable);
+    Check(std::string(usdgeo::cache::ResolverIdentityStabilityName(
+              usdgeo::cache::ResolverIdentityStability::Unavailable)) ==
+          "unavailable");
+    Check(!usdgeo::cache::TryBuildResolverSourceIdentity(
+        unavailableAsset, stableIdentity, stability, errorMessage));
+    Check(stability == usdgeo::cache::ResolverIdentityStability::Unavailable);
+    Check(errorMessage == "resolver source identity is unavailable");
+    Check(!stableIdentity.IsValid());
+
+    const usdgeo::cache::ResolverAssetIdentity whitespaceIdentifier{
+        " \t", stableAsset.sizeBytes, stableAsset.validationToken};
+    Check(usdgeo::cache::ClassifyResolverIdentity(whitespaceIdentifier) ==
+          usdgeo::cache::ResolverIdentityStability::Unavailable);
+
+    const usdgeo::cache::ResolverAssetIdentity whitespaceToken{
+        stableAsset.resolvedIdentifier, stableAsset.sizeBytes, " \r\n"};
+    Check(usdgeo::cache::ClassifyResolverIdentity(whitespaceToken) ==
+          usdgeo::cache::ResolverIdentityStability::Unstable);
+    Check(!usdgeo::cache::TryBuildResolverSourceIdentity(
+        whitespaceToken, stableIdentity, stability, errorMessage));
+    Check(stability == usdgeo::cache::ResolverIdentityStability::Unstable);
+    Check(errorMessage == "resolver source identity is unstable");
+    Check(!stableIdentity.IsValid());
 }
 
 void TestLayoutAndInvalidation() {
@@ -223,6 +290,7 @@ void TestConcurrentLookupStatistics() {
 int main() {
     TestLocalSourceIdentity();
     TestStableDescriptorKey();
+    TestResolverSourceIdentity();
     TestLayoutAndInvalidation();
     TestLookupStatistics();
     TestConcurrentLookupStatistics();

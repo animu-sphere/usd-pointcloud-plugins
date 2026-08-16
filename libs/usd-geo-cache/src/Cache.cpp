@@ -47,6 +47,10 @@ bool HasArgumentsWithEmptyNames(const usdgeo::CacheArguments& arguments) {
     return false;
 }
 
+bool HasNonWhitespace(const std::string& value) {
+    return value.find_first_not_of(" \t\r\n") != std::string::npos;
+}
+
 std::string AxisName(std::int64_t value) {
     if (value >= 0) {
         return "p" + std::to_string(static_cast<std::uint64_t>(value));
@@ -96,6 +100,19 @@ const char* LookupStatusName(LookupStatus status) noexcept {
         return "hit";
     }
     return "invalid-layout";
+}
+
+const char* ResolverIdentityStabilityName(
+    ResolverIdentityStability stability) noexcept {
+    switch (stability) {
+    case ResolverIdentityStability::Stable:
+        return "stable";
+    case ResolverIdentityStability::Unstable:
+        return "unstable";
+    case ResolverIdentityStability::Unavailable:
+        return "unavailable";
+    }
+    return "unavailable";
 }
 
 double LookupStatistics::HitRatio() const noexcept {
@@ -184,6 +201,42 @@ bool TryBuildLocalSourceIdentity(const std::filesystem::path& sourcePath,
     identity.contentIdentity = identity.validationToken;
     if (!identity.IsValid()) {
         errorMessage = "generated source identity is invalid";
+        return false;
+    }
+    return true;
+}
+
+ResolverIdentityStability ClassifyResolverIdentity(
+    const ResolverAssetIdentity& assetIdentity) noexcept {
+    if (!HasNonWhitespace(assetIdentity.resolvedIdentifier)) {
+        return ResolverIdentityStability::Unavailable;
+    }
+    if (!HasNonWhitespace(assetIdentity.validationToken)) {
+        return ResolverIdentityStability::Unstable;
+    }
+    return ResolverIdentityStability::Stable;
+}
+
+bool TryBuildResolverSourceIdentity(
+    const ResolverAssetIdentity& assetIdentity,
+    SourceIdentity& identity,
+    ResolverIdentityStability& stability,
+    std::string& errorMessage) {
+    identity = {};
+    stability = ClassifyResolverIdentity(assetIdentity);
+    errorMessage.clear();
+    if (stability != ResolverIdentityStability::Stable) {
+        errorMessage = stability == ResolverIdentityStability::Unstable
+                           ? "resolver source identity is unstable"
+                           : "resolver source identity is unavailable";
+        return false;
+    }
+
+    identity.identifier = assetIdentity.resolvedIdentifier;
+    identity.sizeBytes = assetIdentity.sizeBytes;
+    identity.validationToken = assetIdentity.validationToken;
+    if (!identity.IsValid()) {
+        errorMessage = "resolver source identity is invalid";
         return false;
     }
     return true;

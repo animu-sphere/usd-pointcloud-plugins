@@ -304,13 +304,13 @@ scope and exit gate are in the
 
 Phase 1 — identity contract:
 
-- [ ] Review the existing `usdgeo::cache::SourceIdentity` model against the
+- [x] Review the existing `usdgeo::cache::SourceIdentity` model against the
       neutral `resolvedIdentifier` / `size` / `validationToken` representation
-- [ ] Define resolver-backed stability semantics for `Stable`, `Unstable`, and
+- [x] Define resolver-backed stability semantics for `Stable`, `Unstable`, and
       `Unavailable` identity, and what each level permits
-- [ ] Add opaque validation-identity support without transport-specific field
+- [x] Add opaque validation-identity support without transport-specific field
       names entering the cache contract
-- [ ] Keep serialization and stable cache keys deterministic, and add unit
+- [x] Keep serialization and stable cache keys deterministic, and add unit
       tests
 
 Phase 2 — resolver adapter:

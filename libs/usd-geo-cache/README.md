@@ -77,6 +77,8 @@ written into cache descriptors, manifests, or diagnostics.
 
 Resolver-provided identity is classified before it is trusted — stable,
 unstable, or unavailable — and generated-cache reuse is enabled only for the
-stable case. That classification and the resolver-facing adapter that produces
-it are `v0.10.0` work; see the
+stable case. `ClassifyResolverIdentity` and
+`TryBuildResolverSourceIdentity` provide this transport-neutral Phase 1
+contract without depending on OpenUSD or a resolver implementation. The
+OpenUSD-facing adapter remains v0.10.0 work; see the
 [resolver-backed source contract](../../docs/architecture/RESOLVER_SOURCE.md).
