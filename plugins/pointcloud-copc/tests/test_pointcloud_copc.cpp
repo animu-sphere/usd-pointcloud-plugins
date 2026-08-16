@@ -608,14 +608,18 @@ void TestResolverBackedRead() {
     SetHttpResolverIdentityMode("unavailable");
     const auto unavailableInfo = pxr::ArGetResolver().GetAssetInfo(
         "http://memory.copc", pxr::ArResolvedPath("http://memory.copc"));
+    const auto unavailablePath =
+        pxr::ArGetResolver().Resolve("http://memory.copc");
+    Check(unavailablePath.GetPathString().empty());
     usdgeo::cache::ResolverAssetIdentity unavailableAsset{
-        "", static_cast<std::uintmax_t>(bytes.size()),
+        unavailablePath.GetPathString(),
+        static_cast<std::uintmax_t>(bytes.size()),
         unavailableInfo.version};
     Check(usdgeo::cache::ClassifyResolverIdentity(unavailableAsset) ==
           usdgeo::cache::ResolverIdentityStability::Unavailable);
     Check(!usdgeo::TryBuildResolverSourceIdentity(
               pxr::ArGetResolver(), "http://memory.copc",
-              pxr::ArResolvedPath(), *resolvedAsset,
+              unavailablePath, *resolvedAsset,
               resolverIdentity, resolverStability, identityError));
     Check(resolverStability ==
           usdgeo::cache::ResolverIdentityStability::Unavailable);

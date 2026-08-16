@@ -116,6 +116,10 @@ protected:
     }
 
     ArResolvedPath _Resolve(const std::string& assetPath) const override {
+        const auto* identityMode = std::getenv("USDGEOCOPC_TEST_IDENTITY");
+        if (identityMode && std::string(identityMode) == "unavailable") {
+            return ArResolvedPath();
+        }
         if (IsTestMemoryUri(assetPath)) {
             return ArResolvedPath(assetPath);
         }
