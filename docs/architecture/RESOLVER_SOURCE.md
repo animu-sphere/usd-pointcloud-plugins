@@ -245,7 +245,7 @@ dependency. Registration is in [INSTALL.md](../guides/INSTALL.md).
 
 **Tier 1 — repository-local contract tests.** They run with no external
 resolver repository, using fake or memory-backed test assets, and remain the
-required CI gate. Coverage: resolver-backed random access, partial reads,
+required local gate; CI wiring is outstanding. Coverage: resolver-backed random access, partial reads,
 short-read diagnostics, stable / unstable / unavailable identity, miss-to-hit
 behavior, invalidation on validation-token change, corruption recovery,
 `TilePlan` compatibility in cache keys, and deterministic diagnostics.
@@ -263,7 +263,7 @@ dependent on the resolver repository.
 designated first Tier 2 implementation. Its `v0.2.0` release provides the HTTP
 backend and OpenUSD resolver bundle, exposes stable resolver-neutral identity
 through `ArAssetInfo`, and is tested through its own OpenStrata workflow. Tier
-1 remains this repository's required CI gate; Tier 2 is now ready to be
+1 remains this repository's required local gate; Tier 2 is now ready to be
 composed and recorded as the `v0.10.0` release gate.
 
 ## 7. Test-double resolver

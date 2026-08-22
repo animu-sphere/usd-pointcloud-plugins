@@ -438,7 +438,9 @@ and is excluded from the product plugin and release matrices.
 #### Tests
 
 Tier 1 runs without any external resolver repository, using fake or
-memory-backed test assets, and remains the required CI gate: resolver-backed
+memory-backed test assets, and remains the required local gate; it is not yet
+wired into the CI matrix, whose cells build plugin bundles individually rather
+than the repository root: resolver-backed
 random access, partial reads, short-read diagnostics, the three identity
 states, miss-to-hit behavior, invalidation on token change, corruption
 recovery, `TilePlan` compatibility inputs, and deterministic diagnostics.
@@ -596,7 +598,8 @@ Architecture-level tests accompany correctness tests:
 
 From `v0.10.0`, resolver coverage is split in two tiers. Tier 1 runs
 repository-local contract tests against fake or memory-backed resolver assets
-and is the required CI gate; Tier 2 composes an external resolver
+and is the required local gate, not yet a CI cell; Tier 2 composes an external
+resolver
 implementation and a local reproducible server for end-to-end verification
 without making this repository structurally depend on it.
 

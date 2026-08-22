@@ -267,8 +267,10 @@ Every structural or format change preserves these invariants:
 
 `openstrata.ci.yaml` is the source of truth; the GitHub workflow is generated
 by `ost ci generate github`. The declared PR matrix runs every production
-bundle on every host. The Tier 1 resolver test double is built transitively by
-the COPC integration test and has no product-bundle cell:
+bundle on every host. Every cell is a per-plugin bundle build, so the Tier 1
+resolver test double has no product-bundle cell and is not built by CI; it is
+built by the root `ost build` in the local gate below, where
+`USDGEO_BUILD_TESTS` defaults to `ON`:
 
 | Host | Target | OST level |
 | --- | --- | --- |
@@ -292,14 +294,17 @@ ost plugin test plugins/pointcloud-copc --up-to 4
 
 The LAS, LAZ, COPC, and PLY bundles declare OST smoke fixtures and run the L3
 `usdcat.read` and L4 `python.stage_open` checks. The test-only `httpresolver`
-bundle has no standalone fixture or CI matrix cell because its functional path
-is exercised by the COPC Tier 1 integration test. The COPC bundle follows the
+bundle has no standalone fixture or CI matrix cell; its functional path is
+exercised by the COPC Tier 1 integration test in the root build, which the
+local gate runs and CI does not. The COPC bundle follows the
 same runtime matrix as LAS and LAZ.
 
 The gate must stay passable without any external resolver repository. From
 `v0.10.0`, repository-local resolver contract tests (Tier 1) are the required
-CI gate, and cross-repository integration against an external resolver
-implementation (Tier 2) is composed separately; see
+*local* gate; wiring them into the CI matrix is still outstanding, since the
+declared cells build plugin bundles individually rather than the repository
+root. Cross-repository integration against an external resolver implementation
+(Tier 2) is composed separately; see
 [RESOLVER_SOURCE.md](RESOLVER_SOURCE.md).
 
 ## 10. Delivery status

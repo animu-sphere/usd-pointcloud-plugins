@@ -39,8 +39,12 @@ diagnostic completion and recorded external interoperability remain planned.
 ### Changed
 
 - Removed standalone `httpresolver` product CI cells. The relocated test double
-  is built transitively by the COPC Tier 1 integration test, keeping the
-  required gate independent of external resolver repositories.
+  is built transitively by the COPC Tier 1 integration test in the root build,
+  keeping the local gate independent of external resolver repositories. Note
+  that Tier 1 is not yet part of the CI matrix: every declared cell builds a
+  single plugin bundle, where `USDGEO_BUILD_TESTS` is undefined, so neither the
+  fixture nor `pointcloudCopc_tests` is compiled there. Wiring Tier 1 into CI
+  is tracked as follow-up work.
 - Added a shared cache-layout construction entry point so producer and
   consumer tests derive resolver-backed cache entries from the same descriptor
   contract.
