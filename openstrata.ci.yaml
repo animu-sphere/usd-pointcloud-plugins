@@ -393,3 +393,95 @@ cells:
     host_packages:
       apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
     up_to: 5
+
+  # Workspace cells: the Tier 1 resolver contract gate.
+  #
+  # Every bundle cell above is a per-plugin build rooted at
+  # plugins/pointcloud-<x>/CMakeLists.txt, a standalone project() that never
+  # declares USDGEO_BUILD_TESTS. The option is undefined there, so neither
+  # pointcloudCopc_tests nor the memory-backed resolver test double under
+  # tests/plugins/httpresolver is compiled by a bundle cell. Only the root
+  # CMakeLists.txt defaults USDGEO_BUILD_TESTS to ON, which is what a
+  # `kind: workspace` cell configures through `ost build` before running the
+  # CTest suite. These cells are therefore what makes Tier 1 a CI gate rather
+  # than a local-only one, and they need no external resolver repository.
+
+  - name: workspace-pr-windows
+    lane: pull_request
+    runner: windows-hosted
+    kind: workspace
+    verify: test
+    runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+    runtime_remote:
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+      expected_oci_digest: sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+    platform: cy2026
+    profile: usd
+
+  - name: workspace-pr-macos-arm64
+    lane: pull_request
+    runner: macos-arm64-hosted
+    kind: workspace
+    verify: test
+    runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+    runtime_remote:
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+      expected_oci_digest: sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+    platform: cy2026
+    profile: usd
+    host_python: "3.13"
+
+  - name: workspace-pr-linux
+    lane: pull_request
+    runner: linux-hosted
+    kind: workspace
+    verify: test
+    runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+    runtime_remote:
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+      expected_oci_digest: sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+    platform: cy2026
+    profile: usd
+    host_python: "3.13"
+    host_packages:
+      apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
+
+  - name: workspace-main-windows
+    lane: main
+    runner: windows-hosted
+    kind: workspace
+    verify: test
+    runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+    runtime_remote:
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+      expected_oci_digest: sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+    platform: cy2026
+    profile: usd
+
+  - name: workspace-main-macos-arm64
+    lane: main
+    runner: macos-arm64-hosted
+    kind: workspace
+    verify: test
+    runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+    runtime_remote:
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+      expected_oci_digest: sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+    platform: cy2026
+    profile: usd
+    host_python: "3.13"
+
+  - name: workspace-main-linux
+    lane: main
+    runner: linux-hosted
+    kind: workspace
+    verify: test
+    runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+    runtime_remote:
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+      expected_oci_digest: sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+    platform: cy2026
+    profile: usd
+    host_python: "3.13"
+    host_packages:
+      apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
