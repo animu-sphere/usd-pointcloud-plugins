@@ -233,24 +233,24 @@ void TestPointCloudCacheMissAndMaterialization() {
     Check(errorMessage.empty());
     Check(!std::filesystem::exists(layout.entryDirectory));
 
-    const usdgeo::cache::SourceIdentity resolverIdentity{
+    const usdgeo::cache::SourceIdentity incompleteResolverIdentity{
         "https://memory.example/pointcloud.copc", 42, 0, "revision-a"};
     const auto resolverDescriptor =
-        MakeDescriptor(resolverIdentity, reference, request);
+        MakeDescriptor(incompleteResolverIdentity, reference, request);
     usdgeo::cache::Layout resolverLayout;
     Check(usdgeo::cache::TryBuildLayout(
         cacheRoot, resolverDescriptor, resolverLayout));
     std::filesystem::create_directories(resolverLayout.payloadDirectory);
     std::ofstream(resolverLayout.rootLayer, std::ios::binary)
         << "incomplete resolver root";
-    const auto resolverLayer = pxr::SdfLayer::CreateNew(
+    const auto incompleteResolverLayer = pxr::SdfLayer::CreateNew(
         (testRoot / "resolver-incomplete.usda").string());
-    Check(resolverLayer);
+    Check(incompleteResolverLayer);
     hit = true;
     errorMessage.clear();
     Check(usdgeo::TryLoadPointCloudCache(
-        resolverLayer.operator->(), resolverIdentity, {}, reference, request,
-        "las-reader-1", hit, errorMessage));
+        incompleteResolverLayer.operator->(), incompleteResolverIdentity, {},
+        reference, request, "las-reader-1", hit, errorMessage));
     Check(!hit);
     Check(errorMessage.empty());
     Check(!std::filesystem::exists(resolverLayout.entryDirectory));

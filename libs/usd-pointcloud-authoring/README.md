@@ -51,6 +51,7 @@ namespace `usdgeo`.
 
 ```text
 usdgeo/PointCloudLayer.h
+usdgeo/PointCloudCache.h
 ```
 
 | Group | Entry points |
@@ -61,6 +62,7 @@ usdgeo/PointCloudLayer.h
 | LOD | `AuthorPointCloudLodAsset` |
 | Tiling | `PointCloudTileAsset`, `AuthorPointCloudTiledAsset` |
 | Payloads | `PointCloudPayloadOptions`, `AuthorPointCloudTiledAssetWithPayloads` |
+| Generated cache | `TryBuildPointCloudCacheLayout`, `TryLoadPointCloudCache`, `TryBuildResolverSourceIdentity` |
 | Failure kinds | `PointCloudAuthorFailure` (`InvalidLayer`, `StageCreation`, `StageMetrics`, `PointCloud`) |
 
 Minimal use:

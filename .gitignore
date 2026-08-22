@@ -5,6 +5,7 @@
 **/build/
 **/.strata/
 plugins/*/lib/
+tests/plugins/*/lib/
 CMakeUserPresets.json
 
 # CI and release scratch.

@@ -323,6 +323,28 @@ std::filesystem::path PointCloudCacheRootFromEnvironment() {
     return error ? std::filesystem::path{} : root.lexically_normal();
 }
 
+bool TryBuildPointCloudCacheLayout(
+    const std::filesystem::path& cacheRoot,
+    const cache::SourceIdentity& sourceIdentity,
+    const GeoReference& reference,
+    const usdpointcloud::PointReadRequest& request,
+    const std::string& parserVersion,
+    cache::Layout& layout,
+    std::string& errorMessage) {
+    cache::Descriptor descriptor;
+    if (!BuildDescriptor(sourceIdentity, reference, request, parserVersion,
+                         descriptor, errorMessage)) {
+        layout = {};
+        return false;
+    }
+    if (!cache::TryBuildLayout(cacheRoot, descriptor, layout)) {
+        errorMessage = "unable to build cache layout";
+        return false;
+    }
+    errorMessage.clear();
+    return true;
+}
+
 bool TryLoadPointCloudCache(
     pxr::SdfLayer* layer,
     const std::filesystem::path& sourcePath,

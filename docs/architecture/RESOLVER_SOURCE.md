@@ -241,11 +241,11 @@ pointcloud-copc
 `usd-http-resolver` is one compatible implementation, not a required
 dependency. Registration is in [INSTALL.md](../guides/INSTALL.md).
 
-## 6. Testing tiers — Planned (`v0.10.0`)
+## 6. Testing tiers — In progress (`v0.10.0`)
 
 **Tier 1 — repository-local contract tests.** They run with no external
 resolver repository, using fake or memory-backed test assets, and remain the
-required CI gate. Coverage: resolver-backed random access, partial reads,
+required local gate; CI wiring is outstanding. Coverage: resolver-backed random access, partial reads,
 short-read diagnostics, stable / unstable / unavailable identity, miss-to-hit
 behavior, invalidation on validation-token change, corruption recovery,
 `TilePlan` compatibility in cache keys, and deterministic diagnostics.
@@ -259,21 +259,23 @@ and tested by the resolver repository. Tier 2 is reproducible through
 OpenStrata workspace composition without making this repository structurally
 dependent on the resolver repository.
 
-`usd-http-resolver` is the designated first Tier 2 implementation, but is
-pre-implementation as of 2026-08-16: it has no resolver bundle, backend, cache,
-or release yet. Therefore Tier 1 is the v0.10.0 implementation gate in this
-repository. Tier 2 becomes a release gate only after that repository publishes
-its first resolver implementation and its OpenStrata build and test workflow.
+[`usd-http-resolver`](https://github.com/animu-sphere/usd-http-resolver) is the
+designated first Tier 2 implementation. Its `v0.2.0` release provides the HTTP
+backend and OpenUSD resolver bundle, exposes stable resolver-neutral identity
+through `ArAssetInfo`, and is tested through its own OpenStrata workflow. Tier
+1 remains this repository's required local gate; Tier 2 is now ready to be
+composed and recorded as the `v0.10.0` release gate.
 
 ## 7. Test-double resolver
 
-`plugins/httpresolver` is an integration-test double: it serves a configured
+`tests/plugins/httpresolver` is an integration-test fixture: it serves a configured
 local fixture as an in-memory `ArAsset` for `http://memory.copc` and
 `https://memory.copc`. It is not a network transport and is not part of the
 point-cloud product surface.
 
-It remains in place until equivalent external integration coverage exists.
-After that coverage is recorded, `v0.10.0` either removes it or relocates it
-under an explicitly test-only path such as `tests/plugins/httpresolver/`. It
-must not be presented as equivalent to a production point-cloud bundle. See
+The test double remains as the external-dependency-free Tier 1 fixture. It is
+built only with the COPC integration tests and has no product bundle manifest
+or install rule, so it is excluded from plugin discovery, release metadata,
+packaging, and standalone CI cells. It must not be presented as equivalent to
+a production resolver bundle. See
 [WORKSPACE.md](WORKSPACE.md).

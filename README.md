@@ -76,11 +76,12 @@ the selected resolver implementation, not by this repository. The plugins
 consume the resolved `ArAsset` and never learn which resolver opened it.
 
 An external resolver is runtime composition: install it alongside these
-bundles and register both through `PXR_PLUGINPATH_NAME`. `usd-http-resolver` is
-one compatible implementation, not a required dependency — this repository
-builds and tests without it. The bundled `plugins/httpresolver` is an
-integration-test double that serves a local fixture in memory; it is not a
-network transport.
+bundles and register both through `PXR_PLUGINPATH_NAME`.
+[`usd-http-resolver`](https://github.com/animu-sphere/usd-http-resolver) is one
+compatible implementation, not a required dependency — this repository builds
+and tests without it. The repository-local
+`tests/plugins/httpresolver` fixture is a Tier 1 test double that serves a local
+fixture in memory; it is not a network transport or product bundle.
 
 Generated-USDC cache reuse for resolver-backed sources requires stable source
 identity and stays disabled when the resolver cannot supply it. The boundary,
@@ -349,7 +350,7 @@ plugins/pointcloud-las/         LAS OpenUSD FileFormat Plugin
 plugins/pointcloud-laz/         LAZ OpenUSD FileFormat Plugin
 plugins/pointcloud-copc/        COPC OpenUSD FileFormat Plugin
 plugins/pointcloud-ply/         PLY OpenUSD FileFormat Plugin
-plugins/httpresolver/           Resolver test double for the COPC integration test, not a transport
+tests/plugins/httpresolver/     Tier 1 resolver fixture, excluded from product discovery
 docs/                           See docs/README.md for the documentation index
 ```
 

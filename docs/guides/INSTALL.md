@@ -61,16 +61,17 @@ transport, authentication, retries, and raw byte caching belong to the resolver
 implementation, not to these plugins, so remote sources need a resolver that
 resolves the identifier and serves an `ArAsset` with efficient range reads.
 
-An external resolver is runtime composition. Install it beside the point-cloud
-bundles and register both:
+An external resolver is runtime composition. For example, build or install
+[`usd-http-resolver`](https://github.com/animu-sphere/usd-http-resolver), place
+its bundle beside `pointcloud-copc`, and register both resource roots:
 
 ```powershell
 $env:PXR_PLUGINPATH_NAME =
-  "C:\path\to\pointcloud-copc\plugin\resources\;C:\path\to\resolver\plugin\resources\"
+  "C:\path\to\pointcloud-copc\plugin\resources\;C:\path\to\http-resolver\plugin\resources\httpResolver"
 ```
 
 ```bash
-export PXR_PLUGINPATH_NAME=/path/to/pointcloud-copc/plugin/resources/:/path/to/resolver/plugin/resources/
+export PXR_PLUGINPATH_NAME=/path/to/pointcloud-copc/plugin/resources/:/path/to/http-resolver/plugin/resources/httpResolver
 ```
 
 OpenUSD then composes them:
@@ -80,10 +81,11 @@ usdview https://example.org/data.copc
   -> ArResolver -> external resolver -> ArAsset -> pointcloud-copc
 ```
 
-`usd-http-resolver` is one compatible implementation. It is not required, and
-these bundles are built and tested without it. The repository's
-`plugins/httpresolver` bundle is an integration-test double that serves a local
-fixture in memory; do not deploy it as a transport. See the
+`usd-http-resolver` is optional and is never linked by these bundles. Its
+`ArAsset::Read` implementation supplies bounded remote reads, while its
+transport cache remains separate from the generated-USDC cache owned here. The
+repository's `tests/plugins/httpresolver` fixture remains only as an external-
+dependency-free Tier 1 test double; do not deploy it as a transport. See the
 [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md).
 
 Generated-USDC cache reuse for resolver-backed sources requires stable source
