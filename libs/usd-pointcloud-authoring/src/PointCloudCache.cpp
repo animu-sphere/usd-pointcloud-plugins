@@ -352,7 +352,8 @@ bool TryLoadPointCloudCache(
     const usdpointcloud::PointReadRequest& request,
     const std::string& parserVersion,
     bool& hit,
-    std::string& errorMessage) {
+    std::string& errorMessage,
+    cache::CacheDecision* decision) {
     hit = false;
     if (!layer) {
         errorMessage = "cache lookup requires a writable layer";
@@ -369,7 +370,7 @@ bool TryLoadPointCloudCache(
     }
     return TryLoadPointCloudCache(
         layer, sourceIdentity, sourcePath.parent_path(), reference, request,
-        parserVersion, hit, errorMessage);
+        parserVersion, hit, errorMessage, decision);
 }
 
 bool TryLoadPointCloudCache(
@@ -380,8 +381,14 @@ bool TryLoadPointCloudCache(
     const usdpointcloud::PointReadRequest& request,
     const std::string& parserVersion,
     bool& hit,
-    std::string& errorMessage) {
+    std::string& errorMessage,
+    cache::CacheDecision* decision) {
     hit = false;
+    const auto report = [decision](cache::CacheDecision value) {
+        if (decision) {
+            *decision = value;
+        }
+    };
     if (!layer) {
         errorMessage = "cache lookup requires a writable layer";
         return false;
@@ -404,18 +411,25 @@ bool TryLoadPointCloudCache(
     const auto lookup = usdgeo::cache::Inspect(layout);
     if (lookup.status == usdgeo::cache::LookupStatus::Incomplete) {
         usdgeo::cache::Invalidate(cacheRoot, descriptor);
+        report(usdgeo::cache::CacheDecision::Invalidated);
+        return true;
     }
     if (!lookup.IsHit()) {
+        if (usdgeo::cache::HasSupersededIdentityEntry(layout)) {
+            report(usdgeo::cache::CacheDecision::IdentityChanged);
+        }
         return true;
     }
 
     const auto cachedLayer = pxr::SdfLayer::FindOrOpen(layout.rootLayer.string());
     if (!cachedLayer) {
         usdgeo::cache::Invalidate(cacheRoot, descriptor);
+        report(usdgeo::cache::CacheDecision::Invalidated);
         return true;
     }
     if (!ValidateCachedPayloads(cachedLayer, layout)) {
         usdgeo::cache::Invalidate(cacheRoot, descriptor);
+        report(usdgeo::cache::CacheDecision::Invalidated);
         return true;
     }
 
@@ -446,6 +460,7 @@ bool TryLoadPointCloudCache(
                                        : targetPayloadDirectory,
         layerBaseDirectory);
     hit = true;
+    report(usdgeo::cache::CacheDecision::Hit);
     return true;
 }
 

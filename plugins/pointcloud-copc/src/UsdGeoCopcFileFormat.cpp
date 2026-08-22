@@ -72,6 +72,42 @@ const char* ReaderDiagnosticCode(
     return usdgeocopc::diagnostics::DecodeFailed;
 }
 
+// Every generated-cache decision reaches OpenUSD through one of four plugin
+// codes and always carries the stable category name, so a consumer can match
+// on the category rather than on prose. Nothing here can carry a resolved
+// identifier, a validation token, or any transport detail: the message text is
+// fixed by `usdgeo::cache` and the category name is an enumerated constant.
+void ReportCacheDecision(usdgeo::cache::CacheDecision decision) {
+    const auto* code = usdgeocopc::diagnostics::ResolverCacheReuseDisabled;
+    bool warn = true;
+    switch (decision) {
+    case usdgeo::cache::CacheDecision::IdentityStable:
+    case usdgeo::cache::CacheDecision::Hit:
+        code = usdgeocopc::diagnostics::ResolverCacheReusePermitted;
+        warn = false;
+        break;
+    case usdgeo::cache::CacheDecision::IdentityChanged:
+        code = usdgeocopc::diagnostics::ResolverIdentityChanged;
+        warn = false;
+        break;
+    case usdgeo::cache::CacheDecision::Invalidated:
+        code = usdgeocopc::diagnostics::ResolverCacheInvalidated;
+        break;
+    case usdgeo::cache::CacheDecision::IdentityUnavailable:
+    case usdgeo::cache::CacheDecision::IdentityUnstable:
+    case usdgeo::cache::CacheDecision::ReuseDisabled:
+        break;
+    }
+    const auto message = usdgeocopc::diagnostics::Message(
+        code, std::string(usdgeo::cache::CacheDecisionMessage(decision)) +
+                  " (" + usdgeo::cache::CacheDecisionName(decision) + ")");
+    if (warn) {
+        TF_WARN("%s", message.c_str());
+    } else {
+        TF_STATUS("%s", message.c_str());
+    }
+}
+
 bool IsLocalFileSource(const std::string& path) {
     std::error_code error;
     return std::filesystem::is_regular_file(std::filesystem::path(path), error) &&
@@ -460,21 +496,23 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
         bool cacheHit = false;
         std::string cacheError;
         const auto loadCache = [&]() {
+            auto decision = usdgeo::cache::CacheDecision::ReuseDisabled;
             if (IsLocalFileSource(resolvedPath)) {
-                return usdgeo::TryLoadPointCloudCache(
+                const auto loaded = usdgeo::TryLoadPointCloudCache(
                     layer, resolvedPath, reference, request, "copc-reader-1",
-                    cacheHit, cacheError);
+                    cacheHit, cacheError, &decision);
+                if (loaded && decision !=
+                                  usdgeo::cache::CacheDecision::ReuseDisabled) {
+                    ReportCacheDecision(decision);
+                }
+                return loaded;
             }
             if (resolverStability !=
                 usdgeo::cache::ResolverIdentityStability::Stable) {
-                const auto stabilityName =
-                    usdgeo::cache::ResolverIdentityStabilityName(
-                        resolverStability);
-                TF_WARN("[%s] Generated cache reuse disabled: the active "
-                    "resolver did not provide a stable source validation "
-                    "identity (%s).",
-                        usdgeocopc::diagnostics::ResolverCacheReuseDisabled,
-                        stabilityName);
+                // The identity category is the reason reuse is disabled, so it
+                // is what the diagnostic reports.
+                ReportCacheDecision(
+                    usdgeo::cache::IdentityDecision(resolverStability));
                 return true;
             }
             const std::filesystem::path payloadDirectory(request.payloadDirectory);
@@ -482,9 +520,14 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
                 payloadDirectory.is_relative()) {
                 return true;
             }
-            return usdgeo::TryLoadPointCloudCache(
+            decision = usdgeo::cache::CacheDecision::IdentityStable;
+            const auto loaded = usdgeo::TryLoadPointCloudCache(
                 layer, resolverIdentity, {}, reference, request,
-                "copc-reader-1", cacheHit, cacheError);
+                "copc-reader-1", cacheHit, cacheError, &decision);
+            if (loaded) {
+                ReportCacheDecision(decision);
+            }
+            return loaded;
         };
         if (!loadCache()) {
             TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(

@@ -183,6 +183,45 @@ void TestResolverCacheDiagnostic() {
               "[COPC009] Generated cache reuse disabled: the active resolver "
               "did not provide a stable source validation identity.",
           "resolver cache diagnostic format");
+
+    // The four decision codes are distinct and stable, and each emitted
+    // message ends with the shared category name so a consumer can match the
+    // category instead of the prose.
+    const std::vector<const char*> codes{
+        usdgeocopc::diagnostics::ResolverCacheReuseDisabled,
+        usdgeocopc::diagnostics::ResolverCacheReusePermitted,
+        usdgeocopc::diagnostics::ResolverIdentityChanged,
+        usdgeocopc::diagnostics::ResolverCacheInvalidated};
+    for (std::size_t index = 0; index != codes.size(); ++index) {
+        for (std::size_t other = index + 1; other != codes.size(); ++other) {
+            Check(std::string(codes[index]) != codes[other],
+                  "resolver decision codes must be distinct");
+        }
+    }
+    Check(std::string(usdgeocopc::diagnostics::ResolverCacheReusePermitted) ==
+              "COPC010" &&
+          std::string(usdgeocopc::diagnostics::ResolverIdentityChanged) ==
+              "COPC011" &&
+          std::string(usdgeocopc::diagnostics::ResolverCacheInvalidated) ==
+              "COPC012",
+          "resolver decision codes changed meaning");
+
+    for (const auto decision :
+         {usdgeo::cache::CacheDecision::IdentityUnavailable,
+          usdgeo::cache::CacheDecision::IdentityUnstable,
+          usdgeo::cache::CacheDecision::IdentityStable,
+          usdgeo::cache::CacheDecision::IdentityChanged,
+          usdgeo::cache::CacheDecision::ReuseDisabled,
+          usdgeo::cache::CacheDecision::Hit,
+          usdgeo::cache::CacheDecision::Invalidated}) {
+        const auto rendered =
+            std::string(usdgeo::cache::CacheDecisionMessage(decision)) + " (" +
+            usdgeo::cache::CacheDecisionName(decision) + ")";
+        Check(rendered.find(
+                  std::string("(") + usdgeo::cache::CacheDecisionName(decision) +
+                  ")") != std::string::npos,
+              "resolver decision message must carry its category");
+    }
 }
 
 void RegisterPlugin(const std::filesystem::path& plugInfo) {
@@ -824,6 +863,36 @@ void TestResolverBackedRead() {
     Check(!changedPositions.empty());
     Check(changedPositions.front() != firstPositions.front(),
           "resolver read reused cached output");
+
+    // The regenerated entry lands beside the one it supersedes, under the same
+    // generation directory. That adjacency is what `resolver-identity-changed`
+    // reports; without it a changed revision is indistinguishable from a source
+    // that was never generated.
+    const auto changedAsset = pxr::ArGetResolver().OpenAsset(
+        pxr::ArResolvedPath("http://memory.copc"));
+    Check(static_cast<bool>(changedAsset), "reopen changed resolver asset");
+    usdgeo::cache::SourceIdentity changedIdentity;
+    usdgeo::cache::ResolverIdentityStability changedStability;
+    Check(usdgeo::TryBuildResolverSourceIdentity(
+              pxr::ArGetResolver(), "http://memory.copc",
+              pxr::ArResolvedPath("http://memory.copc"), *changedAsset,
+              changedIdentity, changedStability, identityError),
+          "changed resolver identity");
+    Check(changedStability ==
+          usdgeo::cache::ResolverIdentityStability::Stable);
+    Check(changedIdentity.validationToken != initialValidationToken);
+    usdgeo::cache::Layout changedLayout;
+    Check(usdgeo::TryBuildPointCloudCacheLayout(
+        cacheRoot, changedIdentity, cacheReference, cacheRequest,
+        "copc-reader-1", changedLayout, cacheErrorMessage),
+        "build changed resolver cache layout");
+    Check(changedLayout.entryDirectory != cacheLayout.entryDirectory,
+          "changed validation identity reused the superseded entry");
+    Check(changedLayout.entryDirectory.parent_path() ==
+              cacheLayout.entryDirectory.parent_path(),
+          "changed validation identity left the generation directory");
+    Check(usdgeo::cache::HasSupersededIdentityEntry(changedLayout),
+          "changed validation identity did not observe the superseded entry");
 
     std::error_code error;
     std::filesystem::remove_all(cacheRoot, error);

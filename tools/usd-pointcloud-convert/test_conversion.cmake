@@ -196,7 +196,8 @@ if(NOT cache_first_result EQUAL 0 OR NOT cache_first_error STREQUAL "" OR
     message(FATAL_ERROR
         "cached first conversion failed: ${cache_first_output}${cache_first_error}")
 endif()
-file(GLOB cache_entries RELATIVE "${cache_root}" "${cache_root}/*")
+# Cache entries are two levels deep: <generation key>/<source identity key>.
+file(GLOB cache_entries RELATIVE "${cache_root}" "${cache_root}/*/*")
 list(LENGTH cache_entries cache_entry_count)
 if(NOT cache_entry_count EQUAL 1 OR
    NOT EXISTS "${cache_root}/${cache_entries}/root.usdc" OR
@@ -228,6 +229,30 @@ if(NOT cache_second_result EQUAL 0 OR NOT cache_second_error STREQUAL "" OR
         "converter did not reuse the cache entry: "
         "${cache_second_output}${cache_second_error}")
 endif()
+
+# No credential, signed URL, resolved identifier, or validation token is ever
+# persisted into a manifest or a cache entry. The local path is the strongest
+# identifier this fixture can produce and the fnv1a64 token is its validation
+# material; neither may appear in any published artifact.
+foreach(secret_manifest
+        "${cache_root}/${cache_entries}/cache.manifest"
+        "${cache_root}/${cache_entries}/payloads/tiles.manifest"
+        "${cache_second_root}/PointCloud.usda.manifest"
+        "${cache_second_root}/payloads/tiles.manifest")
+    file(READ "${secret_manifest}" secret_manifest_content)
+    string(FIND "${secret_manifest_content}" "fnv1a64:" secret_token_position)
+    get_filename_component(fixture_directory "${fixture}" DIRECTORY)
+    string(FIND "${secret_manifest_content}" "${fixture_directory}"
+        secret_path_position)
+    string(FIND "${secret_manifest_content}" "${cache_root}"
+        secret_cache_position)
+    if(NOT secret_token_position EQUAL -1 OR
+       NOT secret_path_position EQUAL -1 OR
+       NOT secret_cache_position EQUAL -1)
+        message(FATAL_ERROR
+            "manifest persisted source identity material: ${secret_manifest}")
+    endif()
+endforeach()
 
 set(cache_rebuild_root "${test_root}-cache-rebuild")
 set(cache_rebuild_output "${cache_rebuild_root}/PointCloud.usda")

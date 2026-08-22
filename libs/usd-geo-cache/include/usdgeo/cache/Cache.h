@@ -18,6 +18,23 @@ enum class ResolverIdentityStability {
 const char* ResolverIdentityStabilityName(
     ResolverIdentityStability stability) noexcept;
 
+// Stable, transport-neutral categories used to explain a cache decision.
+// Names and meanings are published; messages are for humans and may change.
+// No value ever carries transport specifics or validation-token contents.
+enum class CacheDecision {
+    IdentityUnavailable,
+    IdentityUnstable,
+    IdentityStable,
+    IdentityChanged,
+    ReuseDisabled,
+    Hit,
+    Invalidated,
+};
+
+const char* CacheDecisionName(CacheDecision decision) noexcept;
+const char* CacheDecisionMessage(CacheDecision decision) noexcept;
+CacheDecision IdentityDecision(ResolverIdentityStability stability) noexcept;
+
 struct ResolverAssetIdentity {
     std::string resolvedIdentifier;
     std::uintmax_t sizeBytes = 0;
@@ -107,6 +124,12 @@ std::filesystem::path TilePayloadPath(const Layout& layout,
                                       int lodLevel);
 
 LookupResult Inspect(const Layout& layout) noexcept;
+
+// True when the generation directory that owns this entry already holds a
+// committed entry for a different source validation identity. It is how a
+// changed validation token is distinguished from a source never generated
+// before, without persisting the token or the resolved identifier.
+bool HasSupersededIdentityEntry(const Layout& layout) noexcept;
 bool IsCacheHit(const Layout& layout) noexcept;
 LookupStatistics GetLookupStatistics() noexcept;
 void ResetLookupStatistics() noexcept;
