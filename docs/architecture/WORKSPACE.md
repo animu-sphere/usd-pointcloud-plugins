@@ -28,7 +28,7 @@ modules implement is fixed in
 | `pointcloud-laz` | `plugins/pointcloud-laz` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | The same adapter shape for `.laz`, using `LazReader` and the laz-perf codec integration. Owns its `LAZxxx` diagnostic codes. |
 | `usdCopc` | `libs/usd-copc` | plain CMake/OpenStrata static library | implemented (source-backed) | COPC Info and hierarchy validation, project-owned random-access source integration, selective point-data range decoding through the shared LAZ chunk decoder, and native hierarchy streaming. It remains OpenUSD- and transport-independent. |
 | `pointcloud-copc` | `plugins/pointcloud-copc` | OpenStrata plugin bundle (`usd-fileformat`) | implemented (resolver-backed read) | Resolver-opened `ArAsset` adaptation, metadata-only and non-tiled reads, and native hierarchy tiled COPC authoring through shared `usdLod`. Remote tiled reads require a local payload directory; source point ranges remain unsupported. |
-| `httpresolver` | `plugins/httpresolver` | OpenStrata plugin bundle (`usd-asset-resolver`) | test-only, disposition pending in `v0.10.0` | OpenUSD `ArResolver` bundle for `http://memory.copc` and `https://memory.copc`, serving a configured local fixture as an in-memory `ArAsset` for resolver-backed COPC integration tests. It implements no network transport and is not part of the product surface. `v0.10.0` either removes it once equivalent external integration coverage exists, or relocates it to an explicitly test-only path such as `tests/plugins/httpresolver/`. |
+| `httpresolver` | `tests/plugins/httpresolver` | test-only OpenUSD `ArResolver` fixture | Tier 1 fixture | OpenUSD `ArResolver` test double for `http://memory.copc` and `https://memory.copc`, serving a configured local fixture as an in-memory `ArAsset`. It has no network transport or product bundle manifest, is built only with COPC integration tests, and is excluded from product discovery and release matrices. |
 | `usdPointCloudTiling` | `libs/usd-pointcloud-tiling` | plain CMake/OpenStrata static library | implemented | Format-independent fixed-grid partitioning, spill-backed bounded-memory routing, deterministic tile and LOD ordering, validated tile manifest serialization, spool validation, and cleanup contracts. See the [streaming and tiling plan](../roadmap/streaming-and-tiling.md). |
 | `usdGeoCache` | `libs/usd-geo-cache` | plain CMake/OpenStrata static library | implemented | Descriptor-based stable cache keys, deterministic USDC root/payload layout, machine-readable lookup states, process-local lookup statistics, and entry invalidation. The conversion tool owns generation and atomic publication; direct FileFormat adapters reuse committed entries through `USDGEO_CACHE_ROOT`. |
 | `usdPly` | `libs/usd-ply` | plain CMake/OpenStrata static library | implemented | PLY 1.0 header inspection, scalar vertex decoding, source filters, and explicit georeference conversion into shared point-cloud assets. |
@@ -267,7 +267,8 @@ Every structural or format change preserves these invariants:
 
 `openstrata.ci.yaml` is the source of truth; the GitHub workflow is generated
 by `ost ci generate github`. The declared PR matrix runs every production
-bundle on every host and validates the HTTP resolver bundle separately:
+bundle on every host. The Tier 1 resolver test double is built transitively by
+the COPC integration test and has no product-bundle cell:
 
 | Host | Target | OST level |
 | --- | --- | --- |
@@ -284,19 +285,16 @@ ost test
 ost plugin build plugins/pointcloud-las
 ost plugin build plugins/pointcloud-laz
 ost plugin build plugins/pointcloud-copc
-ost plugin build plugins/httpresolver
 ost plugin test plugins/pointcloud-las --up-to 4
 ost plugin test plugins/pointcloud-laz --up-to 4
 ost plugin test plugins/pointcloud-copc --up-to 4
-ost plugin test plugins/httpresolver --up-to 4
 ```
 
 The LAS, LAZ, COPC, and PLY bundles declare OST smoke fixtures and run the L3
-`usdcat.read` and L4 `python.stage_open` checks. The `httpresolver` bundle has
-no standalone fixture because its functional path is exercised by the COPC
-integration test; its PR cells validate resolver-bundle structure, runtime
-compatibility, and plugin discovery. The COPC bundle follows the same runtime
-matrix as LAS and LAZ.
+`usdcat.read` and L4 `python.stage_open` checks. The test-only `httpresolver`
+bundle has no standalone fixture or CI matrix cell because its functional path
+is exercised by the COPC Tier 1 integration test. The COPC bundle follows the
+same runtime matrix as LAS and LAZ.
 
 The gate must stay passable without any external resolver repository. From
 `v0.10.0`, repository-local resolver contract tests (Tier 1) are the required

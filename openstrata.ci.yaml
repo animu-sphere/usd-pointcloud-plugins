@@ -194,46 +194,6 @@ cells:
       apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
     up_to: 5
 
-  - name: httpresolver-pr-windows
-    lane: pull_request
-    runner: windows-hosted
-    runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
-      expected_oci_digest: sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
-    bundle: plugins/httpresolver
-    platform: cy2026
-    profile: usd
-    up_to: 4
-
-  - name: httpresolver-pr-macos-arm64
-    lane: pull_request
-    runner: macos-arm64-hosted
-    runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
-      expected_oci_digest: sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
-    bundle: plugins/httpresolver
-    platform: cy2026
-    profile: usd
-    host_python: "3.13"
-    up_to: 5
-
-  - name: httpresolver-pr-linux
-    lane: pull_request
-    runner: linux-hosted
-    runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
-      expected_oci_digest: sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
-    bundle: plugins/httpresolver
-    platform: cy2026
-    profile: usd
-    host_python: "3.13"
-    host_packages:
-      apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
-    up_to: 5
-
   - name: pointcloud-ply-pr-windows
     lane: pull_request
     runner: windows-hosted

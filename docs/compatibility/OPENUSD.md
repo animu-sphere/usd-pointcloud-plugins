@@ -13,10 +13,11 @@ runtime:
 ```
 
 `pointcloud-las`, `pointcloud-laz`, `pointcloud-copc`, and `pointcloud-ply` are
-`usd-fileformat` bundles and require the `usd-stage-read` capability.
-`httpresolver` is a `usd-asset-resolver` test-double bundle for the resolver
-path used by COPC integration tests. It is not part of the product surface and
-provides no network transport; a production resolver is a separate project.
+`usd-fileformat` bundles and require the `usd-stage-read` capability. The
+`tests/plugins/httpresolver` fixture is an external-dependency-free Tier 1 test
+double, not part of the product surface. Production network transport is
+provided by a separately installed resolver such as
+[`usd-http-resolver`](https://github.com/animu-sphere/usd-http-resolver).
 
 | Item | Value |
 | --- | --- |
@@ -134,8 +135,9 @@ remain static `SDF_FORMAT_ARGS`. See [ADR-0003](../adr/0003-dynamic-file-format.
   detect which resolver opened an asset. `usd-http-resolver` is one compatible
   implementation; register it alongside these bundles through
   `PXR_PLUGINPATH_NAME`.
-- The repository's `httpresolver` bundle is an integration-test double only;
-  it does not provide network transport or production HTTP behavior.
+- The repository's `tests/plugins/httpresolver` fixture is a Tier 1 integration-
+  test double only; it does not provide network transport or production HTTP
+  behavior and is excluded from the product matrix.
 
 The boundary is stated in full in the
 [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md).

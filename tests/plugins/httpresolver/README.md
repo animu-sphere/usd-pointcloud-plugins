@@ -13,11 +13,16 @@ without changing this plugin or `usdCopc`.
 
 ## Status
 
-`v0.10.0` resolves this bundle's disposition: it is removed once equivalent
-external integration coverage exists, or relocated to an explicitly test-only
-path such as `tests/plugins/httpresolver/`. Until then it must not be presented
-as equivalent to a production point-cloud bundle.
+The fixture lives under `tests/plugins/httpresolver/` so that Tier 1 resolver
+contract tests remain reproducible without an external repository. It is built
+only as a dependency of the COPC integration tests and has no OpenStrata bundle
+manifest or install rule, so it is excluded from product discovery, packaging,
+the plugin matrix, and release metadata.
+
+Tier 2 interoperability uses
+[`usd-http-resolver`](https://github.com/animu-sphere/usd-http-resolver) as
+runtime composition and does not link this repository to it.
 
 See the
-[resolver-backed source contract](../../docs/architecture/RESOLVER_SOURCE.md)
-and the [workspace contract](../../docs/architecture/WORKSPACE.md).
+[resolver-backed source contract](../../../docs/architecture/RESOLVER_SOURCE.md)
+and the [workspace contract](../../../docs/architecture/WORKSPACE.md).

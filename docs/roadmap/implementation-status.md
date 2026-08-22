@@ -339,13 +339,13 @@ the typed `COPC009` diagnostic while preserving the conservative fallback.
 
 Phase 4 — repository boundary cleanup:
 
-- [ ] Remove `plugins/httpresolver`, or relocate it to an explicitly test-only
-      path such as `tests/plugins/httpresolver/`
-- [ ] Remove documentation language implying this repository owns a production
+- [x] Relocate `plugins/httpresolver` to the explicitly test-only
+      `tests/plugins/httpresolver/` path
+- [x] Remove documentation language implying this repository owns a production
       HTTP implementation
-- [ ] Document the external resolver contract and `usd-http-resolver`
+- [x] Document the external resolver contract and `usd-http-resolver`
       interoperability guidance as optional runtime composition
-- [ ] Verify the repository builds and tests with no CMake dependency,
+- [x] Verify the repository builds and tests with no CMake dependency,
       submodule, vendored HTTP library, or link dependency on a resolver
       implementation
 

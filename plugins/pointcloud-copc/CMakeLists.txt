@@ -49,11 +49,6 @@ if(NOT TARGET usdcopc::core)
         "${CMAKE_CURRENT_SOURCE_DIR}/../../libs/usd-copc"
         "${CMAKE_CURRENT_BINARY_DIR}/usd-copc")
 endif()
-if(NOT TARGET HttpResolver)
-    add_subdirectory(
-        "${CMAKE_CURRENT_SOURCE_DIR}/../httpresolver"
-        "${CMAKE_CURRENT_BINARY_DIR}/httpresolver")
-endif()
 if(NOT TARGET OpenGL::GL)
     find_package(OpenGL REQUIRED)
 endif()
@@ -92,15 +87,20 @@ openstrata_link_openusd(
     COMPONENTS arch tf gf vt sdf pcp usd ar)
 
 if(USDGEO_BUILD_TESTS)
+    if(NOT TARGET HttpResolver)
+        add_subdirectory(
+            "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/plugins/httpresolver"
+            "${CMAKE_CURRENT_BINARY_DIR}/httpresolver")
+    endif()
     add_executable(pointcloudCopc_tests
         src/ArAssetRandomAccessSource.cpp
         tests/test_pointcloud_copc.cpp)
     target_compile_features(pointcloudCopc_tests PRIVATE cxx_std_17)
-    target_link_libraries(pointcloudCopc_tests PRIVATE usdlaz::core
+    target_link_libraries(pointcloudCopc_tests PRIVATE usdcopc::core usdlaz::core
         usdgeo::cache usdpointcloud::authoring)
     target_compile_definitions(pointcloudCopc_tests PRIVATE
         USDGEOCOPC_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-        USDGEOCOPC_HTTP_RESOLVER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../httpresolver"
+        USDGEOCOPC_HTTP_RESOLVER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../tests/plugins/httpresolver"
         USDGEOLAS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../pointcloud-las"
         USDGEOLAZ_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../pointcloud-laz")
     target_include_directories(pointcloudCopc_tests PRIVATE

@@ -15,6 +15,15 @@ namespace usdgeo {
 
 std::filesystem::path PointCloudCacheRootFromEnvironment();
 
+bool TryBuildPointCloudCacheLayout(
+    const std::filesystem::path& cacheRoot,
+    const cache::SourceIdentity& sourceIdentity,
+    const GeoReference& reference,
+    const usdpointcloud::PointReadRequest& request,
+    const std::string& parserVersion,
+    cache::Layout& layout,
+    std::string& errorMessage);
+
 bool TryBuildResolverSourceIdentity(
     const pxr::ArResolver& resolver,
     const std::string& assetPath,

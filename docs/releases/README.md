@@ -69,10 +69,8 @@ Run these steps from the repository root before creating the release tag:
    `plugins/pointcloud-laz/CMakeLists.txt`,
    `plugins/pointcloud-copc/openstrata.plugin.yaml`,
    `plugins/pointcloud-copc/CMakeLists.txt`,
-   `plugins/pointcloud-ply/openstrata.plugin.yaml`,
-   `plugins/pointcloud-ply/CMakeLists.txt`,
-   `plugins/httpresolver/openstrata.plugin.yaml`, and
-   `plugins/httpresolver/CMakeLists.txt`.
+   `plugins/pointcloud-ply/openstrata.plugin.yaml`, and
+   `plugins/pointcloud-ply/CMakeLists.txt`.
 2. Run `python tools/check_release_metadata.py` to verify that all package
    version declarations match `VERSION`.
 3. Update `CHANGELOG.md`, the release record, and any capability or

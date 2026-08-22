@@ -13,7 +13,7 @@ An external resolver such as `usd-http-resolver` is runtime composition through
 `PXR_PLUGINPATH_NAME`, not a build-time dependency of this bundle.
 
 The repository's resolver-backed integration test uses the independent
-`plugins/httpresolver` bundle. That bundle is a test double which serves a
+`tests/plugins/httpresolver` fixture. It is a Tier 1 test double which serves a
 local fixture as an in-memory asset; a production resolver can replace it
 without changing this plugin or `usdCopc`. See the
 [resolver-backed source contract](../../docs/architecture/RESOLVER_SOURCE.md).

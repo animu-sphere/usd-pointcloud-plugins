@@ -16,12 +16,12 @@ All notable changes to this project are documented here.
   no-secrets rule, and the Tier 1 / Tier 2 test split.
 - Stated that no resolver implementation is a build-time dependency, and that
   `usd-http-resolver` is one compatible implementation composed at runtime.
-- Marked `plugins/httpresolver` explicitly as an integration-test double whose
-  removal or relocation to a test-only path is v0.10.0 work.
-- Staged v0.10.0 around the pre-implementation `usd-http-resolver` repository:
-  repository-local identity and cache tests proceed first, while external
-  interoperability and test-double disposition wait for its first released
-  resolver implementation.
+- Relocated the repository-local resolver test double to
+  `tests/plugins/httpresolver` and documented that it is excluded from the
+  product surface and release matrix.
+- Updated the Tier 2 plan for the released
+  [`usd-http-resolver`](https://github.com/animu-sphere/usd-http-resolver)
+  implementation and its resolver-neutral `ArAssetInfo` identity contract.
 - Added an OpenStrata 0.22.2 dogfooding record for the external resolver
   skeleton; it identifies repository setup work, not an OpenStrata defect.
 
@@ -32,9 +32,25 @@ All notable changes to this project are documented here.
 - Added resolver identity conversion tests and cache-key invalidation coverage
   for changed opaque validation tokens.
 
-The OpenUSD-facing resolver adapter is now centralized in the shared authoring
-cache bridge. Complete generated-cache generation, diagnostics, and external
-resolver interoperability remain planned.
+The OpenUSD-facing resolver adapter is centralized in the shared authoring
+cache bridge. Stable-identity generated-cache reuse and recovery are complete;
+diagnostic completion and recorded external interoperability remain planned.
+
+### Changed
+
+- Removed standalone `httpresolver` product CI cells. The relocated test double
+  is built transitively by the COPC Tier 1 integration test, keeping the
+  required gate independent of external resolver repositories.
+- Added a shared cache-layout construction entry point so producer and
+  consumer tests derive resolver-backed cache entries from the same descriptor
+  contract.
+
+### Fixed
+
+- Resolver cache Tier 1 coverage now verifies cache hits, incomplete and
+  corrupted entry invalidation, and validation-token changes through cache
+  artifacts instead of process-local counters that are not shared across a
+  FileFormat DLL boundary on Windows.
 
 ## [0.9.0] - 2026-08-15
 

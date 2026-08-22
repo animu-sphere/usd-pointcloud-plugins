@@ -11,7 +11,7 @@ endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/../pointcloud-las/cmake/OpenStrataPlugin.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../../plugins/pointcloud-las/cmake/OpenStrataPlugin.cmake")
 openstrata_default_build_type()
 
 if(NOT TARGET OpenGL::GL)
@@ -51,10 +51,3 @@ openstrata_configure_plugin(
     PLUG_INFO_OUTPUT
         "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/httpresolver/plugInfo.json")
 
-openstrata_install_plugin_bundle(
-    TARGET ${PLUGIN_NAME}
-    RESOURCES
-        "${CMAKE_CURRENT_SOURCE_DIR}/plugin/resources/httpresolver/plugInfo.json"
-    RESOURCE_DESTINATION "plugin/resources/httpresolver"
-    MANIFESTS
-        "${CMAKE_CURRENT_SOURCE_DIR}/openstrata.plugin.yaml")

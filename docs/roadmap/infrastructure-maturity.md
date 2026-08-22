@@ -431,9 +431,9 @@ resolver-specific include, or link dependency on any resolver implementation.
 `usd-http-resolver` is documented as one compatible implementation composed at
 runtime through `PXR_PLUGINPATH_NAME`, never as a requirement.
 
-`plugins/httpresolver` stops being presented as part of the product surface. It
-is removed once equivalent external integration coverage exists, or relocated
-under an explicitly test-only path such as `tests/plugins/httpresolver/`.
+The memory-backed resolver fixture lives under
+`tests/plugins/httpresolver`, is built only for Tier 1 COPC integration tests,
+and is excluded from the product plugin and release matrices.
 
 #### Tests
 
@@ -448,13 +448,12 @@ COPC fixture through OpenStrata workspace composition, and verifies resolution,
 metadata and range reads, local/remote output equivalence, reuse under stable
 identity, and invalidation when validation metadata changes.
 
-`usd-http-resolver` is the intended first external implementation. Its
-2026-08-16 snapshot is documentation and an OpenStrata project skeleton only;
-it has no resolver bundle, backend, cache, registered tests, or release. The
-release sequence is consequently staged: finish and gate Tier 1 here first,
-then run and record Tier 2 after the resolver publishes its first implementation
-and OpenStrata workflow. The bundled test double remains test-only until that
-evidence supports its removal or relocation.
+[`usd-http-resolver`](https://github.com/animu-sphere/usd-http-resolver) is the
+first external implementation. Its `v0.2.0` release provides the HTTP backend,
+OpenUSD resolver bundle, stable `ArAssetInfo` identity, and OpenStrata build and
+test workflow. Tier 1 remains the dependency-free gate here; Tier 2 can now be
+composed against the released resolver and recorded independently of this
+repository's build graph.
 
 #### Diagnostics
 
@@ -474,11 +473,9 @@ custom point-cloud USD schemas, and renderer-controlled runtime streaming.
 
 Exit gate: a documented identity contract for resolver-provided sources, reuse
 enabled exactly where identity is sufficient, Tier 1 passing without an
-external resolver, the bundled test resolver clearly marked test-only, and
+external resolver, the bundled test resolver isolated under `tests/`, and
 recorded remote baselines including `bytes fetched / source size`. Before the
-release is tagged, Tier 2 must be recorded against a released external resolver;
-that evidence then decides whether the bundled test resolver is removed or
-relocated.
+release is tagged, Tier 2 must be recorded against a released external resolver.
 
 ### Research - Runtime Streaming
 
