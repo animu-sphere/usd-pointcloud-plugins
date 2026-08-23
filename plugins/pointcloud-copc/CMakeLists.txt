@@ -127,9 +127,8 @@ if(USDGEO_BUILD_TESTS)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
     add_test(NAME pointcloudCopc_integration COMMAND pointcloudCopc_tests)
     usdgeo_configure_openusd_test_runtime(pointcloudCopc_integration)
-    set_tests_properties(pointcloudCopc_integration PROPERTIES
-        ENVIRONMENT_MODIFICATION
-            "PXR_AR_DEFAULT_RESOLVER=set:HttpResolver")
+    set_property(TEST pointcloudCopc_integration APPEND PROPERTY
+        ENVIRONMENT "PXR_AR_DEFAULT_RESOLVER=HttpResolver")
 endif()
 
 openstrata_configure_plugin(

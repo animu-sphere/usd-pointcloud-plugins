@@ -24,9 +24,10 @@ option(USDGEO_BUILD_BENCHMARKS
 
 function(usdgeo_configure_openusd_test_runtime test_name)
     if(WIN32)
+        string(REPLACE ";" "\\;" _usdgeo_host_path "$ENV{PATH}")
         set_property(TEST "${test_name}" APPEND PROPERTY
-            ENVIRONMENT_MODIFICATION
-                "PATH=path_list_prepend:$<TARGET_FILE_DIR:usdGeom>")
+            ENVIRONMENT
+                "PATH=$<TARGET_FILE_DIR:usdGeom>\\;$<TARGET_FILE_DIR:usdGeom>/../bin\\;${_usdgeo_host_path}")
     endif()
 endfunction()
 
