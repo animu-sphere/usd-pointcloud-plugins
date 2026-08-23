@@ -62,6 +62,9 @@ release record is [docs/releases/v0.10.0.md](docs/releases/v0.10.0.md).
   directories and the configured Python runtime to `PATH`, so all linked
   OpenUSD, TBB, and Python DLLs resolve in workspace CI without hiding host
   runtime DLLs.
+- The PLY tiled-read integration test now writes payloads beside its fixture,
+  keeping the generated payload references relative when a Windows workspace
+  and the system temporary directory are on different volumes.
 - Resolver cache Tier 1 coverage verifies cache hits, incomplete and corrupted
   entry invalidation, and validation-token changes through cache artifacts
   instead of process-local counters that are not shared across a FileFormat DLL
