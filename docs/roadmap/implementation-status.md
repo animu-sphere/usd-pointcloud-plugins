@@ -295,7 +295,7 @@ The ordered plan and acceptance priorities are in the
 - [x] Verify equivalent authored output from a sequential plan and a
       COPC-native plan describing the same partition
 
-#### `v0.10.0` - resolver-backed source identity and external resolver interoperability (planned)
+#### `v0.10.0` - resolver-backed source identity and external resolver interoperability (released 2026-08-23)
 
 The contract is recorded in the
 [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md); the
@@ -334,8 +334,11 @@ Phase 3 — generated cache reuse:
 - [x] Separate source byte-range caching from generated-USDC caching, with an
       explicit owner for each
 
-The COPC FileFormat now reports disabled resolver-backed cache reuse through
-the typed `COPC009` diagnostic while preserving the conservative fallback.
+The COPC FileFormat reports every generated-cache decision through the typed
+`COPC009`-`COPC012` diagnostics while preserving the conservative fallback. The
+generated-cache layout separates a generation key from a source identity key, so
+a changed validation token is reported as changed rather than as a source never
+seen before.
 
 Phase 4 — repository boundary cleanup:
 
@@ -351,20 +354,51 @@ Phase 4 — repository boundary cleanup:
 
 Phase 5 — diagnostics and secrets:
 
-- [ ] Add stable diagnostics for identity unavailable, unstable, stable, and
-      changed, and for cache reuse disabled, hit, and invalidated
-- [ ] Keep diagnostics free of transport specifics and token contents
-- [ ] Verify no credentials, authorization headers, signed URLs, or tokens are
-      persisted into manifests or cache descriptors
+- [x] Add stable diagnostics for identity unavailable, unstable, stable, and
+      changed, and for cache reuse disabled, hit, and invalidated.
+      `usdgeo::cache::CacheDecision` publishes the seven categories; COPC
+      projects them onto `COPC009`-`COPC012`, each message naming its category
+- [x] Keep diagnostics free of transport specifics and token contents. Every
+      decision message is a fixed constant owned by `usdgeo::cache`, and a unit
+      test asserts none of them names a transport
+- [x] Verify no credentials, authorization headers, signed URLs, or tokens are
+      persisted into manifests or cache descriptors. Both cache-path components
+      are 64-bit hashes, and the conversion conformance test asserts that no
+      manifest carries the source path or its validation token
 
 Phase 6 — validation and baselines:
 
-- [ ] Pass Tier 1 repository-local resolver contract tests as the CI gate
-      without any external resolver repository
-- [ ] Record Tier 2 integration against an external resolver, a local
+- [x] Pass Tier 1 repository-local resolver contract tests as the CI gate
+      without any external resolver repository. `kind: workspace` cells
+      configure the repository root, where `USDGEO_BUILD_TESTS` defaults to
+      `ON`, on every host and both lanes
+- [x] Record Tier 2 integration against an external resolver, a local
       reproducible HTTP server, and a COPC fixture, including local/remote
-      output equivalence
-- [ ] Record remote hit ratios and `bytes fetched / source size` baselines
+      output equivalence. Recorded against `usd-http-resolver` `v0.4.0` and the
+      81 MB Autzen COPC in the
+      [resolver read baseline](../reference/RESOLVER_BASELINE.md)
+- [x] Record remote hit ratios and `bytes fetched / source size` baselines. A
+      metadata open costs 0.001486 of the asset in three requests; a full read
+      costs exactly 1.0 in 277 requests. A generated-cache hit ratio for COPC is
+      not measurable end to end, because `usd-pointcloud-convert` publishes
+      entries for `.las` and `.laz` local inputs only and no COPC read has an
+      entry to hit; the reuse decision itself is Tier 1 covered
+
+#### Open after `v0.10.0`
+
+- [ ] Declare an OST smoke fixture for the `pointcloud-copc` bundle. It is the
+      only product bundle without one, so its L3 `usdcat.read` and L4
+      `python.stage_open` checks skip and its bundle cells verify discovery
+      only.
+
+- [ ] Publish generated cache entries for COPC inputs. Lookup is complete for
+      local and resolver-backed COPC, but `usd-pointcloud-convert` accepts
+      `.las` and `.laz` local paths only, so nothing populates an entry a COPC
+      read could hit. This is what a measurable generated-cache hit ratio for
+      remote sources is waiting on.
+- [ ] Accept resolver-addressable identifiers in `usd-pointcloud-convert`, as
+      described in the
+      [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md).
 
 #### Research - runtime streaming (no release gate)
 

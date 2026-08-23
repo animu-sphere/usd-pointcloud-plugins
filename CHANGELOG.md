@@ -4,57 +4,102 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
-### Documentation
+Nothing yet.
 
-- Recorded the v0.10.0 direction: resolver-backed source identity and external
-  resolver interoperability, with transport owned by the resolver.
-- Added the
-  [resolver-backed source contract](docs/architecture/RESOLVER_SOURCE.md),
-  covering the responsibility boundary, the transport-neutral `SourceIdentity`
-  model, `Stable` / `Unstable` / `Unavailable` identity classification,
-  generated-cache ownership and reuse rules, diagnostics categories, the
-  no-secrets rule, and the Tier 1 / Tier 2 test split.
-- Stated that no resolver implementation is a build-time dependency, and that
-  `usd-http-resolver` is one compatible implementation composed at runtime.
-- Relocated the repository-local resolver test double to
-  `tests/plugins/httpresolver` and documented that it is excluded from the
-  product surface and release matrix.
-- Updated the Tier 2 plan for the released
-  [`usd-http-resolver`](https://github.com/animu-sphere/usd-http-resolver)
-  implementation and its resolver-neutral `ArAssetInfo` identity contract.
-- Added an OpenStrata 0.22.2 dogfooding record for the external resolver
-  skeleton; it identifies repository setup work, not an OpenStrata defect.
+## [0.10.0] - 2026-08-23
+
+Resolver-backed source identity and external resolver interoperability. The
+release record is [docs/releases/v0.10.0.md](docs/releases/v0.10.0.md).
 
 ### Added
 
-- Added the resolver-neutral `ResolverAssetIdentity` contract and
-  `Stable` / `Unstable` / `Unavailable` classification API to `usdGeoCache`.
-- Added resolver identity conversion tests and cache-key invalidation coverage
-  for changed opaque validation tokens.
-
-The OpenUSD-facing resolver adapter is centralized in the shared authoring
-cache bridge. Stable-identity generated-cache reuse and recovery are complete;
-diagnostic completion and recorded external interoperability remain planned.
+- The resolver-neutral `ResolverAssetIdentity` contract and
+  `Stable` / `Unstable` / `Unavailable` classification API in `usdGeoCache`,
+  with the OpenUSD-facing adapter centralized in the shared authoring cache
+  bridge so no format reader extracts identity itself.
+- `usdgeo::cache::CacheDecision`: seven stable, transport-neutral categories
+  that explain a cache decision, `CacheDecisionName` as the machine-matchable
+  form, fixed `CacheDecisionMessage` constants, and `IdentityDecision` to map an
+  identity stability onto its category.
+- `HasSupersededIdentityEntry`, which distinguishes a changed validation
+  identity from a source never generated before without persisting an
+  identifier or a token.
+- Cache-decision reporting through `TryLoadPointCloudCache`, projected onto four
+  COPC codes: `COPC009` reuse disabled, `COPC010` reuse permitted or taken,
+  `COPC011` identity changed, `COPC012` entry invalidated. Every message names
+  its exact category.
+- `kind: workspace` CI cells on Windows, macOS, and Linux for both lanes, which
+  configure the repository root and run its CTest suite. They are what makes the
+  Tier 1 resolver contract gate a CI gate.
+- `tools/tier2_fixture_server.py`, a loopback origin that honours `Range` and
+  logs every request, and `tools/tier2_resolver_integration.py`, the harness
+  that composes it with an external resolver and the COPC FileFormat.
+- The recorded Tier 2 baseline in
+  [docs/reference/RESOLVER_BASELINE.md](docs/reference/RESOLVER_BASELINE.md),
+  against `usd-http-resolver` v0.4.0 and the 81 MB Autzen COPC.
 
 ### Changed
 
+- Generated cache entries are addressed by a generation key and a source
+  identity key rather than one combined key. Revisions of one source are now
+  siblings under one generation directory, which is what makes
+  `resolver-identity-changed` reportable. Source size and modification time
+  moved to the identity half with the validation token.
+- `Invalidate` removes an emptied generation directory, so an invalidated cache
+  root does not accumulate empty parents.
 - Removed standalone `httpresolver` product CI cells. The relocated test double
-  is built transitively by the COPC Tier 1 integration test in the root build,
-  keeping the local gate independent of external resolver repositories. Note
-  that Tier 1 is not yet part of the CI matrix: every declared cell builds a
-  single plugin bundle, where `USDGEO_BUILD_TESTS` is undefined, so neither the
-  fixture nor `pointcloudCopc_tests` is compiled there. Wiring Tier 1 into CI
-  is tracked as follow-up work.
-- Added a shared cache-layout construction entry point so producer and
-  consumer tests derive resolver-backed cache entries from the same descriptor
-  contract.
+  is built transitively by the COPC Tier 1 integration test, which the workspace
+  cells and the local gate both run.
+- Added a shared cache-layout construction entry point so producer and consumer
+  tests derive resolver-backed cache entries from the same descriptor contract.
 
 ### Fixed
 
-- Resolver cache Tier 1 coverage now verifies cache hits, incomplete and
-  corrupted entry invalidation, and validation-token changes through cache
-  artifacts instead of process-local counters that are not shared across a
-  FileFormat DLL boundary on Windows.
+- Resolver cache Tier 1 coverage verifies cache hits, incomplete and corrupted
+  entry invalidation, and validation-token changes through cache artifacts
+  instead of process-local counters that are not shared across a FileFormat DLL
+  boundary on Windows.
+
+### Documentation
+
+- Added the
+  [resolver-backed source contract](docs/architecture/RESOLVER_SOURCE.md),
+  covering the responsibility boundary, the transport-neutral `SourceIdentity`
+  model, identity classification, generated-cache ownership and reuse rules,
+  the diagnostics categories, the no-secrets rule, and the Tier 1 / Tier 2 test
+  split. Every section is now marked shipped or explicitly not implemented.
+- Stated that no resolver implementation is a build-time dependency, and that
+  `usd-http-resolver` is one compatible implementation composed at runtime.
+- Relocated the repository-local resolver test double to
+  `tests/plugins/httpresolver` and documented its exclusion from the product
+  surface and release matrix.
+- Recorded the cache layout change in
+  [MIGRATION.md](docs/compatibility/MIGRATION.md).
+- Added an OpenStrata 0.22.2 dogfooding record for the external resolver
+  skeleton; it identifies repository setup work, not an OpenStrata defect.
+
+### Compatibility
+
+- A `v0.9.0` cache root is never looked up under the new layout, so the first
+  run after upgrading is a miss that regenerates. Cache entries are derived
+  data; delete an old root to reclaim the space.
+- `StableCacheKey`, `TryBuildLayout`, `Inspect`, `IsCacheHit`, and `Invalidate`
+  keep their signatures and meanings. Tooling that enumerated entries with a
+  single-level glob needs a second level.
+- Existing LAS, LAZ, COPC, and PLY format ids, arguments, authored stage shape,
+  and fixed-grid tiling behavior remain compatible with v0.9.0.
+
+### Known limitations
+
+- Nothing publishes a generated cache entry for a COPC source:
+  `usd-pointcloud-convert` accepts `.las` and `.laz` local inputs only. Lookup,
+  the reuse rules, and the decision diagnostics are complete; a measurable
+  generated-cache hit ratio for a remote source waits on COPC generation.
+- `usd-pointcloud-convert` does not accept resolver-addressable identifiers.
+- The Tier 2 origin is loopback, so the recorded numbers are protocol and
+  selectivity numbers rather than latency numbers.
+- Raw byte-range caching and its hit ratios belong to the resolver.
+- COPC writing and new public USD schemas remain deferred.
 
 ## [0.9.0] - 2026-08-15
 

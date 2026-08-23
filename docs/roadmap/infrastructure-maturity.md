@@ -138,7 +138,7 @@ schema is deferred until the plain-attribute metadata contract is stable.
 | `v0.7.0` | Adaptive tiling | Predictable payload density and memory through point-budget planning | Released 2026-08-13 |
 | `v0.8.0` | Measurement and I/O observability | Real-world adaptive baselines and visible I/O amplification | Released 2026-08-14 |
 | `v0.9.0` | TilePlan convergence and interactive validation | One tile-plan representation for sequential planning and COPC native hierarchy, plus a host-responsiveness baseline | Released 2026-08-15 |
-| `v0.10.0` | Resolver-backed source identity and external resolver interoperability | Safe generated-cache reuse for resolver-provided sources, with transport owned by the resolver | Planned |
+| `v0.10.0` | Resolver-backed source identity and external resolver interoperability | Safe generated-cache reuse for resolver-provided sources, with transport owned by the resolver | Released 2026-08-23 |
 | Research | Runtime streaming | Evidence about host-driven partial loading, with no premature abstraction | Ongoing |
 | Later | Format expansion | E57 and other point-cloud formats through `PointStream` | Deferred |
 
@@ -358,7 +358,7 @@ working-set pressure. It does not measure renderer frame latency or a
 host-specific input-to-present time; queued key messages are validated
 separately from the synchronous UI dispatch probe.
 
-### `v0.10.0` - Resolver-Backed Source Identity
+### `v0.10.0` - Resolver-Backed Source Identity (released 2026-08-23)
 
 Primary goal: make generated point-cloud assets safely reusable across
 resolver-backed sources without depending on any transport implementation.
@@ -438,11 +438,13 @@ and is excluded from the product plugin and release matrices.
 #### Tests
 
 Tier 1 runs without any external resolver repository, using fake or
-memory-backed test assets, and remains the required local gate; it is not yet
-wired into the CI matrix, whose cells build plugin bundles individually rather
-than the repository root: resolver-backed
-random access, partial reads, short-read diagnostics, the three identity
-states, miss-to-hit behavior, invalidation on token change, corruption
+memory-backed test assets, and is the required gate on every host and both
+lanes. `kind: workspace` cells configure the repository root, where
+`USDGEO_BUILD_TESTS` defaults to `ON`, and run its CTest suite; a per-plugin
+bundle cell cannot compile these tests, which is why the gate needed a second
+cell kind rather than another bundle. Coverage: resolver-backed random access,
+partial reads, short-read diagnostics, the three identity states, miss-to-hit
+behavior, invalidation on token change, superseded-entry detection, corruption
 recovery, `TilePlan` compatibility inputs, and deterministic diagnostics.
 
 Tier 2 composes an external resolver, a local reproducible HTTP server, and a
@@ -451,11 +453,15 @@ metadata and range reads, local/remote output equivalence, reuse under stable
 identity, and invalidation when validation metadata changes.
 
 [`usd-http-resolver`](https://github.com/animu-sphere/usd-http-resolver) is the
-first external implementation. Its `v0.2.0` release provides the HTTP backend,
-OpenUSD resolver bundle, stable `ArAssetInfo` identity, and OpenStrata build and
-test workflow. Tier 1 remains the dependency-free gate here; Tier 2 can now be
-composed against the released resolver and recorded independently of this
-repository's build graph.
+first external implementation, and `v0.10.0` is recorded against its `v0.4.0`
+release. The run is reproducible from `tools/tier2_fixture_server.py` and
+`tools/tier2_resolver_integration.py`, and the numbers are in the
+[resolver read baseline](../reference/RESOLVER_BASELINE.md): a metadata open of
+the 81 MB Autzen COPC costs three requests and 0.001486 of the asset, a full
+read costs 277 requests and exactly 1.0, and local, remote, and
+second-revision reads author the same 10,653,336 points under the same digest.
+A weak validator classifies as `Unstable`, disables reuse, and still authors
+identical output.
 
 #### Diagnostics
 
@@ -473,11 +479,20 @@ protocols, signed URLs, S3 / Azure / GCS SDK integration, raw remote byte
 caching, range-cache eviction, connection pooling, COPC writing, E57, public
 custom point-cloud USD schemas, and renderer-controlled runtime streaming.
 
-Exit gate: a documented identity contract for resolver-provided sources, reuse
-enabled exactly where identity is sufficient, Tier 1 passing without an
-external resolver, the bundled test resolver isolated under `tests/`, and
-recorded remote baselines including `bytes fetched / source size`. Before the
-release is tagged, Tier 2 must be recorded against a released external resolver.
+Exit gate, met at the tag: a documented identity contract for
+resolver-provided sources, reuse enabled exactly where identity is sufficient,
+Tier 1 passing in CI without an external resolver, the bundled test resolver
+isolated under `tests/`, and recorded remote baselines including
+`bytes fetched / source size` against the released `usd-http-resolver`
+`v0.4.0`.
+
+One thing the gate asked for is recorded as absent rather than as met: a
+generated-cache *hit ratio* for a remote source. Entries are published only by
+`usd-pointcloud-convert`, which accepts `.las` and `.laz` local inputs, so no
+COPC read - local or resolver-backed - has an entry to hit in a normal
+workflow. The lookup side, the reuse rules, and every decision diagnostic are
+complete and covered; publishing COPC entries is the follow-up that makes the
+ratio measurable.
 
 ### Research - Runtime Streaming
 

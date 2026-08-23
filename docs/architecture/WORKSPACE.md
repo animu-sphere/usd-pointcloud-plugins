@@ -30,7 +30,7 @@ modules implement is fixed in
 | `pointcloud-copc` | `plugins/pointcloud-copc` | OpenStrata plugin bundle (`usd-fileformat`) | implemented (resolver-backed read) | Resolver-opened `ArAsset` adaptation, metadata-only and non-tiled reads, and native hierarchy tiled COPC authoring through shared `usdLod`. Remote tiled reads require a local payload directory; source point ranges remain unsupported. |
 | `httpresolver` | `tests/plugins/httpresolver` | test-only OpenUSD `ArResolver` fixture | Tier 1 fixture | OpenUSD `ArResolver` test double for `http://memory.copc` and `https://memory.copc`, serving a configured local fixture as an in-memory `ArAsset`. It has no network transport or product bundle manifest, is built only with COPC integration tests, and is excluded from product discovery and release matrices. |
 | `usdPointCloudTiling` | `libs/usd-pointcloud-tiling` | plain CMake/OpenStrata static library | implemented | Format-independent fixed-grid partitioning, spill-backed bounded-memory routing, deterministic tile and LOD ordering, validated tile manifest serialization, spool validation, and cleanup contracts. See the [streaming and tiling plan](../roadmap/streaming-and-tiling.md). |
-| `usdGeoCache` | `libs/usd-geo-cache` | plain CMake/OpenStrata static library | implemented | Descriptor-based stable cache keys, deterministic USDC root/payload layout, machine-readable lookup states, process-local lookup statistics, and entry invalidation. The conversion tool owns generation and atomic publication; direct FileFormat adapters reuse committed entries through `USDGEO_CACHE_ROOT`. |
+| `usdGeoCache` | `libs/usd-geo-cache` | plain CMake/OpenStrata static library | implemented | Descriptor-based stable cache keys, deterministic USDC root/payload layout, machine-readable lookup states, process-local lookup statistics, the stable cache-decision vocabulary, and entry invalidation. Entries are addressed by a generation key over what would be generated and a source identity key over which revision was read, so revisions of one source are siblings. The conversion tool owns generation and atomic publication; direct FileFormat adapters reuse committed entries through `USDGEO_CACHE_ROOT`. |
 | `usdPly` | `libs/usd-ply` | plain CMake/OpenStrata static library | implemented | PLY 1.0 header inspection, scalar vertex decoding, source filters, and explicit georeference conversion into shared point-cloud assets. |
 | `usdAsciiPoints`, `usdE57` | `libs/` | plain libraries | reserved, not implemented | Additional point-cloud readers targeting the same shared contracts. |
 | `pointcloud-ply` | `plugins/pointcloud-ply` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | Thin `.ply` adapter requiring an explicit `epsg` argument and authoring through shared point-cloud contracts. |
@@ -267,16 +267,21 @@ Every structural or format change preserves these invariants:
 
 `openstrata.ci.yaml` is the source of truth; the GitHub workflow is generated
 by `ost ci generate github`. The declared PR matrix runs every production
-bundle on every host. Every cell is a per-plugin bundle build, so the Tier 1
-resolver test double has no product-bundle cell and is not built by CI; it is
-built by the root `ost build` in the local gate below, where
-`USDGEO_BUILD_TESTS` defaults to `ON`:
+bundle on every host, plus a `kind: workspace` cell per host on both lanes.
 
-| Host | Target | OST level |
-| --- | --- | --- |
-| Windows 2022 x86_64 | cy2026 / USD | L0-L4 |
-| macOS 15 arm64 | cy2026 / USD | L0-L5 |
-| Ubuntu 24.04 x86_64 | cy2026 / USD | L0-L5 |
+The two cell kinds exist for different reasons. A bundle cell builds one
+plugin from `plugins/pointcloud-<x>/CMakeLists.txt`, a standalone `project()`
+that never declares `USDGEO_BUILD_TESTS`, so it cannot compile the repository's
+test suite or the Tier 1 resolver test double. A workspace cell configures the
+repository root, where `USDGEO_BUILD_TESTS` defaults to `ON`, and runs its
+CTest suite. The workspace cells are therefore what makes the Tier 1 resolver
+contract gate a CI gate rather than a local-only one:
+
+| Host | Target | Bundle cells | Workspace cell |
+| --- | --- | --- | --- |
+| Windows 2022 x86_64 | cy2026 / USD | L0-L4 | `ost build` + `ost test` |
+| macOS 15 arm64 | cy2026 / USD | L0-L5 | `ost build` + `ost test` |
+| Ubuntu 24.04 x86_64 | cy2026 / USD | L0-L5 | `ost build` + `ost test` |
 
 The required local gate is:
 
@@ -292,20 +297,23 @@ ost plugin test plugins/pointcloud-laz --up-to 4
 ost plugin test plugins/pointcloud-copc --up-to 4
 ```
 
-The LAS, LAZ, COPC, and PLY bundles declare OST smoke fixtures and run the L3
-`usdcat.read` and L4 `python.stage_open` checks. The test-only `httpresolver`
-bundle has no standalone fixture or CI matrix cell; its functional path is
-exercised by the COPC Tier 1 integration test in the root build, which the
-local gate runs and CI does not. The COPC bundle follows the
-same runtime matrix as LAS and LAZ.
+The LAS, LAZ, and PLY bundles declare OST smoke fixtures and run the L3
+`usdcat.read` and L4 `python.stage_open` checks. The `pointcloud-copc` bundle
+declares none, so those two levels skip for it and its L2 discovery check is
+the extent of its bundle-cell coverage; its functional coverage is the Tier 1
+integration test the workspace cells run. Declaring a checked-in COPC smoke
+fixture is open work. The test-only `httpresolver`
+bundle has no standalone fixture and no bundle cell; it is built transitively by
+the COPC Tier 1 integration test, which the workspace cells and the local gate
+both run. The COPC bundle follows the same runtime matrix as LAS and LAZ.
 
 The gate must stay passable without any external resolver repository. From
 `v0.10.0`, repository-local resolver contract tests (Tier 1) are the required
-*local* gate; wiring them into the CI matrix is still outstanding, since the
-declared cells build plugin bundles individually rather than the repository
-root. Cross-repository integration against an external resolver implementation
-(Tier 2) is composed separately; see
-[RESOLVER_SOURCE.md](RESOLVER_SOURCE.md).
+gate on every host and both lanes, carried by the workspace cells above.
+Cross-repository integration against an external resolver implementation
+(Tier 2) is composed at runtime and recorded separately; see
+[RESOLVER_SOURCE.md](RESOLVER_SOURCE.md) §6 and
+[RESOLVER_BASELINE.md](../reference/RESOLVER_BASELINE.md).
 
 ## 10. Delivery status
 
@@ -321,6 +329,7 @@ root. Cross-repository integration against an external resolver implementation
 | v0.7.0 | point-budget-aware adaptive tiling | released 2026-08-13 |
 | v0.8.0 | real-world measurement and I/O observability | released 2026-08-14 |
 | v0.9.0 | TilePlan convergence and interactive validation | released 2026-08-15 |
+| v0.10.0 | resolver-backed source identity, generated-cache decision diagnostics, Tier 1 as a CI gate, and recorded external resolver interoperability | released 2026-08-23 |
 
 Current work and acceptance gaps are tracked in
 [roadmap/implementation-status.md](../roadmap/implementation-status.md).

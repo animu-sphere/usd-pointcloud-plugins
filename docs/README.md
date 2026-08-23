@@ -12,7 +12,7 @@ workspace contract wins; structural changes must update that contract first.
 | Category | Answers | Start here |
 | --- | --- | --- |
 | [architecture/](architecture/) | How the workspace is structured, which dependency directions are legal, and what each cross-cutting contract requires. | [WORKSPACE.md](architecture/WORKSPACE.md) |
-| [reference/](reference/) | What point-cloud input is accepted today and how it maps to USD. | [CAPABILITY_MATRIX.md](reference/CAPABILITY_MATRIX.md), [POINTCLOUD_METADATA.md](reference/POINTCLOUD_METADATA.md) |
+| [reference/](reference/) | What point-cloud input is accepted today, how it maps to USD, and what a resolver-backed read costs. | [CAPABILITY_MATRIX.md](reference/CAPABILITY_MATRIX.md), [POINTCLOUD_METADATA.md](reference/POINTCLOUD_METADATA.md), [RESOLVER_BASELINE.md](reference/RESOLVER_BASELINE.md) |
 | [guides/](guides/) | How to build, test, install, and redistribute the plugins. | [BUILDING.md](guides/BUILDING.md), [INSTALL.md](guides/INSTALL.md) |
 | [compatibility/](compatibility/) | Which OpenUSD and OpenStrata versions are supported, and how to migrate across renames. | [OPENUSD.md](compatibility/OPENUSD.md), [MIGRATION.md](compatibility/MIGRATION.md) |
 | [roadmap/](roadmap/) | What remains incomplete and in what order it lands. | [README.md](roadmap/README.md) |
@@ -47,6 +47,9 @@ workspace contract wins; structural changes must update that contract first.
   boundary toward external resolvers: resolver-backed byte access,
   transport-neutral source identity, generated-cache ownership, and the
   diagnostics that explain a cache decision.
+- [reference/RESOLVER_BASELINE.md](reference/RESOLVER_BASELINE.md) records the
+  Tier 2 numbers for reading a COPC asset through an external resolver: request
+  counts, bytes fetched over source size, and local/remote output equivalence.
 - [architecture/PLUGIN_ADAPTER.md](architecture/PLUGIN_ADAPTER.md) is the
   thin-adapter rule every FileFormat Plugin is held to.
 - [architecture/DIAGNOSTICS.md](architecture/DIAGNOSTICS.md) defines the typed

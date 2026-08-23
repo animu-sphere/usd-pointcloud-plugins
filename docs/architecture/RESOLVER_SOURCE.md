@@ -9,9 +9,10 @@ Structure belongs to [WORKSPACE.md](WORKSPACE.md); this document owns the
 resolver-facing behavior those modules implement. Cache layout and
 invalidation belong to the [`usdGeoCache` README](../../libs/usd-geo-cache/README.md).
 
-Sections marked **Planned (`v0.10.0`)** are direction, not shipped behavior.
-What the tree implements today is in
-[CAPABILITY_MATRIX.md](../reference/CAPABILITY_MATRIX.md).
+Everything below is shipped as of `v0.10.0` unless a section says otherwise.
+What the tree implements is in
+[CAPABILITY_MATRIX.md](../reference/CAPABILITY_MATRIX.md); the recorded Tier 2
+numbers are in [RESOLVER_BASELINE.md](../reference/RESOLVER_BASELINE.md).
 
 ## 1. Responsibility boundary
 
@@ -168,15 +169,20 @@ source revision B, same identifier, different validation token
 
 Resolver-backed FileFormat reads stay preview and inspection paths. They reuse
 generated cache only under stable identity, and they diagnose explicitly when
-reuse is disabled rather than silently regenerating.
+reuse is disabled rather than silently regenerating. This is shipped: the COPC
+FileFormat consumes a committed entry under `Stable` identity and reports every
+other outcome through the categories in §4.
 
 `usd-pointcloud-convert` remains the production path for deterministic,
-long-running payload generation. For resolver-backed inputs it accepts
-resolver-addressable identifiers where the active OpenUSD environment supports
-them, computes the same resolver-neutral identity, populates and reuses the
-generated cache only under stable identity, and may record the normalized
-identity class in manifest or debug metadata — never the transport secrets
-covered in §2.3.
+long-running payload generation, and it is the only thing that publishes a
+generated entry. **Not implemented (`v0.10.0`):** it accepts `.las` and `.laz`
+local inputs only. No COPC input, and no resolver-addressable identifier,
+reaches it, so no COPC read — local or resolver-backed — has an entry to hit in
+a normal workflow. The lookup side is complete and covered; the generation side
+for COPC and for resolver-addressable inputs is future work. When it lands it
+computes the same resolver-neutral identity, populates and reuses the generated
+cache only under stable identity, and may record the normalized identity class
+in manifest or debug metadata — never the transport secrets covered in §2.3.
 
 ### 3.3 Cache ownership boundary — Implemented (`v0.10.0`)
 
@@ -185,25 +191,49 @@ The generated-USDC cache is owned by `usdGeoCache` and
 manifest, and generated payloads, and their identity includes the resolver
 validation token.
 
+An entry's path is two levels, and both components are 64-bit hashes:
+
+```text
+<cache root>/<generation key>/<source identity key>/
+```
+
+The generation key covers the resolved identifier and everything that decides
+what would be generated: plugin, parser, and OpenUSD versions, the coordinate
+transform, attribute selection, tiling and LOD arguments, `TilePlan` identity
+and version, and downsampling. The source identity key covers the revision
+metadata: size, modification time, and the opaque validation token.
+
+Two consequences follow, and both are load-bearing. Revisions of one source
+collect side by side under one generation directory, which is how a changed
+validation token is reported as `resolver-identity-changed` rather than as a
+source never seen before. And neither level renders an identifier or a token, so
+a signed URL cannot be read back out of a cache root — see §2.3.
+
 Source byte-range caching is a separate concern owned by the active resolver
 and its `ArAsset` implementation. The point-cloud readers and
 `ArAssetRandomAccessSource` perform bounded reads but do not persist source
 ranges in the generated-USDC cache. This prevents transport or resolver
 fetch state from becoming an implicit generated-asset cache key or artifact.
 
-## 4. Diagnostics — Planned (`v0.10.0`)
+## 4. Diagnostics — Implemented (`v0.10.0`)
 
-Cache decisions are explained through stable categories:
+Cache decisions are explained through stable categories. `usdgeo::cache`
+publishes them as `CacheDecision`, and `CacheDecisionName` is the string form a
+consumer matches on:
 
-```text
-resolver identity unavailable
-resolver identity unstable
-resolver identity stable
-resolver identity changed
-generated cache reuse disabled
-generated cache hit
-generated cache invalidated
-```
+| Category | Name |
+| --- | --- |
+| resolver identity unavailable | `resolver-identity-unavailable` |
+| resolver identity unstable | `resolver-identity-unstable` |
+| resolver identity stable | `resolver-identity-stable` |
+| resolver identity changed | `resolver-identity-changed` |
+| generated cache reuse disabled | `generated-cache-reuse-disabled` |
+| generated cache hit | `generated-cache-hit` |
+| generated cache invalidated | `generated-cache-invalidated` |
+
+Names are stable once published, in the sense rule 1 of the
+[diagnostics contract](DIAGNOSTICS.md) defines: a name is never reused for a
+different meaning. Messages are for humans and may change between releases.
 
 Messages describe the decision without leaking transport specifics or token
 contents:
@@ -214,8 +244,23 @@ a stable source validation identity.
 ```
 
 `Missing HTTP ETag` is not an acceptable message, because HTTP is not part of
-this contract. Codes project onto the existing prefixes described in the
-[diagnostics contract](DIAGNOSTICS.md).
+this contract. Every message is a fixed constant owned by `usdgeo::cache`, so a
+transport detail cannot reach one by accident, and a unit test asserts that none
+of them names one.
+
+Codes project onto the existing prefixes described in the
+[diagnostics contract](DIAGNOSTICS.md). The COPC projection is four codes over
+the seven categories, and every emitted message names its exact category:
+
+| Code | Severity | Categories |
+| --- | --- | --- |
+| `COPC009` | warning | identity unavailable, identity unstable, reuse disabled |
+| `COPC010` | status | identity stable, cache hit |
+| `COPC011` | status | identity changed |
+| `COPC012` | warning | cache invalidated |
+
+`resolver-identity-changed` is observable because the generated-cache layout
+separates what would be generated from which revision was read; see §3.3.
 
 ## 5. Interoperability
 
@@ -241,16 +286,20 @@ pointcloud-copc
 `usd-http-resolver` is one compatible implementation, not a required
 dependency. Registration is in [INSTALL.md](../guides/INSTALL.md).
 
-## 6. Testing tiers — In progress (`v0.10.0`)
+## 6. Testing tiers — Implemented (`v0.10.0`)
 
 **Tier 1 — repository-local contract tests.** They run with no external
-resolver repository, using fake or memory-backed test assets, and remain the
-required local gate; CI wiring is outstanding. Coverage: resolver-backed random access, partial reads,
-short-read diagnostics, stable / unstable / unavailable identity, miss-to-hit
-behavior, invalidation on validation-token change, corruption recovery,
-`TilePlan` compatibility in cache keys, and deterministic diagnostics.
+resolver repository, using fake or memory-backed test assets, and are the
+required gate on every host and both lanes. `openstrata.ci.yaml` declares
+`kind: workspace` cells that configure the repository root — where
+`USDGEO_BUILD_TESTS` defaults to `ON` — and run its CTest suite; a per-plugin
+bundle cell cannot compile these tests. Coverage: resolver-backed random access,
+partial reads, short-read diagnostics, stable / unstable / unavailable identity,
+miss-to-hit behavior, invalidation on validation-token change, superseded-entry
+detection, corruption recovery, `TilePlan` compatibility in cache keys, and
+deterministic diagnostics.
 
-**Tier 2 — cross-repository integration.** An external resolver, a local
+**Tier 2 — cross-repository integration — recorded (`v0.10.0`).** An external resolver, a local
 reproducible HTTP server, and a COPC fixture verify that a URL resolves, that
 metadata, hierarchy, and point-range reads succeed, that authored local and
 resolver-backed output is equivalent, that stable identity enables reuse, and
@@ -260,11 +309,18 @@ OpenStrata workspace composition without making this repository structurally
 dependent on the resolver repository.
 
 [`usd-http-resolver`](https://github.com/animu-sphere/usd-http-resolver) is the
-designated first Tier 2 implementation. Its `v0.2.0` release provides the HTTP
-backend and OpenUSD resolver bundle, exposes stable resolver-neutral identity
-through `ArAssetInfo`, and is tested through its own OpenStrata workflow. Tier
-1 remains this repository's required local gate; Tier 2 is now ready to be
-composed and recorded as the `v0.10.0` release gate.
+first Tier 2 implementation, and `v0.10.0` is recorded against its `v0.4.0`
+release, which provides the HTTP backend, the OpenUSD resolver bundle, and
+resolver-neutral identity through `ArAssetInfo`.
+`tools/tier2_fixture_server.py` is the loopback origin and
+`tools/tier2_resolver_integration.py` the harness; the numbers are in
+[RESOLVER_BASELINE.md](../reference/RESOLVER_BASELINE.md).
+
+The recorded run shows a metadata open costing 0.15% of an 81 MB asset, a full
+read costing exactly 1.0, local and resolver-backed reads authoring the same
+10,653,336 points under the same digest, a strong validator classifying as
+`Stable`, and a weak validator classifying as `Unstable` and disabling reuse
+while authoring identical output.
 
 ## 7. Test-double resolver
 
