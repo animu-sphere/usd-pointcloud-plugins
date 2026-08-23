@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -153,6 +154,185 @@ void TestResolverSourceIdentity() {
     Check(!stableIdentity.IsValid());
 }
 
+void TestCacheDecisionVocabulary() {
+    using usdgeo::cache::CacheDecision;
+    const std::vector<std::pair<CacheDecision, std::string>> expected{
+        {CacheDecision::IdentityUnavailable, "resolver-identity-unavailable"},
+        {CacheDecision::IdentityUnstable, "resolver-identity-unstable"},
+        {CacheDecision::IdentityStable, "resolver-identity-stable"},
+        {CacheDecision::IdentityChanged, "resolver-identity-changed"},
+        {CacheDecision::ReuseDisabled, "generated-cache-reuse-disabled"},
+        {CacheDecision::Hit, "generated-cache-hit"},
+        {CacheDecision::Invalidated, "generated-cache-invalidated"}};
+    for (const auto& [decision, name] : expected) {
+        Check(usdgeo::cache::CacheDecisionName(decision) == name,
+              "cache decision name");
+        const std::string message =
+            usdgeo::cache::CacheDecisionMessage(decision);
+        Check(!message.empty(), "cache decision message");
+        // Transport specifics never enter a decision message, and neither do
+        // token or identifier contents: the strings are fixed constants.
+        for (const char* forbidden :
+             {"http", "HTTP", "ETag", "etag", "url", "URL", "Authorization",
+              "token:", "s3", "S3"}) {
+            Check(message.find(forbidden) == std::string::npos,
+                  "cache decision message leaked transport detail");
+        }
+    }
+
+    Check(usdgeo::cache::IdentityDecision(
+              usdgeo::cache::ResolverIdentityStability::Stable) ==
+          CacheDecision::IdentityStable);
+    Check(usdgeo::cache::IdentityDecision(
+              usdgeo::cache::ResolverIdentityStability::Unstable) ==
+          CacheDecision::IdentityUnstable);
+    Check(usdgeo::cache::IdentityDecision(
+              usdgeo::cache::ResolverIdentityStability::Unavailable) ==
+          CacheDecision::IdentityUnavailable);
+}
+
+// A cache root must never become a place to read back what was resolved. Both
+// path components are hashes, so neither a signed URL nor a validation token
+// survives into the layout a lookup writes.
+void TestLayoutCarriesNoSecrets() {
+    const auto root = std::filesystem::temp_directory_path() /
+                      "usdgeo-cache-secret-check";
+    auto descriptor = MakeDescriptor();
+    descriptor.source = {
+        "https://example.org/data.copc?X-Amz-Signature=deadbeefcafe",
+        4096,
+        99,
+        "opaque-validation-9f1c"};
+    usdgeo::cache::Layout layout;
+    Check(usdgeo::cache::TryBuildLayout(root, descriptor, layout));
+
+    const auto rendered = layout.entryDirectory.generic_string() + "|" +
+                          layout.rootLayer.generic_string() + "|" +
+                          layout.manifest.generic_string() + "|" +
+                          layout.payloadDirectory.generic_string();
+    for (const char* secret : {"X-Amz-Signature", "deadbeefcafe",
+                               "example.org", "https", "opaque-validation",
+                               "9f1c"}) {
+        Check(rendered.find(secret) == std::string::npos,
+              "cache layout leaked source identity material");
+    }
+
+    const auto generationKey =
+        layout.entryDirectory.parent_path().filename().string();
+    const auto identityKey = layout.entryDirectory.filename().string();
+    Check(generationKey.size() == 16 && identityKey.size() == 16,
+          "cache layout keys are 64-bit hashes");
+}
+
+// Changing the validation token must move the entry inside the same generation
+// directory, which is what makes `resolver-identity-changed` distinguishable
+// from a source that was never generated before.
+void TestSupersededIdentityEntry() {
+    const auto uniqueSuffix =
+        std::chrono::steady_clock::now().time_since_epoch().count();
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("usdgeo-cache-identity-" + std::to_string(uniqueSuffix));
+
+    const auto first = MakeDescriptor();
+    usdgeo::cache::Layout firstLayout;
+    Check(usdgeo::cache::TryBuildLayout(root, first, firstLayout));
+
+    // Everything a revision of the same source can change must move the entry
+    // without moving the generation directory. The georeference is on this list
+    // because its local origin is the source bounding box and its CRS may be an
+    // embedded record, and the tile plan is because it is computed by scanning
+    // the source - both vary with content, not with what the caller asked for.
+    const auto revise = [](usdgeo::cache::Descriptor descriptor,
+                           int which) {
+        switch (which) {
+        case 0:
+            descriptor.source.validationToken = "sha256:def";
+            break;
+        case 1:
+            descriptor.source.sizeBytes += 17;
+            break;
+        case 2:
+            descriptor.source.modifiedTime += 1;
+            break;
+        case 3:
+            descriptor.coordinateTransform = {{"origin", "101,200,0"}};
+            break;
+        default:
+            descriptor.sourceDerived = {{"tile.plan", "0123456789abcdef"}};
+            break;
+        }
+        return descriptor;
+    };
+    for (int which = 0; which != 5; ++which) {
+        usdgeo::cache::Layout revised;
+        Check(usdgeo::cache::TryBuildLayout(root, revise(first, which),
+                                            revised));
+        Check(revised.entryDirectory != firstLayout.entryDirectory,
+              "a revised source reused the entry it supersedes");
+        Check(revised.entryDirectory.parent_path() ==
+                  firstLayout.entryDirectory.parent_path(),
+              "a revised source left the generation directory");
+    }
+
+    // What the caller asked for is the other half: changing it must move the
+    // generation directory, so unrelated requests are never mistaken for
+    // revisions of each other.
+    const auto reask = [](usdgeo::cache::Descriptor descriptor, int which) {
+        switch (which) {
+        case 0:
+            descriptor.attributes = {{"selection", "xyz"}};
+            break;
+        case 1:
+            descriptor.tileAndLod = {{"tileSize", "128"}};
+            break;
+        case 2:
+            descriptor.downsampling = {{"algorithm", "fixed-stride"},
+                                       {"version", "2"}};
+            break;
+        default:
+            descriptor.pluginVersion = "0.2.2";
+            break;
+        }
+        return descriptor;
+    };
+    for (int which = 0; which != 4; ++which) {
+        usdgeo::cache::Layout other;
+        Check(usdgeo::cache::TryBuildLayout(root, reask(first, which), other));
+        Check(other.entryDirectory.parent_path() !=
+                  firstLayout.entryDirectory.parent_path(),
+              "different generation inputs shared a generation directory");
+    }
+
+    const auto second = revise(first, 0);
+    usdgeo::cache::Layout secondLayout;
+    Check(usdgeo::cache::TryBuildLayout(root, second, secondLayout));
+
+    Check(!usdgeo::cache::HasSupersededIdentityEntry(secondLayout),
+          "empty cache reported a superseded entry");
+    std::filesystem::create_directories(firstLayout.payloadDirectory);
+    std::ofstream(firstLayout.rootLayer) << "cache";
+
+    Check(!usdgeo::cache::HasSupersededIdentityEntry(secondLayout),
+          "uncommitted entry reported as superseded");
+    std::ofstream(firstLayout.manifest) << "committed";
+    Check(usdgeo::cache::HasSupersededIdentityEntry(secondLayout),
+          "committed sibling entry not reported as superseded");
+    Check(!usdgeo::cache::HasSupersededIdentityEntry(firstLayout),
+          "an entry reported itself as superseded");
+
+    // A converter's temporary entry is a sibling directory but not a key, so
+    // it must never be mistaken for a committed revision.
+    const auto temporary = std::filesystem::path(
+        secondLayout.entryDirectory.string() + ".tmp-1-0");
+    std::filesystem::create_directories(temporary);
+    std::ofstream(temporary / "root.usdc") << "cache";
+    std::ofstream(temporary / "cache.manifest") << "committed";
+    Check(!usdgeo::cache::HasSupersededIdentityEntry(firstLayout),
+          "temporary entry reported as a committed revision");
+
+    std::filesystem::remove_all(root);
+}
+
 void TestLayoutAndInvalidation() {
     const auto uniqueSuffix =
         std::chrono::steady_clock::now().time_since_epoch().count();
@@ -194,6 +374,8 @@ void TestLayoutAndInvalidation() {
     std::ofstream(unrelatedDirectory / "source.las") << "source";
     Check(usdgeo::cache::Invalidate(root, MakeDescriptor()));
     Check(!std::filesystem::exists(layout.entryDirectory));
+    Check(!std::filesystem::exists(layout.entryDirectory.parent_path()),
+          "invalidation left an empty generation directory behind");
     Check(std::filesystem::exists(unrelatedDirectory / "source.las"));
 }
 
@@ -291,6 +473,9 @@ int main() {
     TestLocalSourceIdentity();
     TestStableDescriptorKey();
     TestResolverSourceIdentity();
+    TestCacheDecisionVocabulary();
+    TestLayoutCarriesNoSecrets();
+    TestSupersededIdentityEntry();
     TestLayoutAndInvalidation();
     TestLookupStatistics();
     TestConcurrentLookupStatistics();

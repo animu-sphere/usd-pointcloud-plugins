@@ -84,9 +84,12 @@ and tests without it. The repository-local
 fixture in memory; it is not a network transport or product bundle.
 
 Generated-USDC cache reuse for resolver-backed sources requires stable source
-identity and stays disabled when the resolver cannot supply it. The boundary,
-the identity model, and the planned `v0.10.0` work are in the
-[resolver-backed source contract](docs/architecture/RESOLVER_SOURCE.md).
+identity and stays disabled when the resolver cannot supply it, with the reason
+reported through a stable category rather than silently. The boundary and the
+identity model are in the
+[resolver-backed source contract](docs/architecture/RESOLVER_SOURCE.md); what a
+remote read actually costs is recorded in the
+[resolver read baseline](docs/reference/RESOLVER_BASELINE.md).
 
 ## Quick Start
 
@@ -287,8 +290,10 @@ dataset coverage remains open.
   `ConflictingCrs` diagnostic.
 - The deterministic USDC cache is available to the conversion tool through
   `--cache-root`; direct FileFormat lookup reuses committed entries through
-  `USDGEO_CACHE_ROOT`. Resolver-backed sources are excluded from reuse until a
-  stable source identity is available; enabling that case is `v0.10.0` work.
+  `USDGEO_CACHE_ROOT`. Reuse requires either a stable local filesystem identity
+  or a `Stable` resolver identity, and fails closed otherwise. Only the
+  conversion tool publishes entries, and it accepts `.las` and `.laz` local
+  inputs, so a COPC read has nothing to reuse yet.
 - HTTP, cloud SDKs, authentication, retries, and raw byte-range caching are
   out of scope; they belong to the resolver implementation.
 - Writing LAS, LAZ, or COPC is out of scope; all three plugins export as
@@ -299,16 +304,20 @@ See the [implementation status](docs/roadmap/implementation-status.md) and
 
 ## Status
 
-Latest release: **v0.9.0** — TilePlan convergence across sequential and COPC
-native planning, plus a reproducible host-responsiveness baseline. The v0.3.0 module and
-bundle rename is recorded in [MIGRATION.md](docs/compatibility/MIGRATION.md).
-See the [release record](docs/releases/v0.9.0.md) and [CHANGELOG.md](CHANGELOG.md).
+Latest release: **v0.10.0** — generated-cache decisions explained through a
+stable transport-neutral vocabulary, a revision-aware cache layout, the Tier 1
+resolver contract gate running in CI on every host, and recorded
+interoperability with a released external resolver. The cache layout change is
+recorded in [MIGRATION.md](docs/compatibility/MIGRATION.md), along with the
+v0.3.0 module and bundle rename. See the
+[release record](docs/releases/v0.10.0.md) and
+[CHANGELOG.md](CHANGELOG.md).
 
-Next: **v0.10.0** — resolver-backed source identity and external resolver
-interoperability, so generated output can be reused safely for
-resolver-provided sources while transport stays with the resolver. Scope and
-exit gate are in the
-[infrastructure maturity roadmap](docs/roadmap/infrastructure-maturity.md).
+Next: format-independent depth continues over format count. The nearest open
+items are publishing generated cache entries for COPC sources and accepting
+resolver-addressable identifiers in the conversion tool, both of which the
+[infrastructure maturity roadmap](docs/roadmap/infrastructure-maturity.md)
+places before any new format.
 
 Direction is fixed in the [design policy](docs/design/DESIGN_POLICY.md); the
 structure is fixed in the

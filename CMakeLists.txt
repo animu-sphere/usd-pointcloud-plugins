@@ -22,6 +22,15 @@ endif()
 option(USDGEO_BUILD_BENCHMARKS
        "Build explicit OpenUSD streaming benchmark executables" OFF)
 
+function(usdgeo_configure_openusd_test_runtime test_name)
+    if(WIN32)
+        string(REPLACE ";" "\\;" _usdgeo_host_path "$ENV{PATH}")
+        set_property(TEST "${test_name}" APPEND PROPERTY
+            ENVIRONMENT
+                "PATH=$<TARGET_FILE_DIR:usdGeom>\\;$<TARGET_FILE_DIR:usdGeom>/../bin\\;$<TARGET_FILE_DIR:Python3::Python>\\;${_usdgeo_host_path}")
+    endif()
+endfunction()
+
 set(_usdgeo_build_usd_default OFF)
 if(DEFINED pxr_ROOT OR DEFINED OpenUSD_ROOT)
     set(_usdgeo_build_usd_default ON)

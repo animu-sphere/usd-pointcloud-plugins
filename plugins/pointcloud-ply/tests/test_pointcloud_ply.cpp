@@ -87,7 +87,7 @@ void TestFileFormatIntegration() {
         4096);
 
     const auto tiledPayloadDirectory =
-        std::filesystem::temp_directory_path() / "usd_geo_ply_tiled_payloads";
+        source.parent_path() / "usd_geo_ply_tiled_payloads";
     std::filesystem::remove_all(tiledPayloadDirectory);
     const pxr::SdfLayer::FileFormatArguments tiledArguments = {
         {"epsg", "4978"},

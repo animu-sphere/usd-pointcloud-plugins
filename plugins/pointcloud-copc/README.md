@@ -26,8 +26,25 @@ rather than LAS source order; bounds and classification filters are applied
 while decoded points pass through a bounded buffer. Remote COPC is supported
 only when the active resolver supplies an asset with efficient random-access
 reads, such as HTTP byte-range support. The plugin does not implement an HTTP
-client, transport retries, or a network cache. Generated-USDC cache lookup is
-limited to stable local filesystem identities; resolver-backed sources are
-not reused when that identity cannot be established. The integration baseline
-keeps this behavior covered with `USDGEO_CACHE_ROOT` configured. Remote tiled
-reads require an absolute local `payloadDirectory`.
+client, transport retries, or a network cache. Remote tiled reads require an
+absolute local `payloadDirectory`.
+
+Generated-USDC cache lookup is enabled for a stable local filesystem identity
+and for a `Stable` resolver identity. `Unstable` and `Unavailable` identity
+fails closed: the read proceeds from the source and says why. Nothing here
+publishes an entry - `usd-pointcloud-convert` does, and it accepts `.las` and
+`.laz` local inputs only, so a COPC read has nothing to reuse outside a test
+that commits an entry itself.
+
+Every cache decision is reported through four codes that project the stable
+categories `usdgeo::cache` publishes, each message naming its exact category:
+
+| Code | Severity | Categories |
+| --- | --- | --- |
+| `COPC009` | warning | `resolver-identity-unavailable`, `resolver-identity-unstable`, `generated-cache-reuse-disabled` |
+| `COPC010` | status | `resolver-identity-stable`, `generated-cache-hit` |
+| `COPC011` | status | `resolver-identity-changed` |
+| `COPC012` | warning | `generated-cache-invalidated` |
+
+Interoperability with an external resolver is recorded in the
+[resolver read baseline](../../docs/reference/RESOLVER_BASELINE.md).

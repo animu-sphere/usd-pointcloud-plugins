@@ -4,6 +4,49 @@ Breaking changes to names, paths, and identifiers, and what to do about them.
 The project is pre-1.0, so cleanup is appropriate — but every migration is
 recorded here explicitly rather than left for a consumer to discover.
 
+## v0.10.0: generated cache entry layout
+
+A generated cache entry moved from one directory below the cache root to two:
+
+```text
+# before
+<cache root>/<key>/
+# after
+<cache root>/<generation key>/<source identity key>/
+```
+
+The generation key covers what the caller asked for; the source identity key
+covers everything read out of the source - size, modification time, the
+validation token, the georeference resolved from the header, and any plan
+computed by scanning it. Both are the same 16-hex-character hash as before.
+
+Why: with one key, a source read at a new revision produced an unrelated
+directory, so a changed validation token was indistinguishable from a source
+never generated before. Under two, revisions of one source are siblings, which
+is what the `resolver-identity-changed` diagnostic reports.
+
+What to do: nothing, in the normal case. Cache entries are derived data and a
+`v0.9.0` root is simply never looked up, so the first run after upgrading is a
+miss that regenerates. Delete an old root to reclaim the space:
+
+```powershell
+Remove-Item -Recurse $env:USDGEO_CACHE_ROOT
+```
+
+Anything that enumerated entries with a single-level glob needs a second level.
+The conversion conformance test is the in-tree example:
+
+```cmake
+# before
+file(GLOB cache_entries RELATIVE "${cache_root}" "${cache_root}/*")
+# after
+file(GLOB cache_entries RELATIVE "${cache_root}" "${cache_root}/*/*")
+```
+
+No authored output, file-format argument, USD attribute, or diagnostic code
+changes. `StableCacheKey`, `TryBuildLayout`, `Inspect`, `IsCacheHit`, and
+`Invalidate` keep their signatures and their meanings.
+
 ## Unreleased: repository rename
 
 The GitHub repository was renamed from `animu-sphere/usd-geo-plugins` to

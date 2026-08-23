@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <utility>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -183,6 +184,83 @@ void TestResolverCacheDiagnostic() {
               "[COPC009] Generated cache reuse disabled: the active resolver "
               "did not provide a stable source validation identity.",
           "resolver cache diagnostic format");
+
+    // The four decision codes are distinct and stable, and each emitted
+    // message ends with the shared category name so a consumer can match the
+    // category instead of the prose.
+    const std::vector<const char*> codes{
+        usdgeocopc::diagnostics::ResolverCacheReuseDisabled,
+        usdgeocopc::diagnostics::ResolverCacheReusePermitted,
+        usdgeocopc::diagnostics::ResolverIdentityChanged,
+        usdgeocopc::diagnostics::ResolverCacheInvalidated};
+    for (std::size_t index = 0; index != codes.size(); ++index) {
+        for (std::size_t other = index + 1; other != codes.size(); ++other) {
+            Check(std::string(codes[index]) != codes[other],
+                  "resolver decision codes must be distinct");
+        }
+    }
+    Check(std::string(usdgeocopc::diagnostics::ResolverCacheReusePermitted) ==
+              "COPC010" &&
+          std::string(usdgeocopc::diagnostics::ResolverIdentityChanged) ==
+              "COPC011" &&
+          std::string(usdgeocopc::diagnostics::ResolverCacheInvalidated) ==
+              "COPC012",
+          "resolver decision codes changed meaning");
+
+    // Assert the projection the plugin actually emits, category by category.
+    const std::vector<std::pair<usdgeo::cache::CacheDecision, const char*>>
+        projection{
+            {usdgeo::cache::CacheDecision::IdentityUnavailable,
+             usdgeocopc::diagnostics::ResolverCacheReuseDisabled},
+            {usdgeo::cache::CacheDecision::IdentityUnstable,
+             usdgeocopc::diagnostics::ResolverCacheReuseDisabled},
+            {usdgeo::cache::CacheDecision::ReuseDisabled,
+             usdgeocopc::diagnostics::ResolverCacheReuseDisabled},
+            {usdgeo::cache::CacheDecision::IdentityStable,
+             usdgeocopc::diagnostics::ResolverCacheReusePermitted},
+            {usdgeo::cache::CacheDecision::Hit,
+             usdgeocopc::diagnostics::ResolverCacheReusePermitted},
+            {usdgeo::cache::CacheDecision::IdentityChanged,
+             usdgeocopc::diagnostics::ResolverIdentityChanged},
+            {usdgeo::cache::CacheDecision::Invalidated,
+             usdgeocopc::diagnostics::ResolverCacheInvalidated}};
+    for (const auto& [decision, expectedCode] : projection) {
+        Check(std::string(usdgeocopc::diagnostics::DecisionCode(decision)) ==
+                  expectedCode,
+              "resolver decision projected onto the wrong code");
+        const auto rendered =
+            usdgeocopc::diagnostics::DecisionMessage(decision);
+        Check(rendered.rfind(std::string("[") + expectedCode + "] ", 0) == 0,
+              "resolver decision message must lead with its code");
+        Check(rendered.find(usdgeo::cache::CacheDecisionMessage(decision)) !=
+                  std::string::npos,
+              "resolver decision message must carry the shared text");
+        // A consumer matches the category, so the category has to survive the
+        // projection. Building the expectation from the code path under test
+        // would assert nothing, so it is spelled out here.
+        Check(rendered.size() > 3 &&
+                  rendered.compare(
+                      rendered.size() -
+                          std::strlen(
+                              usdgeo::cache::CacheDecisionName(decision)) - 2,
+                      std::string::npos,
+                      std::string("(") +
+                          usdgeo::cache::CacheDecisionName(decision) + ")") == 0,
+              "resolver decision message must end with its category");
+        for (const char* forbidden : {"http", "ETag", "etag", "Authorization"}) {
+            Check(rendered.find(forbidden) == std::string::npos,
+                  "resolver decision message leaked a transport detail");
+        }
+    }
+    Check(usdgeocopc::diagnostics::DecisionIsWarning(
+              usdgeo::cache::CacheDecision::ReuseDisabled) &&
+          usdgeocopc::diagnostics::DecisionIsWarning(
+              usdgeo::cache::CacheDecision::Invalidated) &&
+          !usdgeocopc::diagnostics::DecisionIsWarning(
+              usdgeo::cache::CacheDecision::Hit) &&
+          !usdgeocopc::diagnostics::DecisionIsWarning(
+              usdgeo::cache::CacheDecision::IdentityChanged),
+          "resolver decision severity changed");
 }
 
 void RegisterPlugin(const std::filesystem::path& plugInfo) {
@@ -824,6 +902,57 @@ void TestResolverBackedRead() {
     Check(!changedPositions.empty());
     Check(changedPositions.front() != firstPositions.front(),
           "resolver read reused cached output");
+
+    // The regenerated entry lands beside the one it supersedes, under the same
+    // generation directory. That adjacency is what `resolver-identity-changed`
+    // reports; without it a changed revision is indistinguishable from a source
+    // that was never generated.
+    const auto changedAsset = pxr::ArGetResolver().OpenAsset(
+        pxr::ArResolvedPath("http://memory.copc"));
+    Check(static_cast<bool>(changedAsset), "reopen changed resolver asset");
+    usdgeo::cache::SourceIdentity changedIdentity;
+    usdgeo::cache::ResolverIdentityStability changedStability;
+    Check(usdgeo::TryBuildResolverSourceIdentity(
+              pxr::ArGetResolver(), "http://memory.copc",
+              pxr::ArResolvedPath("http://memory.copc"), *changedAsset,
+              changedIdentity, changedStability, identityError),
+          "changed resolver identity");
+    Check(changedStability ==
+          usdgeo::cache::ResolverIdentityStability::Stable);
+    Check(changedIdentity.validationToken != initialValidationToken);
+    // Rebuild the georeference from the changed source rather than reusing the
+    // original: asserting adjacency against a reference this test already holds
+    // would hold by construction. This fixture writes a fixed header bounding
+    // box, so the rebuilt reference happens to match, and the case where a
+    // revision *does* move the georeference is covered directly in
+    // usdGeoCache's TestSupersededIdentityEntry.
+    auto changedSource =
+        std::make_shared<usdgeocopc::ArAssetRandomAccessSource>(
+            changedAsset, "http://memory.copc");
+    usdcopc::CopcReader changedReader(changedSource);
+    usdcopc::CopcHeader changedHeader;
+    std::vector<usdgeo::Diagnostic> changedDiagnostics;
+    Check(changedReader.ReadMetadata(changedHeader, changedDiagnostics),
+          "read changed fixture metadata");
+    usdpointcloud::PointChunk changedMetadataChunk;
+    usdgeo::GeoReference changedReference;
+    usdgeo::SpatialBounds changedBounds;
+    Check(usdlas::BuildPointCloudMetadata(
+              changedHeader.las, changedMetadataChunk, changedReference,
+              changedBounds, cacheErrorMessage),
+          "build changed fixture metadata");
+    usdgeo::cache::Layout changedLayout;
+    Check(usdgeo::TryBuildPointCloudCacheLayout(
+        cacheRoot, changedIdentity, changedReference, cacheRequest,
+        "copc-reader-1", changedLayout, cacheErrorMessage),
+        "build changed resolver cache layout");
+    Check(changedLayout.entryDirectory != cacheLayout.entryDirectory,
+          "changed validation identity reused the superseded entry");
+    Check(changedLayout.entryDirectory.parent_path() ==
+              cacheLayout.entryDirectory.parent_path(),
+          "changed validation identity left the generation directory");
+    Check(usdgeo::cache::HasSupersededIdentityEntry(changedLayout),
+          "changed validation identity did not observe the superseded entry");
 
     std::error_code error;
     std::filesystem::remove_all(cacheRoot, error);

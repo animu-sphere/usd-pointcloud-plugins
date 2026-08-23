@@ -35,10 +35,12 @@ install(TARGETS usd-pointcloud-convert
 if(USDGEO_BUILD_TESTS)
     add_test(NAME usdPointCloudConvert_help
              COMMAND usd-pointcloud-convert --help)
+    usdgeo_configure_openusd_test_runtime(usdPointCloudConvert_help)
     add_test(NAME usdPointCloudConvert_las
              COMMAND ${CMAKE_COMMAND}
                      -Dconverter=$<TARGET_FILE:usd-pointcloud-convert>
                      -Dfixture=${CMAKE_SOURCE_DIR}/plugins/pointcloud-las/tests/fixtures/conformance.las
                      -Dtest_root=${CMAKE_CURRENT_BINARY_DIR}/converter-conformance
                      -P ${CMAKE_CURRENT_SOURCE_DIR}/test_conversion.cmake)
+    usdgeo_configure_openusd_test_runtime(usdPointCloudConvert_las)
 endif()

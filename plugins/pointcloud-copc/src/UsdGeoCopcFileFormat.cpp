@@ -72,6 +72,19 @@ const char* ReaderDiagnosticCode(
     return usdgeocopc::diagnostics::DecodeFailed;
 }
 
+// Every generated-cache decision reaches OpenUSD through one of four plugin
+// codes and always carries the stable category name, so a consumer can match
+// on the category rather than on prose. The projection lives in the
+// diagnostics header so a test asserts the same code and text OpenUSD is told.
+void ReportCacheDecision(usdgeo::cache::CacheDecision decision) {
+    const auto message = usdgeocopc::diagnostics::DecisionMessage(decision);
+    if (usdgeocopc::diagnostics::DecisionIsWarning(decision)) {
+        TF_WARN("%s", message.c_str());
+    } else {
+        TF_STATUS("%s", message.c_str());
+    }
+}
+
 bool IsLocalFileSource(const std::string& path) {
     std::error_code error;
     return std::filesystem::is_regular_file(std::filesystem::path(path), error) &&
@@ -460,31 +473,43 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
         bool cacheHit = false;
         std::string cacheError;
         const auto loadCache = [&]() {
+            auto decision = usdgeo::cache::CacheDecision::ReuseDisabled;
             if (IsLocalFileSource(resolvedPath)) {
-                return usdgeo::TryLoadPointCloudCache(
+                const auto loaded = usdgeo::TryLoadPointCloudCache(
                     layer, resolvedPath, reference, request, "copc-reader-1",
-                    cacheHit, cacheError);
+                    cacheHit, cacheError, &decision);
+                if (loaded && decision !=
+                                  usdgeo::cache::CacheDecision::ReuseDisabled) {
+                    ReportCacheDecision(decision);
+                }
+                return loaded;
             }
             if (resolverStability !=
                 usdgeo::cache::ResolverIdentityStability::Stable) {
-                const auto stabilityName =
-                    usdgeo::cache::ResolverIdentityStabilityName(
-                        resolverStability);
-                TF_WARN("[%s] Generated cache reuse disabled: the active "
-                    "resolver did not provide a stable source validation "
-                    "identity (%s).",
-                        usdgeocopc::diagnostics::ResolverCacheReuseDisabled,
-                        stabilityName);
+                // The identity category is the reason reuse is disabled, so it
+                // is what the diagnostic reports.
+                ReportCacheDecision(
+                    usdgeo::cache::IdentityDecision(resolverStability));
                 return true;
             }
             const std::filesystem::path payloadDirectory(request.payloadDirectory);
             if (!payloadDirectory.empty() &&
                 payloadDirectory.is_relative()) {
+                // A remote source has no directory to resolve a relative
+                // payload path against, so reuse is refused even though the
+                // identity would permit it.
+                ReportCacheDecision(
+                    usdgeo::cache::CacheDecision::ReuseDisabled);
                 return true;
             }
-            return usdgeo::TryLoadPointCloudCache(
+            decision = usdgeo::cache::CacheDecision::IdentityStable;
+            const auto loaded = usdgeo::TryLoadPointCloudCache(
                 layer, resolverIdentity, {}, reference, request,
-                "copc-reader-1", cacheHit, cacheError);
+                "copc-reader-1", cacheHit, cacheError, &decision);
+            if (loaded) {
+                ReportCacheDecision(decision);
+            }
+            return loaded;
         };
         if (!loadCache()) {
             TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(

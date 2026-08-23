@@ -21,9 +21,25 @@ Codes are owned per plugin and listed in
 [pointcloud-las diagnostics](../../plugins/pointcloud-las/docs/DIAGNOSTICS.md) and
 [pointcloud-laz diagnostics](../../plugins/pointcloud-laz/docs/DIAGNOSTICS.md).
 The existing import-stage codes are fatal, because none of them leave a stage
-that can be opened. Resolver-backed cache decisions are recoverable warnings;
-COPC reports disabled reuse with `COPC009` and continues by reading and
-authoring from the source.
+that can be opened.
+
+Generated-cache decisions are the exception: they are recoverable, because a
+cache decision changes what is reused and never what is read. `usdGeoCache`
+owns their vocabulary as `usdgeo::cache::CacheDecision`, whose seven stable
+category names are listed in the
+[resolver-backed source contract](RESOLVER_SOURCE.md). COPC projects them onto
+four codes, and every emitted message names its exact category:
+
+| Code | Severity | Categories |
+| --- | --- | --- |
+| `COPC009` | warning | `resolver-identity-unavailable`, `resolver-identity-unstable`, `generated-cache-reuse-disabled` |
+| `COPC010` | status | `resolver-identity-stable`, `generated-cache-hit` |
+| `COPC011` | status | `resolver-identity-changed` |
+| `COPC012` | warning | `generated-cache-invalidated` |
+
+Category names obey rule 1 below: a name is never reused for a different
+meaning. Decision messages are fixed constants owned by `usdgeo::cache`, so no
+transport specific and no token content can reach one.
 
 Remaining limitations of the current migration:
 

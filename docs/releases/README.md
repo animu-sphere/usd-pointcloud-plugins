@@ -17,6 +17,7 @@ Release records are history and are not rewritten after publication.
 | v0.7.0 | 2026-08-13 | [v0.7.0.md](v0.7.0.md) — adaptive point-budget tiling, fixed-grid compatibility, and cross-format benchmarks |
 | v0.8.0 | 2026-08-14 | [v0.8.0.md](v0.8.0.md) — real-world fixed/adaptive baselines, I/O observability, and LAZ point-format-7 hardening |
 | v0.9.0 | 2026-08-15 | [v0.9.0.md](v0.9.0.md) — TilePlan convergence, COPC-native planning, and interactive host-responsiveness validation |
+| v0.10.0 | 2026-08-23 | [v0.10.0.md](v0.10.0.md) — generated-cache decision diagnostics, a revision-aware cache layout, Windows workspace CTest runtime coverage, Tier 1 as a CI gate, and recorded external resolver interoperability |
 
 Prepare the record in the release commit immediately before creating its tag.
 The tag pins the source commit and the record pins the release scope; runtime

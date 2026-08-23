@@ -64,6 +64,27 @@ std::string TileName(const usdgeo::TileId& tile) {
            "_" + AxisName(tile.y) + "_" + AxisName(tile.z);
 }
 
+constexpr const char* kRootLayerName = "root.usdc";
+constexpr const char* kManifestName = "cache.manifest";
+constexpr const char* kPayloadDirectoryName = "payloads";
+
+// Layout keys are the 16 lowercase hex characters `usdgeo::StableCacheKey`
+// emits. Anything else in a generation directory - a converter's temporary
+// entry, an unrelated file - is not a committed sibling entry.
+bool IsLayoutKeyName(const std::string& name) noexcept {
+    if (name.size() != 16) {
+        return false;
+    }
+    for (const char character : name) {
+        const bool digit = character >= '0' && character <= '9';
+        const bool lower = character >= 'a' && character <= 'f';
+        if (!digit && !lower) {
+            return false;
+        }
+    }
+    return true;
+}
+
 struct MarkerStatus {
     bool exists = false;
     bool regular = false;
@@ -115,6 +136,67 @@ const char* ResolverIdentityStabilityName(
     return "unavailable";
 }
 
+const char* CacheDecisionName(CacheDecision decision) noexcept {
+    switch (decision) {
+    case CacheDecision::IdentityUnavailable:
+        return "resolver-identity-unavailable";
+    case CacheDecision::IdentityUnstable:
+        return "resolver-identity-unstable";
+    case CacheDecision::IdentityStable:
+        return "resolver-identity-stable";
+    case CacheDecision::IdentityChanged:
+        return "resolver-identity-changed";
+    case CacheDecision::ReuseDisabled:
+        return "generated-cache-reuse-disabled";
+    case CacheDecision::Hit:
+        return "generated-cache-hit";
+    case CacheDecision::Invalidated:
+        return "generated-cache-invalidated";
+    }
+    return "generated-cache-reuse-disabled";
+}
+
+const char* CacheDecisionMessage(CacheDecision decision) noexcept {
+    switch (decision) {
+    case CacheDecision::IdentityUnavailable:
+        return "Source identity unavailable: the active resolver exposed no "
+               "usable identity metadata.";
+    case CacheDecision::IdentityUnstable:
+        return "Source identity unstable: the active resolver identified the "
+               "source but could not guarantee its freshness.";
+    case CacheDecision::IdentityStable:
+        return "Source identity stable: generated cache reuse is permitted.";
+    case CacheDecision::IdentityChanged:
+        return "Source identity changed: a generated entry exists for a "
+               "different source validation identity, so output is "
+               "regenerated.";
+    case CacheDecision::ReuseDisabled:
+        return "Generated cache reuse disabled: the active resolver did not "
+               "provide a stable source validation identity.";
+    case CacheDecision::Hit:
+        return "Generated cache hit: the committed entry matched and was "
+               "reused.";
+    case CacheDecision::Invalidated:
+        return "Generated cache invalidated: the committed entry did not "
+               "validate and was removed.";
+    }
+    return "Generated cache reuse disabled: the active resolver did not "
+           "provide a stable source validation identity.";
+}
+
+CacheDecision IdentityDecision(
+    ResolverIdentityStability stability) noexcept {
+    switch (stability) {
+    case ResolverIdentityStability::Stable:
+        return CacheDecision::IdentityStable;
+    case ResolverIdentityStability::Unstable:
+        return CacheDecision::IdentityUnstable;
+    case ResolverIdentityStability::Unavailable:
+        return CacheDecision::IdentityUnavailable;
+    }
+    return CacheDecision::IdentityUnavailable;
+}
+
 double LookupStatistics::HitRatio() const noexcept {
     return lookups == 0 ? 0.0
                         : static_cast<double>(hits) /
@@ -132,7 +214,8 @@ bool Descriptor::IsValid() const noexcept {
            !HasArgumentsWithEmptyNames(coordinateTransform) &&
            !HasArgumentsWithEmptyNames(attributes) &&
            !HasArgumentsWithEmptyNames(tileAndLod) &&
-           !HasArgumentsWithEmptyNames(downsampling);
+           !HasArgumentsWithEmptyNames(downsampling) &&
+           !HasArgumentsWithEmptyNames(sourceDerived);
 }
 
 bool Layout::IsValid() const noexcept {
@@ -242,32 +325,62 @@ bool TryBuildResolverSourceIdentity(
     return true;
 }
 
-usdgeo::CacheArguments MakeCacheArguments(const Descriptor& descriptor) {
+namespace {
+
+const std::string& SourceValidation(const Descriptor& descriptor) {
+    return descriptor.source.validationToken.empty()
+               ? descriptor.source.contentIdentity
+               : descriptor.source.validationToken;
+}
+
+void AppendPrefixed(usdgeo::CacheArguments& arguments,
+                    const char* prefix,
+                    const usdgeo::CacheArguments& values) {
+    for (const auto& [name, value] : values) {
+        arguments.emplace_back(std::string(prefix) + "." + name, value);
+    }
+}
+
+// The caller-intent half: what was asked for, independent of what the source
+// turned out to contain. Nothing here may vary between two revisions of one
+// source, or those revisions stop being siblings and a changed validation
+// identity becomes indistinguishable from a source never seen before.
+usdgeo::CacheArguments MakeGenerationArguments(const Descriptor& descriptor) {
     const auto& sourceIdentifier = descriptor.source.identifier.empty()
                                        ? descriptor.source.canonicalPath
                                        : descriptor.source.identifier;
-    const auto& sourceValidation = descriptor.source.validationToken.empty()
-                                       ? descriptor.source.contentIdentity
-                                       : descriptor.source.validationToken;
     usdgeo::CacheArguments arguments{
         {"source.identifier", sourceIdentifier},
-        {"source.size", std::to_string(descriptor.source.sizeBytes)},
-        {"source.modified", std::to_string(descriptor.source.modifiedTime)},
-        {"source.validation", sourceValidation},
         {"plugin.version", descriptor.pluginVersion},
         {"parser.version", descriptor.parserVersion},
         {"openusd.version", descriptor.openUsdVersion}};
+    AppendPrefixed(arguments, "attributes", descriptor.attributes);
+    AppendPrefixed(arguments, "tile-lod", descriptor.tileAndLod);
+    AppendPrefixed(arguments, "downsampling", descriptor.downsampling);
+    return arguments;
+}
 
-    const auto append = [&arguments](const char* prefix,
-                                     const usdgeo::CacheArguments& values) {
-        for (const auto& [name, value] : values) {
-            arguments.emplace_back(std::string(prefix) + "." + name, value);
-        }
-    };
-    append("transform", descriptor.coordinateTransform);
-    append("attributes", descriptor.attributes);
-    append("tile-lod", descriptor.tileAndLod);
-    append("downsampling", descriptor.downsampling);
+// The source-derived half: the revision metadata the filesystem or a resolver
+// reports, the georeference resolved out of the source header - its local
+// origin is the source bounding box, and its CRS may be an embedded record -
+// and anything else a caller computed by scanning the source.
+usdgeo::CacheArguments MakeIdentityArguments(const Descriptor& descriptor) {
+    usdgeo::CacheArguments arguments{
+        {"source.size", std::to_string(descriptor.source.sizeBytes)},
+        {"source.modified", std::to_string(descriptor.source.modifiedTime)},
+        {"source.validation", SourceValidation(descriptor)}};
+    AppendPrefixed(arguments, "transform", descriptor.coordinateTransform);
+    AppendPrefixed(arguments, "source-derived", descriptor.sourceDerived);
+    return arguments;
+}
+
+} // namespace
+
+usdgeo::CacheArguments MakeCacheArguments(const Descriptor& descriptor) {
+    auto arguments = MakeGenerationArguments(descriptor);
+    for (auto& [name, value] : MakeIdentityArguments(descriptor)) {
+        arguments.emplace_back(name, value);
+    }
     return arguments;
 }
 
@@ -286,15 +399,24 @@ bool TryBuildLayout(const std::filesystem::path& cacheRoot,
         return false;
     }
 
-    const auto key = StableCacheKey(descriptor);
-    if (key.empty()) {
+    // Two levels: the generation inputs choose the directory, the source
+    // validation identity chooses the entry inside it. Equal generation inputs
+    // therefore collect every revision of the same source side by side, which
+    // is what lets a changed validation token be reported as changed instead of
+    // as never seen. Neither level stores the identifier or the token itself;
+    // both are hashes.
+    const auto generationKey =
+        usdgeo::StableCacheKey(MakeGenerationArguments(descriptor));
+    const auto identityKey =
+        usdgeo::StableCacheKey(MakeIdentityArguments(descriptor));
+    if (generationKey.empty() || identityKey.empty()) {
         return false;
     }
 
-    layout.entryDirectory = cacheRoot / key;
-    layout.rootLayer = layout.entryDirectory / "root.usdc";
-    layout.manifest = layout.entryDirectory / "cache.manifest";
-    layout.payloadDirectory = layout.entryDirectory / "payloads";
+    layout.entryDirectory = cacheRoot / generationKey / identityKey;
+    layout.rootLayer = layout.entryDirectory / kRootLayerName;
+    layout.manifest = layout.entryDirectory / kManifestName;
+    layout.payloadDirectory = layout.entryDirectory / kPayloadDirectoryName;
     return true;
 }
 
@@ -329,6 +451,40 @@ LookupResult Inspect(const Layout& layout) noexcept {
     return {status};
 }
 
+bool HasSupersededIdentityEntry(const Layout& layout) noexcept {
+    if (!layout.IsValid()) {
+        return false;
+    }
+    const auto generationDirectory = layout.entryDirectory.parent_path();
+    if (generationDirectory.empty()) {
+        return false;
+    }
+    std::error_code error;
+    std::filesystem::directory_iterator iterator(generationDirectory, error);
+    const std::filesystem::directory_iterator end;
+    if (error) {
+        return false;
+    }
+    const auto entryName = layout.entryDirectory.filename().string();
+    for (; iterator != end; iterator.increment(error)) {
+        if (error) {
+            return false;
+        }
+        const auto& path = iterator->path();
+        const auto name = path.filename().string();
+        if (name == entryName || !IsLayoutKeyName(name)) {
+            continue;
+        }
+        const auto root = InspectMarker(path / kRootLayerName);
+        const auto manifest = InspectMarker(path / kManifestName);
+        if (root.exists && root.regular && manifest.exists &&
+            manifest.regular) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool IsCacheHit(const Layout& layout) noexcept {
     return Inspect(layout).IsHit();
 }
@@ -356,7 +512,14 @@ bool Invalidate(const std::filesystem::path& cacheRoot,
     }
     std::error_code error;
     std::filesystem::remove_all(layout.entryDirectory, error);
-    return !error;
+    if (error) {
+        return false;
+    }
+    // Drop the generation directory once its last identity entry is gone, so
+    // an invalidated cache root does not accumulate empty parents.
+    std::error_code cleanupError;
+    std::filesystem::remove(layout.entryDirectory.parent_path(), cleanupError);
+    return true;
 }
 
 } // namespace usdgeo::cache

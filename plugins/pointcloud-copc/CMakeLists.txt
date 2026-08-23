@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.23)
 
 project(pointcloudCopc
-    VERSION 0.9.0
+    VERSION 0.10.0
     DESCRIPTION "OpenUSD FileFormat Plugin for COPC point clouds"
     LANGUAGES CXX)
 
@@ -126,9 +126,9 @@ if(USDGEO_BUILD_TESTS)
     set_target_properties(pointcloudCopc_tests PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
     add_test(NAME pointcloudCopc_integration COMMAND pointcloudCopc_tests)
-    set_tests_properties(pointcloudCopc_integration PROPERTIES
-        ENVIRONMENT_MODIFICATION
-            "PXR_AR_DEFAULT_RESOLVER=set:HttpResolver")
+    usdgeo_configure_openusd_test_runtime(pointcloudCopc_integration)
+    set_property(TEST pointcloudCopc_integration APPEND PROPERTY
+        ENVIRONMENT "PXR_AR_DEFAULT_RESOLVER=HttpResolver")
 endif()
 
 openstrata_configure_plugin(

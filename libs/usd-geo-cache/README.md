@@ -7,7 +7,41 @@ and downsampling settings. The descriptor is normalized through
 `usdGeoCore::StableCacheKey` so equivalent argument order and whitespace do
 not create different cache entries.
 
-Each descriptor maps to one entry directory with reserved paths for
+Each descriptor maps to one entry directory two levels below the cache root:
+
+```text
+<cache root>/<generation key>/<source identity key>/
+```
+
+Both components are the 16-hex-character `StableCacheKey` hash, and the split
+follows one rule: caller intent chooses the directory, and everything read out
+of the source chooses the entry inside it.
+
+| Half | `Descriptor` fields |
+| --- | --- |
+| generation key | `source.identifier`, `pluginVersion`, `parserVersion`, `openUsdVersion`, `attributes`, `tileAndLod`, `downsampling` |
+| source identity key | `source.sizeBytes`, `source.modifiedTime`, `source.validationToken`, `coordinateTransform`, `sourceDerived` |
+
+`coordinateTransform` is in the second half because it is resolved from the
+source header: its local origin is the source bounding box and its CRS may be an
+embedded record. `sourceDerived` is for anything else a caller computed by
+reading the source, such as the conversion tool's tile-plan key. Planner
+identity and version are caller intent and stay in `tileAndLod`.
+
+Putting a source-derived value in the first half is a defect rather than a
+preference: a revised source would land in an unrelated generation directory,
+and `HasSupersededIdentityEntry` could no longer see that it superseded
+anything. A unit test holds both directions - every revision-varying field keeps
+the generation directory, and every caller-intent field changes it.
+
+The split is not cosmetic. It puts every revision of one source in one
+generation directory, so `HasSupersededIdentityEntry` can tell a changed
+validation token from a source that was never generated before, which is what
+the `resolver-identity-changed` decision reports. It also keeps identifiers and
+tokens off the filesystem: a signed URL cannot be read back out of a cache
+root, because both components are hashes.
+
+An entry directory has reserved paths for
 `root.usdc`, a `cache.manifest`, and a `payloads/` directory. `TilePayloadPath`
 uses the same stable tile naming shape as payload-backed authoring. Cache
 entries are deletable derived data. The manifest is the generation commit
@@ -18,7 +52,9 @@ interrupted generation is reported as `Incomplete` and is not reusable.
 for an invalid layout. `IsCacheHit` remains the compatibility boolean wrapper
 around this status contract. `Invalidate` recomputes the descriptor entry
 below the supplied cache root and never accepts an arbitrary layout path, so it
-cannot delete an unrelated sibling directory.
+cannot delete an unrelated sibling directory. It removes the generation
+directory too once its last identity entry is gone, so an invalidated root does
+not accumulate empty parents.
 `LookupStatusName` exposes stable machine-readable status names, and the
 cache-library `GetLookupStatistics` snapshot counts every `Inspect` call by
 status. Updates, snapshots, and resets are serialized so the counters remain
@@ -32,6 +68,27 @@ every payload reference before reuse. A root that cannot be opened, a missing
 payload, or a payload outside the entry is treated as a corrupt entry and
 invalidated; failures materializing valid cached payloads into a caller-owned
 directory do not invalidate the cache entry.
+
+## Cache Decisions
+
+`CacheDecision` is the stable, transport-neutral vocabulary that explains what a
+lookup did. `CacheDecisionName` is the string form a consumer matches on, and
+`CacheDecisionMessage` is a fixed human-readable constant - fixed so that no
+transport specific and no token content can reach a diagnostic by accident:
+
+| Name | Meaning |
+| --- | --- |
+| `resolver-identity-unavailable` | the resolver exposed no usable identity metadata |
+| `resolver-identity-unstable` | the source is readable but its freshness is not guaranteed |
+| `resolver-identity-stable` | identity is sufficient for reuse |
+| `resolver-identity-changed` | an entry exists for a different validation identity |
+| `generated-cache-reuse-disabled` | reuse was not attempted |
+| `generated-cache-hit` | a committed entry was reused |
+| `generated-cache-invalidated` | an entry did not validate and was removed |
+
+`IdentityDecision` maps a `ResolverIdentityStability` onto the matching identity
+category. Names are stable once published; messages are for humans and may
+change between releases.
 
 ## Compatibility and Invalidation
 
@@ -77,8 +134,8 @@ written into cache descriptors, manifests, or diagnostics.
 
 Resolver-provided identity is classified before it is trusted — stable,
 unstable, or unavailable — and generated-cache reuse is enabled only for the
-stable case. `ClassifyResolverIdentity` and
-`TryBuildResolverSourceIdentity` provide this transport-neutral Phase 1
-contract without depending on OpenUSD or a resolver implementation. The
-OpenUSD-facing adapter remains v0.10.0 work; see the
+stable case. `ClassifyResolverIdentity` and `TryBuildResolverSourceIdentity`
+provide this transport-neutral contract without depending on OpenUSD or a
+resolver implementation. The OpenUSD-facing adapter that feeds them lives in
+`usdPointCloudAuthoring`, so this module never sees an `ArResolver`; see the
 [resolver-backed source contract](../../docs/architecture/RESOLVER_SOURCE.md).

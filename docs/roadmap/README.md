@@ -30,10 +30,11 @@ the conversion tool validate the shared point-cloud architecture. The next
 release sequence prioritizes infrastructure maturity over adding formats: the
 adaptive tiling shipped in `v0.7.0` is measured on real data before more tiling
 design is added, and the tile-plan representation is unified before another
-format is connected to it. `v0.10.0` then closes the resolver-facing side —
-transport-neutral source identity and safe generated-cache reuse for
-resolver-provided sources — while transport itself stays in external resolver
-implementations. The detailed rationale, scope, tests, and performance
+format is connected to it. `v0.10.0` closed the resolver-facing side —
+transport-neutral source identity, safe generated-cache reuse for
+resolver-provided sources, and a stable vocabulary for every cache decision —
+while transport itself stays in external resolver implementations, and recorded
+that boundary working against a released one. The detailed rationale, scope, tests, and performance
 indicators are in the
 [infrastructure maturity roadmap](infrastructure-maturity.md); the boundary
 itself is fixed in the
@@ -47,7 +48,7 @@ itself is fixed in the
 | `v0.7.0` | Adaptive tiling | Point-budget-aware payload density and memory use; released |
 | `v0.8.0` | Measurement and I/O observability | Real-world fixed-grid and adaptive baselines, and visible I/O amplification; released 2026-08-14 |
 | `v0.9.0` | TilePlan convergence and interactive validation | Sequential planning and COPC native hierarchy reach authoring through one representation, with a host-responsiveness baseline; released 2026-08-15 |
-| `v0.10.0` | Resolver-backed source identity and external resolver interoperability | Generated-cache reuse for resolver-provided sources where identity is sufficient, with transport owned by the resolver |
+| `v0.10.0` | Resolver-backed source identity and external resolver interoperability | Generated-cache reuse for resolver-provided sources where identity is sufficient, every decision explained through a stable category, Tier 1 as a CI gate, and recorded external interoperability; released 2026-08-23 |
 | Research | Runtime streaming | Host-driven partial loading investigated without complicating the conversion pipeline |
 | Later | Format expansion | E57 and other point-cloud adapters after infrastructure maturity |
 
@@ -178,7 +179,7 @@ interrupted generated-cache entries.
 | 8 | Point-budget-aware adaptive tiling | Released in `v0.7.0` | Deterministic planning, tile statistics, fixed-grid compatibility, and a fixture-based cross-format baseline are implemented; broader real-world baselines remain |
 | 9 | Real-world measurement and I/O observability | Released in `v0.8.0` | Compare fixed-grid and adaptive on uneven real data, and make source, spool, and payload I/O visible |
 | 10 | TilePlan convergence and interactive validation | Released in `v0.9.0` | One plan representation for sequential planning and COPC native hierarchy, plus a reproducible host-responsiveness baseline |
-| 11 | Resolver-backed source identity and external resolver interoperability | Planned for `v0.10.0` | Enable generated-cache reuse where a resolver supplies sufficient identity, keep transport out of the repository, and resolve the bundled test resolver's status |
+| 11 | Resolver-backed source identity and external resolver interoperability | Released in `v0.10.0` | Generated-cache reuse where a resolver supplies sufficient identity, seven stable decision categories, transport kept out of the repository, the bundled test resolver isolated under `tests/`, and Tier 2 recorded against `usd-http-resolver` v0.4.0 |
 | 12 | E57 and other point-cloud formats | Deferred | Reuse `PointStream`, processing, authoring, and cache contracts |
 
 Runtime streaming is investigated in parallel with these phases and is not a
@@ -203,7 +204,7 @@ maps onto the phases above.
 | W9 | Point-budget-aware adaptive tiling | 8 | Released in `v0.7.0` |
 | W10 | Real-world tiling baselines and I/O instrumentation | 9 | Released in `v0.8.0` |
 | W11 | `TilePlan` contract, adaptive migration, COPC native fast path, and interactive validation | 10 | Released in `v0.9.0` |
-| W12 | Resolver source identity, range-cache ownership, external resolver interoperability, and remote baselines | 11 | Planned for `v0.10.0` |
+| W12 | Resolver source identity, range-cache ownership, external resolver interoperability, and remote baselines | 11 | Released in `v0.10.0` |
 | W13 | Runtime streaming research | Parallel | Ongoing, no release gate |
 
 The completed workstreams established the shared point schema, streaming reader

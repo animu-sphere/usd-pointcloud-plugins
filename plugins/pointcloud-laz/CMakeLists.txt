@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.23)
 
 project(pointcloudLaz
-    VERSION 0.9.0
+    VERSION 0.10.0
     DESCRIPTION "OpenUSD FileFormat Plugin for LAZ point clouds"
     LANGUAGES CXX)
 
@@ -99,6 +99,7 @@ if(USDGEO_BUILD_TESTS)
     set_target_properties(pointcloudLaz_tests PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
     add_test(NAME pointcloudLaz_integration COMMAND pointcloudLaz_tests)
+    usdgeo_configure_openusd_test_runtime(pointcloudLaz_integration)
 endif()
 
 openstrata_configure_plugin(
