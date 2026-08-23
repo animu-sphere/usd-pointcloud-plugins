@@ -214,7 +214,8 @@ bool Descriptor::IsValid() const noexcept {
            !HasArgumentsWithEmptyNames(coordinateTransform) &&
            !HasArgumentsWithEmptyNames(attributes) &&
            !HasArgumentsWithEmptyNames(tileAndLod) &&
-           !HasArgumentsWithEmptyNames(downsampling);
+           !HasArgumentsWithEmptyNames(downsampling) &&
+           !HasArgumentsWithEmptyNames(sourceDerived);
 }
 
 bool Layout::IsValid() const noexcept {
@@ -332,11 +333,18 @@ const std::string& SourceValidation(const Descriptor& descriptor) {
                : descriptor.source.validationToken;
 }
 
-// Everything that decides *what would be generated* from a source, excluding
-// the metadata that decides *which revision of it* was read. Size and
-// modification time are revision metadata, so they belong with the validation
-// token: a source that changes size must still land beside the entry it
-// supersedes, not in an unrelated generation directory.
+void AppendPrefixed(usdgeo::CacheArguments& arguments,
+                    const char* prefix,
+                    const usdgeo::CacheArguments& values) {
+    for (const auto& [name, value] : values) {
+        arguments.emplace_back(std::string(prefix) + "." + name, value);
+    }
+}
+
+// The caller-intent half: what was asked for, independent of what the source
+// turned out to contain. Nothing here may vary between two revisions of one
+// source, or those revisions stop being siblings and a changed validation
+// identity becomes indistinguishable from a source never seen before.
 usdgeo::CacheArguments MakeGenerationArguments(const Descriptor& descriptor) {
     const auto& sourceIdentifier = descriptor.source.identifier.empty()
                                        ? descriptor.source.canonicalPath
@@ -346,25 +354,24 @@ usdgeo::CacheArguments MakeGenerationArguments(const Descriptor& descriptor) {
         {"plugin.version", descriptor.pluginVersion},
         {"parser.version", descriptor.parserVersion},
         {"openusd.version", descriptor.openUsdVersion}};
-
-    const auto append = [&arguments](const char* prefix,
-                                     const usdgeo::CacheArguments& values) {
-        for (const auto& [name, value] : values) {
-            arguments.emplace_back(std::string(prefix) + "." + name, value);
-        }
-    };
-    append("transform", descriptor.coordinateTransform);
-    append("attributes", descriptor.attributes);
-    append("tile-lod", descriptor.tileAndLod);
-    append("downsampling", descriptor.downsampling);
+    AppendPrefixed(arguments, "attributes", descriptor.attributes);
+    AppendPrefixed(arguments, "tile-lod", descriptor.tileAndLod);
+    AppendPrefixed(arguments, "downsampling", descriptor.downsampling);
     return arguments;
 }
 
-// The revision metadata a resolver or the filesystem reports for the source.
+// The source-derived half: the revision metadata the filesystem or a resolver
+// reports, the georeference resolved out of the source header - its local
+// origin is the source bounding box, and its CRS may be an embedded record -
+// and anything else a caller computed by scanning the source.
 usdgeo::CacheArguments MakeIdentityArguments(const Descriptor& descriptor) {
-    return {{"source.size", std::to_string(descriptor.source.sizeBytes)},
-            {"source.modified", std::to_string(descriptor.source.modifiedTime)},
-            {"source.validation", SourceValidation(descriptor)}};
+    usdgeo::CacheArguments arguments{
+        {"source.size", std::to_string(descriptor.source.sizeBytes)},
+        {"source.modified", std::to_string(descriptor.source.modifiedTime)},
+        {"source.validation", SourceValidation(descriptor)}};
+    AppendPrefixed(arguments, "transform", descriptor.coordinateTransform);
+    AppendPrefixed(arguments, "source-derived", descriptor.sourceDerived);
+    return arguments;
 }
 
 } // namespace

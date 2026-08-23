@@ -13,12 +13,26 @@ Each descriptor maps to one entry directory two levels below the cache root:
 <cache root>/<generation key>/<source identity key>/
 ```
 
-Both components are the 16-hex-character `StableCacheKey` hash. The generation
-key covers the resolved identifier and everything that decides what would be
-generated - plugin, parser, and OpenUSD versions, coordinate settings, selected
-attributes, tile and LOD settings, and downsampling. The source identity key
-covers the revision metadata: size, modification time, and the opaque
-validation token.
+Both components are the 16-hex-character `StableCacheKey` hash, and the split
+follows one rule: caller intent chooses the directory, and everything read out
+of the source chooses the entry inside it.
+
+| Half | `Descriptor` fields |
+| --- | --- |
+| generation key | `source.identifier`, `pluginVersion`, `parserVersion`, `openUsdVersion`, `attributes`, `tileAndLod`, `downsampling` |
+| source identity key | `source.sizeBytes`, `source.modifiedTime`, `source.validationToken`, `coordinateTransform`, `sourceDerived` |
+
+`coordinateTransform` is in the second half because it is resolved from the
+source header: its local origin is the source bounding box and its CRS may be an
+embedded record. `sourceDerived` is for anything else a caller computed by
+reading the source, such as the conversion tool's tile-plan key. Planner
+identity and version are caller intent and stay in `tileAndLod`.
+
+Putting a source-derived value in the first half is a defect rather than a
+preference: a revised source would land in an unrelated generation directory,
+and `HasSupersededIdentityEntry` could no longer see that it superseded
+anything. A unit test holds both directions - every revision-varying field keeps
+the generation directory, and every caller-intent field changes it.
 
 The split is not cosmetic. It puts every revision of one source in one
 generation directory, so `HasSupersededIdentityEntry` can tell a changed

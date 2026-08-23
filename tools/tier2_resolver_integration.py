@@ -25,6 +25,7 @@ import hashlib
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -101,18 +102,39 @@ def run_scenario(name: str, target: str) -> dict:
 # Driver.
 # --------------------------------------------------------------------------
 
+def reserve_port() -> int:
+    """One port for the whole run.
+
+    Every revision has to be served at the *same* URL, or the run is not three
+    revisions of one identifier - it is three unrelated assets, and the property
+    being demonstrated (equal identifier, different validator) is not being
+    demonstrated at all. Origins run one at a time, so a single reserved port is
+    enough.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        return probe.getsockname()[1]
+
+
 class Origin:
     """The loopback fixture origin, plus the request log it writes."""
 
-    def __init__(self, server: Path, fixture: Path, log: Path, validator: str):
+    def __init__(self, server: Path, fixture: Path, log: Path, validator: str,
+                 port: int):
         self.log = log
         self.process = subprocess.Popen(
             [sys.executable, str(server), "--file", str(fixture),
-             "--route", ROUTE, "--log", str(log), "--port", "0",
+             "--route", ROUTE, "--log", str(log), "--port", str(port),
              "--validator", validator],
             stdout=subprocess.PIPE, text=True)
-        self.port = int(self._line().split("=", 1)[1])
-        self.size = int(self._line().split("=", 1)[1])
+        try:
+            self.port = int(self._line().split("=", 1)[1])
+            self.size = int(self._line().split("=", 1)[1])
+        except BaseException:
+            # The handshake can fail after the process exists; leaving it
+            # running would hold the reserved port for the rest of the run.
+            self.close()
+            raise
 
     def _line(self) -> str:
         line = self.process.stdout.readline()
@@ -225,20 +247,26 @@ def main() -> int:
         record["scenarios"].append(
             child(script, environment, "full-local", str(local)))
 
-        # Three revisions of one identifier. A and B differ only in the
+        # Three revisions of one identifier, served at one reserved port so the
+        # identifier really is one identifier. A and B differ only in the
         # validator, so a changed validation identity is visible without the
-        # bytes changing - identifier equality is not content equality. W
-        # serves a weak validator, which a resolver must not publish as a
-        # stable identity, and is how the conservative fallback is exercised
-        # against a real resolver rather than a test double.
+        # bytes changing - identifier equality is not content equality. W serves
+        # a weak validator, which a resolver must not publish as a stable
+        # identity, and is how the conservative fallback is exercised against a
+        # real resolver rather than a test double.
+        port = reserve_port()
+        # One cache root for the whole run: separate roots per scenario would
+        # make every lookup a first lookup and hide any relationship between
+        # revisions.
+        cache_root = workspace / "cache"
         revisions = (("A", '"revision-a"'),
                      ("B", '"revision-b"'),
                      ("W", 'W/"revision-w"'))
+        identifiers = set()
         for revision, validator in revisions:
             for name in ("metadata", "full"):
                 log = workspace / ("origin-%s-%s.json" % (revision, name))
-                origin = Origin(server, fixture, log, validator)
-                cache_root = workspace / ("cache-%s-%s" % (revision, name))
+                origin = Origin(server, fixture, log, validator, port)
                 try:
                     entry = child(script, environment, name, origin.url,
                                   cache_root)
@@ -246,9 +274,15 @@ def main() -> int:
                     entry["validatorStrength"] = (
                         "weak" if validator.startswith("W/") else "strong")
                     entry["origin"] = origin.stats()
+                    identifiers.add(origin.url)
                     record["scenarios"].append(entry)
                 finally:
                     origin.close()
+        if len(identifiers) != 1:
+            raise RuntimeError(
+                "revisions were served at %d identifiers, not one: %s"
+                % (len(identifiers), sorted(identifiers)))
+        record["identifier"] = identifiers.pop()
     finally:
         shutil.rmtree(workspace, ignore_errors=True)
 

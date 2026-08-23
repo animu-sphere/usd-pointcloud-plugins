@@ -15,9 +15,10 @@ A generated cache entry moved from one directory below the cache root to two:
 <cache root>/<generation key>/<source identity key>/
 ```
 
-The generation key covers the resolved identifier and everything that decides
-what would be generated; the source identity key covers size, modification time,
-and the validation token. Both are the same 16-hex-character hash as before.
+The generation key covers what the caller asked for; the source identity key
+covers everything read out of the source - size, modification time, the
+validation token, the georeference resolved from the header, and any plan
+computed by scanning it. Both are the same 16-hex-character hash as before.
 
 Why: with one key, a source read at a new revision produced an unrelated
 directory, so a changed validation token was indistinguishable from a source

@@ -44,7 +44,11 @@ python tools/tier2_resolver_integration.py `
 
 The URL path must end in `.copc`, because OpenUSD selects the FileFormat by
 extension. Each scenario runs in a fresh interpreter against a fresh origin, so
-no in-process resolver state and no request log carries between rows.
+no in-process resolver state and no request log carries between rows. All
+origins bind one port reserved for the whole run, so every row is served at one
+identifier; the harness fails if that turns out not to hold, because three
+revisions at three URLs would be three unrelated assets and would demonstrate
+nothing about identity.
 
 ## Recorded results
 
@@ -62,8 +66,9 @@ generated-cache decision codes OpenUSD reported.
 | metadata only | W | weak | unstable | — | 3 | 120,546 | 0.001486 | — |
 | full read | W | weak | unstable | COPC009 | 277 | 81,123,042 | 1.000000 | 10,653,336 |
 
-Revisions A, B, and W serve identical bytes under identical identifiers and
-differ only in the validator the origin publishes. That is deliberate: it
+Revisions A, B, and W serve identical bytes at one identifier -
+`http://127.0.0.1:<port>/fixture.copc`, recorded in the JSON as `identifier` -
+and differ only in the validator the origin publishes. That is deliberate: it
 separates *what was resolved* from *which revision of it*, which is the
 distinction the whole identity contract rests on.
 
@@ -100,19 +105,26 @@ against a test double: `usd-http-resolver` publishes a token in
 are the same bytes, and this repository enables reuse only when a token is
 present. Neither side negotiates; one value crosses the boundary.
 
-Revisions A and B carry different validation tokens for one identifier, so they
-derive different generated-cache identities. Equal identifiers never imply equal
-content, and this record is the demonstration.
+Revisions A and B carry different validation tokens for one identifier - the
+recorded token digests are `38aee176…` and `172bc13c…` - so they derive
+different generated-cache identities from the same generation inputs. Equal
+identifiers never imply equal content, and this record is the demonstration.
+
+No row reports `COPC011`, the changed-identity category, and none can: that
+category is emitted when a committed entry exists for a different validation
+identity, and nothing in this harness publishes one. See the next section.
 
 ## What this baseline does not measure
 
-- **A generated-cache hit ratio for COPC.** Generated entries are published by
-  `usd-pointcloud-convert`, which accepts `.las` and `.laz` local inputs only, so
-  no COPC read — local or resolver-backed — has an entry to hit in a normal
-  workflow. What is verified here is the decision: which identity permits reuse,
-  and which diagnostic explains it. Reuse, invalidation on a changed token,
-  incomplete-entry recovery, and corrupted-entry recovery are covered by Tier 1
-  against committed entries.
+- **Anything that requires a committed cache entry.** Generated entries are
+  published by `usd-pointcloud-convert`, which accepts `.las` and `.laz` local
+  inputs only, so no COPC read — local or resolver-backed — has an entry to hit
+  in a normal workflow. That rules out a generated-cache hit ratio, a
+  `generated-cache-hit`, and a `resolver-identity-changed` from this harness.
+  What it verifies is the decision that precedes them: which identity permits
+  reuse, and which diagnostic explains it. Reuse, invalidation on a changed
+  token, superseded-entry detection, incomplete-entry recovery, and
+  corrupted-entry recovery are covered by Tier 1 against committed entries.
 - **Raw byte-range cache behavior.** That cache belongs to the resolver, and its
   hit ratios are recorded in that repository's own baseline.
 - **Wide-area network behavior.** The origin is loopback. These are protocol and

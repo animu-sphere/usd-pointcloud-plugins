@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <utility>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -206,22 +207,60 @@ void TestResolverCacheDiagnostic() {
               "COPC012",
           "resolver decision codes changed meaning");
 
-    for (const auto decision :
-         {usdgeo::cache::CacheDecision::IdentityUnavailable,
-          usdgeo::cache::CacheDecision::IdentityUnstable,
-          usdgeo::cache::CacheDecision::IdentityStable,
-          usdgeo::cache::CacheDecision::IdentityChanged,
-          usdgeo::cache::CacheDecision::ReuseDisabled,
-          usdgeo::cache::CacheDecision::Hit,
-          usdgeo::cache::CacheDecision::Invalidated}) {
+    // Assert the projection the plugin actually emits, category by category.
+    const std::vector<std::pair<usdgeo::cache::CacheDecision, const char*>>
+        projection{
+            {usdgeo::cache::CacheDecision::IdentityUnavailable,
+             usdgeocopc::diagnostics::ResolverCacheReuseDisabled},
+            {usdgeo::cache::CacheDecision::IdentityUnstable,
+             usdgeocopc::diagnostics::ResolverCacheReuseDisabled},
+            {usdgeo::cache::CacheDecision::ReuseDisabled,
+             usdgeocopc::diagnostics::ResolverCacheReuseDisabled},
+            {usdgeo::cache::CacheDecision::IdentityStable,
+             usdgeocopc::diagnostics::ResolverCacheReusePermitted},
+            {usdgeo::cache::CacheDecision::Hit,
+             usdgeocopc::diagnostics::ResolverCacheReusePermitted},
+            {usdgeo::cache::CacheDecision::IdentityChanged,
+             usdgeocopc::diagnostics::ResolverIdentityChanged},
+            {usdgeo::cache::CacheDecision::Invalidated,
+             usdgeocopc::diagnostics::ResolverCacheInvalidated}};
+    for (const auto& [decision, expectedCode] : projection) {
+        Check(std::string(usdgeocopc::diagnostics::DecisionCode(decision)) ==
+                  expectedCode,
+              "resolver decision projected onto the wrong code");
         const auto rendered =
-            std::string(usdgeo::cache::CacheDecisionMessage(decision)) + " (" +
-            usdgeo::cache::CacheDecisionName(decision) + ")";
-        Check(rendered.find(
-                  std::string("(") + usdgeo::cache::CacheDecisionName(decision) +
-                  ")") != std::string::npos,
-              "resolver decision message must carry its category");
+            usdgeocopc::diagnostics::DecisionMessage(decision);
+        Check(rendered.rfind(std::string("[") + expectedCode + "] ", 0) == 0,
+              "resolver decision message must lead with its code");
+        Check(rendered.find(usdgeo::cache::CacheDecisionMessage(decision)) !=
+                  std::string::npos,
+              "resolver decision message must carry the shared text");
+        // A consumer matches the category, so the category has to survive the
+        // projection. Building the expectation from the code path under test
+        // would assert nothing, so it is spelled out here.
+        Check(rendered.size() > 3 &&
+                  rendered.compare(
+                      rendered.size() -
+                          std::strlen(
+                              usdgeo::cache::CacheDecisionName(decision)) - 2,
+                      std::string::npos,
+                      std::string("(") +
+                          usdgeo::cache::CacheDecisionName(decision) + ")") == 0,
+              "resolver decision message must end with its category");
+        for (const char* forbidden : {"http", "ETag", "etag", "Authorization"}) {
+            Check(rendered.find(forbidden) == std::string::npos,
+                  "resolver decision message leaked a transport detail");
+        }
     }
+    Check(usdgeocopc::diagnostics::DecisionIsWarning(
+              usdgeo::cache::CacheDecision::ReuseDisabled) &&
+          usdgeocopc::diagnostics::DecisionIsWarning(
+              usdgeo::cache::CacheDecision::Invalidated) &&
+          !usdgeocopc::diagnostics::DecisionIsWarning(
+              usdgeo::cache::CacheDecision::Hit) &&
+          !usdgeocopc::diagnostics::DecisionIsWarning(
+              usdgeo::cache::CacheDecision::IdentityChanged),
+          "resolver decision severity changed");
 }
 
 void RegisterPlugin(const std::filesystem::path& plugInfo) {
@@ -881,9 +920,30 @@ void TestResolverBackedRead() {
     Check(changedStability ==
           usdgeo::cache::ResolverIdentityStability::Stable);
     Check(changedIdentity.validationToken != initialValidationToken);
+    // Rebuild the georeference from the changed source rather than reusing the
+    // original: asserting adjacency against a reference this test already holds
+    // would hold by construction. This fixture writes a fixed header bounding
+    // box, so the rebuilt reference happens to match, and the case where a
+    // revision *does* move the georeference is covered directly in
+    // usdGeoCache's TestSupersededIdentityEntry.
+    auto changedSource =
+        std::make_shared<usdgeocopc::ArAssetRandomAccessSource>(
+            changedAsset, "http://memory.copc");
+    usdcopc::CopcReader changedReader(changedSource);
+    usdcopc::CopcHeader changedHeader;
+    std::vector<usdgeo::Diagnostic> changedDiagnostics;
+    Check(changedReader.ReadMetadata(changedHeader, changedDiagnostics),
+          "read changed fixture metadata");
+    usdpointcloud::PointChunk changedMetadataChunk;
+    usdgeo::GeoReference changedReference;
+    usdgeo::SpatialBounds changedBounds;
+    Check(usdlas::BuildPointCloudMetadata(
+              changedHeader.las, changedMetadataChunk, changedReference,
+              changedBounds, cacheErrorMessage),
+          "build changed fixture metadata");
     usdgeo::cache::Layout changedLayout;
     Check(usdgeo::TryBuildPointCloudCacheLayout(
-        cacheRoot, changedIdentity, cacheReference, cacheRequest,
+        cacheRoot, changedIdentity, changedReference, cacheRequest,
         "copc-reader-1", changedLayout, cacheErrorMessage),
         "build changed resolver cache layout");
     Check(changedLayout.entryDirectory != cacheLayout.entryDirectory,

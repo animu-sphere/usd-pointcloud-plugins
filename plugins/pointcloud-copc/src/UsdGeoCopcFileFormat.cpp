@@ -74,34 +74,11 @@ const char* ReaderDiagnosticCode(
 
 // Every generated-cache decision reaches OpenUSD through one of four plugin
 // codes and always carries the stable category name, so a consumer can match
-// on the category rather than on prose. Nothing here can carry a resolved
-// identifier, a validation token, or any transport detail: the message text is
-// fixed by `usdgeo::cache` and the category name is an enumerated constant.
+// on the category rather than on prose. The projection lives in the
+// diagnostics header so a test asserts the same code and text OpenUSD is told.
 void ReportCacheDecision(usdgeo::cache::CacheDecision decision) {
-    const auto* code = usdgeocopc::diagnostics::ResolverCacheReuseDisabled;
-    bool warn = true;
-    switch (decision) {
-    case usdgeo::cache::CacheDecision::IdentityStable:
-    case usdgeo::cache::CacheDecision::Hit:
-        code = usdgeocopc::diagnostics::ResolverCacheReusePermitted;
-        warn = false;
-        break;
-    case usdgeo::cache::CacheDecision::IdentityChanged:
-        code = usdgeocopc::diagnostics::ResolverIdentityChanged;
-        warn = false;
-        break;
-    case usdgeo::cache::CacheDecision::Invalidated:
-        code = usdgeocopc::diagnostics::ResolverCacheInvalidated;
-        break;
-    case usdgeo::cache::CacheDecision::IdentityUnavailable:
-    case usdgeo::cache::CacheDecision::IdentityUnstable:
-    case usdgeo::cache::CacheDecision::ReuseDisabled:
-        break;
-    }
-    const auto message = usdgeocopc::diagnostics::Message(
-        code, std::string(usdgeo::cache::CacheDecisionMessage(decision)) +
-                  " (" + usdgeo::cache::CacheDecisionName(decision) + ")");
-    if (warn) {
+    const auto message = usdgeocopc::diagnostics::DecisionMessage(decision);
+    if (usdgeocopc::diagnostics::DecisionIsWarning(decision)) {
         TF_WARN("%s", message.c_str());
     } else {
         TF_STATUS("%s", message.c_str());
@@ -518,6 +495,11 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
             const std::filesystem::path payloadDirectory(request.payloadDirectory);
             if (!payloadDirectory.empty() &&
                 payloadDirectory.is_relative()) {
+                // A remote source has no directory to resolve a relative
+                // payload path against, so reuse is refused even though the
+                // identity would permit it.
+                ReportCacheDecision(
+                    usdgeo::cache::CacheDecision::ReuseDisabled);
                 return true;
             }
             decision = usdgeo::cache::CacheDecision::IdentityStable;

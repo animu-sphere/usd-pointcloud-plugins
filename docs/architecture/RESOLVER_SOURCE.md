@@ -197,11 +197,21 @@ An entry's path is two levels, and both components are 64-bit hashes:
 <cache root>/<generation key>/<source identity key>/
 ```
 
-The generation key covers the resolved identifier and everything that decides
-what would be generated: plugin, parser, and OpenUSD versions, the coordinate
-transform, attribute selection, tiling and LOD arguments, `TilePlan` identity
-and version, and downsampling. The source identity key covers the revision
-metadata: size, modification time, and the opaque validation token.
+The split follows one rule: caller intent chooses the directory, and everything
+read out of the source chooses the entry inside it. The generation key covers
+the resolved identifier, the plugin, parser, and OpenUSD versions, attribute
+selection, tiling and LOD arguments including planner identity and version, and
+downsampling. The source identity key covers the revision metadata - size,
+modification time, and the opaque validation token - plus the georeference
+resolved from the source header and any plan computed by scanning it.
+
+The georeference belongs in the second half because it is source-derived: the
+local origin is the source bounding box, and the CRS may be an embedded record.
+Putting it in the first half would mean a revision whose bounding box moved
+landed in an unrelated generation directory, where nothing could see that it
+superseded anything. The caller's *explicit* coordinate arguments are a
+different value and stay in the generation key with the rest of the normalized
+arguments.
 
 Two consequences follow, and both are load-bearing. Revisions of one source
 collect side by side under one generation directory, which is how a changed

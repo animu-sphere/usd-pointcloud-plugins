@@ -52,15 +52,37 @@ struct SourceIdentity {
     bool IsValid() const noexcept;
 };
 
+// A descriptor has two halves, and which half a value belongs in decides
+// whether two reads of one source are recognizable as revisions of each other.
+//
+//   caller intent    what was asked for, independent of the bytes:
+//                    versions, attribute selection, tiling and LOD arguments,
+//                    downsampling. These choose the generation directory.
+//   source-derived   what was read out of the source: its revision metadata,
+//                    the georeference resolved from its header, and any plan
+//                    computed by scanning it. These choose the entry inside
+//                    that directory.
+//
+// Putting a source-derived value in the caller-intent half is a defect, not a
+// preference: a revised source would land in an unrelated generation directory,
+// and `HasSupersededIdentityEntry` could no longer see that it superseded
+// anything.
 struct Descriptor {
     SourceIdentity source;
     std::string pluginVersion;
     std::string parserVersion;
     std::string openUsdVersion;
+    // Source-derived: the georeference resolved from the source header, whose
+    // local origin is the source bounding box and whose CRS may come from an
+    // embedded record.
     usdgeo::CacheArguments coordinateTransform;
     usdgeo::CacheArguments attributes;
     usdgeo::CacheArguments tileAndLod;
     usdgeo::CacheArguments downsampling;
+    // Source-derived: anything else a caller computed by reading the source,
+    // such as a tile-plan key produced by scanning it. Planner identity and
+    // version are caller intent and belong in `tileAndLod`.
+    usdgeo::CacheArguments sourceDerived;
 
     bool IsValid() const noexcept;
 };

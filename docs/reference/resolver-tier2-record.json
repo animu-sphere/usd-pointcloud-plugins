@@ -7,22 +7,72 @@
   "scenarios": [
     {
       "scenario": "full-local",
-      "target": "C:\\Users\\snkm\\AppData\\Local\\Temp\\tier2-resolver-mvj0sqwc\\local.copc",
+      "target": "C:\\Users\\snkm\\AppData\\Local\\Temp\\tier2-resolver-dsotp5o0\\local.copc",
       "opened": true,
       "prims": [
         "PointCloud"
       ],
       "pointCount": 10653336,
       "pointDigest": "c6cb61094db1b067a0bccccf54a1e284b9c035e4094d912de623b2fe76c1d2f6",
-      "elapsedSeconds": 17.8341,
+      "elapsedSeconds": 17.9931,
       "cacheRootConfigured": false,
       "decisionCodes": []
     },
     {
       "scenario": "metadata",
-      "target": "http://127.0.0.1:65160/fixture.copc",
+      "target": "http://127.0.0.1:56980/fixture.copc",
       "hasValidationToken": true,
       "validationTokenDigest": "38aee17688176bc7",
+      "identityClass": "stable",
+      "opened": true,
+      "prims": [
+        "PointCloud"
+      ],
+      "elapsedSeconds": 0.0309,
+      "cacheRootConfigured": true,
+      "decisionCodes": [],
+      "revision": "A",
+      "validatorStrength": "strong",
+      "origin": {
+        "requests": 3,
+        "rangeRequests": 2,
+        "bytesFetched": 120546,
+        "sourceBytes": 81123042,
+        "selectivity": 0.001486
+      }
+    },
+    {
+      "scenario": "full",
+      "target": "http://127.0.0.1:56980/fixture.copc",
+      "hasValidationToken": true,
+      "validationTokenDigest": "38aee17688176bc7",
+      "identityClass": "stable",
+      "opened": true,
+      "prims": [
+        "PointCloud"
+      ],
+      "pointCount": 10653336,
+      "pointDigest": "c6cb61094db1b067a0bccccf54a1e284b9c035e4094d912de623b2fe76c1d2f6",
+      "elapsedSeconds": 18.7465,
+      "cacheRootConfigured": true,
+      "decisionCodes": [
+        "COPC010"
+      ],
+      "revision": "A",
+      "validatorStrength": "strong",
+      "origin": {
+        "requests": 277,
+        "rangeRequests": 276,
+        "bytesFetched": 81123042,
+        "sourceBytes": 81123042,
+        "selectivity": 1.0
+      }
+    },
+    {
+      "scenario": "metadata",
+      "target": "http://127.0.0.1:56980/fixture.copc",
+      "hasValidationToken": true,
+      "validationTokenDigest": "172bc13c13af9aef",
       "identityClass": "stable",
       "opened": true,
       "prims": [
@@ -31,56 +81,6 @@
       "elapsedSeconds": 0.0297,
       "cacheRootConfigured": true,
       "decisionCodes": [],
-      "revision": "A",
-      "validatorStrength": "strong",
-      "origin": {
-        "requests": 3,
-        "rangeRequests": 2,
-        "bytesFetched": 120546,
-        "sourceBytes": 81123042,
-        "selectivity": 0.001486
-      }
-    },
-    {
-      "scenario": "full",
-      "target": "http://127.0.0.1:65162/fixture.copc",
-      "hasValidationToken": true,
-      "validationTokenDigest": "38aee17688176bc7",
-      "identityClass": "stable",
-      "opened": true,
-      "prims": [
-        "PointCloud"
-      ],
-      "pointCount": 10653336,
-      "pointDigest": "c6cb61094db1b067a0bccccf54a1e284b9c035e4094d912de623b2fe76c1d2f6",
-      "elapsedSeconds": 18.2508,
-      "cacheRootConfigured": true,
-      "decisionCodes": [
-        "COPC010"
-      ],
-      "revision": "A",
-      "validatorStrength": "strong",
-      "origin": {
-        "requests": 277,
-        "rangeRequests": 276,
-        "bytesFetched": 81123042,
-        "sourceBytes": 81123042,
-        "selectivity": 1.0
-      }
-    },
-    {
-      "scenario": "metadata",
-      "target": "http://127.0.0.1:65185/fixture.copc",
-      "hasValidationToken": true,
-      "validationTokenDigest": "172bc13c13af9aef",
-      "identityClass": "stable",
-      "opened": true,
-      "prims": [
-        "PointCloud"
-      ],
-      "elapsedSeconds": 0.0288,
-      "cacheRootConfigured": true,
-      "decisionCodes": [],
       "revision": "B",
       "validatorStrength": "strong",
       "origin": {
@@ -93,7 +93,7 @@
     },
     {
       "scenario": "full",
-      "target": "http://127.0.0.1:65187/fixture.copc",
+      "target": "http://127.0.0.1:56980/fixture.copc",
       "hasValidationToken": true,
       "validationTokenDigest": "172bc13c13af9aef",
       "identityClass": "stable",
@@ -103,7 +103,7 @@
       ],
       "pointCount": 10653336,
       "pointDigest": "c6cb61094db1b067a0bccccf54a1e284b9c035e4094d912de623b2fe76c1d2f6",
-      "elapsedSeconds": 17.9402,
+      "elapsedSeconds": 18.2973,
       "cacheRootConfigured": true,
       "decisionCodes": [
         "COPC010"
@@ -120,7 +120,7 @@
     },
     {
       "scenario": "metadata",
-      "target": "http://127.0.0.1:56422/fixture.copc",
+      "target": "http://127.0.0.1:56980/fixture.copc",
       "hasValidationToken": false,
       "validationTokenDigest": "",
       "identityClass": "unstable",
@@ -128,7 +128,7 @@
       "prims": [
         "PointCloud"
       ],
-      "elapsedSeconds": 0.0294,
+      "elapsedSeconds": 0.0289,
       "cacheRootConfigured": true,
       "decisionCodes": [],
       "revision": "W",
@@ -143,7 +143,7 @@
     },
     {
       "scenario": "full",
-      "target": "http://127.0.0.1:56424/fixture.copc",
+      "target": "http://127.0.0.1:56980/fixture.copc",
       "hasValidationToken": false,
       "validationTokenDigest": "",
       "identityClass": "unstable",
@@ -153,7 +153,7 @@
       ],
       "pointCount": 10653336,
       "pointDigest": "c6cb61094db1b067a0bccccf54a1e284b9c035e4094d912de623b2fe76c1d2f6",
-      "elapsedSeconds": 18.2719,
+      "elapsedSeconds": 18.0225,
       "cacheRootConfigured": true,
       "decisionCodes": [
         "COPC009"
@@ -168,5 +168,6 @@
         "selectivity": 1.0
       }
     }
-  ]
+  ],
+  "identifier": "http://127.0.0.1:56980/fixture.copc"
 }

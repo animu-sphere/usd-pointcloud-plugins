@@ -233,25 +233,85 @@ void TestSupersededIdentityEntry() {
     const auto root = std::filesystem::temp_directory_path() /
                       ("usdgeo-cache-identity-" + std::to_string(uniqueSuffix));
 
-    auto first = MakeDescriptor();
-    auto second = first;
-    second.source.validationToken = "sha256:def";
-    second.source.sizeBytes = first.source.sizeBytes + 17;
-
+    const auto first = MakeDescriptor();
     usdgeo::cache::Layout firstLayout;
-    usdgeo::cache::Layout secondLayout;
     Check(usdgeo::cache::TryBuildLayout(root, first, firstLayout));
+
+    // Everything a revision of the same source can change must move the entry
+    // without moving the generation directory. The georeference is on this list
+    // because its local origin is the source bounding box and its CRS may be an
+    // embedded record, and the tile plan is because it is computed by scanning
+    // the source - both vary with content, not with what the caller asked for.
+    const auto revise = [](usdgeo::cache::Descriptor descriptor,
+                           int which) {
+        switch (which) {
+        case 0:
+            descriptor.source.validationToken = "sha256:def";
+            break;
+        case 1:
+            descriptor.source.sizeBytes += 17;
+            break;
+        case 2:
+            descriptor.source.modifiedTime += 1;
+            break;
+        case 3:
+            descriptor.coordinateTransform = {{"origin", "101,200,0"}};
+            break;
+        default:
+            descriptor.sourceDerived = {{"tile.plan", "0123456789abcdef"}};
+            break;
+        }
+        return descriptor;
+    };
+    for (int which = 0; which != 5; ++which) {
+        usdgeo::cache::Layout revised;
+        Check(usdgeo::cache::TryBuildLayout(root, revise(first, which),
+                                            revised));
+        Check(revised.entryDirectory != firstLayout.entryDirectory,
+              "a revised source reused the entry it supersedes");
+        Check(revised.entryDirectory.parent_path() ==
+                  firstLayout.entryDirectory.parent_path(),
+              "a revised source left the generation directory");
+    }
+
+    // What the caller asked for is the other half: changing it must move the
+    // generation directory, so unrelated requests are never mistaken for
+    // revisions of each other.
+    const auto reask = [](usdgeo::cache::Descriptor descriptor, int which) {
+        switch (which) {
+        case 0:
+            descriptor.attributes = {{"selection", "xyz"}};
+            break;
+        case 1:
+            descriptor.tileAndLod = {{"tileSize", "128"}};
+            break;
+        case 2:
+            descriptor.downsampling = {{"algorithm", "fixed-stride"},
+                                       {"version", "2"}};
+            break;
+        default:
+            descriptor.pluginVersion = "0.2.2";
+            break;
+        }
+        return descriptor;
+    };
+    for (int which = 0; which != 4; ++which) {
+        usdgeo::cache::Layout other;
+        Check(usdgeo::cache::TryBuildLayout(root, reask(first, which), other));
+        Check(other.entryDirectory.parent_path() !=
+                  firstLayout.entryDirectory.parent_path(),
+              "different generation inputs shared a generation directory");
+    }
+
+    const auto second = revise(first, 0);
+    usdgeo::cache::Layout secondLayout;
     Check(usdgeo::cache::TryBuildLayout(root, second, secondLayout));
-    Check(firstLayout.entryDirectory != secondLayout.entryDirectory,
-          "changed validation identity reused an entry");
-    Check(firstLayout.entryDirectory.parent_path() ==
-              secondLayout.entryDirectory.parent_path(),
-          "changed validation identity left the generation directory");
 
     Check(!usdgeo::cache::HasSupersededIdentityEntry(secondLayout),
           "empty cache reported a superseded entry");
     std::filesystem::create_directories(firstLayout.payloadDirectory);
     std::ofstream(firstLayout.rootLayer) << "cache";
+
     Check(!usdgeo::cache::HasSupersededIdentityEntry(secondLayout),
           "uncommitted entry reported as superseded");
     std::ofstream(firstLayout.manifest) << "committed";

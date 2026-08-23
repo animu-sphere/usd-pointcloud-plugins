@@ -341,7 +341,10 @@ bool BuildCacheDescriptor(
             errorMessage = "adaptive cache descriptor requires a tile plan key";
             return false;
         }
-        descriptor.tileAndLod.emplace_back("tile.plan", tilePlanKey);
+        // The planner's identity and version are caller intent; the plan it
+        // produced is read out of the source, so it belongs in the
+        // source-derived half of the descriptor.
+        descriptor.sourceDerived.emplace_back("tile.plan", tilePlanKey);
     }
     descriptor.downsampling = {{"algorithm", "fixed-stride"},
                                {"version", "1"}};

@@ -43,8 +43,10 @@ release record is [docs/releases/v0.10.0.md](docs/releases/v0.10.0.md).
 - Generated cache entries are addressed by a generation key and a source
   identity key rather than one combined key. Revisions of one source are now
   siblings under one generation directory, which is what makes
-  `resolver-identity-changed` reportable. Source size and modification time
-  moved to the identity half with the validation token.
+  `resolver-identity-changed` reportable. The generation key carries caller
+  intent; source size, modification time, the resolved georeference, and the
+  new `Descriptor::sourceDerived` group - which the conversion tool's tile-plan
+  key moved into - carry what was read out of the source.
 - `Invalidate` removes an emptied generation directory, so an invalidated cache
   root does not accumulate empty parents.
 - Removed standalone `httpresolver` product CI cells. The relocated test double
