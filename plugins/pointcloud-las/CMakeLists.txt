@@ -91,6 +91,7 @@ if(USDGEO_BUILD_TESTS)
     set_target_properties(pointcloudLas_tests PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
     add_test(NAME pointcloudLas_integration COMMAND pointcloudLas_tests)
+    usdgeo_configure_openusd_test_runtime(pointcloudLas_integration)
 endif()
 
 openstrata_configure_plugin(

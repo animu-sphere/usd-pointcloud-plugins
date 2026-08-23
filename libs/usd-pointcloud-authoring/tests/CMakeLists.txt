@@ -3,7 +3,9 @@ target_link_libraries(usdPointCloudAuthoring_tests PRIVATE
 	usdpointcloud::authoring
 	usdcopc::core)
 add_test(NAME usdPointCloudAuthoring_unit COMMAND usdPointCloudAuthoring_tests)
+usdgeo_configure_openusd_test_runtime(usdPointCloudAuthoring_unit)
 
 add_executable(usdPointCloudCache_tests test_pointcloud_cache.cpp)
 target_link_libraries(usdPointCloudCache_tests PRIVATE usdpointcloud::authoring)
 add_test(NAME usdPointCloudCache_unit COMMAND usdPointCloudCache_tests)
+usdgeo_configure_openusd_test_runtime(usdPointCloudCache_unit)

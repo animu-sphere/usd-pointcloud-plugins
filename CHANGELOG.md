@@ -57,6 +57,9 @@ release record is [docs/releases/v0.10.0.md](docs/releases/v0.10.0.md).
 
 ### Fixed
 
+- Windows CTest registrations for the authoring bridge, converter, and
+  FileFormat integrations now prepend the OpenUSD imported runtime directory
+  to `PATH`, so all linked OpenUSD DLLs resolve in workspace CI.
 - Resolver cache Tier 1 coverage verifies cache hits, incomplete and corrupted
   entry invalidation, and validation-token changes through cache artifacts
   instead of process-local counters that are not shared across a FileFormat DLL
