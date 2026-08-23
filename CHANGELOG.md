@@ -59,8 +59,9 @@ release record is [docs/releases/v0.10.0.md](docs/releases/v0.10.0.md).
 
 - Windows CTest registrations for the authoring bridge, converter, and
   FileFormat integrations now prepend the OpenUSD imported `lib` and `bin`
-  directories to `PATH`, so all linked OpenUSD and TBB DLLs resolve in
-  workspace CI without hiding host runtime DLLs.
+  directories and the configured Python runtime to `PATH`, so all linked
+  OpenUSD, TBB, and Python DLLs resolve in workspace CI without hiding host
+  runtime DLLs.
 - Resolver cache Tier 1 coverage verifies cache hits, incomplete and corrupted
   entry invalidation, and validation-token changes through cache artifacts
   instead of process-local counters that are not shared across a FileFormat DLL

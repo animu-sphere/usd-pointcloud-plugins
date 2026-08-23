@@ -27,7 +27,7 @@ function(usdgeo_configure_openusd_test_runtime test_name)
         string(REPLACE ";" "\\;" _usdgeo_host_path "$ENV{PATH}")
         set_property(TEST "${test_name}" APPEND PROPERTY
             ENVIRONMENT
-                "PATH=$<TARGET_FILE_DIR:usdGeom>\\;$<TARGET_FILE_DIR:usdGeom>/../bin\\;${_usdgeo_host_path}")
+                "PATH=$<TARGET_FILE_DIR:usdGeom>\\;$<TARGET_FILE_DIR:usdGeom>/../bin\\;$<TARGET_FILE_DIR:Python3::Python>\\;${_usdgeo_host_path}")
     endif()
 endfunction()
 
