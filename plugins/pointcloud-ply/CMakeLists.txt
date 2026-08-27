@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.23)
 
 project(pointcloudPly
-    VERSION 0.10.0
+    VERSION 0.11.0
     DESCRIPTION "OpenUSD FileFormat Plugin for PLY point clouds"
     LANGUAGES CXX)
 

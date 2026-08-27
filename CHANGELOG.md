@@ -6,6 +6,25 @@ All notable changes to this project are documented here.
 
 Nothing yet.
 
+## [0.11.0] - 2026-08-27
+
+Composable point-cloud product and packaged geospatial acceptance.
+
+### Added
+
+- Component-owned packaged probes for LAS, LAZ, PLY, and COPC registration and
+  stage opening from an installed runtime prefix.
+- The Tier 2 HTTP/COPC fixture server and integration runner are installed in
+  the aggregate product, with compatibility wrappers retained at their former
+  source-tree paths.
+
+### Changed
+
+- The workspace product declares exact release members and shared acceptance
+  data for OpenStrata runtime composition.
+- Canonical OpenUSD 26.08 pins and generated source CI are refreshed for the
+  OpenStrata v0.22.8 release line.
+
 ## [0.10.0] - 2026-08-23
 
 Resolver-backed source identity and external resolver interoperability. The

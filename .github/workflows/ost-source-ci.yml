@@ -40,7 +40,7 @@ jobs:
         include:
           - name: pointcloud-las-pr-windows
             lane: pull_request
-            runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+            runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -52,13 +52,13 @@ jobs:
             hosted: true
             runner_profile: windows-hosted
             bundle: plugins/pointcloud-las
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
             host_python: ""
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-laz-pr-windows
             lane: pull_request
-            runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+            runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -70,13 +70,13 @@ jobs:
             hosted: true
             runner_profile: windows-hosted
             bundle: plugins/pointcloud-laz
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
             host_python: ""
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-las-pr-macos-arm64
             lane: pull_request
-            runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+            runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -88,13 +88,13 @@ jobs:
             hosted: true
             runner_profile: macos-arm64-hosted
             bundle: plugins/pointcloud-las
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6"
             host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-las-pr-linux
             lane: pull_request
-            runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+            runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -106,13 +106,13 @@ jobs:
             hosted: true
             runner_profile: linux-hosted
             bundle: plugins/pointcloud-las
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f"
             host_python: "3.13"
             host_packages_apt: "libx11-dev libxt-dev libxext-dev libgl1-mesa-dev"
             host_packages_brew: ""
           - name: pointcloud-laz-pr-macos-arm64
             lane: pull_request
-            runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+            runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -124,13 +124,13 @@ jobs:
             hosted: true
             runner_profile: macos-arm64-hosted
             bundle: plugins/pointcloud-laz
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6"
             host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-laz-pr-linux
             lane: pull_request
-            runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+            runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -142,13 +142,13 @@ jobs:
             hosted: true
             runner_profile: linux-hosted
             bundle: plugins/pointcloud-laz
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f"
             host_python: "3.13"
             host_packages_apt: "libx11-dev libxt-dev libxext-dev libgl1-mesa-dev"
             host_packages_brew: ""
           - name: pointcloud-copc-pr-windows
             lane: pull_request
-            runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+            runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -160,13 +160,13 @@ jobs:
             hosted: true
             runner_profile: windows-hosted
             bundle: plugins/pointcloud-copc
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
             host_python: ""
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-copc-pr-macos-arm64
             lane: pull_request
-            runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+            runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -178,13 +178,13 @@ jobs:
             hosted: true
             runner_profile: macos-arm64-hosted
             bundle: plugins/pointcloud-copc
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6"
             host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-copc-pr-linux
             lane: pull_request
-            runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+            runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -196,13 +196,13 @@ jobs:
             hosted: true
             runner_profile: linux-hosted
             bundle: plugins/pointcloud-copc
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f"
             host_python: "3.13"
             host_packages_apt: "libx11-dev libxt-dev libxext-dev libgl1-mesa-dev"
             host_packages_brew: ""
           - name: pointcloud-ply-pr-windows
             lane: pull_request
-            runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+            runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -214,13 +214,13 @@ jobs:
             hosted: true
             runner_profile: windows-hosted
             bundle: plugins/pointcloud-ply
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
             host_python: ""
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-ply-pr-macos-arm64
             lane: pull_request
-            runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+            runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -232,13 +232,13 @@ jobs:
             hosted: true
             runner_profile: macos-arm64-hosted
             bundle: plugins/pointcloud-ply
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6"
             host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-ply-pr-linux
             lane: pull_request
-            runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+            runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -250,7 +250,7 @@ jobs:
             hosted: true
             runner_profile: linux-hosted
             bundle: plugins/pointcloud-ply
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f"
             host_python: "3.13"
             host_packages_apt: "libx11-dev libxt-dev libxext-dev libgl1-mesa-dev"
             host_packages_brew: ""
@@ -261,7 +261,7 @@ jobs:
         if: ${{ matrix.hosted }}
         shell: bash
         run: echo "::notice title=OpenStrata hosted-runner usage::This job uses GitHub-hosted infrastructure. Private repositories may incur GitHub Actions usage charges. Review repository billing and Actions usage settings."
-      - name: Bootstrap ost 0.22.2 (pinned release asset, checksum-verified)
+      - name: Bootstrap ost 0.22.8 (pinned release asset, checksum-verified)
         if: ${{ matrix.hosted }}
         shell: bash
         run: |
@@ -279,7 +279,7 @@ jobs:
             *) : ;;
           esac
           asset="ost-cli-${triple}.${ext}"
-          base="https://github.com/animu-sphere/open-strata/releases/download/v0.22.2"
+          base="https://github.com/animu-sphere/open-strata/releases/download/v0.22.8"
           curl -fsSLo "$asset" "$base/$asset"
           curl -fsSLo "$asset.sha256" "$base/$asset.sha256"
           actual="$( (command -v sha256sum > /dev/null && sha256sum "$asset" || shasum -a 256 "$asset") | cut -d' ' -f1 )"
@@ -313,7 +313,7 @@ jobs:
           echo "$exported_path" >> "$GITHUB_PATH"
           json_executable="$(printf '%s' "$executable" | sed 's/\\/\\\\/g; s/"/\\"/g')"
           json_exported_path="$(printf '%s' "$exported_path" | sed 's/\\/\\\\/g; s/"/\\"/g')"
-          printf '{"schema":1,"pinned_version":"%s","asset":"%s","sha256":"%s","executable":"%s","exported_path":"%s"}\n' "0.22.2" "$asset" "$actual" "$json_executable" "$json_exported_path" > .ost-ci/bootstrap.json
+          printf '{"schema":1,"pinned_version":"%s","asset":"%s","sha256":"%s","executable":"%s","exported_path":"%s"}\n' "0.22.8" "$asset" "$actual" "$json_executable" "$json_exported_path" > .ost-ci/bootstrap.json
       - name: Check ost is available and record its version
         shell: bash
         run: |
@@ -326,8 +326,8 @@ jobs:
           fi
 
           echo "$version"
-          if [ "${{ matrix.hosted }}" = "true" ] && [ "$version" != "ost 0.22.2" ]; then
-            echo "::error title=ost bootstrap::expected 'ost 0.22.2', got '$version'" ; exit 1
+          if [ "${{ matrix.hosted }}" = "true" ] && [ "$version" != "ost 0.22.8" ]; then
+            echo "::error title=ost bootstrap::expected 'ost 0.22.8', got '$version'" ; exit 1
           fi
           printf '{"schema":1,"ost_version":"%s"}\n' "$version" > .ost-ci/ost-version.json
       - name: Validate the CI manifest
@@ -339,7 +339,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ost-ci-home/artifacts
-          key: ost-registry-0.22.2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
+          key: ost-registry-0.22.8-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
       - name: Pull the pinned runtime SDK from its remote reference
         if: ${{ matrix.runtime_remote != '' }}
         shell: bash
@@ -372,7 +372,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ost-ci-home/artifacts
-          key: ost-registry-0.22.2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
+          key: ost-registry-0.22.8-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
       - name: Install the host packages this runtime needs to be consumed
         if: ${{ matrix.host_packages_apt != '' || matrix.host_packages_brew != '' }}
         shell: bash
@@ -404,12 +404,6 @@ jobs:
               exit 1
               ;;
           esac
-      - name: Validate the materialized runtime (runnable tools)
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p .ost-ci
-          ost runtime validate ${{ matrix.platform }} --profile ${{ matrix.profile }} --json | tee .ost-ci/runtime-validate.json
       - name: Set up host Python for schema tooling
         if: ${{ matrix.hosted && matrix.host_python != '' }}
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
@@ -428,6 +422,12 @@ jobs:
             source=runtime-bundled
           fi
           printf '{"schema":1,"host_python":"%s","source":"%s"}\n' "${{ matrix.host_python }}" "$source" > .ost-ci/python-setup.json
+      - name: Validate the materialized runtime (runnable tools)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ost-ci
+          ost runtime validate ${{ matrix.platform }} --profile ${{ matrix.profile }} --json | tee .ost-ci/runtime-validate.json
       - name: Build the plugin from source
         shell: bash
         run: ost plugin build ${{ matrix.bundle }} --target ${{ matrix.platform }} --profile ${{ matrix.profile }}
@@ -463,7 +463,7 @@ jobs:
         include:
           - name: workspace-pr-windows
             lane: pull_request
-            runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+            runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -474,13 +474,13 @@ jobs:
             hosted: true
             runner_profile: windows-hosted
             verify: test
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
             host_python: ""
             host_packages_apt: ""
             host_packages_brew: ""
           - name: workspace-pr-macos-arm64
             lane: pull_request
-            runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+            runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -491,13 +491,13 @@ jobs:
             hosted: true
             runner_profile: macos-arm64-hosted
             verify: test
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6"
             host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: workspace-pr-linux
             lane: pull_request
-            runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+            runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -508,7 +508,7 @@ jobs:
             hosted: true
             runner_profile: linux-hosted
             verify: test
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f"
             host_python: "3.13"
             host_packages_apt: "libx11-dev libxt-dev libxext-dev libgl1-mesa-dev"
             host_packages_brew: ""
@@ -519,7 +519,7 @@ jobs:
         if: ${{ matrix.hosted }}
         shell: bash
         run: echo "::notice title=OpenStrata hosted-runner usage::This job uses GitHub-hosted infrastructure. Private repositories may incur GitHub Actions usage charges. Review repository billing and Actions usage settings."
-      - name: Bootstrap ost 0.22.2 (pinned release asset, checksum-verified)
+      - name: Bootstrap ost 0.22.8 (pinned release asset, checksum-verified)
         if: ${{ matrix.hosted }}
         shell: bash
         run: |
@@ -537,7 +537,7 @@ jobs:
             *) : ;;
           esac
           asset="ost-cli-${triple}.${ext}"
-          base="https://github.com/animu-sphere/open-strata/releases/download/v0.22.2"
+          base="https://github.com/animu-sphere/open-strata/releases/download/v0.22.8"
           curl -fsSLo "$asset" "$base/$asset"
           curl -fsSLo "$asset.sha256" "$base/$asset.sha256"
           actual="$( (command -v sha256sum > /dev/null && sha256sum "$asset" || shasum -a 256 "$asset") | cut -d' ' -f1 )"
@@ -571,7 +571,7 @@ jobs:
           echo "$exported_path" >> "$GITHUB_PATH"
           json_executable="$(printf '%s' "$executable" | sed 's/\\/\\\\/g; s/"/\\"/g')"
           json_exported_path="$(printf '%s' "$exported_path" | sed 's/\\/\\\\/g; s/"/\\"/g')"
-          printf '{"schema":1,"pinned_version":"%s","asset":"%s","sha256":"%s","executable":"%s","exported_path":"%s"}\n' "0.22.2" "$asset" "$actual" "$json_executable" "$json_exported_path" > .ost-ci/bootstrap.json
+          printf '{"schema":1,"pinned_version":"%s","asset":"%s","sha256":"%s","executable":"%s","exported_path":"%s"}\n' "0.22.8" "$asset" "$actual" "$json_executable" "$json_exported_path" > .ost-ci/bootstrap.json
       - name: Check ost is available and record its version
         shell: bash
         run: |
@@ -584,8 +584,8 @@ jobs:
           fi
 
           echo "$version"
-          if [ "${{ matrix.hosted }}" = "true" ] && [ "$version" != "ost 0.22.2" ]; then
-            echo "::error title=ost bootstrap::expected 'ost 0.22.2', got '$version'" ; exit 1
+          if [ "${{ matrix.hosted }}" = "true" ] && [ "$version" != "ost 0.22.8" ]; then
+            echo "::error title=ost bootstrap::expected 'ost 0.22.8', got '$version'" ; exit 1
           fi
           printf '{"schema":1,"ost_version":"%s"}\n' "$version" > .ost-ci/ost-version.json
       - name: Validate the CI manifest
@@ -597,7 +597,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ost-ci-home/artifacts
-          key: ost-registry-0.22.2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
+          key: ost-registry-0.22.8-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
       - name: Pull the pinned runtime SDK from its remote reference
         if: ${{ matrix.runtime_remote != '' }}
         shell: bash
@@ -630,7 +630,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ost-ci-home/artifacts
-          key: ost-registry-0.22.2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
+          key: ost-registry-0.22.8-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
       - name: Install the host packages this runtime needs to be consumed
         if: ${{ matrix.host_packages_apt != '' || matrix.host_packages_brew != '' }}
         shell: bash
@@ -662,12 +662,6 @@ jobs:
               exit 1
               ;;
           esac
-      - name: Validate the materialized runtime (runnable tools)
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p .ost-ci
-          ost runtime validate ${{ matrix.platform }} --profile ${{ matrix.profile }} --json | tee .ost-ci/runtime-validate.json
       - name: Set up host Python for schema tooling
         if: ${{ matrix.hosted && matrix.host_python != '' }}
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
@@ -686,6 +680,12 @@ jobs:
             source=runtime-bundled
           fi
           printf '{"schema":1,"host_python":"%s","source":"%s"}\n' "${{ matrix.host_python }}" "$source" > .ost-ci/python-setup.json
+      - name: Validate the materialized runtime (runnable tools)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ost-ci
+          ost runtime validate ${{ matrix.platform }} --profile ${{ matrix.profile }} --json | tee .ost-ci/runtime-validate.json
       - name: Validate the workspace dependency graph
         shell: bash
         run: ost plugin test --workspace --graph-only --json
@@ -722,7 +722,7 @@ jobs:
         include:
           - name: pointcloud-las-main-windows
             lane: main
-            runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+            runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -734,13 +734,13 @@ jobs:
             hosted: true
             runner_profile: windows-hosted
             bundle: plugins/pointcloud-las
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
             host_python: ""
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-laz-main-windows
             lane: main
-            runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+            runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -752,13 +752,13 @@ jobs:
             hosted: true
             runner_profile: windows-hosted
             bundle: plugins/pointcloud-laz
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
             host_python: ""
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-las-main-macos-arm64
             lane: main
-            runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+            runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -770,13 +770,13 @@ jobs:
             hosted: true
             runner_profile: macos-arm64-hosted
             bundle: plugins/pointcloud-las
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6"
             host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-laz-main-macos-arm64
             lane: main
-            runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+            runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -788,13 +788,13 @@ jobs:
             hosted: true
             runner_profile: macos-arm64-hosted
             bundle: plugins/pointcloud-laz
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6"
             host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-las-main-linux
             lane: main
-            runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+            runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -806,13 +806,13 @@ jobs:
             hosted: true
             runner_profile: linux-hosted
             bundle: plugins/pointcloud-las
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f"
             host_python: "3.13"
             host_packages_apt: "libx11-dev libxt-dev libxext-dev libgl1-mesa-dev"
             host_packages_brew: ""
           - name: pointcloud-laz-main-linux
             lane: main
-            runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+            runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -824,13 +824,13 @@ jobs:
             hosted: true
             runner_profile: linux-hosted
             bundle: plugins/pointcloud-laz
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f"
             host_python: "3.13"
             host_packages_apt: "libx11-dev libxt-dev libxext-dev libgl1-mesa-dev"
             host_packages_brew: ""
           - name: pointcloud-copc-main-windows
             lane: main
-            runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+            runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -842,13 +842,13 @@ jobs:
             hosted: true
             runner_profile: windows-hosted
             bundle: plugins/pointcloud-copc
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
             host_python: ""
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-copc-main-macos-arm64
             lane: main
-            runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+            runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -860,13 +860,13 @@ jobs:
             hosted: true
             runner_profile: macos-arm64-hosted
             bundle: plugins/pointcloud-copc
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6"
             host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-copc-main-linux
             lane: main
-            runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+            runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -878,13 +878,13 @@ jobs:
             hosted: true
             runner_profile: linux-hosted
             bundle: plugins/pointcloud-copc
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f"
             host_python: "3.13"
             host_packages_apt: "libx11-dev libxt-dev libxext-dev libgl1-mesa-dev"
             host_packages_brew: ""
           - name: pointcloud-ply-main-windows
             lane: main
-            runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+            runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -896,13 +896,13 @@ jobs:
             hosted: true
             runner_profile: windows-hosted
             bundle: plugins/pointcloud-ply
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
             host_python: ""
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-ply-main-macos-arm64
             lane: main
-            runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+            runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -914,13 +914,13 @@ jobs:
             hosted: true
             runner_profile: macos-arm64-hosted
             bundle: plugins/pointcloud-ply
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6"
             host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-ply-main-linux
             lane: main
-            runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+            runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -932,7 +932,7 @@ jobs:
             hosted: true
             runner_profile: linux-hosted
             bundle: plugins/pointcloud-ply
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f"
             host_python: "3.13"
             host_packages_apt: "libx11-dev libxt-dev libxext-dev libgl1-mesa-dev"
             host_packages_brew: ""
@@ -943,7 +943,7 @@ jobs:
         if: ${{ matrix.hosted }}
         shell: bash
         run: echo "::notice title=OpenStrata hosted-runner usage::This job uses GitHub-hosted infrastructure. Private repositories may incur GitHub Actions usage charges. Review repository billing and Actions usage settings."
-      - name: Bootstrap ost 0.22.2 (pinned release asset, checksum-verified)
+      - name: Bootstrap ost 0.22.8 (pinned release asset, checksum-verified)
         if: ${{ matrix.hosted }}
         shell: bash
         run: |
@@ -961,7 +961,7 @@ jobs:
             *) : ;;
           esac
           asset="ost-cli-${triple}.${ext}"
-          base="https://github.com/animu-sphere/open-strata/releases/download/v0.22.2"
+          base="https://github.com/animu-sphere/open-strata/releases/download/v0.22.8"
           curl -fsSLo "$asset" "$base/$asset"
           curl -fsSLo "$asset.sha256" "$base/$asset.sha256"
           actual="$( (command -v sha256sum > /dev/null && sha256sum "$asset" || shasum -a 256 "$asset") | cut -d' ' -f1 )"
@@ -995,7 +995,7 @@ jobs:
           echo "$exported_path" >> "$GITHUB_PATH"
           json_executable="$(printf '%s' "$executable" | sed 's/\\/\\\\/g; s/"/\\"/g')"
           json_exported_path="$(printf '%s' "$exported_path" | sed 's/\\/\\\\/g; s/"/\\"/g')"
-          printf '{"schema":1,"pinned_version":"%s","asset":"%s","sha256":"%s","executable":"%s","exported_path":"%s"}\n' "0.22.2" "$asset" "$actual" "$json_executable" "$json_exported_path" > .ost-ci/bootstrap.json
+          printf '{"schema":1,"pinned_version":"%s","asset":"%s","sha256":"%s","executable":"%s","exported_path":"%s"}\n' "0.22.8" "$asset" "$actual" "$json_executable" "$json_exported_path" > .ost-ci/bootstrap.json
       - name: Check ost is available and record its version
         shell: bash
         run: |
@@ -1008,8 +1008,8 @@ jobs:
           fi
 
           echo "$version"
-          if [ "${{ matrix.hosted }}" = "true" ] && [ "$version" != "ost 0.22.2" ]; then
-            echo "::error title=ost bootstrap::expected 'ost 0.22.2', got '$version'" ; exit 1
+          if [ "${{ matrix.hosted }}" = "true" ] && [ "$version" != "ost 0.22.8" ]; then
+            echo "::error title=ost bootstrap::expected 'ost 0.22.8', got '$version'" ; exit 1
           fi
           printf '{"schema":1,"ost_version":"%s"}\n' "$version" > .ost-ci/ost-version.json
       - name: Validate the CI manifest
@@ -1021,7 +1021,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ost-ci-home/artifacts
-          key: ost-registry-0.22.2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
+          key: ost-registry-0.22.8-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
       - name: Pull the pinned runtime SDK from its remote reference
         if: ${{ matrix.runtime_remote != '' }}
         shell: bash
@@ -1054,7 +1054,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ost-ci-home/artifacts
-          key: ost-registry-0.22.2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
+          key: ost-registry-0.22.8-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
       - name: Install the host packages this runtime needs to be consumed
         if: ${{ matrix.host_packages_apt != '' || matrix.host_packages_brew != '' }}
         shell: bash
@@ -1086,12 +1086,6 @@ jobs:
               exit 1
               ;;
           esac
-      - name: Validate the materialized runtime (runnable tools)
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p .ost-ci
-          ost runtime validate ${{ matrix.platform }} --profile ${{ matrix.profile }} --json | tee .ost-ci/runtime-validate.json
       - name: Set up host Python for schema tooling
         if: ${{ matrix.hosted && matrix.host_python != '' }}
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
@@ -1110,6 +1104,12 @@ jobs:
             source=runtime-bundled
           fi
           printf '{"schema":1,"host_python":"%s","source":"%s"}\n' "${{ matrix.host_python }}" "$source" > .ost-ci/python-setup.json
+      - name: Validate the materialized runtime (runnable tools)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ost-ci
+          ost runtime validate ${{ matrix.platform }} --profile ${{ matrix.profile }} --json | tee .ost-ci/runtime-validate.json
       - name: Build the plugin from source
         shell: bash
         run: ost plugin build ${{ matrix.bundle }} --target ${{ matrix.platform }} --profile ${{ matrix.profile }}
@@ -1145,7 +1145,7 @@ jobs:
         include:
           - name: workspace-main-windows
             lane: main
-            runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+            runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -1156,13 +1156,13 @@ jobs:
             hosted: true
             runner_profile: windows-hosted
             verify: test
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
             host_python: ""
             host_packages_apt: ""
             host_packages_brew: ""
           - name: workspace-main-macos-arm64
             lane: main
-            runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+            runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -1173,13 +1173,13 @@ jobs:
             hosted: true
             runner_profile: macos-arm64-hosted
             verify: test
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6"
             host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: workspace-main-linux
             lane: main
-            runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+            runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -1190,7 +1190,7 @@ jobs:
             hosted: true
             runner_profile: linux-hosted
             verify: test
-            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6"
+            runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f"
             host_python: "3.13"
             host_packages_apt: "libx11-dev libxt-dev libxext-dev libgl1-mesa-dev"
             host_packages_brew: ""
@@ -1201,7 +1201,7 @@ jobs:
         if: ${{ matrix.hosted }}
         shell: bash
         run: echo "::notice title=OpenStrata hosted-runner usage::This job uses GitHub-hosted infrastructure. Private repositories may incur GitHub Actions usage charges. Review repository billing and Actions usage settings."
-      - name: Bootstrap ost 0.22.2 (pinned release asset, checksum-verified)
+      - name: Bootstrap ost 0.22.8 (pinned release asset, checksum-verified)
         if: ${{ matrix.hosted }}
         shell: bash
         run: |
@@ -1219,7 +1219,7 @@ jobs:
             *) : ;;
           esac
           asset="ost-cli-${triple}.${ext}"
-          base="https://github.com/animu-sphere/open-strata/releases/download/v0.22.2"
+          base="https://github.com/animu-sphere/open-strata/releases/download/v0.22.8"
           curl -fsSLo "$asset" "$base/$asset"
           curl -fsSLo "$asset.sha256" "$base/$asset.sha256"
           actual="$( (command -v sha256sum > /dev/null && sha256sum "$asset" || shasum -a 256 "$asset") | cut -d' ' -f1 )"
@@ -1253,7 +1253,7 @@ jobs:
           echo "$exported_path" >> "$GITHUB_PATH"
           json_executable="$(printf '%s' "$executable" | sed 's/\\/\\\\/g; s/"/\\"/g')"
           json_exported_path="$(printf '%s' "$exported_path" | sed 's/\\/\\\\/g; s/"/\\"/g')"
-          printf '{"schema":1,"pinned_version":"%s","asset":"%s","sha256":"%s","executable":"%s","exported_path":"%s"}\n' "0.22.2" "$asset" "$actual" "$json_executable" "$json_exported_path" > .ost-ci/bootstrap.json
+          printf '{"schema":1,"pinned_version":"%s","asset":"%s","sha256":"%s","executable":"%s","exported_path":"%s"}\n' "0.22.8" "$asset" "$actual" "$json_executable" "$json_exported_path" > .ost-ci/bootstrap.json
       - name: Check ost is available and record its version
         shell: bash
         run: |
@@ -1266,8 +1266,8 @@ jobs:
           fi
 
           echo "$version"
-          if [ "${{ matrix.hosted }}" = "true" ] && [ "$version" != "ost 0.22.2" ]; then
-            echo "::error title=ost bootstrap::expected 'ost 0.22.2', got '$version'" ; exit 1
+          if [ "${{ matrix.hosted }}" = "true" ] && [ "$version" != "ost 0.22.8" ]; then
+            echo "::error title=ost bootstrap::expected 'ost 0.22.8', got '$version'" ; exit 1
           fi
           printf '{"schema":1,"ost_version":"%s"}\n' "$version" > .ost-ci/ost-version.json
       - name: Validate the CI manifest
@@ -1279,7 +1279,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ost-ci-home/artifacts
-          key: ost-registry-0.22.2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
+          key: ost-registry-0.22.8-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
       - name: Pull the pinned runtime SDK from its remote reference
         if: ${{ matrix.runtime_remote != '' }}
         shell: bash
@@ -1312,7 +1312,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ost-ci-home/artifacts
-          key: ost-registry-0.22.2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
+          key: ost-registry-0.22.8-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
       - name: Install the host packages this runtime needs to be consumed
         if: ${{ matrix.host_packages_apt != '' || matrix.host_packages_brew != '' }}
         shell: bash
@@ -1344,12 +1344,6 @@ jobs:
               exit 1
               ;;
           esac
-      - name: Validate the materialized runtime (runnable tools)
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p .ost-ci
-          ost runtime validate ${{ matrix.platform }} --profile ${{ matrix.profile }} --json | tee .ost-ci/runtime-validate.json
       - name: Set up host Python for schema tooling
         if: ${{ matrix.hosted && matrix.host_python != '' }}
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
@@ -1368,6 +1362,12 @@ jobs:
             source=runtime-bundled
           fi
           printf '{"schema":1,"host_python":"%s","source":"%s"}\n' "${{ matrix.host_python }}" "$source" > .ost-ci/python-setup.json
+      - name: Validate the materialized runtime (runnable tools)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ost-ci
+          ost runtime validate ${{ matrix.platform }} --profile ${{ matrix.profile }} --json | tee .ost-ci/runtime-validate.json
       - name: Validate the workspace dependency graph
         shell: bash
         run: ost plugin test --workspace --graph-only --json

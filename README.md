@@ -94,7 +94,7 @@ remote read actually costs is recorded in the
 ## Quick Start
 
 Requirements: CMake 3.23+, a C++17 compiler, OpenUSD 26.08 (the plugin
-contract accepts `>=26.08,<27.0`), and OpenStrata 0.22.0 for the pinned
+contract accepts `>=26.08,<27.0`), and OpenStrata 0.22.7 for the pinned
 workspace build.
 
 Build and test everything through the pinned OpenStrata workspace:
