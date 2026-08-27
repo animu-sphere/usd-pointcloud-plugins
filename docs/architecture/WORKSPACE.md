@@ -333,3 +333,15 @@ Cross-repository integration against an external resolver implementation
 
 Current work and acceptance gaps are tracked in
 [roadmap/implementation-status.md](../roadmap/implementation-status.md).
+
+## Composed-runtime packaging (OST v0.22.8 dogfood)
+
+The aggregate membership is explicitly pinned by `workspace.release_members` in
+`openstrata.toml`. Component-owned acceptance probes are installed under
+`share/usd-pointcloud-plugins/probes` through file-specific `workspace.install_data` mappings.
+They exercise the packaged payload and are not runtime dependencies. Probe output
+is caller-owned evidence and must not modify the immutable composed prefix.
+
+Package producers need the aggregate payload projection correction found during
+OST v0.22.8 dogfooding; stock ost 0.22.7 products advertise install sources absent
+from their archive inventory. CI source builds remain pinned to released 0.22.7.

@@ -1,7 +1,16 @@
 [project]
 name = "usd-pointcloud-plugins"
-version = "0.10.0"
+version = "0.11.0"
 
 [requires]
 platform = "cy2026"
 profile = "usd"
+
+# Explicit aggregate membership for artifact composition.
+[workspace]
+members = ['libs/*', 'plugins/*']
+release_members = ["pointcloud-las", "pointcloud-laz", "pointcloud-copc", "pointcloud-ply"]
+
+[[workspace.install_data]]
+source = "tools/acceptance"
+destination = "share/usd-pointcloud-plugins/probes"

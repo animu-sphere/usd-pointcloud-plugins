@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  OST_VERSION: '0.22.2'
+  OST_VERSION: '0.22.7'
   OST_REPOSITORY: animu-sphere/open-strata
   OST_PLATFORM: cy2026
   OST_PROFILE: usd
@@ -38,8 +38,8 @@ jobs:
             runs_on: windows-2022
             runner_profile: windows-hosted
             ost_home: ''
-            runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
-            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+            runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
+            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
             host_python: ''
             host_packages_apt: ''
             up_to: 4
@@ -47,8 +47,8 @@ jobs:
             runs_on: ubuntu-24.04
             runner_profile: linux-hosted
             ost_home: .ost-ci-home
-            runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
-            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+            runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
+            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
             host_python: '3.13'
             host_packages_apt: libx11-dev libxt-dev libxext-dev libgl1-mesa-dev
             up_to: 5
@@ -56,8 +56,8 @@ jobs:
             runs_on: macos-15
             runner_profile: macos-arm64-hosted
             ost_home: .ost-ci-home
-            runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
-            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+            runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
+            runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
             host_python: '3.13'
             host_packages_apt: ''
             up_to: 5
@@ -160,7 +160,7 @@ jobs:
             ost artifact pull "${{ matrix.runtime_remote }}" \
               --expect-artifact "$OST_CI_RUNTIME_ARTIFACT" --require-kind runtime --json
           fi
-          ost artifact verify "$OST_CI_RUNTIME_ARTIFACT" --minimum-trust local
+          ost artifact verify "$OST_CI_RUNTIME_ARTIFACT" --minimum-trust local --require-sbom --require-provenance
           ost runtime pull "$OST_PLATFORM" --profile "$OST_PROFILE" \
             --from-artifact "$OST_CI_RUNTIME_ARTIFACT" --force
           ost runtime validate "$OST_PLATFORM" --profile "$OST_PROFILE" --json
