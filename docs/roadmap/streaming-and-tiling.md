@@ -54,6 +54,22 @@ available for comparison with host observations. Host LOD policy, OpenUSD
 payload composition, and renderer loading remain outside the probe and are
 still research work.
 
+The OpenUSD composition portion is measured separately by the
+`usdPointCloudAuthoring_runtime_lod_payload_probe` target. It creates a
+deterministic three-LOD payload-backed fixture and reports authored payload
+arcs, loaded LODs after `LoadNone`, a selective LOD load, and `LoadAll` point
+counts as TSV. Build it with `USDGEO_BUILD_BENCHMARKS=ON` and run:
+
+```powershell
+usdPointCloudAuthoring_runtime_lod_payload_probe `
+    --output C:\path\to\runtime-lod-payload\PointCloud.usda
+```
+
+The probe verifies OpenUSD stage and payload-loading semantics only. It does
+not identify a host's camera-driven LOD decision, renderer visibility, frame
+latency, or renderer memory savings. Those measurements remain host- and
+render-delegate-dependent research.
+
 ## 1. Problem statement
 
 Chunked decoding reduces decoder buffer size. The tiled path additionally

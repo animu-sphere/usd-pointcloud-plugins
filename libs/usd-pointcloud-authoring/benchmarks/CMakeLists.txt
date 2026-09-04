@@ -12,6 +12,11 @@ if(WIN32)
     target_link_libraries(usdPointCloudAuthoring_stream_benchmark PRIVATE Psapi)
 endif()
 
+add_executable(usdPointCloudAuthoring_runtime_lod_payload_probe
+    runtime_lod_payload_probe.cpp)
+target_link_libraries(usdPointCloudAuthoring_runtime_lod_payload_probe
+    PRIVATE usdpointcloud::authoring)
+
 if(USDGEO_BUILD_TESTS)
     add_dependencies(usdPointCloudAuthoring_stream_benchmark usdCopc_tests)
     add_test(NAME usdPointCloudAuthoring_stream_benchmark_las
@@ -50,4 +55,11 @@ if(USDGEO_BUILD_TESTS)
                  -Dfixture_generator=$<TARGET_FILE:usdCopc_tests>
                  -Dtest_root=${CMAKE_CURRENT_BINARY_DIR}/benchmark-cross-format
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/compare_stream_benchmark.cmake)
+    add_test(NAME usdPointCloudAuthoring_runtime_lod_payload_probe
+             COMMAND ${CMAKE_COMMAND}
+                     -Dprobe=$<TARGET_FILE:usdPointCloudAuthoring_runtime_lod_payload_probe>
+                     -Doutput=${CMAKE_CURRENT_BINARY_DIR}/runtime-lod-payload
+                     -P ${CMAKE_CURRENT_SOURCE_DIR}/test_runtime_lod_payload_probe.cmake)
+    usdgeo_configure_openusd_test_runtime(
+        usdPointCloudAuthoring_runtime_lod_payload_probe)
 endif()

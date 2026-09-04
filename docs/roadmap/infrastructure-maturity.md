@@ -517,7 +517,12 @@ the existing COPC hierarchy and `RandomAccessSource` contracts to select a
 requested hierarchy level, decode only its point-data ranges, and report
 actual source bytes read. It establishes source-side range behavior without
 claiming to model host LOD policy, OpenUSD payload composition, or renderer
-loading.
+loading. The separate
+`usdPointCloudAuthoring_runtime_lod_payload_probe` establishes the OpenUSD
+composition baseline with a deterministic three-LOD payload fixture: authored
+payload arcs, `LoadNone`, selective payload loading, and `LoadAll` point counts.
+It still does not establish host LOD decisions or renderer loading behavior,
+and neither probe is a production runtime-streaming abstraction.
 
 ### Later - E57 and Other Point-Cloud Formats
 
