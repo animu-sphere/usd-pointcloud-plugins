@@ -127,6 +127,18 @@ if(USDGEO_BUILD_TESTS)
     usdgeo_configure_openusd_test_runtime(pointcloudCopc_integration)
     set_property(TEST pointcloudCopc_integration APPEND PROPERTY
         ENVIRONMENT "PXR_AR_DEFAULT_RESOLVER=HttpResolver")
+    if(TARGET usd-pointcloud-convert)
+        add_dependencies(usd-pointcloud-convert HttpResolver)
+        add_test(NAME usdPointCloudConvert_resolver_copc
+                 COMMAND ${CMAKE_COMMAND}
+                         -Dconverter=$<TARGET_FILE:usd-pointcloud-convert>
+                         -Dfixture=${CMAKE_CURRENT_BINARY_DIR}/resolver-conformance.copc
+                         -Dfixture_generator=$<TARGET_FILE:usdCopc_tests>
+                         -Dtest_root=${CMAKE_CURRENT_BINARY_DIR}/resolver-conversion
+                         -Dresolver_plugin_path=${CMAKE_CURRENT_SOURCE_DIR}/../../tests/plugins/httpresolver/plugin/resources/httpresolver
+                         -P ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/usd-pointcloud-convert/test_resolver_conversion.cmake)
+        usdgeo_configure_openusd_test_runtime(usdPointCloudConvert_resolver_copc)
+    endif()
 endif()
 
 openstrata_configure_plugin(

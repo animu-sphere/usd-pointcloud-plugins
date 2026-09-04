@@ -74,10 +74,10 @@ A per-bundle `ost plugin build` does not define `USDGEO_BUILD_TESTS`, so the
 CTest integration targets are built only by the workspace `ost build`. Run both
 when changing a plugin.
 
-The bundles do not all declare OST test fixtures yet, so `ost plugin test` currently
-reports the L3 `usdcat.read` and L4 `python.stage_open` checks as skipped. That
-gap is tracked in
-[implementation status](../roadmap/implementation-status.md).
+All four product bundles declare OST smoke fixtures, so `ost plugin test`
+exercises the L3 `usdcat.read` and L4 `python.stage_open` checks for LAS, LAZ,
+COPC, and PLY. The workspace CTest integration targets remain separate and are
+built by `ost build`.
 
 ## Explicit tiled conversion
 
@@ -118,6 +118,22 @@ usd-pointcloud-convert `
 An existing committed cache entry is materialized without decoding the source
 again. The cache is derived data; the source file and normalized arguments
 remain the authority for invalidation.
+
+Resolver-addressable COPC identifiers use the active OpenUSD resolver. The
+resolver must be composed at runtime through `PXR_PLUGINPATH_NAME` and must
+provide efficient random-access `ArAsset` reads. Generated-cache publication
+and reuse require a `Stable` resolver identity; an unstable or unavailable
+identity still converts from the source without publishing a generated entry:
+
+```powershell
+$env:PXR_PLUGINPATH_NAME = C:\path\to\resolver\resources
+$env:PXR_AR_DEFAULT_RESOLVER = MyResolver
+usd-pointcloud-convert `
+  http://example.invalid/pointcloud.copc `
+  C:\path\to\output\PointCloud.usda `
+  --tile-size 128 `
+  --cache-root C:\path\to\pointcloud-cache
+```
 
 Direct LAS, LAZ, and COPC FileFormat reads can use the same cache entries by
 setting `USDGEO_CACHE_ROOT` in the host process. A committed hit loads the

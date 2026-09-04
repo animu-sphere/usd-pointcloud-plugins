@@ -36,7 +36,7 @@ uses the same reader and authoring contracts for long-running generation.
 | Local COPC conversion and generated-cache publication | Supported | `usd-pointcloud-convert` accepts `.copc` and `.copc.laz`, reuses the COPC point stream for fixed-grid or adaptive tiled generation, and publishes entries compatible with local COPC FileFormat cache lookup |
 | Resolver-backed COPC reads | Supported | The plugin adapts an `ArAsset` opened through the active `ArResolver` to the project-owned random-access source; remote tiled reads require an absolute local `payloadDirectory`. Transport, authentication, retries, and raw byte caching belong to the resolver |
 | Resolver-backed generated-cache lookup | Supported | COPC extracts resolver-neutral identity through the shared adapter and reuses a committed entry only for `Stable` identity. Incomplete and corrupted entries are invalidated, and a changed validation token regenerates rather than hitting the superseded entry. Recorded against an external resolver in the [resolver read baseline](RESOLVER_BASELINE.md); the contract is the [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md) |
-| Resolver-backed generated-cache generation | Not supported | The converter publishes local COPC entries but does not yet accept resolver-addressable identifiers, so it cannot publish against resolver-provided identity |
+| Resolver-backed generated-cache generation | Supported | `usd-pointcloud-convert` accepts resolver-addressable COPC identifiers, opens them through the active resolver, and publishes/reuses entries only for `Stable` identity; unstable and unavailable identities convert without cache publication |
 | Generated-cache decision diagnostics | Supported | `usdgeo::cache::CacheDecision` publishes seven stable, transport-neutral categories; COPC projects them onto `COPC009`-`COPC012` and every message names its category |
 
 ## LAS Versions
@@ -249,9 +249,9 @@ in the [tile and LOD contract](../architecture/LOD.md).
   through `USDGEO_CACHE_ROOT`. Reuse requires either a stable local filesystem
   identity or a `Stable` resolver identity; `Unstable` and `Unavailable`
   identity fails closed and reads from the source. The conversion tool
-  publishes entries for local LAS, LAZ, and COPC paths, but does not yet accept
-  resolver-addressable identifiers or publish against resolver-provided
-  identity.
+  publishes entries for local LAS, LAZ, and COPC paths plus resolver-addressable
+  COPC identifiers when the resolver provides a `Stable` identity; unstable
+  and unavailable resolver identities remain conversion-only.
 - No HTTP client, cloud SDK, authentication flow, retry policy, or raw
   byte-range cache exists here. Resolver-backed reads consume whatever the
   active `ArResolver` provides, and no resolver implementation is a build-time

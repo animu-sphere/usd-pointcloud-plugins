@@ -175,14 +175,13 @@ other outcome through the categories in §4.
 
 `usd-pointcloud-convert` remains the production path for deterministic,
 long-running payload generation, and it is the only thing that publishes a
-generated entry. **Not implemented (`v0.10.0`):** it accepts `.las` and `.laz`
-local inputs only. No COPC input, and no resolver-addressable identifier,
-reaches it, so no COPC read — local or resolver-backed — has an entry to hit in
-a normal workflow. The lookup side is complete and covered; the generation side
-for COPC and for resolver-addressable inputs is future work. When it lands it
-computes the same resolver-neutral identity, populates and reuses the generated
-cache only under stable identity, and may record the normalized identity class
-in manifest or debug metadata — never the transport secrets covered in §2.3.
+generated entry. It accepts local `.las`, `.laz`, `.copc`, and `.copc.laz`
+inputs, plus resolver-addressable COPC identifiers. Resolver inputs are opened
+through the active `ArResolver` and the same resolver-neutral identity is used
+for cache layout. Generated-cache publication and reuse are enabled only for
+`Stable` identity; `Unstable` and `Unavailable` inputs still convert from the
+source but do not publish generated entries. Conversion manifests use a fixed
+resolver-source label and never persist the identifier or validation token.
 
 ### 3.3 Cache ownership boundary — Implemented (`v0.10.0`)
 

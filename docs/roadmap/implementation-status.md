@@ -380,25 +380,26 @@ Phase 6 — validation and baselines:
 - [x] Record remote hit ratios and `bytes fetched / source size` baselines. A
       metadata open costs 0.001486 of the asset in three requests; a full read
       costs exactly 1.0 in 277 requests. A generated-cache hit ratio for COPC is
-      not measurable end to end, because `usd-pointcloud-convert` publishes
-      entries for `.las` and `.laz` local inputs only and no COPC read has an
-      entry to hit; the reuse decision itself is Tier 1 covered
+      covered by the resolver-backed converter miss-to-hit test for stable
+      identity; the external Tier 2 record remains a source-read baseline and
+      does not claim a generated-cache ratio
 
 #### Open after `v0.10.0`
 
-- [ ] Declare an OST smoke fixture for the `pointcloud-copc` bundle. It is the
-      only product bundle without one, so its L3 `usdcat.read` and L4
-      `python.stage_open` checks skip and its bundle cells verify discovery
-      only.
+- [x] Declare an OST smoke fixture for the `pointcloud-copc` bundle. Its
+      component-owned conformance fixture now exercises the L3 `usdcat.read`
+      and L4 `python.stage_open` checks alongside the other product bundles.
 
 - [x] Publish generated cache entries for local COPC inputs.
       `usd-pointcloud-convert` accepts `.copc` and `.copc.laz`, uses the shared
       COPC point stream for fixed-grid and adaptive generation, and publishes
-      entries compatible with local COPC FileFormat lookup. Remote publication
-      remains blocked on resolver-addressable converter inputs below.
-- [ ] Accept resolver-addressable identifiers in `usd-pointcloud-convert`, as
-      described in the
+      entries compatible with local COPC FileFormat lookup. Resolver-backed
+      publication is covered below and requires a stable resolver identity.
+- [x] Accept resolver-addressable COPC identifiers in
+      `usd-pointcloud-convert`, as described in the
       [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md).
+      Stable resolver identities publish and reuse generated entries; unstable
+      and unavailable identities convert without cache publication.
 
 #### Research - runtime streaming (no release gate)
 

@@ -486,13 +486,14 @@ isolated under `tests/`, and recorded remote baselines including
 `bytes fetched / source size` against the released `usd-http-resolver`
 `v0.4.0`.
 
-One thing the gate asked for is recorded as absent rather than as met: a
-generated-cache *hit ratio* for a remote source. The converter now publishes
-entries for local `.copc` and `.copc.laz` inputs, but it does not yet accept a
-resolver-addressable identifier or publish against resolver-provided identity.
-The lookup side, local COPC publication, reuse rules, and every decision
-diagnostic are complete and covered; resolver-addressable conversion is the
-remaining step that makes the remote ratio measurable.
+The converter now accepts resolver-addressable COPC identifiers and publishes
+entries against resolver-provided identity when it is `Stable`. Tier 1 covers
+the resolver-backed miss-to-hit path and verifies that resolver identifiers and
+validation tokens do not enter conversion manifests. `Unstable` and
+`Unavailable` identities remain conversion-only, so a remote cache hit ratio is
+measurable only for resolvers that provide stable validation metadata; the Tier
+2 baseline currently records resolver read selectivity rather than a generated
+cache ratio.
 
 ### Research - Runtime Streaming
 

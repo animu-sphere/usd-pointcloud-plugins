@@ -1,10 +1,14 @@
 #include "usdgeo/PointCloudLayer.h"
+#include "usdgeo/ArAssetRandomAccessSource.h"
+#include "usdgeo/PointCloudCache.h"
 #include "usdgeo/cache/Cache.h"
 #include "usdcopc/Copc.h"
 #include "usdpointcloud/FileFormatArguments.h"
 #include "usdlas/Las.h"
 #include "usdlaz/Laz.h"
 
+#include <pxr/usd/ar/asset.h>
+#include <pxr/usd/ar/resolver.h>
 #include <pxr/usd/sdf/layer.h>
 
 #include <chrono>
@@ -111,6 +115,8 @@ InputFormat DetectInputFormat(const std::filesystem::path& path) {
 std::unique_ptr<usdpointcloud::PointStream> OpenPointStream(
     InputFormat format,
     const std::filesystem::path& inputPath,
+    const std::shared_ptr<usdgeo::RandomAccessSource>& randomAccessSource,
+    const std::string& sourceName,
     const usdpointcloud::PointReadOptions& options,
     usdlas::LasHeader& header,
     std::vector<usdgeo::Diagnostic>& diagnostics) {
@@ -123,6 +129,14 @@ std::unique_ptr<usdpointcloud::PointStream> OpenPointStream(
             inputPath.string(), options, header, diagnostics);
     }
     if (format == InputFormat::Copc) {
+        if (randomAccessSource) {
+            usdcopc::CopcHeader copcHeader;
+            auto stream = usdcopc::OpenCopcPointStream(
+                randomAccessSource, options, copcHeader, diagnostics,
+                sourceName);
+            header = copcHeader.las;
+            return stream;
+        }
         usdcopc::CopcHeader copcHeader;
         auto stream = usdcopc::OpenCopcPointStream(
             inputPath.string(), options, copcHeader, diagnostics);
@@ -130,6 +144,91 @@ std::unique_ptr<usdpointcloud::PointStream> OpenPointStream(
         return stream;
     }
     return nullptr;
+}
+
+struct ConverterSource {
+    std::string identifier;
+    std::string sourceName;
+    std::filesystem::path localPath;
+    std::shared_ptr<pxr::ArAsset> asset;
+    std::shared_ptr<usdgeo::RandomAccessSource> randomAccessSource;
+    usdgeo::cache::SourceIdentity identity;
+    usdgeo::cache::ResolverIdentityStability resolverStability =
+        usdgeo::cache::ResolverIdentityStability::Unavailable;
+    bool resolverBacked = false;
+};
+
+bool IsResolverIdentifier(const std::string& identifier) {
+    return identifier.find("://") != std::string::npos;
+}
+
+std::filesystem::path FormatPath(const std::string& identifier) {
+    const auto queryStart = identifier.find_first_of("?#");
+    const auto withoutQuery = identifier.substr(0, queryStart);
+    const auto slash = withoutQuery.find_last_of("/\\");
+    return std::filesystem::path(
+        slash == std::string::npos ? withoutQuery
+                                   : withoutQuery.substr(slash + 1));
+}
+
+bool PrepareSource(const std::string& identifier,
+                   InputFormat format,
+                   ConverterSource& source,
+                   std::string& errorMessage) {
+    source = {};
+    source.identifier = identifier;
+    if (!IsResolverIdentifier(identifier)) {
+        source.localPath = std::filesystem::absolute(
+            std::filesystem::path(identifier));
+        source.sourceName = source.localPath.string();
+        if (!usdgeo::cache::TryBuildLocalSourceIdentity(
+                source.localPath, source.identity, errorMessage)) {
+            return false;
+        }
+        return true;
+    }
+
+    if (format != InputFormat::Copc) {
+        errorMessage =
+            "resolver-addressable conversion currently supports COPC only";
+        return false;
+    }
+    const auto resolvedPath = pxr::ArGetResolver().Resolve(identifier);
+    if (resolvedPath.GetPathString().empty()) {
+        errorMessage = "active resolver could not resolve COPC asset: " +
+                       identifier;
+        return false;
+    }
+    source.asset = pxr::ArGetResolver().OpenAsset(resolvedPath);
+    if (!source.asset) {
+        errorMessage = "active resolver could not open COPC asset: " +
+                       resolvedPath.GetPathString();
+        return false;
+    }
+    source.resolverBacked = true;
+    source.sourceName = resolvedPath.GetPathString();
+    source.randomAccessSource =
+        std::make_shared<usdgeo::ArAssetRandomAccessSource>(
+            source.asset, source.sourceName);
+    std::string identityError;
+    usdgeo::TryBuildResolverSourceIdentity(
+        pxr::ArGetResolver(), identifier, resolvedPath, *source.asset,
+        source.identity, source.resolverStability, identityError);
+    return true;
+}
+
+bool RefreshSourceIdentity(const ConverterSource& source,
+                           usdgeo::cache::SourceIdentity& identity,
+                           std::string& errorMessage) {
+    if (!source.resolverBacked) {
+        return usdgeo::cache::TryBuildLocalSourceIdentity(
+            source.localPath, identity, errorMessage);
+    }
+    usdgeo::cache::ResolverIdentityStability stability;
+    return usdgeo::TryBuildResolverSourceIdentity(
+        pxr::ArGetResolver(), source.identifier,
+        pxr::ArResolvedPath(source.sourceName), *source.asset, identity,
+        stability, errorMessage);
 }
 
 bool SameSourceIdentity(const usdgeo::cache::SourceIdentity& left,
@@ -354,17 +453,14 @@ bool CopyDirectory(const std::filesystem::path& source,
 }
 
 bool BuildCacheDescriptor(
-    const std::filesystem::path& inputPath,
+    const usdgeo::cache::SourceIdentity& sourceIdentity,
     InputFormat inputFormat,
     const usdgeo::GeoReference& reference,
     const usdpointcloud::PointReadRequest& request,
     const std::string& tilePlanKey,
     usdgeo::cache::Descriptor& descriptor,
     std::string& errorMessage) {
-    if (!usdgeo::cache::TryBuildLocalSourceIdentity(
-            inputPath, descriptor.source, errorMessage)) {
-        return false;
-    }
+    descriptor.source = sourceIdentity;
     descriptor.pluginVersion = "usd-pointcloud-plugins-0.3.0-display-v3";
     descriptor.parserVersion = inputFormat == InputFormat::Las
                                    ? "las-reader-1"
@@ -500,19 +596,13 @@ bool PublishCacheEntry(const usdgeo::cache::Layout& temporaryLayout,
 }
 
 bool WriteManifest(const std::filesystem::path& manifestPath,
-                   const std::filesystem::path& inputPath,
+                   const std::string& inputName,
+                   std::uintmax_t inputSize,
                    const std::filesystem::path& outputPath,
                    const std::filesystem::path& payloadDirectory,
                    const usdpointcloud::PointReadRequest& request,
                    std::string& errorMessage) {
     std::error_code error;
-    const auto inputSize = std::filesystem::file_size(inputPath, error);
-    if (error) {
-        errorMessage = "unable to inspect input for manifest: " +
-                       error.message();
-        return false;
-    }
-
     std::vector<std::string> payloads;
     for (std::filesystem::recursive_directory_iterator iterator(
              payloadDirectory, error), end;
@@ -541,7 +631,7 @@ bool WriteManifest(const std::filesystem::path& manifestPath,
         return false;
     }
     output << "format=usd-pointcloud-manifest-v1\n"
-           << "input.file=" << inputPath.filename().generic_string() << "\n"
+            << "input.file=" << inputName << "\n"
            << "input.sizeBytes=" << inputSize << "\n"
            << "output.root=" << outputPath.filename().generic_string() << "\n"
            << "output.payloadDirectory="
@@ -630,10 +720,10 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    const std::filesystem::path inputPath = std::filesystem::absolute(argv[1]);
+    const std::string inputIdentifier = argv[1];
     const std::filesystem::path outputPath = std::filesystem::absolute(argv[2]);
     const auto manifestPath = ManifestPath(outputPath);
-    const auto inputFormat = DetectInputFormat(inputPath);
+    const auto inputFormat = DetectInputFormat(FormatPath(inputIdentifier));
     if (inputFormat == InputFormat::Unsupported) {
         std::cerr << "Input must have a .las, .laz, .copc, or .copc.laz extension\n";
         return 2;
@@ -642,6 +732,19 @@ int main(int argc, char** argv) {
         std::cerr << "Output must have a .usda extension\n";
         return 2;
     }
+
+    ConverterSource source;
+    std::string sourceError;
+    if (!PrepareSource(inputIdentifier, inputFormat, source, sourceError)) {
+        std::cerr << "Unable to prepare input source: " << sourceError << "\n";
+        return 1;
+    }
+    const auto manifestInputName = source.resolverBacked
+                                       ? "resolver-addressed-source"
+                                       : source.localPath.filename().generic_string();
+    const auto inputSize = source.resolverBacked
+                               ? static_cast<std::uintmax_t>(source.asset->GetSize())
+                               : source.identity.sizeBytes;
 
     std::map<std::string, std::string> arguments;
     arguments.emplace("tile", "true");
@@ -758,7 +861,8 @@ int main(int argc, char** argv) {
 
     usdlas::LasHeader header;
     auto stream = OpenPointStream(
-        inputFormat, inputPath, request.readOptions, header, diagnostics);
+        inputFormat, source.localPath, source.randomAccessSource,
+        source.sourceName, request.readOptions, header, diagnostics);
     if (!stream) {
         if (diagnostics.empty()) {
             std::cerr << "Unable to open point stream\n";
@@ -787,19 +891,12 @@ int main(int argc, char** argv) {
     usdgeo::cache::SourceIdentity planningIdentity;
     std::string tilePlanKey;
     if (request.maxPointsPerTile) {
-        std::string identityError;
-        if (!usdgeo::cache::TryBuildLocalSourceIdentity(
-                inputPath, planningIdentity, identityError)) {
-            diagnostics.push_back({usdgeo::DiagnosticCode::SourceOpenFailed,
-                                   usdgeo::Severity::Error, identityError});
-            PrintDiagnostics(diagnostics);
-            return 1;
-        }
+        planningIdentity = source.identity;
         adaptiveStreamFactory = [&]() {
             usdlas::LasHeader passHeader;
             auto passStream = OpenPointStream(
-                inputFormat, inputPath, request.readOptions, passHeader,
-                diagnostics);
+                inputFormat, source.localPath, source.randomAccessSource,
+                source.sourceName, request.readOptions, passHeader, diagnostics);
             if (passStream && !request.attributes.empty()) {
                 passStream = std::make_unique<SelectedPointStream>(
                     std::move(passStream), request.attributes);
@@ -823,7 +920,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    const bool cacheEnabled = !cacheRoot.empty();
+    const bool cacheEnabled = !cacheRoot.empty() && source.identity.IsValid();
     usdgeo::cache::Layout cacheLayout;
     usdgeo::cache::Layout cacheGenerationLayout;
     bool cacheHit = false;
@@ -831,7 +928,7 @@ int main(int argc, char** argv) {
     if (cacheEnabled) {
         usdgeo::cache::Descriptor descriptor;
         std::string cacheError;
-        if (!BuildCacheDescriptor(inputPath, inputFormat, reference, request,
+        if (!BuildCacheDescriptor(source.identity, inputFormat, reference, request,
                       tilePlanKey, descriptor, cacheError)) {
             std::cerr << "Unable to build cache layout: " << cacheError << "\n";
             return 1;
@@ -921,7 +1018,8 @@ int main(int argc, char** argv) {
         std::string materializeError;
         if (!MaterializeCache(cacheLayout, temporaryRootPath,
                               payloadDirectory, materializeError) ||
-            !WriteManifest(temporaryManifestPath, inputPath, outputPath,
+            !WriteManifest(temporaryManifestPath, manifestInputName, inputSize,
+                           outputPath,
                            payloadDirectory, request, materializeError)) {
             cleanup();
             std::cerr << "Unable to materialize cache hit: "
@@ -983,16 +1081,17 @@ int main(int argc, char** argv) {
         if (!adaptiveStreamFactory) {
             return false;
         }
-        std::string identityError;
         usdgeo::cache::SourceIdentity authoringIdentity;
-        if (!usdgeo::cache::TryBuildLocalSourceIdentity(
-                inputPath, authoringIdentity, identityError) ||
-            !SameSourceIdentity(planningIdentity, authoringIdentity)) {
-            diagnostics.push_back({
-                usdgeo::DiagnosticCode::DecodeFailure,
-                usdgeo::Severity::Error,
-                "input changed during adaptive tile planning"});
-            return false;
+        if (source.identity.IsValid()) {
+            std::string identityError;
+            if (!RefreshSourceIdentity(source, authoringIdentity, identityError) ||
+                !SameSourceIdentity(planningIdentity, authoringIdentity)) {
+                diagnostics.push_back({
+                    usdgeo::DiagnosticCode::DecodeFailure,
+                    usdgeo::Severity::Error,
+                    "input changed during adaptive tile planning"});
+                return false;
+            }
         }
         plannedStream = adaptiveStreamFactory();
         if (!plannedStream) return false;
@@ -1042,7 +1141,8 @@ int main(int argc, char** argv) {
         cacheEnabled ? cacheGenerationLayout.manifest : temporaryManifestPath;
     const auto generatedOutputPath =
         cacheEnabled ? cacheGenerationLayout.rootLayer : outputPath;
-    if (!WriteManifest(generatedManifestPath, inputPath, generatedOutputPath,
+    if (!WriteManifest(generatedManifestPath, manifestInputName, inputSize,
+                       generatedOutputPath,
                        generationPayloadDirectory, request, manifestError)) {
         std::cerr << "Unable to write conversion manifest: " << manifestError
                   << "\n";
@@ -1061,7 +1161,8 @@ int main(int argc, char** argv) {
         layer = nullptr;
         if (!MaterializeCache(cacheLayout, temporaryRootPath,
                               payloadDirectory, manifestError) ||
-            !WriteManifest(temporaryManifestPath, inputPath, outputPath,
+            !WriteManifest(temporaryManifestPath, manifestInputName, inputSize,
+                           outputPath,
                            payloadDirectory, request, manifestError)) {
             cleanup();
             std::cerr << "Unable to materialize generated cache: "
