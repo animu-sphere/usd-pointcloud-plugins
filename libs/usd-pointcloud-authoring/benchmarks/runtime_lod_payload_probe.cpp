@@ -104,9 +104,16 @@ std::size_t AuthoredPayloadCount(const pxr::SdfLayerHandle& rootLayer) {
 
 bool CreateFixture(const std::filesystem::path& outputPath) {
     std::error_code error;
-    std::filesystem::create_directories(outputPath.parent_path(), error);
+    const auto absoluteOutputPath = std::filesystem::absolute(outputPath, error);
     if (error) {
         return false;
+    }
+    if (!absoluteOutputPath.parent_path().empty()) {
+        std::filesystem::create_directories(
+            absoluteOutputPath.parent_path(), error);
+        if (error) {
+            return false;
+        }
     }
 
     usdgeo::GeoReference reference;
@@ -139,20 +146,20 @@ bool CreateFixture(const std::filesystem::path& outputPath) {
         tile.levels.push_back(MakeAsset(reference, bounds, 3 - index));
     }
 
-    const auto payloadDirectory = outputPath.parent_path() / "payloads";
+    const auto payloadDirectory = absoluteOutputPath.parent_path() / "payloads";
     const auto stage = usdgeo::PointCloudLayer::CreateStage();
     if (!stage) {
         return false;
     }
     usdgeo::PointCloudPayloadOptions options;
     options.directory = payloadDirectory.string();
-    options.rootLayerPath = outputPath.string();
+    options.rootLayerPath = absoluteOutputPath.string();
     if (!usdgeo::AuthorPointCloudTiledAssetWithPayloads(
             stage, "/PointCloud", {tile}, options)) {
         return false;
     }
-    stage->GetRootLayer()->SetIdentifier(outputPath.generic_string());
-    if (!stage->GetRootLayer()->Export(outputPath.string())) {
+    stage->GetRootLayer()->SetIdentifier(absoluteOutputPath.generic_string());
+    if (!stage->GetRootLayer()->Export(absoluteOutputPath.string())) {
         return false;
     }
     return true;
@@ -185,7 +192,11 @@ bool RunProbe(const std::filesystem::path& outputPath) {
 
     const auto stage = pxr::UsdStage::Open(
         outputPath.string(), pxr::UsdStage::LoadNone);
-    if (!stage || CountLoadedLods(stage) != 0) {
+    if (!stage) {
+        return false;
+    }
+    const auto loadNoneLoadedLods = CountLoadedLods(stage);
+    if (loadNoneLoadedLods != 0) {
         return false;
     }
 
@@ -207,7 +218,8 @@ bool RunProbe(const std::filesystem::path& outputPath) {
                  "selective_loaded_lods\tselective_loaded_points\t"
                  "load_all_loaded_lods\tload_all_points\tdefault_index\tthresholds\n"
               << outputPath.string() << '\t' << authoredLods << '\t'
-                  << authoredPayloads << '\t' << 0 << '\t' << selectiveLoadedLods << '\t'
+              << authoredPayloads << '\t' << loadNoneLoadedLods << '\t'
+              << selectiveLoadedLods << '\t'
               << selectiveLoadedPoints << '\t' << allLoadedLods << '\t'
               << allLoadedPoints << '\t' << defaultValue << '\t';
     for (std::size_t index = 0; index < thresholds.size(); ++index) {

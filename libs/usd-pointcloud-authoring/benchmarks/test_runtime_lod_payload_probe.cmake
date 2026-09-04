@@ -44,3 +44,17 @@ if(NOT authored_lods STREQUAL "3" OR
     message(FATAL_ERROR
         "probe output has unexpected composition results: ${probe_row}")
 endif()
+
+file(MAKE_DIRECTORY "${output}/relative")
+execute_process(
+    COMMAND "${probe}" --output PointCloud.usda
+    WORKING_DIRECTORY "${output}/relative"
+    RESULT_VARIABLE relative_probe_result
+    OUTPUT_VARIABLE relative_probe_output
+    ERROR_VARIABLE relative_probe_error)
+if(NOT relative_probe_result EQUAL 0 OR
+   NOT EXISTS "${output}/relative/PointCloud.usda")
+    message(FATAL_ERROR
+        "relative output probe failed: "
+        "${relative_probe_output}${relative_probe_error}")
+endif()
