@@ -403,9 +403,12 @@ Phase 6 — validation and baselines:
 
 #### Research - runtime streaming (no release gate)
 
-- [ ] Experiment with host LOD decision, COPC node identity, range reads, and
-      payload loading without adding runtime abstractions to the conversion
-      pipeline
+- [x] Add an opt-in COPC runtime-streaming probe that takes a requested node
+      level, selects deterministic COPC node identities, decodes only those
+      point-data ranges, and reports source bytes read without adding runtime
+      abstractions to the conversion pipeline
+- [ ] Measure host LOD decisions, OpenUSD payload composition, and renderer
+      loading behavior; these remain host-dependent research
 
 E57, delimited text, and other point-cloud formats follow these infrastructure
 milestones. A public custom USD schema remains deferred until the documented

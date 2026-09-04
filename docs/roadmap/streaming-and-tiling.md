@@ -34,6 +34,21 @@ implements today is in
 [implementation status](implementation-status.md) and
 [capability matrix](../reference/CAPABILITY_MATRIX.md).
 
+The opt-in `usdCopc_runtime_streaming_probe` provides the first runtime
+streaming experiment without changing the production pipeline. It accepts a
+local COPC and a requested hierarchy level, selects point-data nodes in stable
+tile order, decodes only those ranges, and reports hierarchy size, selected
+points, selected range bytes, and actual source bytes read as TSV. Build it
+with `USDGEO_BUILD_BENCHMARKS=ON` and run:
+
+```powershell
+usdCopc_runtime_streaming_probe C:\path\to\sample.copc --level 3
+```
+
+This measures the source-side portion of the runtime-streaming question.
+Host LOD policy, OpenUSD payload composition, and renderer loading remain
+outside the probe and are still research work.
+
 ## 1. Problem statement
 
 Chunked decoding reduces decoder buffer size. The tiled path additionally

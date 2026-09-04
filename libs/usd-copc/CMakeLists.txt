@@ -36,3 +36,7 @@ install(DIRECTORY include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 if(USDGEO_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
+
+if(USDGEO_BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif()

@@ -33,7 +33,7 @@ void HandleInterrupt(int) {
 
 void PrintUsage() {
     std::cerr
-          << "Usage: usd-pointcloud-convert <input.las|input.laz|input.copc> "
+          << "Usage: usd-pointcloud-convert <input.las|input.laz|input.copc|input.copc.laz> "
               "<output.usda> "
               "(--tile-size <source-units> | --max-points-per-tile <count>) [options]\n"
         << "Options:\n"
