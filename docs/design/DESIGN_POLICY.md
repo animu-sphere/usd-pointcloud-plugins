@@ -1,6 +1,6 @@
 # Development Policy
 
-Last updated: 2026-08-14
+Last updated: 2026-09-04
 
 This document is the standing development policy for `usd-pointcloud-plugins`. The
 roadmap, format support order, and architecture documents refine it; they do
@@ -23,8 +23,8 @@ The order and entry gates are in
 Point-cloud rendering, viewport LOD selection, generic mesh import, writing,
 and arbitrary scene conversion are outside this repository's active scope.
 Terrain, raster, and vector formats are also outside this repository.
-Potential future repositories for those data models are recorded in the
-roadmap rather than treated as point-cloud release gates.
+The [ecosystem strategy](ECOSYSTEM_STRATEGY.md) assigns those data models to
+separate repositories; they are not point-cloud release gates.
 
 The repository supports both direct FileFormat access and explicit conversion.
 Direct access serves inspection and preview; `usd-pointcloud-convert` is the
@@ -32,8 +32,9 @@ production path for long-running deterministic payload and cache generation.
 
 ## 2. Current Assessment
 
-v0.9.0 is released and the TilePlan convergence and interactive validation
-work is complete.
+v0.10.0 is released. TilePlan convergence, interactive validation,
+resolver-backed source identity, and external resolver interoperability are
+complete.
 The properties to preserve are:
 
 - Format parsing is separated from OpenUSD API usage.
@@ -47,11 +48,13 @@ The properties to preserve are:
 - Implementation status and roadmap are documented.
 
 Source identity, cache invalidation, point-budget-aware adaptive tiling,
-real-world I/O measurement, and one tile-plan representation for sequential and
-COPC-native planning are now implemented. The next work matures resolver-backed
-source identity so generated output can be reused safely for resolver-provided
-sources, while transport stays in external resolver implementations. Format
-expansion follows that milestone. See the
+real-world I/O measurement, one tile-plan representation for sequential and
+COPC-native planning, and conservative resolver-backed cache reuse are now
+implemented. Immediate work stabilizes the existing point-cloud surface,
+keeps resolver interoperability and real-world baselines reproducible, reduces
+temporary generated-layer ownership where practical, and controls CI cost.
+Runtime streaming remains research; format expansion follows only where a new
+reader reuses the established contracts. See the
 [infrastructure maturity roadmap](../roadmap/infrastructure-maturity.md) and
 the [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md).
 

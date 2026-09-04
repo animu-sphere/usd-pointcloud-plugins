@@ -62,11 +62,13 @@ The [capability matrix](docs/reference/CAPABILITY_MATRIX.md) is the canonical
 source for point formats, attributes, CRS, metadata, and authored USD details.
 Source identity, caching, adaptive tiling, real-world I/O baselines, and one
 tile-plan representation for sequential and COPC-native planning are
-implemented. The next milestone matures resolver-backed source identity so
-generated output can be reused safely for resolver-provided sources, before
-E57 or other
-[format expansion](docs/roadmap/infrastructure-maturity.md). Terrain, raster,
-and vector formats are future repository candidates.
+implemented, including conservative resolver-backed cache reuse and recorded
+external resolver interoperability. Current work favors COPC stability,
+reproducible real-world baselines, temporary-layer ownership, and CI cost
+before E57 or other
+[format expansion](docs/roadmap/infrastructure-maturity.md). Raster and vector
+work belongs to separate repositories under the
+[ecosystem strategy](docs/design/ECOSYSTEM_STRATEGY.md).
 
 ## Resolver-Backed Sources
 

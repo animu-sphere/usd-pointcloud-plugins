@@ -37,8 +37,9 @@ modules implement is fixed in
 | `pointcloud-points-text`, `pointcloud-e57` | `plugins/` | reserved, not implemented | Future point-cloud FileFormat Plugin adapters, in the order fixed by [format support order](../roadmap/format-support-order.md). |
 
 Terrain, raster, and vector contracts belong to future repository candidates:
-`usd-terrain-plugins` and `usd-vector-plugins`. They are not reserved modules
-or active roadmap phases in this repository.
+`usd-raster-plugins` and `usd-vector-plugins`. They are not reserved modules
+or active roadmap phases in this repository; their ownership is defined in the
+[ecosystem strategy](../design/ECOSYSTEM_STRATEGY.md).
 
 None of the `libs/` modules is a plugin: none has a `plugInfo.json`, none
 performs plugin registration, and only `usdPointCloudAuthoring` exposes OpenUSD

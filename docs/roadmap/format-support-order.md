@@ -154,8 +154,11 @@ contract.
 
 The following are not release gates for this repository:
 
-- `usd-terrain-plugins`: GeoTIFF elevation, DEM, COG, heightmaps, and terrain meshes
+- `usd-raster-plugins`: GeoTIFF, COG, DEM, imagery, heightmaps, and raster-derived tooling
 - `usd-vector-plugins`: GeoJSON, FlatGeobuf, GeoPackage, and Shapefile
+
+Their ownership and cross-repository delivery order are defined in the
+[ecosystem strategy](../design/ECOSYSTEM_STRATEGY.md).
 
 ## Deferred Formats and Features
 

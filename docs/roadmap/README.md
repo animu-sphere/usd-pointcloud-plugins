@@ -5,6 +5,9 @@ actionable milestones. The policy states the standing direction; this
 directory states the order of work. What is already implemented is in
 [implementation status](implementation-status.md) and, at the level of source
 support, in [capability matrix](../reference/CAPABILITY_MATRIX.md).
+Cross-repository sequencing and the boundary between format plugins,
+resolvers, tools, and runtime distribution live in the
+[ecosystem strategy](../design/ECOSYSTEM_STRATEGY.md), not in this roadmap.
 
 ## Principles
 
@@ -26,16 +29,18 @@ support, in [capability matrix](../reference/CAPABILITY_MATRIX.md).
 ## Immediate direction
 
 LAS, LAZ, local COPC, PLY, bounded-memory tiling, generated-USDC caching, and
-the conversion tool validate the shared point-cloud architecture. The next
-release sequence prioritizes infrastructure maturity over adding formats: the
-adaptive tiling shipped in `v0.7.0` is measured on real data before more tiling
-design is added, and the tile-plan representation is unified before another
-format is connected to it. `v0.10.0` closed the resolver-facing side —
-transport-neutral source identity, safe generated-cache reuse for
-resolver-provided sources, and a stable vocabulary for every cache decision —
-while transport itself stays in external resolver implementations, and recorded
-that boundary working against a released one. The detailed rationale, scope, tests, and performance
-indicators are in the
+the conversion tool validate the shared point-cloud architecture. Releases
+through `v0.10.0` completed adaptive tiling, real-world I/O measurement,
+TilePlan convergence, transport-neutral resolver source identity, safe
+generated-cache reuse, and external resolver interoperability.
+
+Immediate work now favors depth over format count: stabilize COPC hierarchy
+and resolver-backed behavior, reduce temporary generated-layer ownership where
+practical, keep real-world memory and I/O baselines reproducible, and control
+CI cost. Runtime streaming remains research, and E57 or other point-cloud
+formats enter only after they can reuse the existing contracts without a
+parallel path. Detailed rationale, scope, tests, and performance indicators
+are in the
 [infrastructure maturity roadmap](infrastructure-maturity.md); the boundary
 itself is fixed in the
 [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md).
@@ -232,6 +237,7 @@ resolver implementation becomes a build-time dependency.
 
 Related documents outside this directory:
 
+- [Ecosystem strategy](../design/ECOSYSTEM_STRATEGY.md)
 - [Design policy](../design/DESIGN_POLICY.md)
 - [Workspace contract](../architecture/WORKSPACE.md)
 - [Resolver-backed source contract](../architecture/RESOLVER_SOURCE.md)
@@ -250,5 +256,9 @@ Related documents outside this directory:
 
 ## Future Repository Candidates
 
-- `usd-terrain-plugins`: GeoTIFF elevation, DEM, COG, heightmaps, and terrain meshes
+- `usd-raster-plugins`: GeoTIFF, COG, DEM, imagery, heightmaps, and explicit raster-derived tooling
 - `usd-vector-plugins`: GeoJSON, FlatGeobuf, GeoPackage, and Shapefile
+
+These candidates and their order are ecosystem direction, not release gates
+for this repository. See the
+[ecosystem strategy](../design/ECOSYSTEM_STRATEGY.md).
