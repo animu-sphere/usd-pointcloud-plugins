@@ -55,10 +55,16 @@ list(GET probe_fields 6 reported_range_bytes)
 list(GET probe_fields 7 reported_source_bytes)
 list(GET probe_fields 8 reported_tile_ids)
 list(GET probe_fields 9 reported_tile_ranges)
+string(REPLACE "," ";" reported_tile_id_list "${reported_tile_ids}")
+string(REPLACE "," ";" reported_tile_range_list "${reported_tile_ranges}")
+list(LENGTH reported_tile_id_list reported_tile_id_count)
+list(LENGTH reported_tile_range_list reported_tile_range_count)
 if(NOT reported_level STREQUAL "0" OR
    NOT reported_hierarchy_nodes MATCHES "^[0-9]+$" OR
    NOT reported_point_tiles STREQUAL "1" OR
    NOT reported_selected_tiles STREQUAL "1" OR
+    NOT reported_tile_id_count EQUAL reported_selected_tiles OR
+    NOT reported_tile_range_count EQUAL reported_selected_tiles OR
    NOT reported_decoded_points STREQUAL "3" OR
    NOT reported_range_bytes MATCHES "^[1-9][0-9]*$" OR
    NOT reported_source_bytes MATCHES "^[1-9][0-9]*$" OR
