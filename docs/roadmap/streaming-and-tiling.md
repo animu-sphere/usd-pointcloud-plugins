@@ -46,8 +46,13 @@ usdCopc_runtime_streaming_probe C:\path\to\sample.copc --level 3
 ```
 
 This measures the source-side portion of the runtime-streaming question.
-Host LOD policy, OpenUSD payload composition, and renderer loading remain
-outside the probe and are still research work.
+The TSV summary also includes `selected_tile_ids` and
+`selected_tile_ranges`. The comma-separated values are aligned by position:
+tile identities use `L<level>/<x>/<y>/<z>`, while ranges use
+`<offset>:<byte-size>`. This makes a deterministic source-read selection
+available for comparison with host observations. Host LOD policy, OpenUSD
+payload composition, and renderer loading remain outside the probe and are
+still research work.
 
 ## 1. Problem statement
 

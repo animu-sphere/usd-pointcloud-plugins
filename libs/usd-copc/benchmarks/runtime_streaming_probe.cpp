@@ -100,6 +100,17 @@ bool MakeEntry(const usdcopc::CopcPointTile& tile,
     return entry.IsValid() && entry.IsPointData();
 }
 
+std::string TileIdentity(const usdcopc::CopcPointTile& tile) {
+    const auto& id = tile.tile.id;
+    return "L" + std::to_string(id.level) + "/" + std::to_string(id.x) +
+           "/" + std::to_string(id.y) + "/" + std::to_string(id.z);
+}
+
+std::string TileRange(const usdcopc::CopcPointTile& tile) {
+    return std::to_string(tile.pointDataOffset) + ":" +
+           std::to_string(tile.pointDataSize);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -154,6 +165,8 @@ int main(int argc, char** argv) {
 
     std::uint64_t selectedPointRangeBytes = 0;
     std::uint64_t decodedPoints = 0;
+    std::vector<std::string> selectedTileIds;
+    std::vector<std::string> selectedTileRanges;
     for (const auto* tile : selectedTiles) {
         usdcopc::CopcHierarchyEntry entry;
         if (!MakeEntry(*tile, entry)) {
@@ -167,14 +180,26 @@ int main(int argc, char** argv) {
         }
         selectedPointRangeBytes += tile->pointDataSize;
         decodedPoints += static_cast<std::uint64_t>(points.size());
+        selectedTileIds.push_back(TileIdentity(*tile));
+        selectedTileRanges.push_back(TileRange(*tile));
     }
 
     std::cout << "input\tlevel\thierarchy_nodes\tpoint_tiles\tselected_tiles\t"
-                 "decoded_points\tselected_point_range_bytes\tsource_bytes_read\n"
+                 "decoded_points\tselected_point_range_bytes\tsource_bytes_read\t"
+                 "selected_tile_ids\tselected_tile_ranges\n"
               << options.inputPath << '\t' << options.level << '\t'
               << hierarchy.nodes.size() << '\t' << tiles.size() << '\t'
               << selectedTiles.size() << '\t' << decodedPoints << '\t'
-              << selectedPointRangeBytes << '\t' << source->BytesRead()
-              << '\n';
+              << selectedPointRangeBytes << '\t' << source->BytesRead() << '\t';
+    for (std::size_t index = 0; index < selectedTileIds.size(); ++index) {
+        if (index != 0) std::cout << ',';
+        std::cout << selectedTileIds[index];
+    }
+    std::cout << '\t';
+    for (std::size_t index = 0; index < selectedTileRanges.size(); ++index) {
+        if (index != 0) std::cout << ',';
+        std::cout << selectedTileRanges[index];
+    }
+    std::cout << '\n';
     return 0;
 }
