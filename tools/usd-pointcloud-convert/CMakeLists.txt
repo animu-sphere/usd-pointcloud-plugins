@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.23)
 
 project(usdPointCloudConvert
     VERSION 0.1.0
-    DESCRIPTION "Explicit LAS and LAZ to tiled USD conversion tool"
+    DESCRIPTION "Explicit LAS, LAZ, and COPC to tiled USD conversion tool"
     LANGUAGES CXX)
 
 find_package(pxr CONFIG REQUIRED)
@@ -13,6 +13,7 @@ target_link_libraries(usd-pointcloud-convert
     PRIVATE
         usdgeo::cache
         usdpointcloud::authoring
+        usdcopc::core
         usdlas::core
         usdlaz::core)
 target_include_directories(usd-pointcloud-convert PRIVATE
@@ -20,6 +21,7 @@ target_include_directories(usd-pointcloud-convert PRIVATE
     "${CMAKE_SOURCE_DIR}/libs/usd-geo-cache/include"
     "${CMAKE_SOURCE_DIR}/libs/usd-pointcloud-core/include"
     "${CMAKE_SOURCE_DIR}/libs/usd-pointcloud-authoring/include"
+    "${CMAKE_SOURCE_DIR}/libs/usd-copc/include"
     "${CMAKE_SOURCE_DIR}/libs/usd-las/include"
     "${CMAKE_SOURCE_DIR}/libs/usd-laz/include")
 
@@ -43,4 +45,13 @@ if(USDGEO_BUILD_TESTS)
                      -Dtest_root=${CMAKE_CURRENT_BINARY_DIR}/converter-conformance
                      -P ${CMAKE_CURRENT_SOURCE_DIR}/test_conversion.cmake)
     usdgeo_configure_openusd_test_runtime(usdPointCloudConvert_las)
+    add_dependencies(usd-pointcloud-convert usdCopc_tests)
+    add_test(NAME usdPointCloudConvert_copc
+             COMMAND ${CMAKE_COMMAND}
+                     -Dconverter=$<TARGET_FILE:usd-pointcloud-convert>
+                     -Dfixture=${CMAKE_CURRENT_BINARY_DIR}/converter-conformance.copc
+                     -Dfixture_generator=$<TARGET_FILE:usdCopc_tests>
+                     -Dtest_root=${CMAKE_CURRENT_BINARY_DIR}/converter-conformance-copc
+                     -P ${CMAKE_CURRENT_SOURCE_DIR}/test_copc_conversion.cmake)
+    usdgeo_configure_openusd_test_runtime(usdPointCloudConvert_copc)
 endif()

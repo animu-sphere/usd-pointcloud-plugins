@@ -82,7 +82,8 @@ gap is tracked in
 ## Explicit tiled conversion
 
 The production path for long-running tiled generation is the workspace
-converter. It reuses the LAS/LAZ readers and shared payload authoring path:
+converter. It reuses the LAS, LAZ, and local COPC readers and the shared
+payload authoring path. COPC inputs may use `.copc` or `.copc.laz`:
 
 ```powershell
 usd-pointcloud-convert `

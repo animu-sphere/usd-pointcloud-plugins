@@ -4,7 +4,10 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- Local `.copc` and `.copc.laz` inputs in `usd-pointcloud-convert`, including
+  deterministic generated-cache publication and reuse.
 
 ## [0.11.0] - 2026-08-27
 

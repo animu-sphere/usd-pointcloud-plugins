@@ -33,9 +33,10 @@ uses the same reader and authoring contracts for long-running generation.
 | Local hierarchy page validation | Supported | Root and child pages are read depth-first with range, alignment, and repeated-page checks |
 | COPC point-data decoding | Supported | Local hierarchy ranges are decoded as LAZ chunks through `usdlaz::DecodeLazChunk`; bounds, classification, and attribute selection use the shared point-cloud contracts |
 | COPC FileFormat Plugin | Supported | `pointcloud-copc` provides local metadata-only, non-tiled, and native hierarchy tiled reads; tiled output is payload-backed `usdLod`, while source point ranges are rejected because hierarchy order is spatial |
+| Local COPC conversion and generated-cache publication | Supported | `usd-pointcloud-convert` accepts `.copc` and `.copc.laz`, reuses the COPC point stream for fixed-grid or adaptive tiled generation, and publishes entries compatible with local COPC FileFormat cache lookup |
 | Resolver-backed COPC reads | Supported | The plugin adapts an `ArAsset` opened through the active `ArResolver` to the project-owned random-access source; remote tiled reads require an absolute local `payloadDirectory`. Transport, authentication, retries, and raw byte caching belong to the resolver |
 | Resolver-backed generated-cache lookup | Supported | COPC extracts resolver-neutral identity through the shared adapter and reuses a committed entry only for `Stable` identity. Incomplete and corrupted entries are invalidated, and a changed validation token regenerates rather than hitting the superseded entry. Recorded against an external resolver in the [resolver read baseline](RESOLVER_BASELINE.md); the contract is the [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md) |
-| Resolver-backed generated-cache generation | Not supported | Entries are published by `usd-pointcloud-convert`, which accepts `.las` and `.laz` local inputs only. No COPC read - local or resolver-backed - has an entry to hit in a normal workflow |
+| Resolver-backed generated-cache generation | Not supported | The converter publishes local COPC entries but does not yet accept resolver-addressable identifiers, so it cannot publish against resolver-provided identity |
 | Generated-cache decision diagnostics | Supported | `usdgeo::cache::CacheDecision` publishes seven stable, transport-neutral categories; COPC projects them onto `COPC009`-`COPC012` and every message names its category |
 
 ## LAS Versions
@@ -247,9 +248,10 @@ in the [tile and LOD contract](../architecture/LOD.md).
   direct LAS, LAZ, COPC, and PLY FileFormat lookup reuses committed entries
   through `USDGEO_CACHE_ROOT`. Reuse requires either a stable local filesystem
   identity or a `Stable` resolver identity; `Unstable` and `Unavailable`
-  identity fails closed and reads from the source. Because only the conversion
-  tool publishes entries and it accepts `.las` and `.laz` local paths, a COPC
-  read has nothing to reuse outside a test that commits an entry itself.
+  identity fails closed and reads from the source. The conversion tool
+  publishes entries for local LAS, LAZ, and COPC paths, but does not yet accept
+  resolver-addressable identifiers or publish against resolver-provided
+  identity.
 - No HTTP client, cloud SDK, authentication flow, retry policy, or raw
   byte-range cache exists here. Resolver-backed reads consume whatever the
   active `ArResolver` provides, and no resolver implementation is a build-time

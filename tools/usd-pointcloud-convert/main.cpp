@@ -1,5 +1,6 @@
 #include "usdgeo/PointCloudLayer.h"
 #include "usdgeo/cache/Cache.h"
+#include "usdcopc/Copc.h"
 #include "usdpointcloud/FileFormatArguments.h"
 #include "usdlas/Las.h"
 #include "usdlaz/Laz.h"
@@ -28,7 +29,8 @@ void HandleInterrupt(int) {
 
 void PrintUsage() {
     std::cerr
-          << "Usage: usd-pointcloud-convert <input.las|input.laz> <output.usda> "
+          << "Usage: usd-pointcloud-convert <input.las|input.laz|input.copc> "
+              "<output.usda> "
               "(--tile-size <source-units> | --max-points-per-tile <count>) [options]\n"
         << "Options:\n"
           << "  --tile-size <source-units>\n"
@@ -76,6 +78,58 @@ bool IsExtension(const std::filesystem::path& path, const char* extension) {
         }
     }
     return value == extension;
+}
+
+enum class InputFormat {
+    Unsupported,
+    Las,
+    Laz,
+    Copc,
+};
+
+InputFormat DetectInputFormat(const std::filesystem::path& path) {
+    if (IsExtension(path, ".copc")) {
+        return InputFormat::Copc;
+    }
+    if (IsExtension(path, ".las")) {
+        return InputFormat::Las;
+    }
+    if (IsExtension(path, ".laz")) {
+        auto stem = path.stem().string();
+        for (auto& character : stem) {
+            if (character >= 'A' && character <= 'Z') {
+                character = static_cast<char>(character - 'A' + 'a');
+            }
+        }
+        return std::filesystem::path(stem).extension() == ".copc"
+                   ? InputFormat::Copc
+                   : InputFormat::Laz;
+    }
+    return InputFormat::Unsupported;
+}
+
+std::unique_ptr<usdpointcloud::PointStream> OpenPointStream(
+    InputFormat format,
+    const std::filesystem::path& inputPath,
+    const usdpointcloud::PointReadOptions& options,
+    usdlas::LasHeader& header,
+    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    if (format == InputFormat::Las) {
+        return usdlas::OpenLasPointStream(
+            inputPath.string(), options, header, diagnostics);
+    }
+    if (format == InputFormat::Laz) {
+        return usdlaz::OpenLazPointStream(
+            inputPath.string(), options, header, diagnostics);
+    }
+    if (format == InputFormat::Copc) {
+        usdcopc::CopcHeader copcHeader;
+        auto stream = usdcopc::OpenCopcPointStream(
+            inputPath.string(), options, copcHeader, diagnostics);
+        header = copcHeader.las;
+        return stream;
+    }
+    return nullptr;
 }
 
 bool SameSourceIdentity(const usdgeo::cache::SourceIdentity& left,
@@ -301,6 +355,7 @@ bool CopyDirectory(const std::filesystem::path& source,
 
 bool BuildCacheDescriptor(
     const std::filesystem::path& inputPath,
+    InputFormat inputFormat,
     const usdgeo::GeoReference& reference,
     const usdpointcloud::PointReadRequest& request,
     const std::string& tilePlanKey,
@@ -311,8 +366,10 @@ bool BuildCacheDescriptor(
         return false;
     }
     descriptor.pluginVersion = "usd-pointcloud-plugins-0.3.0-display-v3";
-    descriptor.parserVersion = IsExtension(inputPath, ".las")
+    descriptor.parserVersion = inputFormat == InputFormat::Las
                                    ? "las-reader-1"
+                               : inputFormat == InputFormat::Copc
+                                   ? "copc-reader-1"
                                    : "laz-reader-1";
     descriptor.openUsdVersion = "26.08";
     descriptor.coordinateTransform = {
@@ -576,8 +633,9 @@ int main(int argc, char** argv) {
     const std::filesystem::path inputPath = std::filesystem::absolute(argv[1]);
     const std::filesystem::path outputPath = std::filesystem::absolute(argv[2]);
     const auto manifestPath = ManifestPath(outputPath);
-    if (!IsExtension(inputPath, ".las") && !IsExtension(inputPath, ".laz")) {
-        std::cerr << "Input must have a .las or .laz extension\n";
+    const auto inputFormat = DetectInputFormat(inputPath);
+    if (inputFormat == InputFormat::Unsupported) {
+        std::cerr << "Input must have a .las, .laz, .copc, or .copc.laz extension\n";
         return 2;
     }
     if (!IsExtension(outputPath, ".usda")) {
@@ -699,14 +757,8 @@ int main(int argc, char** argv) {
     request.readOptions.isCancelled = [] { return interrupted != 0; };
 
     usdlas::LasHeader header;
-    std::unique_ptr<usdpointcloud::PointStream> stream;
-    if (IsExtension(inputPath, ".las")) {
-        stream = usdlas::OpenLasPointStream(
-            inputPath.string(), request.readOptions, header, diagnostics);
-    } else {
-        stream = usdlaz::OpenLazPointStream(
-            inputPath.string(), request.readOptions, header, diagnostics);
-    }
+    auto stream = OpenPointStream(
+        inputFormat, inputPath, request.readOptions, header, diagnostics);
     if (!stream) {
         if (diagnostics.empty()) {
             std::cerr << "Unable to open point stream\n";
@@ -745,16 +797,9 @@ int main(int argc, char** argv) {
         }
         adaptiveStreamFactory = [&]() {
             usdlas::LasHeader passHeader;
-            std::unique_ptr<usdpointcloud::PointStream> passStream;
-            if (IsExtension(inputPath, ".las")) {
-                passStream = usdlas::OpenLasPointStream(
-                    inputPath.string(), request.readOptions, passHeader,
-                    diagnostics);
-            } else {
-                passStream = usdlaz::OpenLazPointStream(
-                    inputPath.string(), request.readOptions, passHeader,
-                    diagnostics);
-            }
+            auto passStream = OpenPointStream(
+                inputFormat, inputPath, request.readOptions, passHeader,
+                diagnostics);
             if (passStream && !request.attributes.empty()) {
                 passStream = std::make_unique<SelectedPointStream>(
                     std::move(passStream), request.attributes);
@@ -786,8 +831,8 @@ int main(int argc, char** argv) {
     if (cacheEnabled) {
         usdgeo::cache::Descriptor descriptor;
         std::string cacheError;
-        if (!BuildCacheDescriptor(inputPath, reference, request, tilePlanKey,
-                                  descriptor, cacheError)) {
+        if (!BuildCacheDescriptor(inputPath, inputFormat, reference, request,
+                      tilePlanKey, descriptor, cacheError)) {
             std::cerr << "Unable to build cache layout: " << cacheError << "\n";
             return 1;
         }
