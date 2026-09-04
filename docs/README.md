@@ -18,12 +18,15 @@ workspace contract wins; structural changes must update that contract first.
 | [roadmap/](roadmap/) | What remains incomplete and in what order it lands. | [README.md](roadmap/README.md) |
 | [releases/](releases/) | Immutable records for tagged releases. | [README.md](releases/README.md) |
 | [reports/ost/](reports/ost/) | Append-only OpenStrata adoption, CI evidence, and upstream asks. | [README.md](reports/ost/README.md) |
-| [design/](design/) | Why the project is built this way. | [DESIGN_POLICY.md](design/DESIGN_POLICY.md) |
+| [design/](design/) | Why this project and the wider geospatial ecosystem are divided this way. | [DESIGN_POLICY.md](design/DESIGN_POLICY.md), [ECOSYSTEM_STRATEGY.md](design/ECOSYSTEM_STRATEGY.md) |
 | [adr/](adr/) | Numbered, immutable architecture decision records. | [0001-coordinate-model.md](adr/0001-coordinate-model.md) |
 | [contributing/](contributing/) | Contributor procedures that a code change must satisfy. | [MODULE_README_CONTRACT.md](contributing/MODULE_README_CONTRACT.md) |
 
 ## Canonical documents
 
+- [design/ECOSYSTEM_STRATEGY.md](design/ECOSYSTEM_STRATEGY.md) defines the
+  standing cross-repository boundaries for point-cloud, raster, vector,
+  resolver, tooling, and runtime composition work.
 - [design/DESIGN_POLICY.md](design/DESIGN_POLICY.md) defines product intent,
   format scope, coordinate policy, tiling and LOD policy, diagnostics, binary
   safety, testing, and licensing.
