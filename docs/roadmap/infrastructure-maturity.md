@@ -512,6 +512,13 @@ experiments. Findings may inform the conversion pipeline; they do not get to
 complicate it before the evidence exists. No runtime abstraction is added to
 the FileFormat or converter architecture on speculation.
 
+The first experiment is the opt-in `usdCopc_runtime_streaming_probe`. It uses
+the existing COPC hierarchy and `RandomAccessSource` contracts to select a
+requested hierarchy level, decode only its point-data ranges, and report
+actual source bytes read. It establishes source-side range behavior without
+claiming to model host LOD policy, OpenUSD payload composition, or renderer
+loading.
+
 ### Later - E57 and Other Point-Cloud Formats
 
 E57 is valuable but is not the immediate next milestone. Its decoder should
