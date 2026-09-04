@@ -11,3 +11,6 @@ requires:
   capabilities: [usd-stage-read]
 usd:
   plug_info: plugin/resources/pointcloud-copc/plugInfo.json
+tests:
+  smoke:
+    - tests/fixtures/conformance.copc
