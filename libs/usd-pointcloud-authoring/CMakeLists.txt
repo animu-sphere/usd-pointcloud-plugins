@@ -8,6 +8,7 @@ project(usdPointCloudAuthoring
 find_package(pxr CONFIG REQUIRED)
 
 add_library(usdPointCloudAuthoring STATIC
+    src/ArAssetRandomAccessSource.cpp
     src/PointCloudCache.cpp
     src/PointCloudLayer.cpp
     src/PointCloudStreaming.cpp)
@@ -26,6 +27,7 @@ target_link_libraries(usdPointCloudAuthoring
         usdgeo::cache
         usdpointcloud::core
         usdpointcloud::tiling
+        ar
         usdGeom
         usdLod)
 target_include_directories(usdPointCloudAuthoring
