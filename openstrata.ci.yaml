@@ -72,168 +72,7 @@ runners:
       acknowledgement: required
 
 cells:
-  - name: pointcloud-las-pr-windows
-    lane: pull_request
-    runner: windows-hosted
-    runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
-      expected_oci_digest: sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
-    bundle: plugins/pointcloud-las
-    platform: cy2026
-    profile: usd
-    up_to: 4
-
-  - name: pointcloud-laz-pr-windows
-    lane: pull_request
-    runner: windows-hosted
-    runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
-      expected_oci_digest: sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
-    bundle: plugins/pointcloud-laz
-    platform: cy2026
-    profile: usd
-    up_to: 4
-
-  - name: pointcloud-las-pr-macos-arm64
-    lane: pull_request
-    runner: macos-arm64-hosted
-    runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
-      expected_oci_digest: sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
-    bundle: plugins/pointcloud-las
-    platform: cy2026
-    profile: usd
-    host_python: "3.13"
-    up_to: 5
-
-  - name: pointcloud-las-pr-linux
-    lane: pull_request
-    runner: linux-hosted
-    runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
-      expected_oci_digest: sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
-    bundle: plugins/pointcloud-las
-    platform: cy2026
-    profile: usd
-    host_python: "3.13"
-    # MaterialX and garch pull X11/GL into the link interface; see header.
-    host_packages:
-      apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
-    up_to: 5
-
-  - name: pointcloud-laz-pr-macos-arm64
-    lane: pull_request
-    runner: macos-arm64-hosted
-    runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
-      expected_oci_digest: sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
-    bundle: plugins/pointcloud-laz
-    platform: cy2026
-    profile: usd
-    host_python: "3.13"
-    up_to: 5
-
-  - name: pointcloud-laz-pr-linux
-    lane: pull_request
-    runner: linux-hosted
-    runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
-      expected_oci_digest: sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
-    bundle: plugins/pointcloud-laz
-    platform: cy2026
-    profile: usd
-    host_python: "3.13"
-    # MaterialX and garch pull X11/GL into the link interface; see header.
-    host_packages:
-      apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
-    up_to: 5
-
-  - name: pointcloud-copc-pr-windows
-    lane: pull_request
-    runner: windows-hosted
-    runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
-      expected_oci_digest: sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
-    bundle: plugins/pointcloud-copc
-    platform: cy2026
-    profile: usd
-    up_to: 4
-
-  - name: pointcloud-copc-pr-macos-arm64
-    lane: pull_request
-    runner: macos-arm64-hosted
-    runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
-      expected_oci_digest: sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
-    bundle: plugins/pointcloud-copc
-    platform: cy2026
-    profile: usd
-    host_python: "3.13"
-    up_to: 5
-
-  - name: pointcloud-copc-pr-linux
-    lane: pull_request
-    runner: linux-hosted
-    runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
-      expected_oci_digest: sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
-    bundle: plugins/pointcloud-copc
-    platform: cy2026
-    profile: usd
-    host_python: "3.13"
-    host_packages:
-      apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
-    up_to: 5
-
-  - name: pointcloud-ply-pr-windows
-    lane: pull_request
-    runner: windows-hosted
-    runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
-      expected_oci_digest: sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
-    bundle: plugins/pointcloud-ply
-    platform: cy2026
-    profile: usd
-    up_to: 4
-
-  - name: pointcloud-ply-pr-macos-arm64
-    lane: pull_request
-    runner: macos-arm64-hosted
-    runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
-      expected_oci_digest: sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
-    bundle: plugins/pointcloud-ply
-    platform: cy2026
-    profile: usd
-    host_python: "3.13"
-    up_to: 5
-
-  - name: pointcloud-ply-pr-linux
-    lane: pull_request
-    runner: linux-hosted
-    runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
-      expected_oci_digest: sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
-    bundle: plugins/pointcloud-ply
-    platform: cy2026
-    profile: usd
-    host_python: "3.13"
-    host_packages:
-      apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
-    up_to: 5
-
+  # Main validates each plugin's standalone bundle boundary on every host.
   - name: pointcloud-las-main-windows
     lane: main
     runner: windows-hosted
@@ -394,7 +233,7 @@ cells:
       apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
     up_to: 5
 
-  # Workspace cells: the Tier 1 resolver contract gate.
+  # Pull requests use the root workspace as the fast, comprehensive gate.
   #
   # Every bundle cell above is a per-plugin build rooted at
   # plugins/pointcloud-<x>/CMakeLists.txt, a standalone project() that never
@@ -403,8 +242,8 @@ cells:
   # tests/plugins/httpresolver is compiled by a bundle cell. Only the root
   # CMakeLists.txt defaults USDGEO_BUILD_TESTS to ON, which is what a
   # `kind: workspace` cell configures through `ost build` before running the
-  # CTest suite. These cells are therefore what makes Tier 1 a CI gate rather
-  # than a local-only one, and they need no external resolver repository.
+  # CTest suite. These cells cover all libraries and plugins, including the
+  # Tier 1 resolver contract, without repeating one job per plugin.
 
   - name: workspace-pr-windows
     lane: pull_request
@@ -433,46 +272,6 @@ cells:
 
   - name: workspace-pr-linux
     lane: pull_request
-    runner: linux-hosted
-    kind: workspace
-    verify: test
-    runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
-      expected_oci_digest: sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
-    platform: cy2026
-    profile: usd
-    host_python: "3.13"
-    host_packages:
-      apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
-
-  - name: workspace-main-windows
-    lane: main
-    runner: windows-hosted
-    kind: workspace
-    verify: test
-    runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
-      expected_oci_digest: sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
-    platform: cy2026
-    profile: usd
-
-  - name: workspace-main-macos-arm64
-    lane: main
-    runner: macos-arm64-hosted
-    kind: workspace
-    verify: test
-    runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
-    runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
-      expected_oci_digest: sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
-    platform: cy2026
-    profile: usd
-    host_python: "3.13"
-
-  - name: workspace-main-linux
-    lane: main
     runner: linux-hosted
     kind: workspace
     verify: test
