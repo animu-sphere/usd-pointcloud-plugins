@@ -1,6 +1,7 @@
 #include "usdgeo/ArAssetRandomAccessSource.h"
 
 #include <limits>
+#include <utility>
 
 namespace usdgeo {
 namespace {
