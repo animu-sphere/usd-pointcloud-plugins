@@ -81,3 +81,22 @@ if(NOT unstable_cache_position EQUAL -1)
     message(FATAL_ERROR
         "Unstable resolver identity unexpectedly enabled generated cache")
 endif()
+
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" -E env
+            "PXR_AR_DEFAULT_RESOLVER=HttpResolver"
+            "PXR_PLUGINPATH_NAME=${resolver_plugin_path}"
+            "USDGEOCOPC_TEST_ASSET=${fixture}"
+            "${converter}" "http://missing.copc?signature=secret-token"
+            "${test_root}/missing/PointCloud.usda"
+            --tile-size 1
+    RESULT_VARIABLE missing_result
+    OUTPUT_VARIABLE missing_output
+    ERROR_VARIABLE missing_error)
+if(missing_result EQUAL 0)
+    message(FATAL_ERROR "Unresolvable resolver COPC unexpectedly converted")
+endif()
+string(FIND "${missing_error}" "secret-token" secret_position)
+if(NOT secret_position EQUAL -1)
+    message(FATAL_ERROR "Resolver identifier leaked into an error message")
+endif()

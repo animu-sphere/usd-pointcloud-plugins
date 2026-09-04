@@ -148,6 +148,7 @@ std::unique_ptr<usdpointcloud::PointStream> OpenPointStream(
 
 struct ConverterSource {
     std::string identifier;
+    std::string resolvedPath;
     std::string sourceName;
     std::filesystem::path localPath;
     std::shared_ptr<pxr::ArAsset> asset;
@@ -159,7 +160,19 @@ struct ConverterSource {
 };
 
 bool IsResolverIdentifier(const std::string& identifier) {
-    return identifier.find("://") != std::string::npos;
+    const auto colon = identifier.find(':');
+    if (colon == std::string::npos) {
+        return false;
+    }
+    if (colon == 1 &&
+        ((identifier[0] >= 'A' && identifier[0] <= 'Z') ||
+         (identifier[0] >= 'a' && identifier[0] <= 'z')) &&
+        identifier.size() > 2 &&
+        (identifier[2] == '/' || identifier[2] == '\\')) {
+        return false;
+    }
+    const auto pathSeparator = identifier.find_first_of("/\\");
+    return pathSeparator == std::string::npos || colon < pathSeparator;
 }
 
 std::filesystem::path FormatPath(const std::string& identifier) {
@@ -195,18 +208,17 @@ bool PrepareSource(const std::string& identifier,
     }
     const auto resolvedPath = pxr::ArGetResolver().Resolve(identifier);
     if (resolvedPath.GetPathString().empty()) {
-        errorMessage = "active resolver could not resolve COPC asset: " +
-                       identifier;
+        errorMessage = "active resolver could not resolve COPC asset";
         return false;
     }
     source.asset = pxr::ArGetResolver().OpenAsset(resolvedPath);
     if (!source.asset) {
-        errorMessage = "active resolver could not open COPC asset: " +
-                       resolvedPath.GetPathString();
+        errorMessage = "active resolver could not open COPC asset";
         return false;
     }
     source.resolverBacked = true;
-    source.sourceName = resolvedPath.GetPathString();
+    source.resolvedPath = resolvedPath.GetPathString();
+    source.sourceName = "resolver-addressed-source";
     source.randomAccessSource =
         std::make_shared<usdgeo::ArAssetRandomAccessSource>(
             source.asset, source.sourceName);
@@ -227,7 +239,7 @@ bool RefreshSourceIdentity(const ConverterSource& source,
     usdgeo::cache::ResolverIdentityStability stability;
     return usdgeo::TryBuildResolverSourceIdentity(
         pxr::ArGetResolver(), source.identifier,
-        pxr::ArResolvedPath(source.sourceName), *source.asset, identity,
+        pxr::ArResolvedPath(source.resolvedPath), *source.asset, identity,
         stability, errorMessage);
 }
 
