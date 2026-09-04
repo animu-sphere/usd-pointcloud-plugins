@@ -32,9 +32,9 @@ absolute local `payloadDirectory`.
 Generated-USDC cache lookup is enabled for a stable local filesystem identity
 and for a `Stable` resolver identity. `Unstable` and `Unavailable` identity
 fails closed: the read proceeds from the source and says why. Nothing here
-publishes an entry - `usd-pointcloud-convert` does, and it accepts `.las` and
-`.laz` local inputs only, so a COPC read has nothing to reuse outside a test
-that commits an entry itself.
+publishes an entry; `usd-pointcloud-convert` publishes entries for local
+`.copc` and `.copc.laz` inputs. Resolver-backed publication remains unavailable
+until the converter accepts resolver-addressable identifiers.
 
 Every cache decision is reported through four codes that project the stable
 categories `usdgeo::cache` publishes, each message naming its exact category:

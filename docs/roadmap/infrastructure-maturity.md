@@ -487,12 +487,12 @@ isolated under `tests/`, and recorded remote baselines including
 `v0.4.0`.
 
 One thing the gate asked for is recorded as absent rather than as met: a
-generated-cache *hit ratio* for a remote source. Entries are published only by
-`usd-pointcloud-convert`, which accepts `.las` and `.laz` local inputs, so no
-COPC read - local or resolver-backed - has an entry to hit in a normal
-workflow. The lookup side, the reuse rules, and every decision diagnostic are
-complete and covered; publishing COPC entries is the follow-up that makes the
-ratio measurable.
+generated-cache *hit ratio* for a remote source. The converter now publishes
+entries for local `.copc` and `.copc.laz` inputs, but it does not yet accept a
+resolver-addressable identifier or publish against resolver-provided identity.
+The lookup side, local COPC publication, reuse rules, and every decision
+diagnostic are complete and covered; resolver-addressable conversion is the
+remaining step that makes the remote ratio measurable.
 
 ### Research - Runtime Streaming
 

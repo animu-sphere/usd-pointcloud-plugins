@@ -391,11 +391,11 @@ Phase 6 — validation and baselines:
       `python.stage_open` checks skip and its bundle cells verify discovery
       only.
 
-- [ ] Publish generated cache entries for COPC inputs. Lookup is complete for
-      local and resolver-backed COPC, but `usd-pointcloud-convert` accepts
-      `.las` and `.laz` local paths only, so nothing populates an entry a COPC
-      read could hit. This is what a measurable generated-cache hit ratio for
-      remote sources is waiting on.
+- [x] Publish generated cache entries for local COPC inputs.
+      `usd-pointcloud-convert` accepts `.copc` and `.copc.laz`, uses the shared
+      COPC point stream for fixed-grid and adaptive generation, and publishes
+      entries compatible with local COPC FileFormat lookup. Remote publication
+      remains blocked on resolver-addressable converter inputs below.
 - [ ] Accept resolver-addressable identifiers in `usd-pointcloud-convert`, as
       described in the
       [resolver-backed source contract](../architecture/RESOLVER_SOURCE.md).

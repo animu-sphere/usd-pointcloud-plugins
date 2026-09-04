@@ -125,6 +125,7 @@ usd-pointcloud-convert `
 ```
 
 The converter is the operational path for long-running tiled generation. It
+accepts local `.las`, `.laz`, `.copc`, and `.copc.laz` inputs and
 publishes the root layer and a deterministic `PointCloud.usda.manifest`
 sidecar after generation completes; static FileFormat tiled reads remain
 available for preview and small inputs. The sidecar records normalized
@@ -293,9 +294,9 @@ dataset coverage remains open.
 - The deterministic USDC cache is available to the conversion tool through
   `--cache-root`; direct FileFormat lookup reuses committed entries through
   `USDGEO_CACHE_ROOT`. Reuse requires either a stable local filesystem identity
-  or a `Stable` resolver identity, and fails closed otherwise. Only the
-  conversion tool publishes entries, and it accepts `.las` and `.laz` local
-  inputs, so a COPC read has nothing to reuse yet.
+  or a `Stable` resolver identity, and fails closed otherwise. The conversion
+  tool publishes entries for local LAS, LAZ, and COPC inputs. Publishing an
+  entry against resolver-provided identity is not yet supported.
 - HTTP, cloud SDKs, authentication, retries, and raw byte-range caching are
   out of scope; they belong to the resolver implementation.
 - Writing LAS, LAZ, or COPC is out of scope; all three plugins export as
