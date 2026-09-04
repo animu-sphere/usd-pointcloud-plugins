@@ -73,7 +73,6 @@ endif()
 
 set(PLUGIN_NAME UsdGeoCopcFileFormat)
 add_library(${PLUGIN_NAME} SHARED
-    src/ArAssetRandomAccessSource.cpp
     src/UsdGeoCopcFileFormat.cpp)
 
 target_compile_features(${PLUGIN_NAME} PRIVATE cxx_std_17)
@@ -93,7 +92,6 @@ if(USDGEO_BUILD_TESTS)
             "${CMAKE_CURRENT_BINARY_DIR}/httpresolver")
     endif()
     add_executable(pointcloudCopc_tests
-        src/ArAssetRandomAccessSource.cpp
         tests/test_pointcloud_copc.cpp)
     target_compile_features(pointcloudCopc_tests PRIVATE cxx_std_17)
     target_link_libraries(pointcloudCopc_tests PRIVATE usdcopc::core usdlaz::core

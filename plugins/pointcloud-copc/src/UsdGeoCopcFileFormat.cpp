@@ -1,6 +1,6 @@
 #include "usdgeocopc/UsdGeoCopcFileFormat.h"
 #include "usdgeocopc/UsdGeoCopcDiagnostics.h"
-#include "usdgeocopc/ArAssetRandomAccessSource.h"
+#include "usdgeo/ArAssetRandomAccessSource.h"
 
 #include "usdgeo/Diagnostic.h"
 #include "usdgeo/PointCloudCache.h"
@@ -109,7 +109,7 @@ std::shared_ptr<usdgeo::RandomAccessSource> OpenResolvedAssetSource(
     usdgeo::TryBuildResolverSourceIdentity(
         pxr::ArGetResolver(), resolvedPath, pxr::ArResolvedPath(resolvedPath),
         *asset, resolverIdentity, resolverStability, identityError);
-    return std::make_shared<usdgeocopc::ArAssetRandomAccessSource>(
+    return std::make_shared<usdgeo::ArAssetRandomAccessSource>(
         asset, resolvedPath);
 }
 

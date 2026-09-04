@@ -1,16 +1,16 @@
-#include "usdgeocopc/ArAssetRandomAccessSource.h"
+#include "usdgeo/ArAssetRandomAccessSource.h"
 
 #include <limits>
 
-namespace usdgeocopc {
+namespace usdgeo {
 namespace {
 
-void AddDiagnostic(std::vector<usdgeo::Diagnostic>& diagnostics,
-                   usdgeo::DiagnosticCode code,
+void AddDiagnostic(std::vector<Diagnostic>& diagnostics,
+                   DiagnosticCode code,
                    const std::string& message,
                    std::optional<std::uint64_t> byteOffset = std::nullopt) {
     diagnostics.push_back(
-        {code, usdgeo::Severity::Error, message, byteOffset, std::nullopt});
+        {code, Severity::Error, message, byteOffset, std::nullopt});
 }
 
 } // namespace
@@ -22,9 +22,9 @@ ArAssetRandomAccessSource::ArAssetRandomAccessSource(
 
 bool ArAssetRandomAccessSource::GetSize(
     std::uint64_t& size,
-    std::vector<usdgeo::Diagnostic>& diagnostics) const {
+    std::vector<Diagnostic>& diagnostics) const {
     if (!asset_) {
-        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::SourceOpenFailed,
+        AddDiagnostic(diagnostics, DiagnosticCode::SourceOpenFailed,
                       "resolver returned no asset: " + sourceName_);
         return false;
     }
@@ -36,7 +36,7 @@ bool ArAssetRandomAccessSource::Read(
     std::uint64_t offset,
     std::size_t size,
     std::vector<std::uint8_t>& bytes,
-    std::vector<usdgeo::Diagnostic>& diagnostics) {
+    std::vector<Diagnostic>& diagnostics) {
     bytes.clear();
     std::uint64_t assetSize = 0;
     if (!GetSize(assetSize, diagnostics)) {
@@ -44,14 +44,14 @@ bool ArAssetRandomAccessSource::Read(
     }
     if (offset > assetSize ||
         static_cast<std::uint64_t>(size) > assetSize - offset) {
-        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidOffset,
+        AddDiagnostic(diagnostics, DiagnosticCode::InvalidOffset,
                       "asset byte range is outside the asset: " + sourceName_,
                       offset);
         return false;
     }
     if (offset > static_cast<std::uint64_t>(
                      (std::numeric_limits<std::size_t>::max)())) {
-        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::InvalidOffset,
+        AddDiagnostic(diagnostics, DiagnosticCode::InvalidOffset,
                       "asset byte range offset is invalid: " + sourceName_,
                       offset);
         return false;
@@ -62,7 +62,7 @@ bool ArAssetRandomAccessSource::Read(
         asset_->Read(bytes.data(), bytes.size(), static_cast<std::size_t>(offset)) !=
             bytes.size()) {
         bytes.clear();
-        AddDiagnostic(diagnostics, usdgeo::DiagnosticCode::TruncatedRecord,
+        AddDiagnostic(diagnostics, DiagnosticCode::TruncatedRecord,
                       "asset byte range read was short: " + sourceName_,
                       offset);
         return false;
@@ -70,4 +70,4 @@ bool ArAssetRandomAccessSource::Read(
     return true;
 }
 
-} // namespace usdgeocopc
+} // namespace usdgeo
