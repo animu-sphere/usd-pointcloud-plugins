@@ -407,8 +407,12 @@ Phase 6 — validation and baselines:
       level, selects deterministic COPC node identities, decodes only those
       point-data ranges, and reports source bytes read without adding runtime
       abstractions to the conversion pipeline
-- [ ] Measure host LOD decisions, OpenUSD payload composition, and renderer
-      loading behavior; these remain host-dependent research
+- [x] Add a research-only OpenUSD LOD payload composition probe that records
+      authored payload arcs, `LoadNone`, selective payload loading, and
+      `LoadAll` point counts on a deterministic three-LOD fixture
+- [ ] Measure host LOD decisions and renderer loading behavior; these remain
+      host- and render-delegate-dependent research, and payload composition
+      results must not be presented as renderer memory savings
 
 E57, delimited text, and other point-cloud formats follow these infrastructure
 milestones. A public custom USD schema remains deferred until the documented
