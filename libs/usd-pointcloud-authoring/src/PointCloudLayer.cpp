@@ -1039,9 +1039,11 @@ bool AuthorGeneratedTilePayloads(
     const std::vector<PointCloudTileAsset>& tiles,
     const PointCloudPayloadOptions& options,
     std::vector<std::filesystem::path>& generatedPayloads,
+    DiagnosticCode& code,
     std::string& error) {
     if (!stage || !IsValidPrimPath(primPath) || tiles.empty() ||
         options.directory.empty() || options.rootLayerPath.empty()) {
+        code = DiagnosticCode::InvalidPointTile;
         error = "invalid tiled point-cloud payload request";
         return false;
     }
@@ -1049,15 +1051,18 @@ bool AuthorGeneratedTilePayloads(
     detail::PayloadGeneration payloads(options.directory, options.owner);
     std::vector<usdpointcloud::PointTileManifestEntry> manifestEntries;
     if (!payloads.Begin(names, error)) {
+        code = DiagnosticCode::PayloadCommitFailed;
         return false;
     }
     if (!detail::AuthorClaimedTilePayloads(stage, primPath, tiles, options,
                                            payloads, manifestEntries)) {
+        code = DiagnosticCode::DecodeFailure;
         error = "unable to author tiled point-cloud payloads";
         return false;
     }
     if (!detail::CommitTilePayloads(stage->GetRootLayer(), payloads,
                                     manifestEntries, error)) {
+        code = DiagnosticCode::PayloadCommitFailed;
         return false;
     }
     for (const auto& name : names) {
@@ -1079,9 +1084,10 @@ bool AuthorPointCloudTiledAssetWithPayloads(
     const std::vector<PointCloudTileAsset>& tiles,
     const PointCloudPayloadOptions& options,
     std::vector<std::filesystem::path>& generatedPayloads) {
+    DiagnosticCode code = DiagnosticCode::DecodeFailure;
     std::string error;
     return AuthorGeneratedTilePayloads(stage, primPath, tiles, options,
-                                       generatedPayloads, error);
+                                       generatedPayloads, code, error);
 }
 
 bool AuthorPointCloudTiledAssetWithPayloads(
@@ -1111,10 +1117,11 @@ bool AuthorPointCloudTiledAssetWithPayloads(
                     "unable to create tiled point-cloud stage");
     }
     std::vector<std::filesystem::path> generatedPayloads;
+    DiagnosticCode code = DiagnosticCode::DecodeFailure;
     std::string error;
     if (!AuthorGeneratedTilePayloads(stage, primPath, tiles, options,
-                                     generatedPayloads, error)) {
-        return fail(DiagnosticCode::DecodeFailure, error);
+                                     generatedPayloads, code, error)) {
+        return fail(code, error);
     }
     layer->TransferContent(stage->GetRootLayer());
     return true;

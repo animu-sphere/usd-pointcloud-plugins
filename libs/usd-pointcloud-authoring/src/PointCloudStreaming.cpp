@@ -221,14 +221,14 @@ std::filesystem::path MakeSpoolDirectory(
         directory /= usdgeo::StableCacheKey({{"payloadOwner", options.owner}});
     }
     if (directory.empty()) {
-        AddError(diagnostics, DiagnosticCode::DecodeFailure,
+        AddError(diagnostics, DiagnosticCode::SpoolWorkspaceFailed,
                  "unable to determine point spool directory");
         return {};
     }
     std::error_code error;
     if (std::filesystem::exists(directory, error)) {
         if (error || !std::filesystem::is_directory(directory, error)) {
-            AddError(diagnostics, DiagnosticCode::DecodeFailure,
+            AddError(diagnostics, DiagnosticCode::SpoolWorkspaceFailed,
                      "point spool directory is not a directory");
             return {};
         }
@@ -244,27 +244,27 @@ std::filesystem::path MakeSpoolDirectory(
                                    markerValue == kSpoolMarker;
         markerFile.close();
         if (!markerIsValid) {
-            AddError(diagnostics, DiagnosticCode::DecodeFailure,
+            AddError(diagnostics, DiagnosticCode::SpoolWorkspaceFailed,
                      "point spool directory is not recoverable");
             return {};
         }
         std::filesystem::remove_all(directory, error);
         if (error) {
-            AddError(diagnostics, DiagnosticCode::DecodeFailure,
+            AddError(diagnostics, DiagnosticCode::SpoolWorkspaceFailed,
                      "unable to recover point spool directory");
             return {};
         }
     }
     std::filesystem::create_directories(directory, error);
     if (error) {
-        AddError(diagnostics, DiagnosticCode::DecodeFailure,
+        AddError(diagnostics, DiagnosticCode::SpoolWorkspaceFailed,
                  "unable to create point spool directory");
         return {};
     }
     std::ofstream marker(directory / ".usdgeo-spool", std::ios::binary);
     if (!marker || !(marker << kSpoolMarker << '\n')) {
         std::filesystem::remove_all(directory, error);
-        AddError(diagnostics, DiagnosticCode::DecodeFailure,
+        AddError(diagnostics, DiagnosticCode::SpoolWorkspaceFailed,
                  "unable to initialize point spool directory");
         return {};
     }
@@ -300,7 +300,7 @@ bool AuthorPointCloudTiledAssetFromStream(
     const auto payloadDirectoryExisted = std::filesystem::exists(
         std::filesystem::path(options.directory), payloadDirectoryError);
     if (payloadDirectoryError) {
-        AddError(diagnostics, DiagnosticCode::DecodeFailure,
+        AddError(diagnostics, DiagnosticCode::PayloadCommitFailed,
                  "unable to inspect point payload directory");
         return false;
     }
@@ -479,7 +479,7 @@ bool AuthorPointCloudTiledAssetFromStream(
     }
     std::string payloadError;
     if (!payloads.Begin(payloadNames, payloadError)) {
-        AddError(diagnostics, DiagnosticCode::DecodeFailure, payloadError);
+        AddError(diagnostics, DiagnosticCode::PayloadCommitFailed, payloadError);
         cleanup();
         return false;
     }
@@ -513,7 +513,7 @@ bool AuthorPointCloudTiledAssetFromStream(
                  options.spoolIoStats) ||
             tileId.ToString() != entry.first ||
             !SameSchema(schema, tileSchema)) {
-            AddError(diagnostics, DiagnosticCode::DecodeFailure,
+            AddError(diagnostics, DiagnosticCode::SpoolIncomplete,
                      "unable to reopen point tile spool");
             return failTile();
         }
@@ -544,7 +544,7 @@ bool AuthorPointCloudTiledAssetFromStream(
             }
         }
         if (!reader.IsComplete() || data.positions.empty()) {
-            AddError(diagnostics, DiagnosticCode::DecodeFailure,
+            AddError(diagnostics, DiagnosticCode::SpoolIncomplete,
                      "point tile spool is incomplete or empty");
             return failTile();
         }
@@ -591,7 +591,7 @@ bool AuthorPointCloudTiledAssetFromStream(
     }
     if (!detail::CommitTilePayloads(stage->GetRootLayer(), payloads,
                                     manifestEntries, payloadError)) {
-        AddError(diagnostics, DiagnosticCode::DecodeFailure, payloadError);
+        AddError(diagnostics, DiagnosticCode::PayloadCommitFailed, payloadError);
         cleanup();
         return false;
     }

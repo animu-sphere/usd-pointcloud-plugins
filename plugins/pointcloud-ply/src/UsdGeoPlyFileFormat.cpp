@@ -213,7 +213,9 @@ bool UsdGeoPlyFileFormat::Read(SdfLayer* layer,
             layer, "/PointCloud", selected, reference,
                 {request.tileSize, 0}, payloadOptions, diagnostics)) {
             TF_RUNTIME_ERROR("%s", usdgeoply::diagnostics::Message(
-                                      usdgeoply::diagnostics::PointCloudAuthorFailed,
+                                      usdgeo::StoppedByWorkingStorageFailure(diagnostics)
+                                          ? usdgeoply::diagnostics::TiledStorageFailed
+                                          : usdgeoply::diagnostics::PointCloudAuthorFailed,
                                       DiagnosticDetail(
                                           diagnostics,
                                           "Unable to author tiled PLY point cloud"))

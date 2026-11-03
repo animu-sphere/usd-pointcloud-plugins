@@ -594,7 +594,9 @@ bool UsdGeoCopcFileFormat::Read(SdfLayer* layer,
         if (!usdgeo::AuthorPointCloudTiledAssetWithPayloads(
                 layer, "/PointCloud", tiles, payloadOptions, diagnostics)) {
             TF_RUNTIME_ERROR("%s", usdgeocopc::diagnostics::Message(
-                                      usdgeocopc::diagnostics::PointCloudAuthorFailed,
+                                      usdgeo::StoppedByWorkingStorageFailure(diagnostics)
+                                          ? usdgeocopc::diagnostics::TiledStorageFailed
+                                          : usdgeocopc::diagnostics::PointCloudAuthorFailed,
                                       "Unable to author tiled COPC point cloud: " +
                                           DiagnosticDetail(
                                               diagnostics,

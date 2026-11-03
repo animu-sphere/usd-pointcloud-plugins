@@ -30,3 +30,4 @@ user-visible contract; see the
 | LAS015 | FATAL | import | USD stage metrics could not be set |
 | LAS016 | FATAL | import | LAS point cloud could not be authored |
 | LAS017 | FATAL | import | LAS file-format arguments are invalid or unsupported |
+| LAS018 | FATAL | import | Tiled LAS read stopped by its own working storage (tile spool, spool workspace, file-handle budget, or payload publication) |

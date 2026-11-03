@@ -145,6 +145,35 @@ void TestDiagnostics() {
     Check(pointError.pointIndex.has_value() && pointError.pointIndex.value() == 42);
 }
 
+void TestWorkingStorageDiagnostics() {
+    using usdgeo::DiagnosticCode;
+    for (const auto code : {DiagnosticCode::SpoolWorkspaceFailed,
+                            DiagnosticCode::SpoolWriteFailed,
+                            DiagnosticCode::SpoolIncomplete,
+                            DiagnosticCode::OpenFileBudgetExhausted,
+                            DiagnosticCode::PayloadCommitFailed}) {
+        Check(usdgeo::IsWorkingStorageFailure(code));
+    }
+    for (const auto code : {DiagnosticCode::DecodeFailure,
+                            DiagnosticCode::SourceOpenFailed,
+                            DiagnosticCode::InvalidPointTile,
+                            DiagnosticCode::TruncatedRecord}) {
+        Check(!usdgeo::IsWorkingStorageFailure(code));
+    }
+
+    // The first error decides; warnings before it and context after it do not.
+    const usdgeo::Diagnostic warning{DiagnosticCode::SpoolWriteFailed,
+                                     usdgeo::Severity::Warning, "w"};
+    const usdgeo::Diagnostic storage{DiagnosticCode::SpoolIncomplete,
+                                     usdgeo::Severity::Error, "spool"};
+    const usdgeo::Diagnostic decode{DiagnosticCode::DecodeFailure,
+                                    usdgeo::Severity::Error, "decode"};
+    Check(!usdgeo::StoppedByWorkingStorageFailure({}));
+    Check(usdgeo::StoppedByWorkingStorageFailure({warning, storage, decode}));
+    Check(!usdgeo::StoppedByWorkingStorageFailure({warning, decode, storage}));
+    Check(!usdgeo::StoppedByWorkingStorageFailure({warning}));
+}
+
 } // namespace
 
 int main() {
@@ -152,5 +181,6 @@ int main() {
     TestGeoReference();
     TestTileAndCacheKeys();
     TestDiagnostics();
+    TestWorkingStorageDiagnostics();
     return 0;
 }

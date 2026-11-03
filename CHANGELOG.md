@@ -20,8 +20,21 @@ All notable changes to this project are documented here.
   exact file-format arguments. The layout is in the
   [file-format argument contract](docs/architecture/FILE_FORMAT_ARGUMENTS.md#generated-payload-ownership).
 
+- Typed working-storage diagnostics: `usdgeo::DiagnosticCode` gains
+  `SpoolWorkspaceFailed`, `SpoolWriteFailed`, `SpoolIncomplete`,
+  `OpenFileBudgetExhausted`, and `PayloadCommitFailed`, with
+  `usdgeo::IsWorkingStorageFailure` and
+  `usdgeo::StoppedByWorkingStorageFailure`. Tiled reads stopped by their own
+  storage report the new plugin codes `LAS018`, `LAZ009`, `PLY008`, and
+  `COPC013`.
+
 ### Changed
 
+- Tile spools, the spool workspace, and payload publication report the
+  working-storage codes above instead of `DecodeFailure`, so a full disk, a
+  refused workspace, or a process out of file handles is no longer presented
+  as a source decoding problem. A tiled read stopped this way reports the new
+  plugin code rather than `LAS016`, `LAZ007`, `PLY007`, or `COPC007`.
 - Layer authoring builds content in an in-memory stage that loads nothing, and
   payload files are exported from in-memory layers. No authoring call renames
   a caller's layer or gives a scratch layer a file identity any more.

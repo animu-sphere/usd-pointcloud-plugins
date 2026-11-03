@@ -1220,6 +1220,9 @@ void TestStreamPayloadFailureRollsBackGeneratedPayloads() {
         {payloadDirectory.string(),
          (payloadDirectory / "PointCloud.usda").string(), 1}, diagnostics));
     Check(!diagnostics.empty());
+    Check(diagnostics.front().code ==
+          usdgeo::DiagnosticCode::PayloadCommitFailed);
+    Check(usdgeo::StoppedByWorkingStorageFailure(diagnostics));
     Check(layer->GetPrimAtPath(pxr::SdfPath("/PointCloud")) == nullptr);
     Check(!std::filesystem::exists(firstPayload));
     Check(std::filesystem::exists(conflictingPayload));
@@ -1252,6 +1255,41 @@ bool AuthorOwnedStream(pxr::SdfLayer* layer,
     return usdgeo::AuthorPointCloudTiledAssetFromStream(
         layer, "/PointCloud", stream, reference, {1.0, 0}, options,
         diagnostics);
+}
+
+void TestUnmarkedSpoolWorkspaceIsRefused() {
+    // A spool directory that this library did not create may hold someone
+    // else's files. Authoring must refuse it as a workspace failure, not
+    // recover it by deleting its contents.
+    const auto layer = pxr::SdfLayer::CreateAnonymous("unmarked_spool.usda");
+    usdgeo::GeoReference reference;
+    reference.epsgCode = 26910;
+    TestPointStream stream({MakeTestChunk({{0.25, 0.0, 0.0}})});
+    const auto payloadDirectory =
+        std::filesystem::temp_directory_path() / "usd_geo_unmarked_spool";
+    const auto spoolDirectory = payloadDirectory / "not-a-spool";
+    const auto userFile = spoolDirectory / "keep.txt";
+    std::filesystem::remove_all(payloadDirectory);
+    std::filesystem::create_directories(spoolDirectory);
+    {
+        std::ofstream keep(userFile, std::ios::binary);
+        keep << "user data";
+    }
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    usdgeo::PointCloudPayloadOptions options{
+        payloadDirectory.string(),
+        (payloadDirectory / "PointCloud.usda").string(), 1};
+    options.spoolDirectory = spoolDirectory.string();
+    Check(!usdgeo::AuthorPointCloudTiledAssetFromStream(
+        layer.operator->(), "/PointCloud", stream, reference, {1.0, 0},
+        options, diagnostics));
+    Check(diagnostics.size() == 1);
+    Check(diagnostics.front().code ==
+          usdgeo::DiagnosticCode::SpoolWorkspaceFailed);
+    Check(usdgeo::StoppedByWorkingStorageFailure(diagnostics));
+    Check(layer->GetPrimAtPath(pxr::SdfPath("/PointCloud")) == nullptr);
+    Check(std::filesystem::exists(userFile));
+    std::filesystem::remove_all(payloadDirectory);
 }
 
 void TestOwnedPayloadsLiveInTheirOwnersGeneration() {
@@ -1545,6 +1583,7 @@ int main() {
     TestStreamCancellationDuringSpoolReadCleansSpools();
     TestStreamFailureDoesNotMutateLayer();
     TestStreamPayloadFailureRollsBackGeneratedPayloads();
+    TestUnmarkedSpoolWorkspaceIsRefused();
     TestOwnedPayloadsLiveInTheirOwnersGeneration();
     TestInterruptedOwnedGenerationIsRecovered();
     TestFailedOwnedGenerationKeepsPublishedPayloads();

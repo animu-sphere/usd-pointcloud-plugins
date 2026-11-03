@@ -43,6 +43,13 @@ owner-scoped `.spool` directory, marks it before writing, and removes a
 marked leftover before the next run so an interrupted process can be
 recovered without scanning the system temporary directory.
 
+Spool failures carry working-storage codes rather than `DecodeFailure`: a
+spool that cannot be created, written, flushed, or finalized reports
+`SpoolWriteFailed`; one that is missing, truncated, or lacks its committed
+footer reports `SpoolIncomplete`; an open refused because the process has no
+file handles left (`EMFILE` / `ENFILE`) reports `OpenFileBudgetExhausted`; and
+a working directory that cannot be removed reports `SpoolWorkspaceFailed`.
+
 `PointTileManifest` records the tile ID, LOD level, source bounds, point count,
 and portable payload path for generated tile assets. Its v1 serializer sorts
 entries by tile ID and LOD, rejects duplicate entries and unsafe paths, and

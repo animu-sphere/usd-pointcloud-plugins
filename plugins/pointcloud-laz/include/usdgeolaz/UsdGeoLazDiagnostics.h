@@ -12,6 +12,10 @@ inline constexpr const char* UsdLayerCreateFailed = "LAZ005";
 inline constexpr const char* StageMetricsFailed = "LAZ006";
 inline constexpr const char* PointCloudAuthorFailed = "LAZ007";
 inline constexpr const char* FormatArgumentInvalid = "LAZ008";
+// A tiled read stopped by its own working storage (tile spools, their
+// workspace, the process file-handle budget, or payload publication) rather
+// than by the source; see usdgeo::IsWorkingStorageFailure.
+inline constexpr const char* TiledStorageFailed = "LAZ009";
 
 inline std::string Message(const char* code, const std::string& message) {
     return "[" + std::string(code) + "] " + message;

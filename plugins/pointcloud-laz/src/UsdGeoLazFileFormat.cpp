@@ -285,7 +285,9 @@ bool UsdGeoLazFileFormat::Read(SdfLayer* layer,
                 layer, "/PointCloud", selected, reference,
                 {request.tileSize, 0}, payloadOptions, diagnostics)) {
             TF_RUNTIME_ERROR("%s", usdgeolaz::diagnostics::Message(
-                                      usdgeolaz::diagnostics::PointCloudAuthorFailed,
+                                      usdgeo::StoppedByWorkingStorageFailure(diagnostics)
+                                          ? usdgeolaz::diagnostics::TiledStorageFailed
+                                          : usdgeolaz::diagnostics::PointCloudAuthorFailed,
                                       "Unable to author tiled LAZ point cloud: " +
                                           DiagnosticDetail(
                                               diagnostics,

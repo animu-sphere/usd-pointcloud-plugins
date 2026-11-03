@@ -41,6 +41,18 @@ Category names obey rule 1 below: a name is never reused for a different
 meaning. Decision messages are fixed constants owned by `usdgeo::cache`, so no
 transport specific and no token content can reach one.
 
+Tiled reads report failures of their own working storage under one
+additional fatal code per plugin, chosen when the first error is a
+[working-storage code](#working-storage-codes); every other tiled authoring
+failure keeps the plugin's existing "could not be authored" code:
+
+| Plugin | Working storage failed | Other tiled authoring failure |
+| --- | --- | --- |
+| `pointcloud-las` | `LAS018` | `LAS016` |
+| `pointcloud-laz` | `LAZ009` | `LAZ007` |
+| `pointcloud-ply` | `PLY008` | `PLY007` |
+| `pointcloud-copc` | `COPC013` | `COPC007` |
+
 Remaining limitations of the current migration:
 
 - The reader compatibility projection still classifies some legacy messages
@@ -75,11 +87,24 @@ enum class DiagnosticCode {
     UnsupportedExtraBytesType,
     MissingWaveformData,
     NonFiniteCoordinate,
-   DecodeFailure,
-   UnknownFormatArgument,
-   UnsupportedFormatArgument,
-   InvalidFormatArgument,
-   ConflictingFormatArguments
+    NonFiniteExtraBytes,
+    DecodeFailure,
+    SourceOpenFailed,
+    SourceSizeUnavailable,
+    UnknownFormatArgument,
+    UnsupportedFormatArgument,
+    InvalidFormatArgument,
+    ConflictingFormatArguments,
+    InvalidPointTileId,
+    InvalidPointSourceRange,
+    InvalidLodItem,
+    InvalidLodHierarchy,
+    InvalidPointTile,
+    SpoolWorkspaceFailed,
+    SpoolWriteFailed,
+    SpoolIncomplete,
+    OpenFileBudgetExhausted,
+    PayloadCommitFailed,
 };
 
 struct Diagnostic {
@@ -138,12 +163,6 @@ Sampling and tile-generation failures follow the same rule: readers and
 generators collect diagnostics, and the authoring layer refuses to author a
 hierarchy that fails validation rather than emitting a partial LOD root.
 
-The [streaming and tiling](../roadmap/streaming-and-tiling.md) work adds
-conditions this taxonomy does not yet cover — spool write failures, incomplete
-spool detection, exhausted open-file budgets, and payload commit failures.
-Each gets a new `DiagnosticCode` value and a new plugin code when it ships;
-none reuses an existing meaning.
-
 `v0.10.0` adds resolver identity and generated-cache decisions to the same
 taxonomy: identity unavailable, unstable, stable, or changed, and cache reuse
 disabled, cache hit, or cache invalidated. These explain the decision without
@@ -153,3 +172,25 @@ leaking transport specifics or validation-token contents, so a message such as
 source validation identity.` is. The contract is in
 [RESOLVER_SOURCE.md](RESOLVER_SOURCE.md); the code names follow rule 1 above
 and are not reserved in advance.
+
+## Working-storage codes
+
+The [streaming and tiling](../roadmap/streaming-and-tiling.md) work added
+failure conditions that belong to the generator's own files rather than to the
+source. They previously surfaced as `DecodeFailure`, which told a caller to
+suspect the input when the disk, the workspace, or the process was at fault.
+Each now has its own value; none reuses an existing meaning:
+
+| Code | Raised when |
+| --- | --- |
+| `SpoolWorkspaceFailed` | The tile-spool workspace cannot be determined, created, initialized, recovered, or removed, or an existing directory carries no spool marker and is refused rather than emptied. |
+| `SpoolWriteFailed` | A tile spool cannot be created, or its header, records, flush, or footer cannot be written. |
+| `SpoolIncomplete` | A tile spool is missing, truncated, structurally invalid, or lacks the footer that commits its point count. |
+| `OpenFileBudgetExhausted` | Opening a tile spool fails because the process has no file handles left (`EMFILE` or `ENFILE`). |
+| `PayloadCommitFailed` | A payload generation cannot be prepared, staged, or published into its payload directory. |
+
+`usdgeo::IsWorkingStorageFailure` classifies a code, and
+`usdgeo::StoppedByWorkingStorageFailure` reports whether the first error in a
+list is one; a plugin uses the latter to choose its working-storage code.
+Open-file exhaustion is recognized from the C runtime's `errno` after a failed
+open, which every supported platform sets.

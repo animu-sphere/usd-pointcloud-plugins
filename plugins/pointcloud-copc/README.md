@@ -49,5 +49,10 @@ categories `usdgeo::cache` publishes, each message naming its exact category:
 | `COPC011` | status | `resolver-identity-changed` |
 | `COPC012` | warning | `generated-cache-invalidated` |
 
+A tiled read that cannot author reports `COPC007` with the reason, or
+`COPC013` when the read was stopped by its own working storage (payload
+staging or publication) rather than by the source. See the
+[diagnostics contract](../../docs/architecture/DIAGNOSTICS.md#working-storage-codes).
+
 Interoperability with an external resolver is recorded in the
 [resolver read baseline](../../docs/reference/RESOLVER_BASELINE.md).

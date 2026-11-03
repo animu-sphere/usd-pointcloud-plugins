@@ -19,6 +19,11 @@ The `epsg` file-format argument is required. `linearUnit`, `sourceUpAxis`, and
 directory of its own. See
 [payload ownership](../../docs/architecture/FILE_FORMAT_ARGUMENTS.md#generated-payload-ownership).
 
+A tiled read that cannot author reports `PLY007` with the reason, or `PLY008`
+when the read was stopped by its own working storage (tile spool, spool
+workspace, file-handle budget, or payload publication) rather than by the
+source. See the [diagnostics contract](../../docs/architecture/DIAGNOSTICS.md#working-storage-codes).
+
 Faces, mesh authoring, PLY writing, and metadata-only reads are out of scope.
 See the [capability matrix](../../docs/reference/CAPABILITY_MATRIX.md) and
 [file-format argument contract](../../docs/architecture/FILE_FORMAT_ARGUMENTS.md)

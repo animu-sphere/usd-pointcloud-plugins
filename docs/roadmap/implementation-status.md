@@ -434,6 +434,20 @@ remain be explicit.
       options select the workspace, marked leftovers are recovered on the next
       invocation, and conversion ties the workspace to its transaction marker.
 
+#### Working-storage diagnostics
+
+The [diagnostics contract](../architecture/DIAGNOSTICS.md) reserved typed
+codes for the spool and payload failures that tiled generation introduced.
+
+- [x] Report spool write failures, incomplete spool detection, exhausted
+      open-file budgets, spool workspace failures, and payload commit
+      failures through dedicated `usdgeo::DiagnosticCode` values instead of
+      `DecodeFailure`
+- [x] Project them onto one new fatal code per plugin (`LAS018`, `LAZ009`,
+      `PLY008`, `COPC013`) when the first error of a tiled read is a
+      working-storage failure, keeping the existing authoring codes for every
+      other cause
+
 #### Research - runtime streaming (no release gate)
 
 - [x] Add an opt-in COPC runtime-streaming probe that takes a requested node
