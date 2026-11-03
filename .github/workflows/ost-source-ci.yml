@@ -41,6 +41,9 @@ jobs:
           - name: workspace-pr-windows
             lane: pull_request
             runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -51,13 +54,18 @@ jobs:
             hosted: true
             runner_profile: windows-hosted
             verify: test
+            intent_flags: ""
+            up_to: 5
             runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
-            host_python: ""
+            host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: workspace-pr-macos-arm64
             lane: pull_request
             runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -68,6 +76,8 @@ jobs:
             hosted: true
             runner_profile: macos-arm64-hosted
             verify: test
+            intent_flags: ""
+            up_to: 5
             runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6"
             host_python: "3.13"
             host_packages_apt: ""
@@ -75,6 +85,9 @@ jobs:
           - name: workspace-pr-linux
             lane: pull_request
             runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -85,6 +98,8 @@ jobs:
             hosted: true
             runner_profile: linux-hosted
             verify: test
+            intent_flags: ""
+            up_to: 5
             runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f"
             host_python: "3.13"
             host_packages_apt: "libx11-dev libxt-dev libxext-dev libgl1-mesa-dev"
@@ -96,7 +111,7 @@ jobs:
         if: ${{ matrix.hosted }}
         shell: bash
         run: echo "::notice title=OpenStrata hosted-runner usage::This job uses GitHub-hosted infrastructure. Private repositories may incur GitHub Actions usage charges. Review repository billing and Actions usage settings."
-      - name: Bootstrap ost 0.22.8 (pinned release asset, checksum-verified)
+      - name: Bootstrap ost 0.23.19 (pinned release asset, checksum-verified)
         if: ${{ matrix.hosted }}
         shell: bash
         run: |
@@ -114,7 +129,7 @@ jobs:
             *) : ;;
           esac
           asset="ost-cli-${triple}.${ext}"
-          base="https://github.com/animu-sphere/open-strata/releases/download/v0.22.8"
+          base="https://github.com/animu-sphere/open-strata/releases/download/v0.23.19"
           curl -fsSLo "$asset" "$base/$asset"
           curl -fsSLo "$asset.sha256" "$base/$asset.sha256"
           actual="$( (command -v sha256sum > /dev/null && sha256sum "$asset" || shasum -a 256 "$asset") | cut -d' ' -f1 )"
@@ -148,7 +163,7 @@ jobs:
           echo "$exported_path" >> "$GITHUB_PATH"
           json_executable="$(printf '%s' "$executable" | sed 's/\\/\\\\/g; s/"/\\"/g')"
           json_exported_path="$(printf '%s' "$exported_path" | sed 's/\\/\\\\/g; s/"/\\"/g')"
-          printf '{"schema":1,"pinned_version":"%s","asset":"%s","sha256":"%s","executable":"%s","exported_path":"%s"}\n' "0.22.8" "$asset" "$actual" "$json_executable" "$json_exported_path" > .ost-ci/bootstrap.json
+          printf '{"schema":1,"pinned_version":"%s","asset":"%s","sha256":"%s","executable":"%s","exported_path":"%s"}\n' "0.23.19" "$asset" "$actual" "$json_executable" "$json_exported_path" > .ost-ci/bootstrap.json
       - name: Check ost is available and record its version
         shell: bash
         run: |
@@ -161,8 +176,8 @@ jobs:
           fi
 
           echo "$version"
-          if [ "${{ matrix.hosted }}" = "true" ] && [ "$version" != "ost 0.22.8" ]; then
-            echo "::error title=ost bootstrap::expected 'ost 0.22.8', got '$version'" ; exit 1
+          if [ "${{ matrix.hosted }}" = "true" ] && [ "$version" != "ost 0.23.19" ]; then
+            echo "::error title=ost bootstrap::expected 'ost 0.23.19', got '$version'" ; exit 1
           fi
           printf '{"schema":1,"ost_version":"%s"}\n' "$version" > .ost-ci/ost-version.json
       - name: Validate the CI manifest
@@ -174,30 +189,47 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ost-ci-home/artifacts
-          key: ost-registry-0.22.8-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
+          key: ost-registry-0.23.19-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
       - name: Pull the pinned runtime SDK from its remote reference
         if: ${{ matrix.runtime_remote != '' }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p .ost-ci
+          set --
+          if [ -n "${{ matrix.require_openusd }}" ]; then
+            set -- "$@" --require-openusd "${{ matrix.require_openusd }}"
+          fi
+          if [ -n "${{ matrix.require_openusd_version }}" ]; then
+            set -- "$@" --require-openusd-version "${{ matrix.require_openusd_version }}"
+          fi
           if ost artifact show "${{ matrix.runtime_artifact }}" --json > /dev/null 2>&1 \
-             && ost artifact verify "${{ matrix.runtime_artifact }}" ${{ matrix.evidence_flags }} --json > .ost-ci/runtime-cache-verify.json; then
+             && ost artifact verify "${{ matrix.runtime_artifact }}" ${{ matrix.evidence_flags }} "$@" --json > .ost-ci/runtime-cache-verify.json; then
             echo "pinned runtime already present and verified (cache hit) -- skipping the remote pull"
           else
             if [ "${{ matrix.hosted }}" = "true" ] && [ -n "${OST_HOME:-}" ]; then
               rm -rf "${OST_HOME}/artifacts"
             fi
-            ost artifact pull "${{ matrix.runtime_remote }}" --expect-artifact "${{ matrix.runtime_artifact }}" --require-kind runtime --json | tee .ost-ci/runtime-pull.json
+            ost artifact pull "${{ matrix.runtime_remote }}" --expect-artifact "${{ matrix.runtime_artifact }}" --require-kind runtime "$@" --json | tee .ost-ci/runtime-pull.json
           fi
       - name: Verify and materialize the pinned runtime SDK
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p .ost-ci
-          printf '{"schema":1,"runtime_artifact":"%s","source":"%s"}\n' "${{ matrix.runtime_artifact }}" "${{ matrix.runtime_remote != '' && 'remote-pull' || 'local-registry' }}" > .ost-ci/runtime-source.json
-          ost artifact verify ${{ matrix.runtime_artifact }} --minimum-trust ${{ matrix.minimum_trust }} ${{ matrix.evidence_flags }}
+          printf '{"schema":1,"runtime_artifact":"%s","require_openusd":"%s","require_openusd_version":"%s","source":"%s"}\n' "${{ matrix.runtime_artifact }}" "${{ matrix.require_openusd }}" "${{ matrix.require_openusd_version }}" "${{ matrix.runtime_remote != '' && 'remote-pull' || 'local-registry' }}" > .ost-ci/runtime-source.json
+          set --
+          if [ -n "${{ matrix.require_openusd }}" ]; then
+            set -- "$@" --require-openusd "${{ matrix.require_openusd }}"
+          fi
+          if [ -n "${{ matrix.require_openusd_version }}" ]; then
+            set -- "$@" --require-openusd-version "${{ matrix.require_openusd_version }}"
+          fi
+          ost artifact verify ${{ matrix.runtime_artifact }} --minimum-trust ${{ matrix.minimum_trust }} ${{ matrix.evidence_flags }} "$@"
           ost runtime pull ${{ matrix.platform }} --profile ${{ matrix.profile }} --from-artifact ${{ matrix.runtime_artifact }} --force
+      - name: Pull digest-pinned external library artifacts
+        shell: bash
+        run: ost library pull --target ${{ matrix.platform }} --profile ${{ matrix.profile }} --json
       - name: Remove resumable transfer state before caching
         if: ${{ matrix.hosted && vars.OST_CI_DISABLE_CACHE != 'true' && steps.runtime-cache-restore.outputs.cache-hit != 'true' }}
         shell: bash
@@ -207,7 +239,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ost-ci-home/artifacts
-          key: ost-registry-0.22.8-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
+          key: ost-registry-0.23.19-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
       - name: Install the host packages this runtime needs to be consumed
         if: ${{ matrix.host_packages_apt != '' || matrix.host_packages_brew != '' }}
         shell: bash
@@ -268,11 +300,19 @@ jobs:
         run: ost plugin test --workspace --graph-only --json
       - name: Build the workspace from source
         shell: bash
-        run: ost build --target ${{ matrix.platform }} --profile ${{ matrix.profile }}
+        run: ost build --target ${{ matrix.platform }} --profile ${{ matrix.profile }} ${{ matrix.intent_flags }}
       - name: Run the workspace test suite
-        if: ${{ matrix.verify == 'test' }}
+        if: ${{ matrix.verify != 'build' }}
         shell: bash
-        run: ost test --target ${{ matrix.platform }} --profile ${{ matrix.profile }}
+        run: ost test --target ${{ matrix.platform }} --profile ${{ matrix.profile }} ${{ matrix.intent_flags }}
+      - name: Run the workspace verification pyramid
+        if: ${{ matrix.verify == 'pyramid' || matrix.verify == 'package' }}
+        shell: bash
+        run: ost plugin test --workspace --target ${{ matrix.platform }} --profile ${{ matrix.profile }} --up-to ${{ matrix.up_to }} --json
+      - name: Package the workspace and aggregate product (never published from this workflow)
+        if: ${{ matrix.verify == 'package' }}
+        shell: bash
+        run: ost plugin package --workspace --product --target ${{ matrix.platform }} --profile ${{ matrix.profile }} --json
       - name: Upload the build logs and CI evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -280,6 +320,10 @@ jobs:
           name: report-${{ matrix.name }}
           path: |
             .strata/targets/
+            **/.strata/reports/
+            **/dist/plugins/
+            **/dist/tools/
+            dist/products/
             .ost-ci/
   mainline:
     if: github.event_name == 'push'
@@ -300,6 +344,9 @@ jobs:
           - name: pointcloud-las-main-windows
             lane: main
             runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -312,12 +359,15 @@ jobs:
             runner_profile: windows-hosted
             bundle: plugins/pointcloud-las
             runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
-            host_python: ""
+            host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-laz-main-windows
             lane: main
             runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -330,12 +380,15 @@ jobs:
             runner_profile: windows-hosted
             bundle: plugins/pointcloud-laz
             runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
-            host_python: ""
+            host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-las-main-macos-arm64
             lane: main
             runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -354,6 +407,9 @@ jobs:
           - name: pointcloud-laz-main-macos-arm64
             lane: main
             runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -372,6 +428,9 @@ jobs:
           - name: pointcloud-las-main-linux
             lane: main
             runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -390,6 +449,9 @@ jobs:
           - name: pointcloud-laz-main-linux
             lane: main
             runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -408,6 +470,9 @@ jobs:
           - name: pointcloud-copc-main-windows
             lane: main
             runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -420,12 +485,15 @@ jobs:
             runner_profile: windows-hosted
             bundle: plugins/pointcloud-copc
             runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
-            host_python: ""
+            host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-copc-main-macos-arm64
             lane: main
             runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -444,6 +512,9 @@ jobs:
           - name: pointcloud-copc-main-linux
             lane: main
             runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -462,6 +533,9 @@ jobs:
           - name: pointcloud-ply-main-windows
             lane: main
             runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -474,12 +548,15 @@ jobs:
             runner_profile: windows-hosted
             bundle: plugins/pointcloud-ply
             runtime_remote: "oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf"
-            host_python: ""
+            host_python: "3.13"
             host_packages_apt: ""
             host_packages_brew: ""
           - name: pointcloud-ply-main-macos-arm64
             lane: main
             runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -498,6 +575,9 @@ jobs:
           - name: pointcloud-ply-main-linux
             lane: main
             runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
+            require_openusd: ""
+            require_openusd_version: ""
+            openusd_flags: ""
             target_trust: local
             minimum_trust: local
             require_evidence: all
@@ -520,7 +600,7 @@ jobs:
         if: ${{ matrix.hosted }}
         shell: bash
         run: echo "::notice title=OpenStrata hosted-runner usage::This job uses GitHub-hosted infrastructure. Private repositories may incur GitHub Actions usage charges. Review repository billing and Actions usage settings."
-      - name: Bootstrap ost 0.22.8 (pinned release asset, checksum-verified)
+      - name: Bootstrap ost 0.23.19 (pinned release asset, checksum-verified)
         if: ${{ matrix.hosted }}
         shell: bash
         run: |
@@ -538,7 +618,7 @@ jobs:
             *) : ;;
           esac
           asset="ost-cli-${triple}.${ext}"
-          base="https://github.com/animu-sphere/open-strata/releases/download/v0.22.8"
+          base="https://github.com/animu-sphere/open-strata/releases/download/v0.23.19"
           curl -fsSLo "$asset" "$base/$asset"
           curl -fsSLo "$asset.sha256" "$base/$asset.sha256"
           actual="$( (command -v sha256sum > /dev/null && sha256sum "$asset" || shasum -a 256 "$asset") | cut -d' ' -f1 )"
@@ -572,7 +652,7 @@ jobs:
           echo "$exported_path" >> "$GITHUB_PATH"
           json_executable="$(printf '%s' "$executable" | sed 's/\\/\\\\/g; s/"/\\"/g')"
           json_exported_path="$(printf '%s' "$exported_path" | sed 's/\\/\\\\/g; s/"/\\"/g')"
-          printf '{"schema":1,"pinned_version":"%s","asset":"%s","sha256":"%s","executable":"%s","exported_path":"%s"}\n' "0.22.8" "$asset" "$actual" "$json_executable" "$json_exported_path" > .ost-ci/bootstrap.json
+          printf '{"schema":1,"pinned_version":"%s","asset":"%s","sha256":"%s","executable":"%s","exported_path":"%s"}\n' "0.23.19" "$asset" "$actual" "$json_executable" "$json_exported_path" > .ost-ci/bootstrap.json
       - name: Check ost is available and record its version
         shell: bash
         run: |
@@ -585,8 +665,8 @@ jobs:
           fi
 
           echo "$version"
-          if [ "${{ matrix.hosted }}" = "true" ] && [ "$version" != "ost 0.22.8" ]; then
-            echo "::error title=ost bootstrap::expected 'ost 0.22.8', got '$version'" ; exit 1
+          if [ "${{ matrix.hosted }}" = "true" ] && [ "$version" != "ost 0.23.19" ]; then
+            echo "::error title=ost bootstrap::expected 'ost 0.23.19', got '$version'" ; exit 1
           fi
           printf '{"schema":1,"ost_version":"%s"}\n' "$version" > .ost-ci/ost-version.json
       - name: Validate the CI manifest
@@ -598,30 +678,47 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ost-ci-home/artifacts
-          key: ost-registry-0.22.8-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
+          key: ost-registry-0.23.19-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
       - name: Pull the pinned runtime SDK from its remote reference
         if: ${{ matrix.runtime_remote != '' }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p .ost-ci
+          set --
+          if [ -n "${{ matrix.require_openusd }}" ]; then
+            set -- "$@" --require-openusd "${{ matrix.require_openusd }}"
+          fi
+          if [ -n "${{ matrix.require_openusd_version }}" ]; then
+            set -- "$@" --require-openusd-version "${{ matrix.require_openusd_version }}"
+          fi
           if ost artifact show "${{ matrix.runtime_artifact }}" --json > /dev/null 2>&1 \
-             && ost artifact verify "${{ matrix.runtime_artifact }}" ${{ matrix.evidence_flags }} --json > .ost-ci/runtime-cache-verify.json; then
+             && ost artifact verify "${{ matrix.runtime_artifact }}" ${{ matrix.evidence_flags }} "$@" --json > .ost-ci/runtime-cache-verify.json; then
             echo "pinned runtime already present and verified (cache hit) -- skipping the remote pull"
           else
             if [ "${{ matrix.hosted }}" = "true" ] && [ -n "${OST_HOME:-}" ]; then
               rm -rf "${OST_HOME}/artifacts"
             fi
-            ost artifact pull "${{ matrix.runtime_remote }}" --expect-artifact "${{ matrix.runtime_artifact }}" --require-kind runtime --json | tee .ost-ci/runtime-pull.json
+            ost artifact pull "${{ matrix.runtime_remote }}" --expect-artifact "${{ matrix.runtime_artifact }}" --require-kind runtime "$@" --json | tee .ost-ci/runtime-pull.json
           fi
       - name: Verify and materialize the pinned runtime SDK
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p .ost-ci
-          printf '{"schema":1,"runtime_artifact":"%s","source":"%s"}\n' "${{ matrix.runtime_artifact }}" "${{ matrix.runtime_remote != '' && 'remote-pull' || 'local-registry' }}" > .ost-ci/runtime-source.json
-          ost artifact verify ${{ matrix.runtime_artifact }} --minimum-trust ${{ matrix.minimum_trust }} ${{ matrix.evidence_flags }}
+          printf '{"schema":1,"runtime_artifact":"%s","require_openusd":"%s","require_openusd_version":"%s","source":"%s"}\n' "${{ matrix.runtime_artifact }}" "${{ matrix.require_openusd }}" "${{ matrix.require_openusd_version }}" "${{ matrix.runtime_remote != '' && 'remote-pull' || 'local-registry' }}" > .ost-ci/runtime-source.json
+          set --
+          if [ -n "${{ matrix.require_openusd }}" ]; then
+            set -- "$@" --require-openusd "${{ matrix.require_openusd }}"
+          fi
+          if [ -n "${{ matrix.require_openusd_version }}" ]; then
+            set -- "$@" --require-openusd-version "${{ matrix.require_openusd_version }}"
+          fi
+          ost artifact verify ${{ matrix.runtime_artifact }} --minimum-trust ${{ matrix.minimum_trust }} ${{ matrix.evidence_flags }} "$@"
           ost runtime pull ${{ matrix.platform }} --profile ${{ matrix.profile }} --from-artifact ${{ matrix.runtime_artifact }} --force
+      - name: Pull digest-pinned external library artifacts
+        shell: bash
+        run: ost library pull --target ${{ matrix.platform }} --profile ${{ matrix.profile }} --json
       - name: Remove resumable transfer state before caching
         if: ${{ matrix.hosted && vars.OST_CI_DISABLE_CACHE != 'true' && steps.runtime-cache-restore.outputs.cache-hit != 'true' }}
         shell: bash
@@ -631,7 +728,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ost-ci-home/artifacts
-          key: ost-registry-0.22.8-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
+          key: ost-registry-0.23.19-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}-${{ matrix.runtime_artifact }}
       - name: Install the host packages this runtime needs to be consumed
         if: ${{ matrix.host_packages_apt != '' || matrix.host_packages_brew != '' }}
         shell: bash

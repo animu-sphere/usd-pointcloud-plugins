@@ -61,6 +61,25 @@ All notable changes to this project are documented here.
 - The authoring stream benchmark builds on macOS, where `std::uintmax_t` and
   `std::uint64_t` are distinct types.
 
+### CI
+
+- Bootstrap OpenStrata `ost` 0.23.19 (from 0.22.8) in source CI and the
+  release workflow, and regenerate `ost-source-ci.yml` with that CLI. The
+  generated workflow passes OpenUSD requirement arguments to artifact pull and
+  verify, adds an `ost library pull` step (nothing is pulled; the workspace
+  declares no external libraries), supports the `pyramid` and `package` verify
+  modes, and uploads the `.strata/reports` and `dist` outputs as job
+  artifacts.
+- The three OpenUSD 26.08 runtime artifacts are rechecked rather than
+  re-pinned: the registry still serves the `26.08-gl-windows-x86_64`,
+  `26.08-metal-macos-arm64`, and `26.08-gl-linux-x86_64` leaves at the pinned
+  digests, and 26.08 is still the newest version in ost's runtime matrix. The
+  provenance comment in `openstrata.ci.yaml` now names those leaves and
+  digests.
+- Windows cells declare `host_python: "3.13"`. ost 0.23.x `runtime validate`
+  links and runs a C++ consumer, and the Windows runtime's USD DLLs import
+  `python313.dll`, which is on PATH only after host Python is set up.
+
 ### Compatibility
 
 - Payload files written by earlier tiled reads directly into

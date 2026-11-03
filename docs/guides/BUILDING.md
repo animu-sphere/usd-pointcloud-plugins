@@ -9,7 +9,8 @@ Requirements:
 
 - CMake 3.23 or newer
 - A C++17 compiler
-- OpenStrata `ost` 0.22.7 for the pinned workspace build
+- OpenStrata `ost` 0.23.19 for the pinned workspace build (the CI bootstrap
+  in `openstrata.ci.yaml`)
 - OpenUSD 26.08 for the USD targets, with the plugin contract accepting
   `>=26.08,<27.0`
 

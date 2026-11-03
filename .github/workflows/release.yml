@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  OST_VERSION: '0.22.8'
+  OST_VERSION: '0.23.19'
   OST_REPOSITORY: animu-sphere/open-strata
   OST_PLATFORM: cy2026
   OST_PROFILE: usd
@@ -40,7 +40,9 @@ jobs:
             ost_home: ''
             runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
             runtime_remote: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
-            host_python: ''
+            # ost 0.23.x runtime validation runs a C++ consumer whose USD DLLs
+            # import python313.dll; see openstrata.ci.yaml.
+            host_python: '3.13'
             host_packages_apt: ''
             up_to: 4
           - name: linux-x86_64
