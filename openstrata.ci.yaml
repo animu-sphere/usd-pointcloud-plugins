@@ -29,29 +29,47 @@
 #       macOS needs no equivalent: the OpenGL framework ships with the SDK.
 #
 # Digest provenance:
-#   All three runtimes are the validated OpenUSD 26.08 (PXR_VERSION 2608) builds
-#   published by animu-sphere, and are the same artifacts usd-vrm-plugins pins.
-#   Each carries an SPDX SBOM and SLSA/in-toto provenance, which is what the
+#   All three runtimes are the validated OpenUSD 26.08 (PXR_VERSION 2608)
+#   imaging leaves of ost's canonical runtime matrix, published by animu-sphere,
+#   and are the same artifacts usd-vrm-plugins and usd-3dgs-plugins pin. Each
+#   carries an SPDX SBOM and SLSA/in-toto provenance, which is what the
 #   `--require-sbom --require-provenance` gate `ost ci generate` renders demands.
 #
-#   DO NOT re-pin from the moving `26.08-<platform>` GHCR tags. Those tags point
-#   at a separate runtime build configured WITH Vulkan, whose `pxrTargets.cmake`
-#   puts `Vulkan::Vulkan` in the `hgiVulkan` link interface while `pxrConfig.cmake`
-#   never issues a matching `find_dependency(Vulkan)`. Consuming it fails at the
-#   CMake generate step with "the link interface of target hgiVulkan contains:
-#   Vulkan::Vulkan but the target was not found" on every platform.
+#     Windows: leaf 26.08-gl-windows-x86_64
+#              OST artifact sha256:ebb0c7da... / OCI sha256:d3ff79a6...
+#     macOS:   leaf 26.08-metal-macos-arm64
+#              OST artifact sha256:8d132212... / OCI sha256:8486d942...
+#     Linux:   leaf 26.08-gl-linux-x86_64
+#              OST artifact sha256:3bf31789... / OCI sha256:8d2d5994...
 #
-#   The OCI manifest digest is NOT stable across republishes (provenance embeds
-#   the producing commit), so `expected_oci_digest` must be re-pinned from the
-#   push output every time, while `runtime_artifact` stays put.
-#     Windows: OST artifact sha256:c3ed4012... / OCI sha256:07cb8441...
-#     macOS:   OST artifact sha256:a9bb847a... / OCI sha256:dc0c980b...
-#     Linux:   OST artifact sha256:03f7d4ef... / OCI sha256:367a32bd...
+#   Rechecked 2026-11-03 for the ost 0.23.19 bootstrap: the registry still
+#   serves each leaf tag at the OCI digest pinned below, and 26.08 is still the
+#   newest version in ost's runtime matrix, so no cell is re-pinned.
+#
+#   DO NOT re-pin from the legacy `26.08-<platform>` GHCR tags (no variant).
+#   Those pointed at a runtime build configured WITH Vulkan, whose
+#   `pxrTargets.cmake` puts `Vulkan::Vulkan` in the `hgiVulkan` link interface
+#   while `pxrConfig.cmake` never issues a matching `find_dependency(Vulkan)`.
+#   Consuming it fails at the CMake generate step with "the link interface of
+#   target hgiVulkan contains: Vulkan::Vulkan but the target was not found".
+#   Re-pin only from the `<version>-<variant>-<os>-<arch>` leaves above.
+#
+#   Neither the OCI manifest digest nor `runtime_artifact` is stable across a
+#   republish (provenance embeds the producing commit): re-pin both from the
+#   producer's push output, and check ost's support/runtime-migrations.json for
+#   a recorded replacement when a pinned digest stops resolving.
+#
+#   WINDOWS HOST PYTHON. ost 0.23.x `runtime validate` links and runs a C++
+#   consumer (`consumer-link`). The Windows runtime bundles no interpreter and
+#   its USD DLLs import python313.dll, so without a host Python on PATH that
+#   consumer exits 0xC0000135 (DLL not found). Every Windows cell therefore
+#   declares host_python "3.13", as the Linux and macOS cells already did;
+#   usd-vrm-plugins and usd-3dgs-plugins measured this on the same digest.
 schema: 1
 
 bootstrap:
   ost:
-    version: "0.22.8"
+    version: "0.23.19"
     repository: animu-sphere/open-strata
 
 runners:
@@ -83,6 +101,7 @@ cells:
     bundle: plugins/pointcloud-las
     platform: cy2026
     profile: usd
+    host_python: "3.13"
     up_to: 4
 
   - name: pointcloud-laz-main-windows
@@ -95,6 +114,7 @@ cells:
     bundle: plugins/pointcloud-laz
     platform: cy2026
     profile: usd
+    host_python: "3.13"
     up_to: 4
 
   - name: pointcloud-las-main-macos-arm64
@@ -163,6 +183,7 @@ cells:
     bundle: plugins/pointcloud-copc
     platform: cy2026
     profile: usd
+    host_python: "3.13"
     up_to: 4
 
   - name: pointcloud-copc-main-macos-arm64
@@ -203,6 +224,7 @@ cells:
     bundle: plugins/pointcloud-ply
     platform: cy2026
     profile: usd
+    host_python: "3.13"
     up_to: 4
 
   - name: pointcloud-ply-main-macos-arm64
@@ -256,6 +278,7 @@ cells:
       expected_oci_digest: sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
     platform: cy2026
     profile: usd
+    host_python: "3.13"
 
   - name: workspace-pr-macos-arm64
     lane: pull_request

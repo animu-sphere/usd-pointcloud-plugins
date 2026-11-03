@@ -365,11 +365,45 @@ void TestMissingFileDiagnostic() {
     mark.Clear();
 }
 
+void TestTiledStorageFailureDiagnostic() {
+    // A payload directory that is a regular file cannot hold the tile-spool
+    // workspace. The read must say its own working storage failed, not that
+    // the LAS source could not be authored.
+    pxr::TfErrorMark mark;
+    const auto source = std::filesystem::path(USDGEOLAS_SOURCE_DIR) /
+                        "tests" / "fixtures" / "conformance.las";
+    const auto uniqueSuffix =
+        std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    const auto blocker = std::filesystem::temp_directory_path() /
+                         ("usd_pointcloud_plugins_payload_blocker_" +
+                          std::to_string(uniqueSuffix));
+    {
+        std::ofstream file(blocker, std::ios::binary);
+        file << "not a directory";
+    }
+    const pxr::SdfLayer::FileFormatArguments arguments = {
+        {"payloadDirectory", blocker.string()},
+        {"tile", "true"},
+        {"tileSize", "1"}};
+    Check(!pxr::SdfLayer::FindOrOpen(source.string(), arguments));
+    Check(!mark.IsClean());
+    bool reported = false;
+    for (auto error = mark.GetBegin(); error != mark.GetEnd(); ++error) {
+        reported = reported ||
+                   error->GetCommentary().find("[LAS018]") != std::string::npos;
+    }
+    Check(reported);
+    mark.Clear();
+    Check(std::filesystem::is_regular_file(blocker));
+    std::filesystem::remove(blocker);
+}
+
 } // namespace
 
 int main() {
     TestFileFormatIntegration();
     TestMissingFileDiagnostic();
+    TestTiledStorageFailureDiagnostic();
     TestCheckedInAssets();
     return 0;
 }

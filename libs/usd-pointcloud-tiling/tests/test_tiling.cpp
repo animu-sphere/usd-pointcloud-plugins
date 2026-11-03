@@ -9,6 +9,10 @@
 #include <limits>
 #include <vector>
 
+#if defined(__unix__) || defined(__APPLE__)
+#include <sys/resource.h>
+#endif
+
 namespace {
 
 void Check(bool condition) {
@@ -356,8 +360,131 @@ void TestIncompleteSpool() {
         std::vector<usdgeo::Diagnostic> diagnostics;
         Check(!reader.Open(path, tile, schema, diagnostics));
         Check(!diagnostics.empty());
+        Check(diagnostics.front().code ==
+              usdgeo::DiagnosticCode::SpoolIncomplete);
+        Check(usdgeo::StoppedByWorkingStorageFailure(diagnostics));
     }
     std::filesystem::remove(path);
+}
+
+usdpointcloud::SpoolSchema TestSpoolSchema() {
+    usdpointcloud::SpoolSchema schema;
+    schema.attributes.push_back(
+        {"intensity", usdpointcloud::PointAttributeType::UInt16});
+    return schema;
+}
+
+usdpointcloud::SpoolPoint TestSpoolPoint(double x) {
+    return {{x, 0.0, 0.0}, {x, 0.0, 0.0}, {std::uint16_t{7}}};
+}
+
+void TestMissingSpoolIsIncomplete() {
+    const auto path =
+        std::filesystem::temp_directory_path() / "usdgeo-missing-spool.bin";
+    std::filesystem::remove(path);
+    usdpointcloud::TileSpoolReader reader;
+    usdpointcloud::PointTileId tile;
+    usdpointcloud::SpoolSchema schema;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!reader.Open(path, tile, schema, diagnostics));
+    Check(diagnostics.size() == 1);
+    Check(diagnostics.front().code == usdgeo::DiagnosticCode::SpoolIncomplete);
+    usdpointcloud::SpoolPoint point;
+    Check(!reader.ReadNext(point, diagnostics));
+    Check(!reader.IsComplete());
+}
+
+void TestUnfinalizedSpoolIsIncomplete() {
+    // Points are flushed but the writer never closes, as when a generator is
+    // killed: the reader must refuse the spool rather than report its points
+    // as the whole tile.
+    const auto path = std::filesystem::temp_directory_path() /
+                      "usdgeo-unfinalized-spool.bin";
+    const usdpointcloud::PointTileId tile{0, 1, 2, 0};
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    {
+        usdpointcloud::TileSpoolWriter writer;
+        Check(writer.Open(path, tile, TestSpoolSchema(), 1, diagnostics));
+        Check(writer.Append(TestSpoolPoint(1.0), diagnostics));
+        Check(writer.Append(TestSpoolPoint(2.0), diagnostics));
+        Check(writer.Flush(diagnostics));
+        Check(diagnostics.empty());
+    }
+    usdpointcloud::TileSpoolReader reader;
+    usdpointcloud::PointTileId readTile;
+    usdpointcloud::SpoolSchema readSchema;
+    if (reader.Open(path, readTile, readSchema, diagnostics)) {
+        usdpointcloud::SpoolPoint point;
+        while (reader.ReadNext(point, diagnostics)) {
+        }
+    }
+    Check(!reader.IsComplete());
+    Check(!diagnostics.empty());
+    Check(diagnostics.front().code == usdgeo::DiagnosticCode::SpoolIncomplete);
+    reader.Close();
+    std::filesystem::remove(path);
+}
+
+void TestUnwritableSpoolReportsWriteFailure() {
+    const auto directory = std::filesystem::temp_directory_path() /
+                           "usdgeo-missing-spool-directory";
+    std::filesystem::remove_all(directory);
+    usdpointcloud::TileSpoolWriter writer;
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    Check(!writer.Open(directory / "tile_0.bin", {0, 0, 0, 0},
+                       TestSpoolSchema(), 1, diagnostics));
+    Check(diagnostics.size() == 1);
+    Check(diagnostics.front().code == usdgeo::DiagnosticCode::SpoolWriteFailed);
+    Check(usdgeo::StoppedByWorkingStorageFailure(diagnostics));
+    Check(!std::filesystem::exists(directory));
+}
+
+void TestExhaustedOpenFileBudgetIsReported() {
+#if defined(__unix__) || defined(__APPLE__)
+    // Lower the soft descriptor limit below every descriptor already open, so
+    // the next open fails exactly as it would in a generator holding one
+    // spool per tile, then restore it.
+    const auto directory = std::filesystem::temp_directory_path();
+    const auto writePath = directory / "usdgeo-budget-spool-write.bin";
+    const auto readPath = directory / "usdgeo-budget-spool-read.bin";
+    std::vector<usdgeo::Diagnostic> diagnostics;
+    {
+        usdpointcloud::TileSpoolWriter writer;
+        Check(writer.Open(readPath, {0, 0, 0, 0}, TestSpoolSchema(), 1,
+                          diagnostics));
+        Check(writer.Append(TestSpoolPoint(1.0), diagnostics));
+        Check(writer.Close(diagnostics));
+    }
+    rlimit original{};
+    Check(getrlimit(RLIMIT_NOFILE, &original) == 0);
+    rlimit exhausted = original;
+    exhausted.rlim_cur = 0;
+    Check(setrlimit(RLIMIT_NOFILE, &exhausted) == 0);
+    usdpointcloud::TileSpoolWriter writer;
+    std::vector<usdgeo::Diagnostic> writeDiagnostics;
+    const auto writeOpened = writer.Open(writePath, {0, 0, 0, 0},
+                                         TestSpoolSchema(), 1,
+                                         writeDiagnostics);
+    usdpointcloud::TileSpoolReader reader;
+    usdpointcloud::PointTileId tile;
+    usdpointcloud::SpoolSchema schema;
+    std::vector<usdgeo::Diagnostic> readDiagnostics;
+    const auto readOpened =
+        reader.Open(readPath, tile, schema, readDiagnostics);
+    Check(setrlimit(RLIMIT_NOFILE, &original) == 0);
+
+    Check(!writeOpened);
+    Check(writeDiagnostics.size() == 1);
+    Check(writeDiagnostics.front().code ==
+          usdgeo::DiagnosticCode::OpenFileBudgetExhausted);
+    Check(!readOpened);
+    Check(readDiagnostics.size() == 1);
+    Check(readDiagnostics.front().code ==
+          usdgeo::DiagnosticCode::OpenFileBudgetExhausted);
+    Check(usdgeo::StoppedByWorkingStorageFailure(readDiagnostics));
+    std::filesystem::remove(writePath);
+    std::filesystem::remove(readPath);
+#endif
 }
 
 } // namespace
@@ -369,6 +496,10 @@ int main() {
     TestInvalidRouting();
     TestSpoolRoundTrip();
     TestIncompleteSpool();
+    TestMissingSpoolIsIncomplete();
+    TestUnfinalizedSpoolIsIncomplete();
+    TestUnwritableSpoolReportsWriteFailure();
+    TestExhaustedOpenFileBudgetIsReported();
     TestPointBudgetStreamPlanning();
     TestPointBudgetPlanningMatchesVectorForUnevenDistribution();
     TestPointBudgetDepthLimit();

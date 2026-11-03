@@ -1,5 +1,6 @@
 #include "usdpointcloud/Spool.h"
 
+#include <cerrno>
 #include <cstring>
 #include <fstream>
 #include <limits>
@@ -28,8 +29,18 @@ constexpr std::streamoff kFooterSize =
 
 void Error(std::vector<usdgeo::Diagnostic>& diagnostics,
            usdgeo::DiagnosticCode code,
-           const char* message) {
+           const std::string& message) {
     diagnostics.push_back({code, usdgeo::Severity::Error, message});
+}
+
+// The code for a spool file that could not be opened. The standard streams
+// report no reason, but the C runtime beneath them sets errno, which is the
+// only portable way to tell a process out of file handles from any other
+// open failure. Call ClearOpenError() immediately before opening.
+void ClearOpenError() noexcept { errno = 0; }
+
+bool OpenFileBudgetExhausted() noexcept {
+    return errno == EMFILE || errno == ENFILE;
 }
 
 template <typename T>
@@ -245,10 +256,17 @@ bool TileSpoolWriter::Open(const std::filesystem::path& path,
     EnsureSpoolFileDescriptorBudget();
 #endif
     impl_ = std::make_unique<Impl>();
+    ClearOpenError();
     impl_->stream.open(path, std::ios::binary | std::ios::trunc);
     if (!impl_->stream) {
-        Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
-              ("unable to create tile spool: " + path.string()).c_str());
+        if (OpenFileBudgetExhausted()) {
+            Error(diagnostics, usdgeo::DiagnosticCode::OpenFileBudgetExhausted,
+                  "unable to create tile spool, the process has no file "
+                  "handles left: " + path.string());
+        } else {
+            Error(diagnostics, usdgeo::DiagnosticCode::SpoolWriteFailed,
+                  "unable to create tile spool: " + path.string());
+        }
         impl_.reset();
         return false;
     }
@@ -263,14 +281,14 @@ bool TileSpoolWriter::Open(const std::filesystem::path& path,
     if (!Write(impl_->stream, version) || !Write(impl_->stream, coordinateSpace) ||
         !Write(impl_->stream, tile.level) || !Write(impl_->stream, tile.x) ||
         !Write(impl_->stream, tile.y) || !Write(impl_->stream, attributeCount)) {
-        Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+        Error(diagnostics, usdgeo::DiagnosticCode::SpoolWriteFailed,
               "unable to write tile spool header");
         return false;
     }
     for (const auto& attribute : schema.attributes) {
         const auto type = static_cast<std::uint8_t>(attribute.type);
         if (!WriteString(impl_->stream, attribute.name) || !Write(impl_->stream, type)) {
-            Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+            Error(diagnostics, usdgeo::DiagnosticCode::SpoolWriteFailed,
                   "unable to write tile spool schema");
             return false;
         }
@@ -313,7 +331,7 @@ bool TileSpoolWriter::Append(const SpoolPoint& point,
 
 bool TileSpoolWriter::Flush(std::vector<usdgeo::Diagnostic>& diagnostics) {
     if (!impl_ || !impl_->open) {
-        Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+        Error(diagnostics, usdgeo::DiagnosticCode::SpoolWriteFailed,
               "unable to flush tile spool");
         return false;
     }
@@ -323,14 +341,14 @@ bool TileSpoolWriter::Flush(std::vector<usdgeo::Diagnostic>& diagnostics) {
                                  sizeof(point.sourcePosition)) ||
             !impl_->stream.write(reinterpret_cast<const char*>(&point.stagePosition),
                                  sizeof(point.stagePosition))) {
-            Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+            Error(diagnostics, usdgeo::DiagnosticCode::SpoolWriteFailed,
                   "unable to write tile spool point");
             return false;
         }
         for (std::size_t index = 0; index < point.attributes.size(); ++index) {
             if (!WriteAttribute(impl_->stream, impl_->schema.attributes[index].type,
                                 point.attributes[index])) {
-                Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+                Error(diagnostics, usdgeo::DiagnosticCode::SpoolWriteFailed,
                       "unable to write tile spool attribute");
                 return false;
             }
@@ -340,7 +358,7 @@ bool TileSpoolWriter::Flush(std::vector<usdgeo::Diagnostic>& diagnostics) {
     std::vector<SpoolPoint>().swap(impl_->points);
     impl_->buffered = 0;
     if (!impl_->stream.flush()) {
-        Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+        Error(diagnostics, usdgeo::DiagnosticCode::SpoolWriteFailed,
               "unable to flush tile spool");
         return false;
     }
@@ -364,7 +382,7 @@ bool TileSpoolWriter::Close(std::vector<usdgeo::Diagnostic>& diagnostics) {
     const auto start = impl_->stream.tellp();
     if (!impl_->stream.write(kFooter, sizeof(kFooter) - 1) ||
         !Write(impl_->stream, impl_->pointCount) || !impl_->stream.flush()) {
-        Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+        Error(diagnostics, usdgeo::DiagnosticCode::SpoolWriteFailed,
               "unable to finalize tile spool");
         return false;
     }
@@ -401,7 +419,20 @@ bool TileSpoolReader::Open(const std::filesystem::path& path,
                            std::vector<usdgeo::Diagnostic>& diagnostics,
                            SpoolIoStats* ioStats) {
     impl_ = std::make_unique<Impl>();
+    ClearOpenError();
     impl_->stream.open(path, std::ios::binary);
+    if (!impl_->stream) {
+        if (OpenFileBudgetExhausted()) {
+            Error(diagnostics, usdgeo::DiagnosticCode::OpenFileBudgetExhausted,
+                  "unable to open tile spool, the process has no file "
+                  "handles left: " + path.string());
+        } else {
+            Error(diagnostics, usdgeo::DiagnosticCode::SpoolIncomplete,
+                  "unable to open tile spool: " + path.string());
+        }
+        impl_.reset();
+        return false;
+    }
     char header[sizeof(kHeader) - 1] = {};
     std::uint8_t coordinateSpace = 0;
     std::uint32_t attributeCount = 0;
@@ -411,7 +442,7 @@ bool TileSpoolReader::Open(const std::filesystem::path& path,
         !Read(impl_->stream, tile.level) || !Read(impl_->stream, tile.x) ||
         !Read(impl_->stream, tile.y) || !Read(impl_->stream, attributeCount) ||
         attributeCount > 100000) {
-        Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+        Error(diagnostics, usdgeo::DiagnosticCode::SpoolIncomplete,
               "invalid or truncated tile spool header");
         return false;
     }
@@ -422,7 +453,7 @@ bool TileSpoolReader::Open(const std::filesystem::path& path,
         PointAttribute attribute;
         std::uint8_t type = 0;
         if (!ReadString(impl_->stream, attribute.name) || !Read(impl_->stream, type)) {
-            Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+            Error(diagnostics, usdgeo::DiagnosticCode::SpoolIncomplete,
                   "invalid or truncated tile spool schema");
             return false;
         }
@@ -446,13 +477,13 @@ bool TileSpoolReader::Open(const std::filesystem::path& path,
         fileEnd - dataStart < kFooterSize ||
         (fileEnd - dataStart - kFooterSize) %
                 static_cast<std::streamoff>(impl_->recordSize) != 0) {
-        Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+        Error(diagnostics, usdgeo::DiagnosticCode::SpoolIncomplete,
               "invalid tile spool record layout");
         return false;
     }
     impl_->dataEnd = fileEnd - kFooterSize;
     if (impl_->dataEnd < dataStart) {
-        Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+        Error(diagnostics, usdgeo::DiagnosticCode::SpoolIncomplete,
               "invalid tile spool footer layout");
         return false;
     }
@@ -471,7 +502,7 @@ bool TileSpoolReader::ReadNext(SpoolPoint& point,
     }
     const auto position = impl_->stream.tellg();
     if (position < 0 || position > impl_->dataEnd) {
-        Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+        Error(diagnostics, usdgeo::DiagnosticCode::SpoolIncomplete,
               "incomplete tile spool");
         return false;
     }
@@ -482,7 +513,7 @@ bool TileSpoolReader::ReadNext(SpoolPoint& point,
         if (!impl_->stream.read(footer, sizeof(footer)) ||
             std::memcmp(footer, kFooter, sizeof(footer)) != 0 ||
             !Read(impl_->stream, count) || count != impl_->pointsRead) {
-            Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+            Error(diagnostics, usdgeo::DiagnosticCode::SpoolIncomplete,
                   "incomplete tile spool");
             return false;
         }
@@ -501,7 +532,7 @@ bool TileSpoolReader::ReadNext(SpoolPoint& point,
         !impl_->stream.read(reinterpret_cast<char*>(&point.sourcePosition),
                             sizeof(point.sourcePosition)) ||
         !impl_->stream.read(reinterpret_cast<char*>(&point.stagePosition), sizeof(point.stagePosition))) {
-        Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+        Error(diagnostics, usdgeo::DiagnosticCode::SpoolIncomplete,
               "truncated tile spool point");
         return false;
     }
@@ -509,7 +540,7 @@ bool TileSpoolReader::ReadNext(SpoolPoint& point,
     for (std::size_t index = 0; index < point.attributes.size(); ++index) {
         if (!ReadAttribute(impl_->stream, impl_->schema.attributes[index].type,
                            point.attributes[index])) {
-            Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+            Error(diagnostics, usdgeo::DiagnosticCode::SpoolIncomplete,
                   "truncated tile spool point");
             return false;
         }
@@ -534,7 +565,7 @@ bool RemoveSpoolDirectory(const std::filesystem::path& directory,
     std::error_code error;
     std::filesystem::remove_all(directory, error);
     if (error) {
-        Error(diagnostics, usdgeo::DiagnosticCode::DecodeFailure,
+        Error(diagnostics, usdgeo::DiagnosticCode::SpoolWorkspaceFailed,
               "unable to remove tile spool directory");
         return false;
     }

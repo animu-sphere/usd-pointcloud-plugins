@@ -25,3 +25,4 @@ record condition.
 | LAZ006 | FATAL | import | USD stage metrics could not be set |
 | LAZ007 | FATAL | import | LAZ point cloud could not be authored |
 | LAZ008 | FATAL | import | LAZ file-format arguments are invalid or unsupported |
+| LAZ009 | FATAL | import | Tiled LAZ read stopped by its own working storage (tile spool, spool workspace, file-handle budget, or payload publication) |

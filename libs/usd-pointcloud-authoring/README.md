@@ -123,6 +123,16 @@ authored, so a failed call does not leave a partially populated prim or a LOD
 root with missing children. OpenUSD's own diagnostics (`TF_RUNTIME_ERROR`) are
 emitted by the calling bundle, not here.
 
+Tiled authoring reports failures of its own working storage with dedicated
+codes, so a bundle can tell a full disk or a refused workspace from bad input:
+`SpoolWorkspaceFailed` when the spool workspace cannot be determined, created,
+recovered, or removed (including a directory that carries no spool marker and
+is therefore refused rather than emptied), `SpoolWriteFailed`,
+`SpoolIncomplete`, and `OpenFileBudgetExhausted` from the tile spools, and
+`PayloadCommitFailed` when a payload generation cannot be prepared, staged, or
+published. The first error is the cause; later entries add context.
+`usdgeo::StoppedByWorkingStorageFailure` tests for this case.
+
 ## Threading and ownership
 
 Authoring functions take an `SdfLayer*` or `UsdStageRefPtr` owned by the

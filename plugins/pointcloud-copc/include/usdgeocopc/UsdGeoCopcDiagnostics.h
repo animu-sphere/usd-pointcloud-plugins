@@ -29,6 +29,10 @@ inline constexpr const char* ResolverCacheReuseDisabled = "COPC009";
 inline constexpr const char* ResolverCacheReusePermitted = "COPC010";
 inline constexpr const char* ResolverIdentityChanged = "COPC011";
 inline constexpr const char* ResolverCacheInvalidated = "COPC012";
+// A tiled read stopped by its own working storage (tile spools, their
+// workspace, the process file-handle budget, or payload publication) rather
+// than by the source; see usdgeo::IsWorkingStorageFailure.
+inline constexpr const char* TiledStorageFailed = "COPC013";
 
 inline std::string Message(const char* code, const std::string& message) {
     return "[" + std::string(code) + "] " + message;

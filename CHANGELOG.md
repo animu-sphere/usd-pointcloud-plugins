@@ -20,8 +20,21 @@ All notable changes to this project are documented here.
   exact file-format arguments. The layout is in the
   [file-format argument contract](docs/architecture/FILE_FORMAT_ARGUMENTS.md#generated-payload-ownership).
 
+- Typed working-storage diagnostics: `usdgeo::DiagnosticCode` gains
+  `SpoolWorkspaceFailed`, `SpoolWriteFailed`, `SpoolIncomplete`,
+  `OpenFileBudgetExhausted`, and `PayloadCommitFailed`, with
+  `usdgeo::IsWorkingStorageFailure` and
+  `usdgeo::StoppedByWorkingStorageFailure`. Tiled reads stopped by their own
+  storage report the new plugin codes `LAS018`, `LAZ009`, `PLY008`, and
+  `COPC013`.
+
 ### Changed
 
+- Tile spools, the spool workspace, and payload publication report the
+  working-storage codes above instead of `DecodeFailure`, so a full disk, a
+  refused workspace, or a process out of file handles is no longer presented
+  as a source decoding problem. A tiled read stopped this way reports the new
+  plugin code rather than `LAS016`, `LAZ007`, `PLY007`, or `COPC007`.
 - Layer authoring builds content in an in-memory stage that loads nothing, and
   payload files are exported from in-memory layers. No authoring call renames
   a caller's layer or gives a scratch layer a file identity any more.
@@ -47,6 +60,25 @@ All notable changes to this project are documented here.
   instead of keeping whatever file already sat at the payload path.
 - The authoring stream benchmark builds on macOS, where `std::uintmax_t` and
   `std::uint64_t` are distinct types.
+
+### CI
+
+- Bootstrap OpenStrata `ost` 0.23.19 (from 0.22.8) in source CI and the
+  release workflow, and regenerate `ost-source-ci.yml` with that CLI. The
+  generated workflow passes OpenUSD requirement arguments to artifact pull and
+  verify, adds an `ost library pull` step (nothing is pulled; the workspace
+  declares no external libraries), supports the `pyramid` and `package` verify
+  modes, and uploads the `.strata/reports` and `dist` outputs as job
+  artifacts.
+- The three OpenUSD 26.08 runtime artifacts are rechecked rather than
+  re-pinned: the registry still serves the `26.08-gl-windows-x86_64`,
+  `26.08-metal-macos-arm64`, and `26.08-gl-linux-x86_64` leaves at the pinned
+  digests, and 26.08 is still the newest version in ost's runtime matrix. The
+  provenance comment in `openstrata.ci.yaml` now names those leaves and
+  digests.
+- Windows cells declare `host_python: "3.13"`. ost 0.23.x `runtime validate`
+  links and runs a C++ consumer, and the Windows runtime's USD DLLs import
+  `python313.dll`, which is on PATH only after host Python is set up.
 
 ### Compatibility
 

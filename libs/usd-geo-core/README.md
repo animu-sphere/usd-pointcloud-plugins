@@ -41,7 +41,8 @@ usdgeo/SpatialBounds.h   Vec3d, SpatialBounds
 usdgeo/GeoReference.h    GeoReference and its coordinate transforms
 usdgeo/TileId.h          TileId
 usdgeo/CacheKey.h        CacheArguments, NormalizeCacheArguments, StableCacheKey
-usdgeo/Diagnostic.h      Severity, DiagnosticCode, Diagnostic
+usdgeo/Diagnostic.h      Severity, DiagnosticCode, Diagnostic,
+                         IsWorkingStorageFailure, StoppedByWorkingStorageFailure
 usdgeo/RandomAccessSource.h  RandomAccessSource, LocalRandomAccessSource
 ```
 
@@ -81,6 +82,14 @@ implicitly.
 Fallible operations return `bool` and use out-parameters; source reads report
 typed `Diagnostic` values for invalid ranges, missing files, and short reads.
 Validity predicates are `noexcept` and total (`IsValid`, `IsFinite`).
+
+Five codes describe the generator's own working storage rather than the
+source: `SpoolWorkspaceFailed`, `SpoolWriteFailed`, `SpoolIncomplete`,
+`OpenFileBudgetExhausted`, and `PayloadCommitFailed`.
+`IsWorkingStorageFailure` classifies a code, and
+`StoppedByWorkingStorageFailure` reports whether the first error in a
+diagnostic list, the one that stopped the operation, is one of them. Their
+meaning is in the [diagnostics contract](../../docs/architecture/DIAGNOSTICS.md#working-storage-codes).
 
 ## Threading and ownership
 
@@ -126,8 +135,6 @@ bundle. See [BUILDING.md](../../docs/guides/BUILDING.md).
 
 ## Planned work
 
-- Diagnostic codes for the spool and payload failures introduced by
-  [streaming and tiling](../../docs/roadmap/streaming-and-tiling.md).
 - Cache-key inputs for tiling configuration, once that configuration exists.
 - `usdGeoCache` builds on `StableCacheKey` for USDC cache identity, layout,
   lookup, and invalidation. Generation and manifest publication belong to its

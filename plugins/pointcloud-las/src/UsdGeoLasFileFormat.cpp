@@ -305,7 +305,9 @@ bool UsdGeoLasFileFormat::Read(SdfLayer* layer,
                 layer, "/PointCloud", selected, reference,
                 {request.tileSize, 0}, payloadOptions, diagnostics)) {
             TF_RUNTIME_ERROR("%s", usdgeolas::diagnostics::Message(
-                                      usdgeolas::diagnostics::PointCloudAuthorFailed,
+                                      usdgeo::StoppedByWorkingStorageFailure(diagnostics)
+                                          ? usdgeolas::diagnostics::TiledStorageFailed
+                                          : usdgeolas::diagnostics::PointCloudAuthorFailed,
                                       "Unable to author tiled LAS point cloud: " +
                                           DiagnosticDetail(
                                               diagnostics,
